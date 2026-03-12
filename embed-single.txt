@@ -1,0 +1,39 @@
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}
+*{box-sizing:border-box;margin:0;padding:0}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}
+.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}
+.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}
+.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}
+.iva-tools{display:flex;gap:14px;width:100%}
+.iva-chat-wrap{display:flex;overflow:hidden;padding:0 24px 8px;max-width:1224px;margin:0 auto;width:100%}
+.iva-actions{display:flex;gap:8px;flex-wrap:wrap;padding:8px 24px 0;max-width:1224px;margin:0 auto;width:100%}
+.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}
+.iva-seo-title{font-size:64px}
+.iva-nav{height:84px;padding:24px 0 0}
+@media(max-width:768px){
+.iva-root{height:auto!important;min-height:100vh;overflow:auto!important}
+.iva-tools{flex-direction:column}
+.iva-chat-wrap{flex-direction:column;padding:0 12px 8px;gap:12px}
+.iva-chat-panel{width:100%!important;min-width:0!important;margin-right:0!important;max-height:50vh}
+.iva-report-panel{min-height:60vh}
+.iva-actions{flex-direction:row;flex-wrap:wrap;padding:8px 12px 0;justify-content:center}
+.iva-buy-grid{grid-template-columns:1fr}
+.iva-ctx-grid{grid-template-columns:1fr}
+.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}
+.iva-seo-title{font-size:32px}
+.iva-nav{height:auto;padding:12px 12px 0}
+}
+@media(max-width:520px){.iva-seo-title{font-size:26px}}
+</style>
+<div id="ivabot-root"><div style="padding:80px 40px;text-align:center;color:#928E95;font-family:'DM Sans',sans-serif">Loading SEO Tools...</div></div>
