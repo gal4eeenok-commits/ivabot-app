@@ -791,7 +791,7 @@ function IvaBotV6() {
 }
 
 /* ═══ MOUNT ═══ */
-const root = document.getElementById("ivabot-seo-root");
+const root = document.getElementById("ivabot-root");
 if (root) {
   if (ReactDOM.createRoot) {
     ReactDOM.createRoot(root).render(React.createElement(IvaBotV6));
