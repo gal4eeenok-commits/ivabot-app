@@ -379,23 +379,25 @@ const SerpSnippet = ({ url, title, desc }) => {
 };
 
 /* ═══ RANKINGS TABLE ═══ */
+const fmtVol = (v) => { if (!v) return "—"; if (v >= 1000000) return (v/1000000).toFixed(1).replace(/\.0$/,"") + "M"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"") + "K"; return v.toLocaleString(); };
 const RankingsTable = ({ rows, emptyMsg }) => (
   <div style={{ background: C.surface, borderRadius: 10, padding: "4px 14px", border: `1px solid ${C.cardBorder}` }}>
-  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
+    <colgroup><col style={{ width: "auto" }} /><col style={{ width: 60 }} /><col style={{ width: 72 }} /><col style={{ width: 68 }} /></colgroup>
     <thead><tr style={{ borderBottom: `1px solid ${C.border}` }}>
       <th style={{ textAlign: "left", padding: "8px 0", color: C.muted, fontWeight: 500, fontSize: 11.5 }}>Keyword</th>
-      <th style={{ textAlign: "center", padding: "8px 4px", color: C.muted, fontWeight: 500, width: 64, fontSize: 11.5 }}>Position</th>
-      <th style={{ textAlign: "right", padding: "8px 4px", color: C.muted, fontWeight: 500, width: 70, fontSize: 11.5 }}><span style={{ display: "inline-flex", alignItems: "flex-start", gap: 1 }}>Volume<QM text="Monthly search volume — how many times per month people search this keyword in Google." /></span></th>
-      <th style={{ textAlign: "right", padding: "8px 0", color: C.muted, fontWeight: 500, width: 72, fontSize: 11.5 }}><span style={{ display: "inline-flex", alignItems: "flex-start", gap: 1 }}>Difficulty<QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard." /></span></th>
+      <th style={{ textAlign: "center", padding: "8px 4px", color: C.muted, fontWeight: 500, fontSize: 11.5 }}>Pos.</th>
+      <th style={{ textAlign: "right", padding: "8px 4px", color: C.muted, fontWeight: 500, fontSize: 11.5 }}><span style={{ display: "inline-flex", alignItems: "flex-start", gap: 1 }}>Volume<QM text="Monthly search volume — how many times per month people search this keyword in Google." /></span></th>
+      <th style={{ textAlign: "right", padding: "8px 0", color: C.muted, fontWeight: 500, fontSize: 11.5 }}><span style={{ display: "inline-flex", alignItems: "flex-start", gap: 1 }}>KD<QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard." /></span></th>
     </tr></thead>
     <tbody>{rows.length > 0 ? rows.map((r, i) => (
       <tr key={i} style={{ borderBottom: i < rows.length - 1 ? `1px solid rgba(21,20,21,0.04)` : "none" }}>
-        <td style={{ padding: "10px 0", color: C.dark, fontWeight: 500 }}>{r.keyword}</td>
+        <td style={{ padding: "10px 0", color: C.dark, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.keyword}</td>
         <td style={{ textAlign: "center", padding: "10px 4px" }}>{r.position != null ? (
-          <span style={{ background: r.position <= 3 ? "rgba(110,43,255,0.08)" : "rgba(21,20,21,0.04)", color: r.position <= 3 ? C.accent : C.muted, fontWeight: 600, padding: "3px 12px", borderRadius: 8, fontSize: 12 }}>{r.position}</span>
+          <span style={{ background: r.position <= 3 ? "rgba(110,43,255,0.08)" : "rgba(21,20,21,0.04)", color: r.position <= 3 ? C.accent : C.muted, fontWeight: 600, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{r.position}</span>
         ) : <span style={{ color: C.muted, fontSize: 12 }}>—</span>}</td>
-        <td style={{ textAlign: "right", padding: "10px 4px", color: C.dark }}>{r.volume != null ? r.volume.toLocaleString() : "—"}</td>
-        <td style={{ textAlign: "right", padding: "10px 0", color: C.muted }}>{r.difficulty != null ? r.difficulty : "—"}</td>
+        <td style={{ textAlign: "right", padding: "10px 4px", color: C.dark, fontSize: 12 }}>{fmtVol(r.volume)}</td>
+        <td style={{ textAlign: "right", padding: "10px 0", color: C.muted, fontSize: 12 }}>{r.difficulty != null ? r.difficulty : "—"}</td>
       </tr>
     )) : <tr><td colSpan={4} style={{ padding: "14px 0", color: C.muted, fontSize: 12, textAlign: "center" }}>{emptyMsg || "No data available yet."}</td></tr>}</tbody>
   </table>
@@ -433,13 +435,13 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
   {bad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Needs Improvement" count={bad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{bad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
   <BotNote text="Want to go deeper? See how your competitors rank and where to earn backlinks." />
   <div className="reveal" style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-    <Fold title="Competitor SEO Tactics" borderColor={C.cardBorder} headerBg={C.card}><BotNote inline text="These are the top Google results competing for your topic. Study what they do — their titles, content structure, and authority — and apply what works." /><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.competitors.map((c, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
+    <Fold title="Competitor SEO Tactics" borderColor={C.cardBorder} headerBg={C.card}><BotNote inline text={`These are the top 3 organic Google results for "${data.keywords?.[0] || "your topic"}". They outrank you right now — here's what they're doing.`} /><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.competitors.map((c, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <span style={{ background: "rgba(110,43,255,0.08)", color: C.accent, fontWeight: 600, padding: "3px 10px", borderRadius: 8, fontSize: 11 }}>{c.rank ? `#${c.rank}` : `#${i + 1}`}</span>
+        <span style={{ background: "rgba(110,43,255,0.08)", color: C.accent, fontWeight: 700, width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>{i + 1}</span>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{c.name}</span>
       </div>
-      <div style={{ fontSize: 12, color: C.dark, fontWeight: 500, paddingLeft: 0, marginBottom: 2 }}>{c.tactics}</div>
-      {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.accent, textDecoration: "none" }}>{c.url.length > 60 ? c.url.slice(0, 57) + "..." : c.url} →</a>}
+      <div style={{ fontSize: 12, color: C.dark, fontWeight: 500, paddingLeft: 32, marginBottom: 2 }}>{c.tactics}</div>
+      {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.accent, textDecoration: "none", paddingLeft: 32, display: "block" }}>{c.url.length > 55 ? c.url.slice(0, 52) + "..." : c.url} →</a>}
     </div>))}</div></Fold>
     <Fold title="PR & Backlink Opportunities" borderColor={C.cardBorder} headerBg={C.card}>
       {data.backlinksCount != null && <div style={{ display: "flex", gap: 8, marginBottom: 8, marginTop: 4 }}>
@@ -457,7 +459,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
         </div>
       </div>}
       {(data.backlinksCount != null && data.backlinksCount < 10) && <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.15)", marginBottom: 8 }}><div style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: 2 }}>{data.backlinksCount === 0 ? "No backlinks detected" : "Low backlink count"}</div><div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>Backlinks are one of Google's top 3 ranking factors. {data.backlinksCount === 0 ? "Without them, it's very hard to rank on page one — even with perfect on-page SEO." : "With fewer than 10 backlinks, you're likely losing rankings to competitors with stronger link profiles."} Start with directories, guest posts, and industry publications.</div></div>}
-      <BotNote inline text="Every quality link from another website is a 'vote of confidence' for Google. Even 2–3 strong backlinks can make a real difference." />
+      <BotNote inline text="Every quality link from another website is a 'vote of confidence' for Google. Reach out to these sites — offer a guest post, suggest a resource mention, or propose a collaboration. Even 2–3 strong backlinks can make a real difference." />
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.backlinks.map((b, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{b.name}</span></div><div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 28 }}>{b.desc}</div></div>))}</div>
     </Fold>
   </div>
