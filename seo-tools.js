@@ -11,8 +11,8 @@ const STRIPE = { mini: "https://buy.stripe.com/test_mini", starter: "https://buy
 
 /* ═══ PRIMITIVES ═══ */
 const ScoreRing = ({ score, size = 92 }) => { const r = (size - 10) / 2, circ = 2 * Math.PI * r, off = circ - (score / 100) * circ, co = score >= 80 ? "#9B7AE6" : score >= 50 ? "#D4A0E8" : "#E2D4F5", lb = score >= 80 ? "Strong" : score >= 50 ? "Moderate" : "Weak"; return (<div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}><svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}><circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(21,20,21,0.05)" strokeWidth="6" /><circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={co} strokeWidth="6" strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round" style={{ transition: "stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1)" }} /></svg><div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 22, fontWeight: 700, color: C.dark }}>{score}</span><span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>{lb}</span></div></div>); };
-const Tip = ({ text, children }) => { const [s, setS] = useState(false); const ref = useRef(null); const [above, setAbove] = useState(true); return (<span ref={ref} style={{ position: "relative", display: "inline-flex", alignItems: "center" }} onMouseEnter={() => { if (ref.current) setAbove(ref.current.getBoundingClientRect().top > 120); setS(true); }} onMouseLeave={() => setS(false)}>{children}{s && <span style={{ position: "absolute", ...(above ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }), left: "50%", transform: "translateX(-50%)", background: C.surface, color: C.dark, padding: "10px 14px", borderRadius: 10, fontSize: 11, lineHeight: 1.45, width: 240, maxWidth: "80vw", zIndex: 50, fontWeight: 400, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", border: `1px solid ${C.border}`, pointerEvents: "none", whiteSpace: "normal" }}>{text}</span>}</span>); };
-const QM = ({ text }) => (<Tip text={text}><span style={{ width: 16, height: 16, borderRadius: "50%", border: `1px solid ${C.borderMid}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: C.muted, cursor: "help", marginLeft: 4, flexShrink: 0 }}>?</span></Tip>);
+const Tip = ({ text, children }) => { const [s, setS] = useState(false); const ref = useRef(null); const [pos, setPos] = useState({ above: true, alignRight: false }); return (<span ref={ref} style={{ position: "relative", display: "inline-flex", alignItems: "center" }} onMouseEnter={() => { if (ref.current) { const rect = ref.current.getBoundingClientRect(); setPos({ above: rect.top > 160, alignRight: rect.left > window.innerWidth / 2 }); } setS(true); }} onMouseLeave={() => setS(false)}>{children}{s && <span style={{ position: "absolute", ...(pos.above ? { bottom: "calc(100% + 8px)" } : { top: "calc(100% + 8px)" }), ...(pos.alignRight ? { right: 0 } : { left: 0 }), background: C.surface, color: C.dark, padding: "10px 14px", borderRadius: 10, fontSize: 11, lineHeight: 1.5, width: 260, maxWidth: "85vw", zIndex: 999, fontWeight: 400, boxShadow: "0 4px 24px rgba(0,0,0,0.14)", border: `1px solid ${C.border}`, pointerEvents: "none", whiteSpace: "normal", wordBreak: "break-word" }}>{text}</span>}</span>); };
+const QM = ({ text }) => (<Tip text={text}><span style={{ width: 16, height: 16, borderRadius: "50%", border: `1px solid ${C.borderMid}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: C.muted, cursor: "help", marginLeft: 4, flexShrink: 0, verticalAlign: "top", position: "relative", top: -1 }}>?</span></Tip>);
 const CopyBtn = ({ text }) => { const [c, setC] = useState(false); return (<button onClick={() => { navigator.clipboard?.writeText(text); setC(true); setTimeout(() => setC(false), 1500); }} style={{ fontSize: 10, fontWeight: 600, color: c ? "#9B7AE6" : C.accent, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: "2px 6px" }}>{c ? "Copied!" : "Copy"}</button>); };
 
 /* Hover card wrapper */
@@ -360,12 +360,13 @@ const BotNote = ({ text, inline }) => inline
 
 /* ═══ RANKINGS TABLE ═══ */
 const RankingsTable = ({ rows, emptyMsg }) => (
+  <div style={{ background: C.surface, borderRadius: 10, padding: "4px 14px", border: `1px solid ${C.cardBorder}` }}>
   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
     <thead><tr style={{ borderBottom: `1px solid ${C.border}` }}>
       <th style={{ textAlign: "left", padding: "8px 0", color: C.muted, fontWeight: 500, fontSize: 11.5 }}>Keyword</th>
       <th style={{ textAlign: "center", padding: "8px 4px", color: C.muted, fontWeight: 500, width: 64, fontSize: 11.5 }}>Position</th>
-      <th style={{ textAlign: "right", padding: "8px 4px", color: C.muted, fontWeight: 500, width: 70, fontSize: 11.5 }}><span>Volume </span><QM text="Monthly search volume — how many times per month people search this keyword in Google." /></th>
-      <th style={{ textAlign: "right", padding: "8px 0", color: C.muted, fontWeight: 500, width: 72, fontSize: 11.5 }}><span>Difficulty </span><QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard." /></th>
+      <th style={{ textAlign: "right", padding: "8px 4px", color: C.muted, fontWeight: 500, width: 70, fontSize: 11.5 }}><div style={{ display: "inline-flex", alignItems: "center" }}><span>Volume</span><QM text="Monthly search volume — how many times per month people search this keyword in Google." /></div></th>
+      <th style={{ textAlign: "right", padding: "8px 0", color: C.muted, fontWeight: 500, width: 72, fontSize: 11.5 }}><div style={{ display: "inline-flex", alignItems: "center" }}><span>Difficulty</span><QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard." /></div></th>
     </tr></thead>
     <tbody>{rows.length > 0 ? rows.map((r, i) => (
       <tr key={i} style={{ borderBottom: i < rows.length - 1 ? `1px solid rgba(21,20,21,0.04)` : "none" }}>
@@ -378,6 +379,7 @@ const RankingsTable = ({ rows, emptyMsg }) => (
       </tr>
     )) : <tr><td colSpan={4} style={{ padding: "14px 0", color: C.muted, fontSize: 12, textAlign: "center" }}>{emptyMsg || "No data available yet."}</td></tr>}</tbody>
   </table>
+  </div>
 );
 
 /* ═══ REPORT ═══ */
