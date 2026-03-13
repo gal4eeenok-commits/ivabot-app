@@ -217,37 +217,21 @@ function parseSEO(rawHtml, pageUrl) {
 
 /* Transform parsed + GPT + DataForSEO data into report format */
 function buildReportData(parsed, gpt, dfs) {
-  /* Process DataForSEO ranked_keywords into clean array */
-  const rankedRaw = dfs?.ranked_keywords || [];
-  const rankedKeywords = Array.isArray(rankedRaw) ? rankedRaw.filter(r => r?.keyword_data && r?.ranked_serp_element?.serp_item).map(r => ({
-    keyword: r.keyword_data.keyword,
-    position: r.ranked_serp_element.serp_item.rank_group,
-    volume: r.keyword_data.keyword_info?.search_volume || null,
-    difficulty: r.keyword_data.keyword_properties?.keyword_difficulty || null,
-  })).sort((a, b) => (a.position || 999) - (b.position || 999)).slice(0, 10) : [];
-
-  /* Process SERP competitors — top 3 organic results excluding our domain */
-  const serpRaw = dfs?.serp_competitors || [];
-  const ourDomain = parsed.hostname?.replace(/^www\./, "") || "";
-  const serpCompetitors = Array.isArray(serpRaw) ? serpRaw.filter(r => r?.type === "organic" && r?.domain && !r.domain.includes(ourDomain)).slice(0, 3).map(r => ({
-    name: r.domain,
-    tactics: r.title || "Competitor in SERP",
-    url: r.url,
-    rank: r.rank_group,
-  })) : [];
+  /* DataForSEO data comes pre-cleaned from Edge Function:
+     { ranked_keywords: [{keyword, position, volume, difficulty}], serp_competitors: [{name, tactics, url, rank}], total_ranked } */
+  const rankedKeywords = dfs?.ranked_keywords || [];
+  const serpCompetitors = dfs?.serp_competitors || [];
+  const totalRanked = dfs?.total_ranked || 0;
 
   /* Enrich GPT keywords with DataForSEO volume/difficulty/position data */
   const gptKeywords = gpt?.keywords || [];
   const keywordMetrics = gptKeywords.map(k => {
-    const match = rankedKeywords.find(rk => rk.keyword.toLowerCase() === k.toLowerCase());
+    const match = rankedKeywords.find(rk => rk.keyword?.toLowerCase() === k.toLowerCase());
     return { keyword: k, position: match?.position || null, volume: match?.volume || null, difficulty: match?.difficulty || null };
   });
 
-  /* Extract domain backlinks count from ranked_keywords metrics */
-  const dfsMetrics = dfs?.ranked_keywords?.[0]?.ranked_serp_element?.serp_item?.backlinks_info;
-  const totalRanked = dfs?.total_ranked || 0;
-  const backlinksCount = dfsMetrics?.backlinks || null;
-  const referringDomains = dfsMetrics?.referring_domains || null;
+  const backlinksCount = dfs?.backlinksCount || null;
+  const referringDomains = dfs?.referringDomains || null;
 
   return {
     score: parsed.score, url: parsed.url, title: parsed.title, desc: parsed.desc,
@@ -495,98 +479,80 @@ function IvaBotV6() {
         setStep(2);
         const parsed = parseSEO(rawHtml, url);
 
-        // STEP 3: Send to Make for GPT
+        // STEP 3: Send to Make for GPT + call DataForSEO in parallel
         setStep(3);
         await new Promise(r => setTimeout(r, 300));
         setStep(4);
         let gpt = null;
         let dfsSeo = null;
-        try {
-          const domain = new URL(url).hostname.replace(/^www\./, "");
-          const makeRes = await fetch(WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ member_id: memberId || "UNKNOWN", parsed_data: parsed.summary, domain, primary_keyword: parsed.h1?.[0] || parsed.title || "" })
-          });
-          if (makeRes.ok) {
+        const domain = new URL(url).hostname.replace(/^www\./, "");
+        const primaryKw = parsed.h1?.[0] || parsed.title || "";
+
+        // Run Make (GPT) and DataForSEO in parallel
+        const [makeResult, dfsResult] = await Promise.allSettled([
+          // --- Make: GPT personalization ---
+          (async () => {
+            const makeRes = await fetch(WEBHOOK_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ member_id: memberId || "UNKNOWN", parsed_data: parsed.summary, domain, primary_keyword: primaryKw })
+            });
+            if (!makeRes.ok) throw new Error("Make HTTP " + makeRes.status);
             const raw = await makeRes.text();
-            console.log("[IvaBot] Make raw response length:", raw.length);
-            console.log("[IvaBot] Make raw first 500 chars:", raw.substring(0, 500));
-            try {
-              const fullRes = JSON.parse(raw);
-              console.log("[IvaBot] Parsed response keys:", Object.keys(fullRes));
-              if (fullRes.gpt_raw || fullRes.gpt) {
-                const gptRaw = fullRes.gpt_raw || fullRes.gpt;
-                console.log("[IvaBot] Has gpt data, type:", typeof gptRaw);
-                try { gpt = typeof gptRaw === "string" ? JSON.parse(gptRaw) : gptRaw; } catch(e) {
-                  console.log("[IvaBot] GPT parse error, trying regex:", e.message);
-                  const m = (typeof gptRaw === "string" ? gptRaw : "").match(/\{[\s\S]*\}/);
-                  if (m) try { gpt = JSON.parse(m[0]); } catch(e2){}
-                }
-                /* Parse DataForSEO raw responses — robust against Make toString() bug */
-                try {
-                  /* Helper: safely parse a value that may be JSON string, object, 
-                     "[object Object]" (Make toString bug), double-encoded string, or null */
-                  const safeParseDFS = (val, label) => {
-                    if (!val || val === "[object Object]") {
-                      console.log(`[IvaBot] DFS ${label}: empty or [object Object], skipping`);
-                      return null;
-                    }
-                    if (typeof val === "object") {
-                      console.log(`[IvaBot] DFS ${label}: already an object`);
-                      return val;
-                    }
-                    if (typeof val === "string") {
-                      // Try direct parse
-                      try { const p = JSON.parse(val); console.log(`[IvaBot] DFS ${label}: parsed from string`); return p; } catch(e1) {}
-                      // Try double-encoded (Make sometimes wraps in extra quotes)
-                      try { const p = JSON.parse(JSON.parse(val)); console.log(`[IvaBot] DFS ${label}: parsed double-encoded`); return p; } catch(e2) {}
-                      // Try extracting JSON from garbage wrapper
-                      const m = val.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-                      if (m) try { const p = JSON.parse(m[1]); console.log(`[IvaBot] DFS ${label}: extracted via regex`); return p; } catch(e3) {}
-                      console.log(`[IvaBot] DFS ${label}: all parse attempts failed, first 200 chars:`, val.substring(0, 200));
-                    }
-                    return null;
-                  };
-
-                  /* Extract items from DFS response — handles both root-level and tasks wrapper */
-                  const extractItems = (obj) => {
-                    if (!obj) return { items: [], total: 0 };
-                    // Standard: { tasks: [{ result: [{ items: [...], total_count: N }] }] }
-                    const r = obj?.tasks?.[0]?.result?.[0];
-                    if (r?.items) return { items: r.items, total: r.total_count || 0 };
-                    // Already unwrapped: { items: [...] } or raw array
-                    if (obj?.items) return { items: obj.items, total: obj.total_count || 0 };
-                    if (Array.isArray(obj)) return { items: obj, total: obj.length };
-                    return { items: [], total: 0 };
-                  };
-
-                  const rkRaw = fullRes.dfs_ranked_raw || fullRes.ranked_keywords_raw;
-                  const spRaw = fullRes.dfs_serp_raw || fullRes.serp_raw;
-                  const rk = safeParseDFS(rkRaw, "ranked_keywords");
-                  const sp = safeParseDFS(spRaw, "serp");
-                  const rkData = extractItems(rk);
-                  const spData = extractItems(sp);
-                  dfsSeo = {
-                    ranked_keywords: rkData.items,
-                    serp_competitors: spData.items,
-                    total_ranked: rkData.total,
-                  };
-                  console.log("[IvaBot] DataForSEO ranked_keywords count:", dfsSeo.ranked_keywords.length);
-                  console.log("[IvaBot] DataForSEO serp_competitors count:", dfsSeo.serp_competitors.length);
-                  console.log("[IvaBot] DataForSEO total_ranked:", dfsSeo.total_ranked);
-                } catch(dfsErr) { console.log("[IvaBot] DataForSEO parse error:", dfsErr.message, dfsErr.stack); }
-              } else {
-                console.log("[IvaBot] No gpt field — treating full response as GPT data (old format)");
-                try { gpt = fullRes; } catch(e) {}
-              }
-            } catch(e) {
-              console.log("[IvaBot] JSON parse failed, trying regex:", e.message);
+            console.log("[IvaBot] Make raw length:", raw.length, "first 300:", raw.substring(0, 300));
+            // Make now returns GPT result directly (no wrapper)
+            let parsed_gpt = null;
+            try { parsed_gpt = JSON.parse(raw); } catch(e) {
+              console.log("[IvaBot] GPT JSON parse failed:", e.message);
+              // Try extracting JSON from wrapper
               const m = raw.match(/\{[\s\S]*\}/);
-              if (m) try { gpt = JSON.parse(m[0]); } catch(e2){}
+              if (m) try { parsed_gpt = JSON.parse(m[0]); } catch(e2) {}
             }
-          }
-        } catch(e) { console.log("[IvaBot] Make webhook error:", e); }
+            // Handle if Make still wraps in gpt_raw (backward compat)
+            if (parsed_gpt?.gpt_raw) {
+              const gr = parsed_gpt.gpt_raw;
+              parsed_gpt = typeof gr === "string" ? JSON.parse(gr) : gr;
+            }
+            if (parsed_gpt?.gpt) {
+              const gr = parsed_gpt.gpt;
+              parsed_gpt = typeof gr === "string" ? JSON.parse(gr) : gr;
+            }
+            return parsed_gpt;
+          })(),
+          // --- DataForSEO: via Supabase Edge Function proxy ---
+          (async () => {
+            const DFS_PROXY = SUPABASE_URL + "/functions/v1/dataforseo-proxy";
+            const dfsRes = await fetch(DFS_PROXY, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+              body: JSON.stringify({ domain, keyword: primaryKw })
+            });
+            if (!dfsRes.ok) { console.log("[IvaBot] DFS proxy HTTP", dfsRes.status); return null; }
+            const dfsData = await dfsRes.json();
+            console.log("[IvaBot] DFS proxy response keys:", Object.keys(dfsData || {}));
+            return dfsData;
+          })()
+        ]);
+
+        // Process results
+        if (makeResult.status === "fulfilled" && makeResult.value) {
+          gpt = makeResult.value;
+          console.log("[IvaBot] GPT OK, keys:", Object.keys(gpt));
+        } else {
+          console.log("[IvaBot] GPT failed:", makeResult.reason?.message || "unknown");
+        }
+
+        if (dfsResult.status === "fulfilled" && dfsResult.value) {
+          const dfs = dfsResult.value;
+          dfsSeo = {
+            ranked_keywords: dfs.ranked_keywords || [],
+            serp_competitors: dfs.serp_competitors || [],
+            total_ranked: dfs.total_ranked || 0,
+          };
+          console.log("[IvaBot] DFS OK — ranked:", dfsSeo.ranked_keywords.length, "serp:", dfsSeo.serp_competitors.length);
+        } else {
+          console.log("[IvaBot] DFS failed:", dfsResult.reason?.message || "no data");
+        }
 
         // STEP 4: Build report from parsed data + GPT enrichment
         setStep(5);
