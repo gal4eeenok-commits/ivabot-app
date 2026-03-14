@@ -36,11 +36,11 @@ const Fold = ({ title, children, open: d = false, borderColor, headerBg, titleCo
 const WorkingItem = ({ title, content }) => { const [o, setO] = useState(false); return (<div style={{ borderRadius: 10, border: `1px solid ${C.cardBorder}`, overflow: "hidden", background: C.surface }}><button onClick={() => setO(!o)} style={{ width: "100%", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "'DM Sans',sans-serif" }}><span style={{ color: "#9B7AE6", flexShrink: 0, fontSize: 13, fontWeight: 600 }}>✓</span><span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1, textAlign: "left" }}>{title}</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{ transform: o ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }}><polyline points="6 9 12 15 18 9" /></svg></button>{o && <div style={{ padding: "0 14px 14px", borderTop: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{content}</div></div>}</div>); };
 
 /* Unified block — Current value. borderColor determines green/red/grey */
-const InfoBlock = ({ label, value, borderColor }) => (<div style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${borderColor || C.border}` }}><div style={{ fontSize: 10, fontWeight: 600, color: C.muted, marginBottom: 3 }}>{label}</div><div style={{ fontSize: 13, fontWeight: 500, color: C.dark, lineHeight: 1.5 }}>{value}</div></div>);
+const InfoBlock = ({ label, value, borderColor }) => (<div style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${borderColor || C.border}` }}><div style={{ fontSize: 10, fontWeight: 600, color: C.muted, marginBottom: 3 }}>{label}</div><div style={{ fontSize: 13, fontWeight: 500, color: C.dark, lineHeight: 1.5 }}>{typeof value === "string" ? value.split("\n").map((line, i) => <div key={i}>{line}</div>) : value}</div></div>);
 /* Unified explanation — sireneviy bg, used for both "why good" and "why bad" */
 const ExplainBlock = ({ label, text }) => (<div style={{ padding: "10px 14px", borderRadius: 8, background: C.card, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 10, fontWeight: 600, color: C.muted, marginBottom: 2 }}>{label || "Details"}</div><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{text}</div></div>);
 /* Stat card — white bg, colored border */
-const StatCard = ({ number, label, desc, borderColor }) => (<div style={{ padding: 14, borderRadius: 10, background: C.surface, border: `1px solid ${borderColor || C.border}`, flex: 1 }}><div style={{ fontSize: 24, fontWeight: 700, color: C.dark, marginBottom: 2 }}>{number}</div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 4 }}>{label}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{desc}</div></div>);
+const StatCard = ({ number, label, desc, borderColor }) => (<div style={{ padding: 14, borderRadius: 10, background: C.surface, border: `1px solid ${borderColor || C.border}`, flex: 1 }}><div style={{ fontSize: typeof number === "string" && number.length > 5 ? 16 : 24, fontWeight: 700, color: C.dark, marginBottom: 2 }}>{number}</div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 4 }}>{label}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{desc}</div></div>);
 /* Social — white bg, normal text */
 const SOCIAL_URLS = { Facebook: "https://facebook.com", Instagram: "https://instagram.com", LinkedIn: "https://linkedin.com", "X (Twitter)": "https://x.com", YouTube: "https://youtube.com", TikTok: "https://tiktok.com", Pinterest: "https://pinterest.com", Threads: "https://threads.net" };
 const SocialBadge = ({ name, url }) => (<a href={url || SOCIAL_URLS[name] || "#"} target="_blank" rel="noopener noreferrer" style={{ padding: "8px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`, textDecoration: "none", display: "inline-block", transition: "border-color 0.2s, box-shadow 0.2s", cursor: "pointer" }} onMouseEnter={e => { e.currentTarget.style.borderColor = C.hoverBorder; e.currentTarget.style.boxShadow = C.hoverShadow; }} onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}><span style={{ fontSize: 12, fontWeight: 500, color: C.dark }}>{name}</span></a>);
@@ -262,7 +262,17 @@ function buildReportData(parsed, gpt, dfs) {
     imagesEval: { title: "Some Images Missing Alt Text", why: "Alt text helps search engines understand images and improves accessibility.", suggestions: ["Add descriptive alt to every image"], showCopy: false },
     videoEval: { title: "No Video Content Detected", why: "Pages with video tend to rank higher and keep visitors engaged longer.", suggestions: ["Add a product video or brand intro"], showCopy: false },
     robotsStatus: "good", sitemapStatus: "good",
-    competitors: serpCompetitors.length > 0 ? serpCompetitors : (gpt?.competitors || [{ name: "competitor1.com", tactics: "Strong content strategy" }, { name: "competitor2.com", tactics: "Good backlink profile" }, { name: "competitor3.com", tactics: "Fast page speed" }]),
+    competitors: (() => {
+      const gptComps = gpt?.competitors || [];
+      if (serpCompetitors.length > 0) {
+        // Enrich SERP competitors with GPT tactics if GPT has matching domains
+        return serpCompetitors.map((sc, i) => {
+          const gptMatch = gptComps.find(gc => sc.name.includes(gc.name) || gc.name.includes(sc.name.replace(/^www\./, "")));
+          return { ...sc, tactics: gptMatch?.tactics || gptComps[i]?.tactics || "" };
+        });
+      }
+      return gptComps.length > 0 ? gptComps : [{ name: "competitor1.com", tactics: "Strong content strategy" }, { name: "competitor2.com", tactics: "Good backlink profile" }, { name: "competitor3.com", tactics: "Fast page speed" }];
+    })(),
     backlinks: gpt?.backlinks || [{ name: "Industry Blog", desc: "Guest posts and mentions" }, { name: "Directory", desc: "Business listing" }, { name: "Social Platform", desc: "Brand presence" }],
     rankedKeywords,
     keywordMetrics,
@@ -449,7 +459,8 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
         <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{c.name}</span>
       </div>
       {(c.title || c.tactics) && <div style={{ fontSize: 12.5, color: C.dark, fontWeight: 500, paddingLeft: 32, marginBottom: 2 }}>{c.title || c.tactics}</div>}
-      {c.description && <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 32, marginBottom: 4, lineHeight: 1.4, fontStyle: "italic" }}>{c.description.length > 120 ? c.description.slice(0, 117) + "..." : c.description}</div>}
+      {c.tactics && c.title && <div style={{ fontSize: 11.5, color: C.accent, paddingLeft: 32, marginBottom: 3, lineHeight: 1.4 }}>{c.tactics}</div>}
+      {c.description && !c.tactics && <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 32, marginBottom: 4, lineHeight: 1.4 }}>{c.description.length > 120 ? c.description.slice(0, 117) + "..." : c.description}</div>}
       {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.accent, textDecoration: "none", paddingLeft: 32, display: "block" }}>{c.url.length > 55 ? c.url.slice(0, 52) + "..." : c.url} →</a>}
     </div>))}</div><BotNote inline text="Study their titles, descriptions, and content structure. What are they doing that you're not? Use their strengths as inspiration to improve your own page." /></Fold>
     <Fold title="PR & Backlink Opportunities" borderColor={C.cardBorder} headerBg={C.card}>
