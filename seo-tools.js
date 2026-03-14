@@ -459,47 +459,67 @@ async function generatePDF(data) {
   const M = 40, CW = W - M * 2;
   let y = 0;
   const purple = [110, 43, 255], dark = [21, 20, 21], muted = [146, 142, 149], white = [255, 255, 255];
-  const ensureSpace = (need) => { if (y + need > H - 50) { doc.addPage(); y = 40; } };
-  const drawLine = (yPos) => { doc.setDrawColor(230, 226, 235); doc.setLineWidth(0.5); doc.line(M, yPos, W - M, yPos); };
-  const sectionTitle = (text) => { ensureSpace(36); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(text, M, y); y += 20; };
-  const bodyText = (text, opts = {}) => { doc.setFontSize(opts.size || 9); doc.setFont("helvetica", opts.bold ? "bold" : "normal"); doc.setTextColor(...(opts.color || muted)); const lines = doc.splitTextToSize(String(text || ""), CW); ensureSpace(lines.length * 13 + 4); doc.text(lines, M, y); y += lines.length * 13; };
+  const ensureSpace = (need) => { if (y + need > H - 60) { doc.addPage(); y = 44; } };
+  const drawLine = (yPos) => { doc.setDrawColor(235, 232, 240); doc.setLineWidth(0.5); doc.line(M, yPos, W - M, yPos); };
+  const gap = (n) => { y += n || 10; };
+  const sectionTitle = (text) => { ensureSpace(40); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(text, M, y); y += 22; };
+  const bodyText = (text, opts = {}) => { doc.setFontSize(opts.size || 9); doc.setFont("helvetica", opts.bold ? "bold" : "normal"); doc.setTextColor(...(opts.color || muted)); const lines = doc.splitTextToSize(String(text || ""), opts.width || CW); ensureSpace(lines.length * 14 + 4); doc.text(lines, opts.x || M, y); y += lines.length * 14; };
   const fmtV = (v) => { if (!v) return "\u2014"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
 
-  // HEADER
-  doc.setFillColor(...purple); doc.rect(0, 0, W, 70, "F");
-  doc.setFontSize(22); doc.setFont("helvetica", "bold"); doc.setTextColor(...white); doc.text("IvaBot", M, 35);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("Core Audit Report", M, 52);
-  doc.setFontSize(9); doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 35, { align: "right" });
-  const urlShort = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
-  doc.text(urlShort, W - M, 50, { align: "right" });
-  y = 90;
+  /* ── HEADER with IvaBot logo ── */
+  doc.setFillColor(...purple); doc.rect(0, 0, W, 78, "F");
+  // IvaBot eyes logo (simplified)
+  const lx = M, ly = 18;
+  doc.setFillColor(...white);
+  doc.roundedRect(lx, ly, 38, 22, 4, 4, "F");
+  doc.setFillColor(...purple);
+  doc.circle(lx + 12, ly + 11, 5, "F"); doc.circle(lx + 27, ly + 11, 5, "F");
+  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
+  doc.text("IvaBot", lx + 44, ly + 16);
+  doc.setFontSize(10); doc.setFont("helvetica", "normal");
+  doc.text("Core Audit Report", lx + 44, ly + 30);
+  doc.setFontSize(9);
+  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, ly + 10, { align: "right" });
+  const urlShort = (data.url || "").length > 58 ? data.url.slice(0, 55) + "..." : (data.url || "");
+  doc.text(urlShort, W - M, ly + 24, { align: "right" });
+  y = 96;
 
-  // SCORE
+  /* ── SCORE ── */
   const scoreLabel = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
   const scoreColor = data.score >= 80 ? [155, 122, 230] : data.score >= 50 ? [212, 160, 232] : [226, 212, 245];
   const cx = M + 30, cy = y + 24;
-  doc.setDrawColor(230, 226, 235); doc.setLineWidth(4); doc.circle(cx, cy, 24);
+  doc.setDrawColor(235, 232, 240); doc.setLineWidth(4); doc.circle(cx, cy, 24);
   doc.setDrawColor(...scoreColor); doc.setLineWidth(4);
   for (let a = -90; a < -90 + (data.score / 100) * 360; a += 2) { const r1 = (a * Math.PI) / 180, r2 = ((Math.min(a + 2, -90 + (data.score / 100) * 360)) * Math.PI) / 180; doc.line(cx + 24 * Math.cos(r1), cy + 24 * Math.sin(r1), cx + 24 * Math.cos(r2), cy + 24 * Math.sin(r2)); }
   doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(String(data.score), cx, cy + 4, { align: "center" });
   doc.setFontSize(7); doc.setTextColor(...scoreColor); doc.text(scoreLabel, cx, cy + 14, { align: "center" });
   doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text("SEO Score", M + 68, y + 12);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(urlShort, M + 68, y + 26);
-  doc.setFontSize(9); doc.setTextColor(...muted); doc.text(data.score >= 80 ? "Your page has a strong foundation." : "There's room for improvement.", M + 68, y + 40);
-  y += 64; drawLine(y); y += 16;
+  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(urlShort, M + 68, y + 28);
+  doc.setFontSize(9); doc.setTextColor(...muted); doc.text(data.score >= 80 ? "Your page has a strong foundation." : "There's room for improvement.", M + 68, y + 44);
+  y += 70; drawLine(y); gap(18);
 
-  // PAGE CONTEXT
+  /* ── PAGE CONTEXT ── */
   sectionTitle("Page Context Summary");
-  [["Page URL", data.ctx?.url], ["Page Title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition]].forEach(([label, value]) => { if (!value) return; ensureSpace(18); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text(label.toUpperCase(), M, y); doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(value).slice(0, 75), M + 90, y); y += 15; });
-  if (data.ctx?.message) { ensureSpace(20); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text("CORE MESSAGE", M, y); y += 12; bodyText(data.ctx.message, { color: dark, size: 9.5 }); }
-  y += 8; drawLine(y); y += 16;
+  [["Page URL", data.ctx?.url], ["Page Title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition]].forEach(([label, value]) => {
+    if (!value) return; ensureSpace(20);
+    doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text(label.toUpperCase(), M, y);
+    doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(value).slice(0, 72), M + 95, y);
+    y += 17;
+  });
+  if (data.ctx?.message) { gap(4); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text("CORE MESSAGE", M, y); y += 14; bodyText(data.ctx.message, { color: dark, size: 9.5 }); }
+  gap(12); drawLine(y); gap(18);
 
-  // KEYWORDS TABLES
-  const kwTable = (title, rows) => { if (!rows?.length) return; sectionTitle(title); doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 }, alternateRowStyles: { fillColor: [250, 248, 255] }, columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 50 }, 2: { halign: "right", cellWidth: 65 }, 3: { halign: "right", cellWidth: 50 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) }); y = doc.lastAutoTable.finalY + 16; drawLine(y); y += 16; };
+  /* ── KEYWORDS TABLES ── */
+  const kwTable = (title, rows) => {
+    if (!rows?.length) return;
+    sectionTitle(title);
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 6 }, alternateRowStyles: { fillColor: [250, 248, 255] }, columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 50 }, 2: { halign: "right", cellWidth: 65 }, 3: { halign: "right", cellWidth: 50 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) });
+    y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
+  };
   kwTable("How Your Page Ranks in Google", data.rankedKeywords);
   kwTable("What Your Page Is Built For", data.keywordMetrics);
 
-  // WHAT'S WORKING / NEEDS IMPROVEMENT
+  /* ── WHAT'S WORKING / NEEDS IMPROVEMENT ── */
   const pG = [], pB = [];
   if (data.titleStatus === "good") pG.push("Meta Title"); else pB.push({ t: "Meta Title", w: data.titleEval?.why, s: data.titleEval?.suggestions });
   if (data.descStatus === "good") pG.push("Meta Description"); else pB.push({ t: "Description", w: data.descEval?.why, s: data.descEval?.suggestions });
@@ -514,26 +534,91 @@ async function generatePDF(data) {
   if (data.sitemapStatus === "good") pG.push("Sitemap"); else pB.push({ t: "Sitemap", w: "Not found." });
 
   sectionTitle("What's Working (" + pG.length + ")");
-  pG.forEach(item => { ensureSpace(16); doc.setFontSize(9.5); doc.setTextColor(155, 122, 230); doc.text("\u2713", M + 3, y); doc.setTextColor(...dark); doc.text(item, M + 16, y); y += 15; });
-  y += 8; drawLine(y); y += 16;
+  pG.forEach(item => { ensureSpace(18); doc.setFontSize(9.5); doc.setTextColor(155, 122, 230); doc.text("\u2713", M + 3, y); doc.setTextColor(...dark); doc.text(item, M + 18, y); y += 18; });
+  gap(10); drawLine(y); gap(18);
 
-  if (pB.length > 0) { sectionTitle("Needs Improvement (" + pB.length + ")"); pB.forEach(item => { ensureSpace(50); doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F"); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(item.t, M + 14, y); y += 14; if (item.w) { bodyText(item.w); y += 2; } if (item.s?.length > 0) { item.s.forEach(s => { ensureSpace(18); doc.setFillColor(250, 248, 255); doc.roundedRect(M + 8, y - 10, CW - 16, 16, 3, 3, "F"); doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(s).slice(0, 90), M + 14, y); y += 18; }); } y += 6; }); drawLine(y); y += 16; }
+  if (pB.length > 0) {
+    sectionTitle("Needs Improvement (" + pB.length + ")");
+    pB.forEach(item => {
+      ensureSpace(55);
+      doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F");
+      doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
+      doc.text(item.t, M + 14, y); y += 16;
+      if (item.w) { bodyText(item.w); gap(4); }
+      if (item.s?.length > 0) {
+        doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted);
+        doc.text("Suggested:", M + 10, y); y += 12;
+        item.s.forEach(s => {
+          ensureSpace(20);
+          doc.setFillColor(250, 248, 255); doc.roundedRect(M + 10, y - 11, CW - 20, 18, 3, 3, "F");
+          doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark);
+          doc.text(String(s).slice(0, 88), M + 16, y); y += 22;
+        });
+      }
+      gap(10);
+    });
+    drawLine(y); gap(18);
+  }
 
-  // COMPETITORS
-  if (data.competitors?.length > 0) { sectionTitle("Top Competitors in Google"); doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 }, alternateRowStyles: { fillColor: [250, 248, 255] }, head: [["#", "Domain", "Strategy"]], body: data.competitors.map((c, i) => [String(i + 1), c.name || "", (c.title || c.tactics || "").slice(0, 80)]) }); y = doc.lastAutoTable.finalY + 16; drawLine(y); y += 16; }
+  /* ── COMPETITORS ── */
+  if (data.competitors?.length > 0) {
+    sectionTitle("Top Competitors in Google");
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 6 }, alternateRowStyles: { fillColor: [250, 248, 255] }, head: [["#", "Domain", "Strategy"]], body: data.competitors.map((c, i) => [String(i + 1), c.name || "", (c.title || c.tactics || "").slice(0, 78)]) });
+    y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
+  }
 
-  // BACKLINKS
+  /* ── BACKLINKS ── */
   sectionTitle("PR & Backlink Opportunities");
-  if (data.backlinksCount != null) { ensureSpace(30); [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([label, val], i) => { const sx = M + (CW / 3) * i; doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(val != null ? val.toLocaleString() : "\u2014", sx, y); doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); doc.text(String(label), sx, y + 12); }); y += 30; }
-  if (data.backlinks?.length > 0) { doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 }, alternateRowStyles: { fillColor: [250, 248, 255] }, head: [["#", "Source", "Description"]], body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""]) }); y = doc.lastAutoTable.finalY + 16; drawLine(y); y += 16; }
+  if (data.backlinksCount != null) {
+    ensureSpace(35);
+    [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([label, val], i) => {
+      const sx = M + (CW / 3) * i;
+      doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(val != null ? val.toLocaleString() : "\u2014", sx, y);
+      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); doc.text(String(label), sx, y + 14);
+    }); y += 36;
+  }
+  if (data.backlinks?.length > 0) {
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 6 }, alternateRowStyles: { fillColor: [250, 248, 255] }, head: [["#", "Source", "Description"]], body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""]) });
+    y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
+  }
 
-  // FINAL RECOMMENDATIONS
+  /* ── FINAL RECOMMENDATIONS ── */
   sectionTitle("Final Recommendations");
-  [...pB.map(item => ({ t: item.t, d: item.w || "" })), { t: "Build quality backlinks", d: "Reach out to industry blogs, directories, and publications." }, { t: "Create useful content", d: "Content that solves real problems is the foundation of lasting SEO success." }, { t: "Monitor with Google tools", d: "Use Search Console and PageSpeed Insights." }, { t: "Re-audit after changes", d: "Run another Core Audit to measure progress." }].forEach(rec => { ensureSpace(35); doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F"); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(rec.t, M + 14, y); y += 13; if (rec.d) { doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); const dL = doc.splitTextToSize(rec.d, CW - 20); ensureSpace(dL.length * 11); doc.text(dL, M + 14, y); y += dL.length * 11; } y += 4; });
+  [...pB.map(item => ({ t: item.t, d: item.w || "", s: item.s?.[0] || "" })),
+    { t: "Build quality backlinks", d: "Reach out to industry blogs, directories, and publications." },
+    { t: "Create useful content", d: "Content that solves real problems is the foundation of lasting SEO success." },
+    { t: "Monitor with Google tools", d: "Use Search Console and PageSpeed Insights to track improvements." },
+    { t: "Re-audit after changes", d: "Run another Core Audit to measure progress." }
+  ].forEach(rec => {
+    ensureSpace(45);
+    doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F");
+    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
+    doc.text(rec.t, M + 14, y); y += 15;
+    if (rec.d) { doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); const dL = doc.splitTextToSize(rec.d, CW - 20); ensureSpace(dL.length * 12); doc.text(dL, M + 14, y); y += dL.length * 12 + 2; }
+    if (rec.s) { ensureSpace(22); doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text("Suggested:", M + 14, y); y += 11; doc.setFillColor(250, 248, 255); doc.roundedRect(M + 12, y - 10, Math.min(doc.getTextWidth(String(rec.s)) + 22, CW - 24), 17, 3, 3, "F"); doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(rec.s).slice(0, 88), M + 18, y); y += 20; }
+    gap(8);
+  });
 
-  // FOOTER
+  /* ── CTA: Run your audit ── */
+  gap(10); ensureSpace(50);
+  doc.setFillColor(248, 245, 255); doc.roundedRect(M, y - 6, CW, 44, 8, 8, "F");
+  doc.setDrawColor(...purple); doc.setLineWidth(0.5); doc.roundedRect(M, y - 6, CW, 44, 8, 8, "S");
+  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
+  doc.text("Run your own SEO audit at ivabot.xyz", W / 2, y + 12, { align: "center" });
+  doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted);
+  doc.text("Free Core Audit \u00B7 AI-powered recommendations \u00B7 Real Google data", W / 2, y + 26, { align: "center" });
+  doc.link(M, y - 6, CW, 44, { url: "https://ivabot.xyz" });
+
+  /* ── FOOTER on all pages ── */
   const tp = doc.getNumberOfPages();
-  for (let i = 1; i <= tp; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...muted); doc.text("ivabot.xyz  \u00B7  AI SEO Assistant", W / 2, H - 20, { align: "center" }); doc.text("Page " + i + " of " + tp, W - M, H - 20, { align: "right" }); }
+  for (let i = 1; i <= tp; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(...muted);
+    doc.text("ivabot.xyz  \u00B7  AI SEO Assistant", W / 2, H - 22, { align: "center" });
+    doc.text("Page " + i + " of " + tp, W - M, H - 22, { align: "right" });
+    // Clickable footer link
+    doc.link(W / 2 - 60, H - 32, 120, 14, { url: "https://ivabot.xyz" });
+  }
 
   const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
   doc.save("IvaBot-Audit-" + domain + "-" + new Date().toISOString().slice(0,10) + ".pdf");
