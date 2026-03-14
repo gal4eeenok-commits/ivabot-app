@@ -219,15 +219,6 @@ function parseSEO(rawHtml, pageUrl) {
   let base = ""; try { base = new URL(normalized).origin; } catch(e){}
   r.robots_url = base+"/robots.txt"; r.sitemap_url = base+"/sitemap.xml";
 
-  // Language from <html lang="xx">
-  const langMatch = rawHtml.match(/<html[^>]*\slang=["']([^"']+)["']/i);
-  r.html_lang = langMatch ? langMatch[1].trim().toLowerCase().split("-")[0] : "";
-
-  // TLD-based region hint
-  const tldMatch = hostname.match(/\.([a-z]{2})$/);
-  const tldCountry = tldMatch && !["com","org","net","io","co","xyz","dev","app","me"].includes(tldMatch[1]) ? tldMatch[1] : "";
-  r.tld_country = tldCountry;
-
   // Score
   let sc = 0;
   const ts = r.title_missing ? "missing" : r.title_too_short ? "too_short" : r.title_too_long ? "too_long" : r.title_has_repeated_brand ? "duplicate" : "good";
@@ -257,7 +248,6 @@ function buildReportData(parsed, gpt, dfs) {
   const rankedKeywords = dfs?.ranked_keywords || [];
   const serpCompetitors = dfs?.serp_competitors || [];
   const totalRanked = dfs?.total_ranked || 0;
-  const serpKeyword = dfs?.serp_keyword || "";
 
   /* Enrich GPT keywords with DataForSEO volume/difficulty/position data */
   const gptKeywords = gpt?.keywords || [];
@@ -274,9 +264,9 @@ function buildReportData(parsed, gpt, dfs) {
     ctx: { url: parsed.url, title: parsed.title, topic: gpt?.page_context?.topic || "Unknown", owner: gpt?.page_context?.owner || parsed.hostname, goal: gpt?.page_context?.goal || "Inform", industry: gpt?.page_context?.industry || "General", region: gpt?.page_context?.region || "Global", competition: "Medium", message: gpt?.page_context?.core_message || "" },
     keywords: gptKeywords,
     titleStatus: parsed.title_status === "good" ? "good" : "bad",
-    titleEval: parsed.title_status !== "good" ? { why: parsed.title_missing ? "No meta title found — Google can't generate a proper search snippet." : parsed.title_has_repeated_brand ? `Your title repeats the brand name ("${parsed.title}"). This wastes valuable characters and looks unprofessional in search results. Use the space to describe what the page offers.` : parsed.title_too_short ? "Too short — users and Google need more context to understand what this page offers." : "Title is too long — Google will truncate it in search results.", sugLabel: "Suggested Titles", suggestions: (Array.isArray(gpt?.suggested_titles) && gpt.suggested_titles.length > 0) ? gpt.suggested_titles : (gpt?.suggested_title ? (Array.isArray(gpt.suggested_title) ? gpt.suggested_title : [gpt.suggested_title]) : (gpt?.keywords?.length > 0 ? gpt.keywords.map(k => k.charAt(0).toUpperCase() + k.slice(1) + " — " + (gpt?.page_context?.owner || parsed.hostname)) : ["Add a descriptive title with your primary keyword"])), showCopy: true, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] } : null,
+    titleEval: parsed.title_status !== "good" ? { currentLabel: "Current Title", current: parsed.title || "Missing", why: parsed.title_missing ? "No meta title found — Google can't generate a proper search snippet." : parsed.title_has_repeated_brand ? `Your title repeats the brand name ("${parsed.title}"). This wastes valuable characters and looks unprofessional in search results. Use the space to describe what the page offers.` : parsed.title_too_short ? "Too short — users and Google need more context to understand what this page offers." : "Title is too long — Google will truncate it in search results.", sugLabel: "Suggested Titles", suggestions: (Array.isArray(gpt?.suggested_titles) && gpt.suggested_titles.length > 0) ? gpt.suggested_titles : (gpt?.suggested_title ? (Array.isArray(gpt.suggested_title) ? gpt.suggested_title : [gpt.suggested_title]) : (gpt?.keywords?.length > 0 ? gpt.keywords.map(k => k.charAt(0).toUpperCase() + k.slice(1) + " — " + (gpt?.page_context?.owner || parsed.hostname)) : ["Add a descriptive title with your primary keyword"])), showCopy: true, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] } : null,
     descStatus: parsed.desc_status === "good" ? "good" : "bad",
-    descEval: parsed.desc_status !== "good" ? { why: parsed.desc_missing ? "No meta description found — search engines can't generate a proper snippet." : parsed.desc_too_short ? "Description is too short — aim for 120-160 characters." : "Description is too long — Google may truncate it.", sugLabel: "Suggested Descriptions", suggestions: (Array.isArray(gpt?.suggested_descriptions) && gpt.suggested_descriptions.length > 0) ? gpt.suggested_descriptions : (gpt?.suggested_description ? (Array.isArray(gpt.suggested_description) ? gpt.suggested_description : [gpt.suggested_description]) : ["Write a 120-160 character description including your primary keyword"]), showCopy: true } : null,
+    descEval: parsed.desc_status !== "good" ? { currentLabel: "Current Description", current: parsed.desc || "Missing", why: parsed.desc_missing ? "No meta description found — search engines can't generate a proper snippet." : parsed.desc_too_short ? "Description is too short — aim for 120-160 characters." : "Description is too long — Google may truncate it.", sugLabel: "Suggested Descriptions", suggestions: (Array.isArray(gpt?.suggested_descriptions) && gpt.suggested_descriptions.length > 0) ? gpt.suggested_descriptions : (gpt?.suggested_description ? (Array.isArray(gpt.suggested_description) ? gpt.suggested_description : [gpt.suggested_description]) : ["Write a 120-160 character description including your primary keyword"]), showCopy: true } : null,
     headings: [...parsed.h1.map(t=>({level:"H1",text:t})), ...parsed.h1_broken.map(t=>({level:"H1",text:t,broken:true})), ...parsed.h2.map(t=>({level:"H2",text:t})), ...parsed.h3.map(t=>({level:"H3",text:t}))],
     h1HasBrokenTemplate: parsed.h1_has_broken_template,
     headingsStatus: (parsed.h1.length>0 && !parsed.h1_has_dups && !parsed.h1_has_broken_template && parsed.h2.length>0) ? "good" : "bad",
@@ -306,12 +296,11 @@ function buildReportData(parsed, gpt, dfs) {
     backlinksCount,
     referringDomains,
     totalRanked,
-    serpKeyword,
   };
 }
 
 /* ═══ DATA (mock fallback) ═══ */
-const A = { score: 85, url: "https://www.apple.com/", title: "Apple", desc: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV, plus explore accessories, entertainment, and expert device support.", ctx: { url: "https://www.apple.com/", title: "Apple", topic: "Official Apple product and service page", owner: "Apple Inc.", goal: "Sell", industry: "Technology", region: "Global", competition: "High", message: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV." }, keywords: ["iPhone trade-in deals", "MacBook Pro features", "Apple Card benefits"], titleStatus: "bad", titleEval: { why: "Too short — users and Google need more context to understand what this page offers.", sugLabel: "Suggested Titles", suggestions: ["Apple Products and Innovations", "Apple Technology and Features", "Apple: Leading the Way in Tech"], showCopy: true, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] }, descStatus: "bad", descEval: { why: "Google may truncate descriptions longer than 160 characters in search results, reducing click-through rate.", sugLabel: "Suggested Descriptions", suggestions: ["Shop the latest iPhone, iPad, Apple Watch, Mac and Apple TV, plus accessories and expert support.", "Find everything Apple — iPhones to Macs, accessories, entertainment, backed by expert support."], showCopy: true }, headings: [{ level: "H1", text: "Apple" }, { level: "H2", text: "MacBook Neo" }, { level: "H2", text: "iPhone 17e" }, { level: "H3", text: "MacBook Air" }, { level: "H3", text: "iPad Air" }, { level: "H2", text: "Endless entertainment." }, { level: "H3", text: "Apple Trade In" }, { level: "H3", text: "Apple Card" }], headingsStatus: "good", links: { internal: 47, external: 12, social: ["Facebook", "LinkedIn", "X (Twitter)", "YouTube"] }, linksStatus: "good", ux: { cta: { found: true, text: "Learn more" }, mobile: true, altMissing: true, noVideo: true }, speedStatus: "bad", speedEval: { title: "Page Speed Is Moderate", why: "Slow pages lose visitors — even a 1-second delay can reduce conversions by 7%.", suggestions: ["Compress images to WebP", "Remove unused JS/CSS", "Enable lazy loading"], showCopy: false, links: [{ label: "Google PageSpeed Insights", url: "https://pagespeed.web.dev/" }] }, imagesEval: { title: "Some Images Missing Alt Text", why: "Alt text helps search engines understand images and improves accessibility for screen readers.", suggestions: ["Add descriptive alt to every image", "Include keywords naturally in alt descriptions"], showCopy: false }, videoEval: { title: "No Video Content Detected", why: "Pages with video tend to rank higher and keep visitors engaged longer.", suggestions: ["Add a product video or brand intro", "Use schema markup for video", "Embed from YouTube for SEO benefit"], showCopy: false }, robotsStatus: "good", sitemapStatus: "good", competitors: [{ name: "samsung.com", tactics: "Strong mobile UX, frequent product launches" }, { name: "microsoft.com", tactics: "Clear pricing, enterprise focus" }, { name: "google.com", tactics: "Clean design, prominent search features" }], backlinks: [{ name: "TechCrunch", desc: "Product reviews and features" }, { name: "CNET", desc: "In-depth reviews and buying guides" }, { name: "The Verge", desc: "Launches and industry news" }, { name: "Product Hunt", desc: "Early adopters and discovery" }, { name: "YouTube Influencers", desc: "Reviews and unboxing" }, { name: "Wired", desc: "Tech journalism and trends" }, { name: "Forbes Tech", desc: "Business tech coverage" }, { name: "Mashable", desc: "Culture and roundups" }, { name: "Ars Technica", desc: "Deep dives and security" }, { name: "TechRadar", desc: "Rankings and testing" }], rankedKeywords: [{ keyword: "buy iphone online", position: 1, volume: 12100, difficulty: 72 }, { keyword: "apple trade in value", position: 1, volume: 8100, difficulty: 38 }, { keyword: "macbook pro price", position: 2, volume: 5400, difficulty: 55 }, { keyword: "apple card benefits", position: 4, volume: 3600, difficulty: 42 }, { keyword: "ipad air review", position: 8, volume: 2900, difficulty: 48 }], keywordMetrics: [{ keyword: "iPhone trade-in deals", position: 3, volume: 6600, difficulty: 45 }, { keyword: "MacBook Pro features", position: null, volume: 4400, difficulty: 52 }, { keyword: "Apple Card benefits", position: 4, volume: 3600, difficulty: 42 }], backlinksCount: 13268, referringDomains: 2675, totalRanked: 18743 };
+const A = { score: 85, url: "https://www.apple.com/", title: "Apple", desc: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV, plus explore accessories, entertainment, and expert device support.", ctx: { url: "https://www.apple.com/", title: "Apple", topic: "Official Apple product and service page", owner: "Apple Inc.", goal: "Sell", industry: "Technology", region: "Global", competition: "High", message: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV." }, keywords: ["iPhone trade-in deals", "MacBook Pro features", "Apple Card benefits"], titleStatus: "bad", titleEval: { currentLabel: "Current Title", current: "Apple", why: "Too short — users and Google need more context to understand what this page offers.", sugLabel: "Suggested Titles", suggestions: ["Apple Products and Innovations", "Apple Technology and Features", "Apple: Leading the Way in Tech"], showCopy: true, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] }, descStatus: "bad", descEval: { currentLabel: "Current Description", current: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV, plus explore accessories, entertainment, and expert device support.", why: "Google may truncate descriptions longer than 160 characters in search results, reducing click-through rate.", sugLabel: "Suggested Descriptions", suggestions: ["Shop the latest iPhone, iPad, Apple Watch, Mac and Apple TV, plus accessories and expert support.", "Find everything Apple — iPhones to Macs, accessories, entertainment, backed by expert support."], showCopy: true }, headings: [{ level: "H1", text: "Apple" }, { level: "H2", text: "MacBook Neo" }, { level: "H2", text: "iPhone 17e" }, { level: "H3", text: "MacBook Air" }, { level: "H3", text: "iPad Air" }, { level: "H2", text: "Endless entertainment." }, { level: "H3", text: "Apple Trade In" }, { level: "H3", text: "Apple Card" }], headingsStatus: "good", links: { internal: 47, external: 12, social: ["Facebook", "LinkedIn", "X (Twitter)", "YouTube"] }, linksStatus: "good", ux: { cta: { found: true, text: "Learn more" }, mobile: true, altMissing: true, noVideo: true }, speedStatus: "bad", speedEval: { title: "Page Speed Is Moderate", why: "Slow pages lose visitors — even a 1-second delay can reduce conversions by 7%.", suggestions: ["Compress images to WebP", "Remove unused JS/CSS", "Enable lazy loading"], showCopy: false, links: [{ label: "Google PageSpeed Insights", url: "https://pagespeed.web.dev/" }] }, imagesEval: { title: "Some Images Missing Alt Text", why: "Alt text helps search engines understand images and improves accessibility for screen readers.", suggestions: ["Add descriptive alt to every image", "Include keywords naturally in alt descriptions"], showCopy: false }, videoEval: { title: "No Video Content Detected", why: "Pages with video tend to rank higher and keep visitors engaged longer.", suggestions: ["Add a product video or brand intro", "Use schema markup for video", "Embed from YouTube for SEO benefit"], showCopy: false }, robotsStatus: "good", sitemapStatus: "good", competitors: [{ name: "samsung.com", tactics: "Strong mobile UX, frequent product launches" }, { name: "microsoft.com", tactics: "Clear pricing, enterprise focus" }, { name: "google.com", tactics: "Clean design, prominent search features" }], backlinks: [{ name: "TechCrunch", desc: "Product reviews and features" }, { name: "CNET", desc: "In-depth reviews and buying guides" }, { name: "The Verge", desc: "Launches and industry news" }, { name: "Product Hunt", desc: "Early adopters and discovery" }, { name: "YouTube Influencers", desc: "Reviews and unboxing" }, { name: "Wired", desc: "Tech journalism and trends" }, { name: "Forbes Tech", desc: "Business tech coverage" }, { name: "Mashable", desc: "Culture and roundups" }, { name: "Ars Technica", desc: "Deep dives and security" }, { name: "TechRadar", desc: "Rankings and testing" }], rankedKeywords: [{ keyword: "buy iphone online", position: 1, volume: 12100, difficulty: 72 }, { keyword: "apple trade in value", position: 1, volume: 8100, difficulty: 38 }, { keyword: "macbook pro price", position: 2, volume: 5400, difficulty: 55 }, { keyword: "apple card benefits", position: 4, volume: 3600, difficulty: 42 }, { keyword: "ipad air review", position: 8, volume: 2900, difficulty: 48 }], keywordMetrics: [{ keyword: "iPhone trade-in deals", position: 3, volume: 6600, difficulty: 45 }, { keyword: "MacBook Pro features", position: null, volume: 4400, difficulty: 52 }, { keyword: "Apple Card benefits", position: 4, volume: 3600, difficulty: 42 }], backlinksCount: 13268, referringDomains: 2675, totalRanked: 18743 };
 
 /* ═══ Build ═══ */
 function buildResults(d) {
@@ -453,7 +442,6 @@ const RankingsTable = ({ rows, emptyMsg }) => (
 /* ═══ PDF EXPORT ═══ */
 async function generatePDF(data) {
   try {
-  /* --- Load jsPDF + autoTable from CDN if not yet loaded --- */
   const loadScript = (url) => new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${url}"]`);
     if (existing && window.jspdf) { resolve(); return; }
@@ -468,235 +456,88 @@ async function generatePDF(data) {
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
-  const M = 40;
-  const CW = W - M * 2;
+  const M = 40, CW = W - M * 2;
   let y = 0;
-
-  const purple = [110, 43, 255];
-  const dark = [21, 20, 21];
-  const muted = [146, 142, 149];
-  const lightPurple = [240, 234, 255];
-  const white = [255, 255, 255];
-
+  const purple = [110, 43, 255], dark = [21, 20, 21], muted = [146, 142, 149], white = [255, 255, 255];
   const ensureSpace = (need) => { if (y + need > H - 50) { doc.addPage(); y = 40; } };
   const drawLine = (yPos) => { doc.setDrawColor(230, 226, 235); doc.setLineWidth(0.5); doc.line(M, yPos, W - M, yPos); };
   const sectionTitle = (text) => { ensureSpace(36); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(text, M, y); y += 20; };
-  const bodyText = (text, opts = {}) => {
-    doc.setFontSize(opts.size || 9); doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-    doc.setTextColor(...(opts.color || muted));
-    const lines = doc.splitTextToSize(String(text || ""), opts.width || CW);
-    ensureSpace(lines.length * (opts.lineH || 13) + 4);
-    doc.text(lines, opts.x || M, y); y += lines.length * (opts.lineH || 13);
-  };
-  const fmtV = (v) => { if (!v) return "\u2014"; if (v >= 1000000) return (v/1000000).toFixed(1).replace(/\.0$/,"")+"M"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
+  const bodyText = (text, opts = {}) => { doc.setFontSize(opts.size || 9); doc.setFont("helvetica", opts.bold ? "bold" : "normal"); doc.setTextColor(...(opts.color || muted)); const lines = doc.splitTextToSize(String(text || ""), CW); ensureSpace(lines.length * 13 + 4); doc.text(lines, M, y); y += lines.length * 13; };
+  const fmtV = (v) => { if (!v) return "\u2014"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
 
-  /* ═══ HEADER ═══ */
+  // HEADER
   doc.setFillColor(...purple); doc.rect(0, 0, W, 70, "F");
-  doc.setFontSize(22); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
-  doc.text("IvaBot", M, 35);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal");
-  doc.text("Core Audit Report", M, 52);
-  doc.setFontSize(9);
-  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 35, { align: "right" });
+  doc.setFontSize(22); doc.setFont("helvetica", "bold"); doc.setTextColor(...white); doc.text("IvaBot", M, 35);
+  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("Core Audit Report", M, 52);
+  doc.setFontSize(9); doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 35, { align: "right" });
   const urlShort = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
   doc.text(urlShort, W - M, 50, { align: "right" });
   y = 90;
 
-  /* ═══ SCORE ═══ */
+  // SCORE
   const scoreLabel = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
   const scoreColor = data.score >= 80 ? [155, 122, 230] : data.score >= 50 ? [212, 160, 232] : [226, 212, 245];
   const cx = M + 30, cy = y + 24;
   doc.setDrawColor(230, 226, 235); doc.setLineWidth(4); doc.circle(cx, cy, 24);
   doc.setDrawColor(...scoreColor); doc.setLineWidth(4);
-  const ang = (data.score / 100) * 360;
-  for (let a = -90; a < -90 + ang; a += 2) {
-    const r1 = (a * Math.PI) / 180, r2 = ((Math.min(a + 2, -90 + ang)) * Math.PI) / 180;
-    doc.line(cx + 24 * Math.cos(r1), cy + 24 * Math.sin(r1), cx + 24 * Math.cos(r2), cy + 24 * Math.sin(r2));
-  }
-  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
-  doc.text(String(data.score), cx, cy + 4, { align: "center" });
+  for (let a = -90; a < -90 + (data.score / 100) * 360; a += 2) { const r1 = (a * Math.PI) / 180, r2 = ((Math.min(a + 2, -90 + (data.score / 100) * 360)) * Math.PI) / 180; doc.line(cx + 24 * Math.cos(r1), cy + 24 * Math.sin(r1), cx + 24 * Math.cos(r2), cy + 24 * Math.sin(r2)); }
+  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(String(data.score), cx, cy + 4, { align: "center" });
   doc.setFontSize(7); doc.setTextColor(...scoreColor); doc.text(scoreLabel, cx, cy + 14, { align: "center" });
-  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
-  doc.text("SEO Score", M + 68, y + 12);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark);
-  doc.text(urlShort, M + 68, y + 26);
-  doc.setFontSize(9); doc.setTextColor(...muted);
-  doc.text(data.score >= 80 ? "Your page has a strong foundation." : "There's room for improvement.", M + 68, y + 40);
+  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text("SEO Score", M + 68, y + 12);
+  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(urlShort, M + 68, y + 26);
+  doc.setFontSize(9); doc.setTextColor(...muted); doc.text(data.score >= 80 ? "Your page has a strong foundation." : "There's room for improvement.", M + 68, y + 40);
   y += 64; drawLine(y); y += 16;
 
-  /* ═══ PAGE CONTEXT ═══ */
+  // PAGE CONTEXT
   sectionTitle("Page Context Summary");
-  [["Page URL", data.ctx?.url], ["Page Title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition]].forEach(([label, value]) => {
-    if (!value) return;
-    ensureSpace(18);
-    doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted);
-    doc.text(label.toUpperCase(), M, y);
-    doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark);
-    const vTrunc = String(value).length > 75 ? String(value).slice(0, 72) + "..." : String(value);
-    doc.text(vTrunc, M + 90, y);
-    y += 15;
-  });
-  if (data.ctx?.message) {
-    ensureSpace(20);
-    doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted);
-    doc.text("CORE MESSAGE", M, y); y += 12;
-    bodyText(data.ctx.message, { color: dark, size: 9.5 });
-  }
+  [["Page URL", data.ctx?.url], ["Page Title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition]].forEach(([label, value]) => { if (!value) return; ensureSpace(18); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text(label.toUpperCase(), M, y); doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(value).slice(0, 75), M + 90, y); y += 15; });
+  if (data.ctx?.message) { ensureSpace(20); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text("CORE MESSAGE", M, y); y += 12; bodyText(data.ctx.message, { color: dark, size: 9.5 }); }
   y += 8; drawLine(y); y += 16;
 
-  /* ═══ RANKED KEYWORDS ═══ */
-  if (data.rankedKeywords?.length > 0) {
-    sectionTitle("How Your Page Ranks in Google");
-    doc.autoTable({
-      startY: y, margin: { left: M, right: M },
-      headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 },
-      bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 },
-      alternateRowStyles: { fillColor: [250, 248, 255] },
-      columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 50 }, 2: { halign: "right", cellWidth: 65 }, 3: { halign: "right", cellWidth: 50 } },
-      head: [["Keyword", "Pos.", "Volume", "KD"]],
-      body: data.rankedKeywords.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"])
-    });
-    y = doc.lastAutoTable.finalY + 12;
-    bodyText("Positions 1\u20133 = strong visibility. 4\u201310 = page one below fold. 11+ = page two or deeper.");
-    y += 8; drawLine(y); y += 16;
-  }
+  // KEYWORDS TABLES
+  const kwTable = (title, rows) => { if (!rows?.length) return; sectionTitle(title); doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 }, alternateRowStyles: { fillColor: [250, 248, 255] }, columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 50 }, 2: { halign: "right", cellWidth: 65 }, 3: { halign: "right", cellWidth: 50 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) }); y = doc.lastAutoTable.finalY + 16; drawLine(y); y += 16; };
+  kwTable("How Your Page Ranks in Google", data.rankedKeywords);
+  kwTable("What Your Page Is Built For", data.keywordMetrics);
 
-  /* ═══ CONTENT KEYWORDS ═══ */
-  if (data.keywordMetrics?.length > 0) {
-    sectionTitle("What Your Page Is Built For");
-    doc.autoTable({
-      startY: y, margin: { left: M, right: M },
-      headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 },
-      bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 },
-      alternateRowStyles: { fillColor: [250, 248, 255] },
-      columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 50 }, 2: { halign: "right", cellWidth: 65 }, 3: { halign: "right", cellWidth: 50 } },
-      head: [["Keyword", "Pos.", "Volume", "KD"]],
-      body: data.keywordMetrics.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"])
-    });
-    y = doc.lastAutoTable.finalY + 12;
-    bodyText("Based on your title, headings (H1\u2013H3), and meta description.");
-    y += 8; drawLine(y); y += 16;
-  }
+  // WHAT'S WORKING / NEEDS IMPROVEMENT
+  const pG = [], pB = [];
+  if (data.titleStatus === "good") pG.push("Meta Title"); else pB.push({ t: "Meta Title", w: data.titleEval?.why, s: data.titleEval?.suggestions });
+  if (data.descStatus === "good") pG.push("Meta Description"); else pB.push({ t: "Description", w: data.descEval?.why, s: data.descEval?.suggestions });
+  if (data.headingsStatus === "good") pG.push("Heading Structure"); else pB.push({ t: "Headings", w: data.headingsEval?.why, s: data.headingsEval?.suggestions });
+  if (data.linksStatus === "good") pG.push("Links & Social"); else pB.push({ t: "Links", w: data.linksEval?.why, s: data.linksEval?.suggestions });
+  if (data.ux?.cta?.found) pG.push("Call to Action"); else pB.push({ t: "No CTA", w: "No call-to-action detected." });
+  if (data.ux?.mobile) pG.push("Mobile"); else pB.push({ t: "Not Mobile-Friendly", w: "Missing viewport meta tag." });
+  if (!data.ux?.altMissing) pG.push("Image Alt Text"); else pB.push({ t: "Images", w: data.imagesEval?.why, s: data.imagesEval?.suggestions });
+  if (!data.ux?.noVideo) pG.push("Video"); else pB.push({ t: "No Video", w: data.videoEval?.why });
+  if (data.speedStatus === "good") pG.push("Page Speed"); else pB.push({ t: "Speed", w: data.speedEval?.why, s: data.speedEval?.suggestions });
+  if (data.robotsStatus === "good") pG.push("robots.txt"); else pB.push({ t: "robots.txt", w: "Missing." });
+  if (data.sitemapStatus === "good") pG.push("Sitemap"); else pB.push({ t: "Sitemap", w: "Not found." });
 
-  /* ═══ WHAT'S WORKING / NEEDS IMPROVEMENT ═══ */
-  const pdfGood = [], pdfBad = [];
-  if (data.titleStatus === "good") pdfGood.push("Meta Title"); else pdfBad.push({ t: data.titleEval?.title || "Meta Title", w: data.titleEval?.why, s: data.titleEval?.suggestions });
-  if (data.descStatus === "good") pdfGood.push("Meta Description"); else pdfBad.push({ t: data.descEval?.title || "Description", w: data.descEval?.why, s: data.descEval?.suggestions });
-  if (data.headingsStatus === "good") pdfGood.push("Heading Structure"); else pdfBad.push({ t: data.headingsEval?.title || "Headings", w: data.headingsEval?.why, s: data.headingsEval?.suggestions });
-  if (data.linksStatus === "good") pdfGood.push("Links & Social"); else pdfBad.push({ t: data.linksEval?.title || "Links", w: data.linksEval?.why, s: data.linksEval?.suggestions });
-  if (data.ux?.cta?.found) pdfGood.push("Call to Action"); else pdfBad.push({ t: "No CTA Found", w: "No call-to-action detected.", s: ["Add a prominent CTA above the fold"] });
-  if (data.ux?.mobile) pdfGood.push("Mobile Optimization"); else pdfBad.push({ t: "Not Mobile-Friendly", w: "Missing viewport meta tag." });
-  if (!data.ux?.altMissing) pdfGood.push("Image Alt Text"); else pdfBad.push({ t: data.imagesEval?.title || "Images", w: data.imagesEval?.why, s: data.imagesEval?.suggestions });
-  if (!data.ux?.noVideo) pdfGood.push("Video Content"); else pdfBad.push({ t: data.videoEval?.title || "No Video", w: data.videoEval?.why, s: data.videoEval?.suggestions });
-  if (data.speedStatus === "good") pdfGood.push("Page Speed"); else pdfBad.push({ t: data.speedEval?.title || "Speed", w: data.speedEval?.why, s: data.speedEval?.suggestions });
-  if (data.robotsStatus === "good") pdfGood.push("robots.txt"); else pdfBad.push({ t: "robots.txt Not Found", w: "Missing robots.txt file." });
-  if (data.sitemapStatus === "good") pdfGood.push("Sitemap"); else pdfBad.push({ t: "Sitemap Not Found", w: "No XML sitemap detected." });
-
-  sectionTitle("What's Working (" + pdfGood.length + ")");
-  pdfGood.forEach((item) => {
-    ensureSpace(16);
-    doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(155, 122, 230);
-    doc.text("\u2713", M + 3, y);
-    doc.setTextColor(...dark); doc.text(item, M + 16, y);
-    y += 15;
-  });
+  sectionTitle("What's Working (" + pG.length + ")");
+  pG.forEach(item => { ensureSpace(16); doc.setFontSize(9.5); doc.setTextColor(155, 122, 230); doc.text("\u2713", M + 3, y); doc.setTextColor(...dark); doc.text(item, M + 16, y); y += 15; });
   y += 8; drawLine(y); y += 16;
 
-  if (pdfBad.length > 0) {
-    sectionTitle("Needs Improvement (" + pdfBad.length + ")");
-    pdfBad.forEach((item) => {
-      ensureSpace(50);
-      doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F");
-      doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
-      doc.text(item.t, M + 14, y); y += 14;
-      if (item.w) { bodyText(item.w); y += 2; }
-      if (item.s?.length > 0) {
-        item.s.forEach((s) => {
-          ensureSpace(18);
-          doc.setFillColor(250, 248, 255); doc.roundedRect(M + 8, y - 10, CW - 16, 16, 3, 3, "F");
-          doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark);
-          const sugTrunc = String(s).length > 90 ? String(s).slice(0, 87) + "..." : String(s);
-          doc.text(sugTrunc, M + 14, y); y += 18;
-        });
-      }
-      y += 6;
-    });
-    drawLine(y); y += 16;
-  }
+  if (pB.length > 0) { sectionTitle("Needs Improvement (" + pB.length + ")"); pB.forEach(item => { ensureSpace(50); doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F"); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(item.t, M + 14, y); y += 14; if (item.w) { bodyText(item.w); y += 2; } if (item.s?.length > 0) { item.s.forEach(s => { ensureSpace(18); doc.setFillColor(250, 248, 255); doc.roundedRect(M + 8, y - 10, CW - 16, 16, 3, 3, "F"); doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(s).slice(0, 90), M + 14, y); y += 18; }); } y += 6; }); drawLine(y); y += 16; }
 
-  /* ═══ COMPETITORS ═══ */
-  if (data.competitors?.length > 0) {
-    sectionTitle("Top Competitors in Google");
-    doc.autoTable({
-      startY: y, margin: { left: M, right: M },
-      headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 },
-      bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 },
-      alternateRowStyles: { fillColor: [250, 248, 255] },
-      head: [["#", "Domain", "Strategy"]],
-      body: data.competitors.map((c, i) => [String(i + 1), c.name || c.url || "", (c.title || c.tactics || "").slice(0, 80)])
-    });
-    y = doc.lastAutoTable.finalY + 16; drawLine(y); y += 16;
-  }
+  // COMPETITORS
+  if (data.competitors?.length > 0) { sectionTitle("Top Competitors in Google"); doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 }, alternateRowStyles: { fillColor: [250, 248, 255] }, head: [["#", "Domain", "Strategy"]], body: data.competitors.map((c, i) => [String(i + 1), c.name || "", (c.title || c.tactics || "").slice(0, 80)]) }); y = doc.lastAutoTable.finalY + 16; drawLine(y); y += 16; }
 
-  /* ═══ BACKLINKS ═══ */
+  // BACKLINKS
   sectionTitle("PR & Backlink Opportunities");
-  if (data.backlinksCount != null) {
-    ensureSpace(30);
-    const sX = [M, M + CW / 3, M + (CW * 2) / 3];
-    [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([label, val], i) => {
-      doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
-      doc.text(val != null ? val.toLocaleString() : "\u2014", sX[i], y);
-      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted);
-      doc.text(label, sX[i], y + 12);
-    });
-    y += 30;
-  }
-  if (data.backlinks?.length > 0) {
-    doc.autoTable({
-      startY: y, margin: { left: M, right: M },
-      headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 },
-      bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 },
-      alternateRowStyles: { fillColor: [250, 248, 255] },
-      head: [["#", "Source", "Description"]],
-      body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""])
-    });
-    y = doc.lastAutoTable.finalY + 16; drawLine(y); y += 16;
-  }
+  if (data.backlinksCount != null) { ensureSpace(30); [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([label, val], i) => { const sx = M + (CW / 3) * i; doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(val != null ? val.toLocaleString() : "\u2014", sx, y); doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); doc.text(String(label), sx, y + 12); }); y += 30; }
+  if (data.backlinks?.length > 0) { doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 6 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 5 }, alternateRowStyles: { fillColor: [250, 248, 255] }, head: [["#", "Source", "Description"]], body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""]) }); y = doc.lastAutoTable.finalY + 16; drawLine(y); y += 16; }
 
-  /* ═══ FINAL RECOMMENDATIONS ═══ */
+  // FINAL RECOMMENDATIONS
   sectionTitle("Final Recommendations");
-  const recs = [
-    ...pdfBad.map(item => ({ t: item.t, d: item.w || "", s: item.s?.[0] || "" })),
-    { t: data.backlinksCount != null && data.backlinksCount >= 10 ? "Keep building backlinks" : "Build quality backlinks", d: "Backlinks are one of Google's top 3 ranking factors.", s: "Reach out to industry blogs, directories, and publications." },
-    { t: "Create useful content", d: "Content that solves real problems is the foundation of lasting SEO success." },
-    { t: "Monitor with Google tools", d: "Use Search Console and PageSpeed Insights to track improvements." },
-    { t: "Re-audit after changes", d: "Run another Core Audit to measure progress." }
-  ];
-  recs.forEach((rec) => {
-    ensureSpace(40);
-    doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F");
-    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
-    doc.text(rec.t, M + 14, y); y += 13;
-    if (rec.d) { doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); const dL = doc.splitTextToSize(rec.d, CW - 20); ensureSpace(dL.length * 11); doc.text(dL, M + 14, y); y += dL.length * 11; }
-    if (rec.s) { ensureSpace(18); doc.setFillColor(250, 248, 255); doc.roundedRect(M + 12, y - 9, Math.min(doc.getTextWidth(String(rec.s)) + 20, CW - 24), 15, 3, 3, "F"); doc.setFontSize(8.5); doc.setTextColor(...dark); doc.text(String(rec.s).slice(0, 90), M + 18, y); y += 18; }
-    y += 4;
-  });
+  [...pB.map(item => ({ t: item.t, d: item.w || "" })), { t: "Build quality backlinks", d: "Reach out to industry blogs, directories, and publications." }, { t: "Create useful content", d: "Content that solves real problems is the foundation of lasting SEO success." }, { t: "Monitor with Google tools", d: "Use Search Console and PageSpeed Insights." }, { t: "Re-audit after changes", d: "Run another Core Audit to measure progress." }].forEach(rec => { ensureSpace(35); doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F"); doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(rec.t, M + 14, y); y += 13; if (rec.d) { doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); const dL = doc.splitTextToSize(rec.d, CW - 20); ensureSpace(dL.length * 11); doc.text(dL, M + 14, y); y += dL.length * 11; } y += 4; });
 
-  /* Footer on all pages */
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8); doc.setTextColor(...muted);
-    doc.text("ivabot.xyz  \u00B7  AI SEO Assistant", W / 2, H - 20, { align: "center" });
-    doc.text("Page " + i + " of " + totalPages, W - M, H - 20, { align: "right" });
-  }
+  // FOOTER
+  const tp = doc.getNumberOfPages();
+  for (let i = 1; i <= tp; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...muted); doc.text("ivabot.xyz  \u00B7  AI SEO Assistant", W / 2, H - 20, { align: "center" }); doc.text("Page " + i + " of " + tp, W - M, H - 20, { align: "right" }); }
 
   const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
   doc.save("IvaBot-Audit-" + domain + "-" + new Date().toISOString().slice(0,10) + ".pdf");
-  } catch(err) {
-    console.error("[IvaBot] PDF export error:", err);
-    alert("PDF export failed: " + err.message);
-  }
+  } catch(err) { console.error("[IvaBot] PDF error:", err); alert("PDF export failed: " + err.message); }
 }
 
 /* ═══ REPORT ═══ */
@@ -730,7 +571,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
   {bad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Needs Improvement" count={bad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{bad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
   <BotNote text="Want to go deeper? See how your competitors rank and where to earn backlinks." />
   <div className="reveal" style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-    <Fold title="Top Competitors in Google" borderColor={C.cardBorder} headerBg={C.card}><BotNote inline text={`These are the top organic Google results for "${data.serpKeyword || data.keywords?.[0] || "your topic"}". They currently outrank your page for this search query.`} /><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.competitors.map((c, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
+    <Fold title="Top Competitors in Google" borderColor={C.cardBorder} headerBg={C.card}><BotNote inline text={`These are the top organic Google results for "${data.keywords?.[0] || "your topic"}". They currently outrank your page for this search query.`} /><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.competitors.map((c, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <span style={{ background: "rgba(110,43,255,0.08)", color: C.accent, fontWeight: 700, width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>{i + 1}</span>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{c.name}</span>
@@ -834,15 +675,6 @@ function IvaBotV6() {
         const domain = new URL(url).hostname.replace(/^www\./, "");
         const cleanKw = (v) => v && v.length > 2 && !/^\{.*\}$/.test(v) && !/^[^a-zA-Z]*$/.test(v) ? v : null;
         const primaryKw = cleanKw(parsed.h1?.[0]) || cleanKw(parsed.title) || "";
-        // Build keyword candidates from H1, title, first H2s for better SERP results
-        const kwCandidates = [
-          cleanKw(parsed.h1?.[0]),
-          cleanKw(parsed.title),
-          ...parsed.h2.slice(0, 3).map(h => cleanKw(h))
-        ].filter(Boolean);
-        // Dedupe case-insensitive
-        const seen = new Set();
-        const serpKeywords = kwCandidates.filter(k => { const lk = k.toLowerCase(); if (seen.has(lk)) return false; seen.add(lk); return true; }).slice(0, 3);
 
         // Run Make (GPT) and DataForSEO in parallel
         const [makeResult, dfsResult] = await Promise.allSettled([
@@ -881,7 +713,7 @@ function IvaBotV6() {
             const dfsRes = await fetch(DFS_PROXY, {
               method: "POST",
               headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
-              body: JSON.stringify({ domain, keyword: primaryKw, keywords: serpKeywords, page_url: url, html_lang: parsed.html_lang || "", tld_country: parsed.tld_country || "" })
+              body: JSON.stringify({ domain, keyword: primaryKw, page_url: url })
             });
             if (!dfsRes.ok) { console.log("[IvaBot] DFS proxy HTTP", dfsRes.status); return null; }
             const dfsData = await dfsRes.json();
@@ -904,9 +736,8 @@ function IvaBotV6() {
             ranked_keywords: dfs.ranked_keywords || [],
             serp_competitors: dfs.serp_competitors || [],
             total_ranked: dfs.total_ranked || 0,
-            serp_keyword: dfs.serp_keyword || primaryKw,
           };
-          console.log("[IvaBot] DFS OK — ranked:", dfsSeo.ranked_keywords.length, "serp:", dfsSeo.serp_competitors.length, "serpKw:", dfsSeo.serp_keyword);
+          console.log("[IvaBot] DFS OK — ranked:", dfsSeo.ranked_keywords.length, "serp:", dfsSeo.serp_competitors.length);
         } else {
           console.log("[IvaBot] DFS failed:", dfsResult.reason?.message || "no data");
         }
