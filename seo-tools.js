@@ -489,9 +489,9 @@ async function generatePDF(data) {
   /* ═══ HEADER ═══ */
   const g1 = [184, 156, 240], g2 = [212, 190, 247];
   for (let i = 0; i < 40; i++) { const t = i / 40; doc.setFillColor(Math.round(g1[0]+(g2[0]-g1[0])*t), Math.round(g1[1]+(g2[1]-g1[1])*t), Math.round(g1[2]+(g2[2]-g1[2])*t)); doc.rect(0, (78/40)*i, W, 78/40+0.5, "F"); }
-  doc.addImage(logoDataUrl, "PNG", M, 16, 36, 32);
-  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...white); doc.text("IvaBot", M + 44, 34);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("Core Audit Report", M + 44, 48);
+  doc.addImage(logoDataUrl, "PNG", M, 22, 22, 19);
+  doc.setFontSize(18); doc.setFont("helvetica", "bold"); doc.setTextColor(...white); doc.text("IvaBot", M + 28, 36);
+  doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.text("Core Audit Report", M + 28, 48);
   doc.setFontSize(9);
   doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 30, { align: "right" });
   const urlS = (data.url || "").length > 56 ? data.url.slice(0, 53) + "..." : (data.url || "");
@@ -528,7 +528,7 @@ async function generatePDF(data) {
   if (data.titleStatus === "good") goodItems.push(["Meta Title", "\"" + data.title + "\" (" + data.title.length + " chars). Right in the 30\u201360 sweet spot."]);
   if (data.descStatus === "good") goodItems.push(["Meta Description", "\"" + (data.desc.length > 80 ? data.desc.slice(0,77)+"..." : data.desc) + "\" (" + data.desc.length + " chars). Within 120\u2013160 range."]);
   if (data.headingsStatus === "good") { const h1 = data.headings.filter(h => h.level === "H1"), h2 = data.headings.filter(h => h.level === "H2"), h3 = data.headings.filter(h => h.level === "H3"); goodItems.push(["Heading Structure", "H1: " + h1.map(h=>h.text).join(", ") + " | H2: " + h2.length + " | H3: " + h3.length + ". Clean hierarchy."]); }
-  if (data.linksStatus === "good") { const soc = data.links.social.map(s => typeof s === "string" ? s : s.name).join(", "); goodItems.push(["Links & Social", "Internal: " + data.links.internal + " | External: " + data.links.external + (soc ? " | Social: " + soc : "")]); }
+  if (data.linksStatus === "good") { const soc = data.links.social.map(s => typeof s === "string" ? s : (s.name + ": " + s.url)).join(" | "); goodItems.push(["Links & Social", "Internal: " + data.links.internal + " | External: " + data.links.external + (soc ? "\nSocial: " + soc : "")]); }
   if (data.ux?.cta?.found) goodItems.push(["Call to Action", "CTA found: \"" + data.ux.cta.text + "\""]);
   if (data.ux?.mobile) goodItems.push(["Mobile", "Viewport meta tag present. Mobile-friendly."]);
   if (!data.ux?.altMissing) goodItems.push(["Image Alt Text", "All images have descriptions."]);
@@ -545,7 +545,7 @@ async function generatePDF(data) {
 
   /* ═══ NEEDS IMPROVEMENT — full data ═══ */
   const pB = [];
-  if (data.titleStatus !== "good") pB.push({ t: data.titleEval?.title || "Meta Title", serp: "SERP: " + urlS + " \u2014 " + (data.title || "No title"), w: data.titleEval?.why, s: data.titleEval?.suggestions });
+  if (data.titleStatus !== "good") pB.push({ t: data.titleEval?.title || "Meta Title", serp: "SERP: " + urlS + " \u2014 " + (data.title || "No title"), w: data.titleEval?.why, s: data.titleEval?.suggestions, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] });
   if (data.descStatus !== "good") pB.push({ t: data.descEval?.title || "Meta Description", serp: "SERP: " + (data.desc ? "\"" + (data.desc.length > 70 ? data.desc.slice(0,67)+"..." : data.desc) + "\"" : "No description"), w: data.descEval?.why, s: data.descEval?.suggestions });
   if (data.headingsStatus !== "good") pB.push({ t: "Heading Structure", w: data.headingsEval?.why, current: data.headingsEval?.current, s: data.headingsEval?.suggestions });
   if (data.linksStatus !== "good") pB.push({ t: "Links", w: data.linksEval?.why, s: data.linksEval?.suggestions });
@@ -553,9 +553,9 @@ async function generatePDF(data) {
   if (!data.ux?.mobile) pB.push({ t: "Not Mobile-Friendly", w: "Missing viewport meta tag. Google uses mobile-first indexing.", s: ["Add viewport meta tag"] });
   if (data.ux?.altMissing) pB.push({ t: data.imagesEval?.title || "Images Missing Alt", w: data.imagesEval?.why, s: data.imagesEval?.suggestions });
   if (data.ux?.noVideo) pB.push({ t: data.videoEval?.title || "No Video", w: data.videoEval?.why, s: data.videoEval?.suggestions });
-  if (data.speedStatus !== "good") pB.push({ t: data.speedEval?.title || "Page Speed", w: data.speedEval?.why, s: data.speedEval?.suggestions });
-  if (data.robotsStatus !== "good") pB.push({ t: "robots.txt Not Found", w: "Tells search engines which pages to crawl. Without it, Google may waste time on unnecessary pages.", s: ["Create robots.txt at your domain root"] });
-  if (data.sitemapStatus !== "good") pB.push({ t: "Sitemap Not Found", w: "Helps Google discover and index pages faster. Without one, new pages may take weeks to appear.", s: ["Generate and submit XML sitemap"] });
+  if (data.speedStatus !== "good") pB.push({ t: data.speedEval?.title || "Page Speed", w: data.speedEval?.why, s: data.speedEval?.suggestions, links: [{ label: "Google PageSpeed Insights", url: "https://pagespeed.web.dev/" }] });
+  if (data.robotsStatus !== "good") pB.push({ t: "robots.txt Not Found", w: "Tells search engines which pages to crawl. Without it, Google may waste time on unnecessary pages.", s: ["Create robots.txt at your domain root"], links: [{ label: "How to create robots.txt", url: "https://developers.google.com/search/docs/crawling-indexing/robots/create-robots-txt" }] });
+  if (data.sitemapStatus !== "good") pB.push({ t: "Sitemap Not Found", w: "Helps Google discover and index pages faster. Without one, new pages may take weeks to appear.", s: ["Generate and submit XML sitemap"], links: [{ label: "Google Sitemap Guide", url: "https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap" }] });
 
   if (pB.length > 0) {
     sec("Needs Improvement (" + pB.length + ")");
@@ -563,9 +563,15 @@ async function generatePDF(data) {
     pB.forEach((item, i) => {
       niRows.push([{ content: String(i + 1), styles: { fontStyle: "bold" } }, { content: item.t, styles: { fontStyle: "bold" } }, item.w || ""]);
       if (item.serp) niRows.push(["", { content: item.serp, colSpan: 2, styles: { fontSize: 8, fontStyle: "italic", textColor: muted, fillColor: lavBg } }]);
-      if (item.current) niRows.push(["", { content: "Current: " + String(item.current).replace(/\n/g, " | ").slice(0, 140), colSpan: 2, styles: { fontSize: 8, textColor: dark, fillColor: lavBg } }]);
+      if (item.current) {
+        const curText = String(item.current).replace(/\n/g, "\n").slice(0, 300);
+        niRows.push(["", { content: "Current:\n" + curText, colSpan: 2, styles: { fontSize: 8, textColor: dark, fillColor: lavBg, cellPadding: { top: 4, bottom: 4, left: 6, right: 6 } } }]);
+      }
       if (item.s?.length > 0) {
         item.s.forEach(s => { niRows.push(["", { content: "Suggested:  " + String(s), colSpan: 2, styles: { fillColor: white, fontSize: 8.5, textColor: muted } }]); });
+      }
+      if (item.links?.length > 0) {
+        item.links.forEach(l => { niRows.push(["", { content: l.label + ": " + l.url, colSpan: 2, styles: { fillColor: white, fontSize: 8, textColor: purple } }]); });
       }
     });
     doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: pH, bodyStyles: tB, alternateRowStyles: tA, head: [["#", "Issue", "Details"]], body: niRows, columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 100 }, 2: { cellWidth: "auto" } } });
@@ -576,7 +582,7 @@ async function generatePDF(data) {
   if (data.competitors?.length > 0) {
     sec("Top Competitors in Google");
     note("Top organic Google results for \"" + (data.keywords?.[0] || "your topic") + "\".");
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: tH, bodyStyles: tB, alternateRowStyles: tA, head: [["#", "Domain", "SEO Tactics"]], body: data.competitors.map((c, i) => [String(i + 1), c.name || "", c.tactics || c.description || ""]), columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 130 }, 2: { cellWidth: "auto" } } });
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: tH, bodyStyles: tB, alternateRowStyles: tA, head: [["#", "Domain", "SEO Tactics"]], body: data.competitors.map((c, i) => [String(i + 1), (c.name || "") + (c.url ? "\n" + c.url : ""), c.tactics || ""]), columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 150 }, 2: { cellWidth: "auto" } } });
     y = doc.lastAutoTable.finalY + 14; drawLine(); gap(18);
   }
 
