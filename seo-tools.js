@@ -452,73 +452,75 @@ async function generatePDF(data) {
   await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js");
   await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.2/jspdf.plugin.autotable.min.js");
 
+  /* Generate white IvaBot logo as PNG via canvas */
+  const makeLogo = () => new Promise(resolve => {
+    const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
+    const ctx = cvs.getContext("2d");
+    ctx.fillStyle = "white";
+    const p = new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z");
+    const p2 = new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1z");
+    ctx.scale(2, 2); ctx.fill(p); ctx.fill(p2);
+    // Eyes — cut out with destination-out
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
+    resolve(cvs.toDataURL("image/png"));
+  });
+  const logoDataUrl = await makeLogo();
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = 40, CW = W - M * 2;
   let y = 0;
-  const purple = [110, 43, 255], dark = [21, 20, 21], muted = [146, 142, 149], white = [255, 255, 255];
+  const purple = [110, 43, 255];
+  const titleColor = [90, 85, 100]; // soft grey for section titles
+  const dark = [60, 56, 65]; // softer body text
+  const muted = [146, 142, 149];
+  const white = [255, 255, 255];
+  const lavHead = [184, 156, 240]; // #b89cf0 — lavender for section headers
+  const lavLight = [240, 235, 253]; // #f0ebfd — light lavender bg
   const ensureSpace = (need) => { if (y + need > H - 60) { doc.addPage(); y = 44; } };
-  const drawLine = (yPos) => { doc.setDrawColor(235, 232, 240); doc.setLineWidth(0.5); doc.line(M, yPos, W - M, yPos); };
+  const drawLine = (yPos) => { doc.setDrawColor(225, 220, 235); doc.setLineWidth(0.5); doc.line(M, yPos, W - M, yPos); };
   const gap = (n) => { y += n || 10; };
-  const sectionTitle = (text) => { ensureSpace(40); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(text, M, y); y += 22; };
+  const sectionTitle = (text) => { ensureSpace(40); doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor); doc.text(text, M, y); y += 22; };
   const bodyText = (text, opts = {}) => { doc.setFontSize(opts.size || 9); doc.setFont("helvetica", opts.bold ? "bold" : "normal"); doc.setTextColor(...(opts.color || muted)); const lines = doc.splitTextToSize(String(text || ""), opts.width || CW); ensureSpace(lines.length * 14 + 4); doc.text(lines, opts.x || M, y); y += lines.length * 14; };
   const fmtV = (v) => { if (!v) return "\u2014"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
 
-  /* ── HEADER with real IvaBot logo + brand gradient ── */
-  // Gradient background — simulate with 2-color fill (rose-lavender)
-  const gradSteps = 40;
-  const r1 = [164, 127, 230], r2 = [240, 235, 253]; // #a47fe6 → #f0ebfd
-  for (let i = 0; i < gradSteps; i++) {
-    const t = i / gradSteps;
-    doc.setFillColor(
-      Math.round(r1[0] + (r2[0] - r1[0]) * t),
-      Math.round(r1[1] + (r2[1] - r1[1]) * t),
-      Math.round(r1[2] + (r2[2] - r1[2]) * t)
-    );
-    doc.rect(0, (78 / gradSteps) * i, W, 78 / gradSteps + 0.5, "F");
-  }
-  // IvaBot logo — white version (body + eyes as negative space)
-  const logoX = M, logoY = 20, logoS = 0.5; // scale factor
-  // Main body path
-  doc.setFillColor(...white);
-  // Simplified logo: rounded rect body + 2 circle eyes
-  doc.roundedRect(logoX, logoY, 33 * logoS, 29 * logoS, 3, 3, "F");
-  // Draw the actual SVG shape using small circle eyes as cutouts
-  // Body
-  doc.setFillColor(...white);
-  doc.roundedRect(logoX, logoY, 34, 20, 4, 4, "F");
-  // Tail
-  doc.triangle(logoX + 24, logoY + 18, logoX + 30, logoY + 24, logoX + 20, logoY + 24, "F");
-  // Eyes (purple on white = cutouts)
-  const eyeR = 4.5;
-  doc.setFillColor(164, 127, 230);
-  doc.circle(logoX + 11, logoY + 10, eyeR, "F");
-  doc.circle(logoX + 23, logoY + 10, eyeR, "F");
-  // "IvaBot" text
+  // AutoTable style presets
+  const lavenderHead = { fillColor: lavHead, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
+  const purpleHead = { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
+  const tableBody = { fontSize: 9, textColor: dark, cellPadding: 6 };
+  const altRow = { fillColor: [250, 248, 255] };
+
+  /* ── HEADER ── */
+  // Gradient #b89cf0 → #d4bef7
+  const g1 = [184, 156, 240], g2 = [212, 190, 247];
+  for (let i = 0; i < 40; i++) { const t = i / 40; doc.setFillColor(Math.round(g1[0]+(g2[0]-g1[0])*t), Math.round(g1[1]+(g2[1]-g1[1])*t), Math.round(g1[2]+(g2[2]-g1[2])*t)); doc.rect(0, (78/40)*i, W, 78/40+0.5, "F"); }
+  // Real logo
+  doc.addImage(logoDataUrl, "PNG", M, 16, 36, 32);
   doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
-  doc.text("IvaBot", logoX + 42, logoY + 14);
+  doc.text("IvaBot", M + 44, 34);
   doc.setFontSize(10); doc.setFont("helvetica", "normal");
-  doc.text("Core Audit Report", logoX + 42, logoY + 28);
-  // Right side — date + URL
+  doc.text("Core Audit Report", M + 44, 48);
   doc.setFontSize(9);
-  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, logoY + 10, { align: "right" });
-  const urlShort = (data.url || "").length > 58 ? data.url.slice(0, 55) + "..." : (data.url || "");
-  doc.text(urlShort, W - M, logoY + 24, { align: "right" });
+  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 30, { align: "right" });
+  const urlShort = (data.url || "").length > 56 ? data.url.slice(0, 53) + "..." : (data.url || "");
+  doc.text(urlShort, W - M, 44, { align: "right" });
   y = 96;
 
   /* ── SCORE ── */
   const scoreLabel = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
   const scoreColor = data.score >= 80 ? [155, 122, 230] : data.score >= 50 ? [212, 160, 232] : [226, 212, 245];
   const cx = M + 30, cy = y + 24;
-  doc.setDrawColor(235, 232, 240); doc.setLineWidth(4); doc.circle(cx, cy, 24);
+  doc.setDrawColor(225, 220, 235); doc.setLineWidth(4); doc.circle(cx, cy, 24);
   doc.setDrawColor(...scoreColor); doc.setLineWidth(4);
   for (let a = -90; a < -90 + (data.score / 100) * 360; a += 2) { const r1 = (a * Math.PI) / 180, r2 = ((Math.min(a + 2, -90 + (data.score / 100) * 360)) * Math.PI) / 180; doc.line(cx + 24 * Math.cos(r1), cy + 24 * Math.sin(r1), cx + 24 * Math.cos(r2), cy + 24 * Math.sin(r2)); }
-  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(String(data.score), cx, cy + 4, { align: "center" });
+  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor); doc.text(String(data.score), cx, cy + 4, { align: "center" });
   doc.setFontSize(7); doc.setTextColor(...scoreColor); doc.text(scoreLabel, cx, cy + 14, { align: "center" });
-  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text("SEO Score", M + 68, y + 12);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(urlShort, M + 68, y + 28);
+  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor); doc.text("SEO Score", M + 68, y + 12);
+  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(urlShort, M + 68, y + 28);
   doc.setFontSize(9); doc.setTextColor(...muted); doc.text(data.score >= 80 ? "Your page has a strong foundation." : "There's room for improvement.", M + 68, y + 44);
   y += 70; drawLine(y); gap(18);
 
@@ -533,17 +535,17 @@ async function generatePDF(data) {
   if (data.ctx?.message) { gap(4); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text("CORE MESSAGE", M, y); y += 14; bodyText(data.ctx.message, { color: dark, size: 9.5 }); }
   gap(12); drawLine(y); gap(18);
 
-  /* ── KEYWORDS TABLES ── */
+  /* ── KEYWORDS TABLES — lavender headers ── */
   const kwTable = (title, rows) => {
     if (!rows?.length) return;
     sectionTitle(title);
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 6 }, alternateRowStyles: { fillColor: [250, 248, 255] }, columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 50 }, 2: { halign: "right", cellWidth: 65 }, 3: { halign: "right", cellWidth: 50 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) });
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 50 }, 2: { halign: "right", cellWidth: 65 }, 3: { halign: "right", cellWidth: 50 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) });
     y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
   };
   kwTable("How Your Page Ranks in Google", data.rankedKeywords);
   kwTable("What Your Page Is Built For", data.keywordMetrics);
 
-  /* ── WHAT'S WORKING / NEEDS IMPROVEMENT ── */
+  /* ── Build good/bad lists ── */
   const pG = [], pB = [];
   if (data.titleStatus === "good") pG.push("Meta Title"); else pB.push({ t: "Meta Title", w: data.titleEval?.why, s: data.titleEval?.suggestions });
   if (data.descStatus === "good") pG.push("Meta Description"); else pB.push({ t: "Description", w: data.descEval?.why, s: data.descEval?.suggestions });
@@ -557,90 +559,74 @@ async function generatePDF(data) {
   if (data.robotsStatus === "good") pG.push("robots.txt"); else pB.push({ t: "robots.txt", w: "Missing." });
   if (data.sitemapStatus === "good") pG.push("Sitemap"); else pB.push({ t: "Sitemap", w: "Not found." });
 
-  sectionTitle("What's Working (" + pG.length + ")");
-  pG.forEach(item => { ensureSpace(18); doc.setFontSize(9.5); doc.setTextColor(155, 122, 230); doc.text("\u2713", M + 3, y); doc.setTextColor(...dark); doc.text(item, M + 18, y); y += 18; });
-  gap(10); drawLine(y); gap(18);
+  /* ── WHAT'S WORKING — as table ── */
+  sectionTitle("What\u2019s Working (" + pG.length + ")");
+  doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: { ...tableBody, cellPadding: 7 }, alternateRowStyles: altRow, head: [["#", "Check", "Status"]], body: pG.map((item, i) => [String(i + 1), item, "\u2713 Pass"]), columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 60, halign: "center", textColor: { r: 155, g: 122, b: 230 } } } });
+  y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
 
+  /* ── NEEDS IMPROVEMENT — as table, purple header ── */
   if (pB.length > 0) {
     sectionTitle("Needs Improvement (" + pB.length + ")");
-    pB.forEach(item => {
-      ensureSpace(55);
-      doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F");
-      doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
-      doc.text(item.t, M + 14, y); y += 16;
-      if (item.w) { bodyText(item.w); gap(4); }
+    const niRows = [];
+    pB.forEach((item, i) => {
+      niRows.push([{ content: String(i + 1), styles: { fontStyle: "bold" } }, { content: item.t, styles: { fontStyle: "bold" } }, item.w || ""]);
       if (item.s?.length > 0) {
-        doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted);
-        doc.text("Suggested:", M + 10, y); y += 12;
-        item.s.forEach(s => {
-          ensureSpace(20);
-          doc.setFillColor(250, 248, 255); doc.roundedRect(M + 10, y - 11, CW - 20, 18, 3, 3, "F");
-          doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark);
-          doc.text(String(s).slice(0, 88), M + 16, y); y += 22;
-        });
+        item.s.forEach(s => { niRows.push(["", { content: "Suggested: " + String(s), colSpan: 2, styles: { fillColor: [248, 245, 255], textColor: purple, fontSize: 8.5, fontStyle: "italic" } }]); });
       }
-      gap(10);
     });
-    drawLine(y); gap(18);
-  }
-
-  /* ── COMPETITORS ── */
-  if (data.competitors?.length > 0) {
-    sectionTitle("Top Competitors in Google");
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 6 }, alternateRowStyles: { fillColor: [250, 248, 255] }, head: [["#", "Domain", "Strategy"]], body: data.competitors.map((c, i) => [String(i + 1), c.name || "", (c.title || c.tactics || "").slice(0, 78)]) });
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: purpleHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Issue", "Details"]], body: niRows, columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 120 }, 2: { cellWidth: "auto" } } });
     y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
   }
 
-  /* ── BACKLINKS ── */
+  /* ── COMPETITORS — lavender header ── */
+  if (data.competitors?.length > 0) {
+    sectionTitle("Top Competitors in Google");
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Domain", "Strategy"]], body: data.competitors.map((c, i) => [String(i + 1), c.name || "", (c.title || c.tactics || "").slice(0, 78)]) });
+    y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
+  }
+
+  /* ── BACKLINKS — lavender header ── */
   sectionTitle("PR & Backlink Opportunities");
   if (data.backlinksCount != null) {
     ensureSpace(35);
     [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([label, val], i) => {
       const sx = M + (CW / 3) * i;
-      doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark); doc.text(val != null ? val.toLocaleString() : "\u2014", sx, y);
+      doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor); doc.text(val != null ? val.toLocaleString() : "\u2014", sx, y);
       doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); doc.text(String(label), sx, y + 14);
     }); y += 36;
   }
   if (data.backlinks?.length > 0) {
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 }, bodyStyles: { fontSize: 9, textColor: dark, cellPadding: 6 }, alternateRowStyles: { fillColor: [250, 248, 255] }, head: [["#", "Source", "Description"]], body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""]) });
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Source", "Description"]], body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""]) });
     y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
   }
 
-  /* ── FINAL RECOMMENDATIONS ── */
+  /* ── FINAL RECOMMENDATIONS — as table, lavender header ── */
   sectionTitle("Final Recommendations");
-  [...pB.map(item => ({ t: item.t, d: item.w || "", s: item.s?.[0] || "" })),
-    { t: "Build quality backlinks", d: "Reach out to industry blogs, directories, and publications." },
-    { t: "Create useful content", d: "Content that solves real problems is the foundation of lasting SEO success." },
-    { t: "Monitor with Google tools", d: "Use Search Console and PageSpeed Insights to track improvements." },
-    { t: "Re-audit after changes", d: "Run another Core Audit to measure progress." }
-  ].forEach(rec => {
-    ensureSpace(45);
-    doc.setFillColor(...purple); doc.circle(M + 3, y - 2.5, 2.5, "F");
-    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark);
-    doc.text(rec.t, M + 14, y); y += 15;
-    if (rec.d) { doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); const dL = doc.splitTextToSize(rec.d, CW - 20); ensureSpace(dL.length * 12); doc.text(dL, M + 14, y); y += dL.length * 12 + 2; }
-    if (rec.s) { ensureSpace(22); doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text("Suggested:", M + 14, y); y += 11; doc.setFillColor(250, 248, 255); doc.roundedRect(M + 12, y - 10, Math.min(doc.getTextWidth(String(rec.s)) + 22, CW - 24), 17, 3, 3, "F"); doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(rec.s).slice(0, 88), M + 18, y); y += 20; }
-    gap(8);
-  });
+  const recItems = [
+    ...pB.map(item => [item.t, item.s?.[0] || ""]),
+    ["Build quality backlinks", "Reach out to industry blogs, directories, and publications."],
+    ["Create useful content", "Content that solves real problems is the foundation of lasting SEO success."],
+    ["Monitor with Google tools", "Use Search Console and PageSpeed Insights to track improvements."],
+    ["Re-audit after changes", "Run another Core Audit to measure your progress."]
+  ];
+  doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Action", "Details"]], body: recItems.map((r, i) => [String(i + 1), r[0], r[1]]), columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 140, fontStyle: "bold" }, 2: { cellWidth: "auto" } } });
+  y = doc.lastAutoTable.finalY + 18;
 
-  /* ── CTA: Run your audit ── */
-  gap(10); ensureSpace(50);
-  doc.setFillColor(240, 235, 253); doc.roundedRect(M, y - 6, CW, 44, 8, 8, "F");
-  doc.setDrawColor(164, 127, 230); doc.setLineWidth(0.8); doc.roundedRect(M, y - 6, CW, 44, 8, 8, "S");
-  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
-  doc.text("Run your own SEO audit at ivabot.xyz", W / 2, y + 12, { align: "center" });
-  doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted);
-  doc.text("Free Core Audit \u00B7 AI-powered recommendations \u00B7 Real Google data", W / 2, y + 26, { align: "center" });
-  doc.link(M, y - 6, CW, 44, { url: "https://ivabot.xyz" });
+  /* ── CTA — styled like Export PDF button ── */
+  gap(8); ensureSpace(44);
+  doc.setDrawColor(180, 175, 190); doc.setLineWidth(0.8);
+  doc.setFillColor(...white); doc.roundedRect(W / 2 - 120, y - 4, 240, 34, 6, 6, "FD");
+  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor);
+  doc.text("Run your audit at ivabot.xyz", W / 2, y + 14, { align: "center" });
+  doc.link(W / 2 - 120, y - 4, 240, 34, { url: "https://ivabot.xyz" });
 
-  /* ── FOOTER on all pages ── */
+  /* ── FOOTER ── */
   const tp = doc.getNumberOfPages();
   for (let i = 1; i <= tp; i++) {
     doc.setPage(i);
     doc.setFontSize(8); doc.setTextColor(...muted);
     doc.text("ivabot.xyz  \u00B7  AI SEO Assistant", W / 2, H - 22, { align: "center" });
     doc.text("Page " + i + " of " + tp, W - M, H - 22, { align: "right" });
-    // Clickable footer link
     doc.link(W / 2 - 60, H - 32, 120, 14, { url: "https://ivabot.xyz" });
   }
 
