@@ -539,7 +539,7 @@ async function generatePDF(data) {
   const kwTable = (title, rows) => {
     if (!rows?.length) return;
     sectionTitle(title);
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 40 }, 2: { halign: "right", cellWidth: 55 }, 3: { halign: "right", cellWidth: 40 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) });
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, columnStyles: { 0: { cellWidth: 260, halign: "left" }, 1: { halign: "center", cellWidth: 45 }, 2: { halign: "center", cellWidth: 60 }, 3: { halign: "center", cellWidth: 45 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) });
     y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
   };
   kwTable("How Your Page Ranks in Google", data.rankedKeywords);
@@ -561,7 +561,7 @@ async function generatePDF(data) {
 
   /* ── WHAT'S WORKING — as table ── */
   sectionTitle("What\u2019s Working (" + pG.length + ")");
-  doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: { ...tableBody, cellPadding: 7 }, alternateRowStyles: altRow, head: [["#", "Check", "Status"]], body: pG.map((item, i) => [String(i + 1), item, "\u2713 Pass"]), columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 60, halign: "center", textColor: { r: 155, g: 122, b: 230 } } } });
+  doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: { ...tableBody, cellPadding: 7 }, alternateRowStyles: altRow, head: [["#", "Check", "Status"]], body: pG.map((item, i) => [String(i + 1), item, "Pass"]), columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 50, halign: "center", textColor: [155, 122, 230], fontStyle: "bold" } } });
   y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
 
   /* ── NEEDS IMPROVEMENT — as table, purple header ── */
@@ -571,7 +571,7 @@ async function generatePDF(data) {
     pB.forEach((item, i) => {
       niRows.push([{ content: String(i + 1), styles: { fontStyle: "bold" } }, { content: item.t, styles: { fontStyle: "bold" } }, item.w || ""]);
       if (item.s?.length > 0) {
-        item.s.forEach(s => { niRows.push(["", { content: "Suggested:  " + String(s), colSpan: 2, styles: { fillColor: [243, 240, 252], fontSize: 8.5, fontStyle: "normal", textColor: muted } }]); });
+        item.s.forEach(s => { niRows.push(["", { content: "Suggested:  " + String(s), colSpan: 2, styles: { fillColor: [255, 255, 255], fontSize: 8.5, fontStyle: "normal", textColor: muted } }]); });
       }
     });
     doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: purpleHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Issue", "Details"]], body: niRows, columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 100 }, 2: { cellWidth: "auto" } } });
@@ -618,7 +618,7 @@ async function generatePDF(data) {
   doc.setFillColor(...purple); doc.roundedRect(btnX, btnY, btnW, btnH, 8, 8, "F");
   doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
   doc.text("Run your audit at ivabot.xyz", W / 2, btnY + 20, { align: "center" });
-  doc.link(btnX, btnY, btnW, btnH, { url: "https://ivabot.xyz" });
+  doc.link(btnX, btnY, btnW, btnH, { url: "https://ivabot.xyz/app" });
 
   /* ── FOOTER ── */
   const tp = doc.getNumberOfPages();
