@@ -439,6 +439,7 @@ const RankingsTable = ({ rows, emptyMsg }) => (
   </div>
 );
 
+
 /* ═══ PDF EXPORT ═══ */
 async function generatePDF(data) {
   try {
@@ -455,12 +456,10 @@ async function generatePDF(data) {
   /* Generate white IvaBot logo as PNG via canvas */
   const makeLogo = () => new Promise(resolve => {
     const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
-    const ctx = cvs.getContext("2d");
-    ctx.fillStyle = "white";
+    const ctx = cvs.getContext("2d"); ctx.fillStyle = "white";
     const p = new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z");
     const p2 = new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1z");
     ctx.scale(2, 2); ctx.fill(p); ctx.fill(p2);
-    // Eyes — cut out with destination-out
     ctx.globalCompositeOperation = "destination-out";
     ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
@@ -470,149 +469,147 @@ async function generatePDF(data) {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-  const W = doc.internal.pageSize.getWidth();
-  const H = doc.internal.pageSize.getHeight();
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   const M = 40, CW = W - M * 2;
   let y = 0;
-  const purple = [110, 43, 255];
-  const titleColor = [90, 85, 100]; // soft grey for section titles
-  const dark = [60, 56, 65]; // softer body text
-  const muted = [146, 142, 149];
-  const white = [255, 255, 255];
-  const lavHead = [184, 156, 240]; // #b89cf0 — lavender for section headers
-  const lavLight = [240, 235, 253]; // #f0ebfd — light lavender bg
-  const ensureSpace = (need) => { if (y + need > H - 60) { doc.addPage(); y = 44; } };
-  const drawLine = (yPos) => { doc.setDrawColor(225, 220, 235); doc.setLineWidth(0.5); doc.line(M, yPos, W - M, yPos); };
+  const purple = [110, 43, 255], tc = [90, 85, 100], dark = [60, 56, 65], muted = [146, 142, 149], white = [255, 255, 255];
+  const lavH = [184, 156, 240], lavBg = [248, 245, 255];
+  const ensureSpace = (n) => { if (y + n > H - 60) { doc.addPage(); y = 44; } };
+  const drawLine = () => { doc.setDrawColor(225, 220, 235); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); };
   const gap = (n) => { y += n || 10; };
-  const sectionTitle = (text) => { ensureSpace(40); doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor); doc.text(text, M, y); y += 22; };
-  const bodyText = (text, opts = {}) => { doc.setFontSize(opts.size || 9); doc.setFont("helvetica", opts.bold ? "bold" : "normal"); doc.setTextColor(...(opts.color || muted)); const lines = doc.splitTextToSize(String(text || ""), opts.width || CW); ensureSpace(lines.length * 14 + 4); doc.text(lines, opts.x || M, y); y += lines.length * 14; };
+  const sec = (t) => { ensureSpace(40); doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(...tc); doc.text(t, M, y); y += 22; };
+  const note = (t) => { doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); const L = doc.splitTextToSize(String(t), CW); ensureSpace(L.length * 12 + 4); doc.text(L, M, y); y += L.length * 12 + 4; };
+  const lbl = (l, v) => { ensureSpace(16); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text(l.toUpperCase(), M, y); doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(v || "").slice(0, 72), M + 95, y); y += 15; };
   const fmtV = (v) => { if (!v) return "\u2014"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
+  const tH = { fillColor: lavH, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
+  const tB = { fontSize: 9, textColor: dark, cellPadding: 6, fillColor: lavBg };
+  const tA = { fillColor: lavBg };
+  const pH = { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
 
-  // AutoTable style presets
-  const lavenderHead = { fillColor: lavHead, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
-  const purpleHead = { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
-  const tableBody = { fontSize: 9, textColor: dark, cellPadding: 6, fillColor: [248, 245, 255] };
-  const altRow = { fillColor: [248, 245, 255] };
-
-  /* ── HEADER ── */
-  // Gradient #b89cf0 → #d4bef7
+  /* ═══ HEADER ═══ */
   const g1 = [184, 156, 240], g2 = [212, 190, 247];
   for (let i = 0; i < 40; i++) { const t = i / 40; doc.setFillColor(Math.round(g1[0]+(g2[0]-g1[0])*t), Math.round(g1[1]+(g2[1]-g1[1])*t), Math.round(g1[2]+(g2[2]-g1[2])*t)); doc.rect(0, (78/40)*i, W, 78/40+0.5, "F"); }
-  // Real logo
   doc.addImage(logoDataUrl, "PNG", M, 16, 36, 32);
-  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
-  doc.text("IvaBot", M + 44, 34);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal");
-  doc.text("Core Audit Report", M + 44, 48);
+  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...white); doc.text("IvaBot", M + 44, 34);
+  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text("Core Audit Report", M + 44, 48);
   doc.setFontSize(9);
   doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 30, { align: "right" });
-  const urlShort = (data.url || "").length > 56 ? data.url.slice(0, 53) + "..." : (data.url || "");
-  doc.text(urlShort, W - M, 44, { align: "right" });
+  const urlS = (data.url || "").length > 56 ? data.url.slice(0, 53) + "..." : (data.url || "");
+  doc.text(urlS, W - M, 44, { align: "right" });
   y = 96;
 
-  /* ── SCORE ── */
-  const scoreLabel = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
-  const scoreColor = data.score >= 80 ? [155, 122, 230] : data.score >= 50 ? [212, 160, 232] : [226, 212, 245];
+  /* ═══ SCORE ═══ */
+  const sL = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
+  const sC = data.score >= 80 ? [155, 122, 230] : data.score >= 50 ? [212, 160, 232] : [226, 212, 245];
   const cx = M + 30, cy = y + 24;
   doc.setDrawColor(225, 220, 235); doc.setLineWidth(4); doc.circle(cx, cy, 24);
-  doc.setDrawColor(...scoreColor); doc.setLineWidth(4);
-  for (let a = -90; a < -90 + (data.score / 100) * 360; a += 2) { const r1 = (a * Math.PI) / 180, r2 = ((Math.min(a + 2, -90 + (data.score / 100) * 360)) * Math.PI) / 180; doc.line(cx + 24 * Math.cos(r1), cy + 24 * Math.sin(r1), cx + 24 * Math.cos(r2), cy + 24 * Math.sin(r2)); }
-  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor); doc.text(String(data.score), cx, cy + 4, { align: "center" });
-  doc.setFontSize(7); doc.setTextColor(...scoreColor); doc.text(scoreLabel, cx, cy + 14, { align: "center" });
-  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor); doc.text("SEO Score", M + 68, y + 12);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(urlShort, M + 68, y + 28);
+  doc.setDrawColor(...sC); doc.setLineWidth(4);
+  for (let a = -90; a < -90 + (data.score/100)*360; a += 2) { const a1 = (a*Math.PI)/180, a2 = ((Math.min(a+2,-90+(data.score/100)*360))*Math.PI)/180; doc.line(cx+24*Math.cos(a1), cy+24*Math.sin(a1), cx+24*Math.cos(a2), cy+24*Math.sin(a2)); }
+  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...tc); doc.text(String(data.score), cx, cy + 4, { align: "center" });
+  doc.setFontSize(7); doc.setTextColor(...sC); doc.text(sL, cx, cy + 14, { align: "center" });
+  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...tc); doc.text("SEO Score", M + 68, y + 12);
+  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(urlS, M + 68, y + 28);
   doc.setFontSize(9); doc.setTextColor(...muted); doc.text(data.score >= 80 ? "Your page has a strong foundation." : "There's room for improvement.", M + 68, y + 44);
-  y += 70; drawLine(y); gap(18);
+  y += 70; drawLine(); gap(18);
 
-  /* ── PAGE CONTEXT ── */
-  sectionTitle("Page Context Summary");
-  [["Page URL", data.ctx?.url], ["Page Title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition]].forEach(([label, value]) => {
-    if (!value) return; ensureSpace(20);
-    doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text(label.toUpperCase(), M, y);
-    doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark); doc.text(String(value).slice(0, 72), M + 95, y);
-    y += 17;
-  });
-  if (data.ctx?.message) { gap(4); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(...muted); doc.text("CORE MESSAGE", M, y); y += 14; bodyText(data.ctx.message, { color: dark, size: 9.5 }); }
-  gap(12); drawLine(y); gap(18);
+  /* ═══ PAGE CONTEXT ═══ */
+  sec("Page Context Summary");
+  [["Page URL", data.ctx?.url], ["Page Title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition]].forEach(([l, v]) => { if (v) lbl(l, v); });
+  if (data.ctx?.message) { gap(4); lbl("Core Message", data.ctx.message); }
+  gap(12); drawLine(); gap(18);
 
-  /* ── KEYWORDS TABLES — lavender headers ── */
-  const kwTable = (title, rows) => {
-    if (!rows?.length) return;
-    sectionTitle(title);
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, columnStyles: { 0: { cellWidth: 260, halign: "left" }, 1: { halign: "center", cellWidth: 45 }, 2: { halign: "center", cellWidth: 60 }, 3: { halign: "center", cellWidth: 45 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) });
-    y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
-  };
-  kwTable("How Your Page Ranks in Google", data.rankedKeywords);
-  kwTable("What Your Page Is Built For", data.keywordMetrics);
+  /* ═══ KEYWORDS TABLES ═══ */
+  const kwT = (title, rows) => { if (!rows?.length) return; sec(title); doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: tH, bodyStyles: tB, alternateRowStyles: tA, columnStyles: { 0: { cellWidth: 260, halign: "left" }, 1: { halign: "center", cellWidth: 45 }, 2: { halign: "center", cellWidth: 60 }, 3: { halign: "center", cellWidth: 45 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) }); y = doc.lastAutoTable.finalY + 14; note("Positions 1\u20133 = strong visibility. 4\u201310 = page one below fold. 11+ = page two or deeper."); gap(6); drawLine(); gap(18); };
+  kwT("How Your Page Ranks in Google", data.rankedKeywords);
+  kwT("What Your Page Is Built For", data.keywordMetrics);
 
-  /* ── Build good/bad lists ── */
-  const pG = [], pB = [];
-  if (data.titleStatus === "good") pG.push("Meta Title"); else pB.push({ t: "Meta Title", w: data.titleEval?.why, s: data.titleEval?.suggestions });
-  if (data.descStatus === "good") pG.push("Meta Description"); else pB.push({ t: "Description", w: data.descEval?.why, s: data.descEval?.suggestions });
-  if (data.headingsStatus === "good") pG.push("Heading Structure"); else pB.push({ t: "Headings", w: data.headingsEval?.why, s: data.headingsEval?.suggestions });
-  if (data.linksStatus === "good") pG.push("Links & Social"); else pB.push({ t: "Links", w: data.linksEval?.why, s: data.linksEval?.suggestions });
-  if (data.ux?.cta?.found) pG.push("Call to Action"); else pB.push({ t: "No CTA", w: "No call-to-action detected." });
-  if (data.ux?.mobile) pG.push("Mobile"); else pB.push({ t: "Not Mobile-Friendly", w: "Missing viewport meta tag." });
-  if (!data.ux?.altMissing) pG.push("Image Alt Text"); else pB.push({ t: "Images", w: data.imagesEval?.why, s: data.imagesEval?.suggestions });
-  if (!data.ux?.noVideo) pG.push("Video"); else pB.push({ t: "No Video", w: data.videoEval?.why });
-  if (data.speedStatus === "good") pG.push("Page Speed"); else pB.push({ t: "Speed", w: data.speedEval?.why, s: data.speedEval?.suggestions });
-  if (data.robotsStatus === "good") pG.push("robots.txt"); else pB.push({ t: "robots.txt", w: "Missing." });
-  if (data.sitemapStatus === "good") pG.push("Sitemap"); else pB.push({ t: "Sitemap", w: "Not found." });
+  /* ═══ WHAT'S WORKING — full data ═══ */
+  const goodItems = [];
+  if (data.titleStatus === "good") goodItems.push(["Meta Title", "\"" + data.title + "\" (" + data.title.length + " chars). Right in the 30\u201360 sweet spot."]);
+  if (data.descStatus === "good") goodItems.push(["Meta Description", "\"" + (data.desc.length > 80 ? data.desc.slice(0,77)+"..." : data.desc) + "\" (" + data.desc.length + " chars). Within 120\u2013160 range."]);
+  if (data.headingsStatus === "good") { const h1 = data.headings.filter(h => h.level === "H1"), h2 = data.headings.filter(h => h.level === "H2"), h3 = data.headings.filter(h => h.level === "H3"); goodItems.push(["Heading Structure", "H1: " + h1.map(h=>h.text).join(", ") + " | H2: " + h2.length + " | H3: " + h3.length + ". Clean hierarchy."]); }
+  if (data.linksStatus === "good") { const soc = data.links.social.map(s => typeof s === "string" ? s : s.name).join(", "); goodItems.push(["Links & Social", "Internal: " + data.links.internal + " | External: " + data.links.external + (soc ? " | Social: " + soc : "")]); }
+  if (data.ux?.cta?.found) goodItems.push(["Call to Action", "CTA found: \"" + data.ux.cta.text + "\""]);
+  if (data.ux?.mobile) goodItems.push(["Mobile", "Viewport meta tag present. Mobile-friendly."]);
+  if (!data.ux?.altMissing) goodItems.push(["Image Alt Text", "All images have descriptions."]);
+  if (!data.ux?.noVideo) goodItems.push(["Video Content", "Video detected on page."]);
+  if (data.speedStatus === "good") goodItems.push(["Page Speed", "Fast loading."]);
+  if (data.robotsStatus === "good") goodItems.push(["robots.txt", "Properly configured."]);
+  if (data.sitemapStatus === "good") goodItems.push(["Sitemap", "XML sitemap accessible."]);
 
-  /* ── WHAT'S WORKING — as table ── */
-  sectionTitle("What\u2019s Working (" + pG.length + ")");
-  doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: { ...tableBody, cellPadding: 7 }, alternateRowStyles: altRow, head: [["#", "Check", "Status"]], body: pG.map((item, i) => [String(i + 1), item, "Pass"]), columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 50, halign: "center", textColor: [155, 122, 230], fontStyle: "bold" } } });
-  y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
+  if (goodItems.length > 0) {
+    sec("What's Working (" + goodItems.length + ")");
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: tH, bodyStyles: tB, alternateRowStyles: tA, head: [["#", "Check", "Details"]], body: goodItems.map((g, i) => [String(i + 1), g[0], g[1]]), columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 110, fontStyle: "bold" }, 2: { cellWidth: "auto" } } });
+    y = doc.lastAutoTable.finalY + 14; drawLine(); gap(18);
+  }
 
-  /* ── NEEDS IMPROVEMENT — as table, purple header ── */
+  /* ═══ NEEDS IMPROVEMENT — full data ═══ */
+  const pB = [];
+  if (data.titleStatus !== "good") pB.push({ t: data.titleEval?.title || "Meta Title", serp: "SERP: " + urlS + " \u2014 " + (data.title || "No title"), w: data.titleEval?.why, s: data.titleEval?.suggestions });
+  if (data.descStatus !== "good") pB.push({ t: data.descEval?.title || "Meta Description", serp: "SERP: " + (data.desc ? "\"" + (data.desc.length > 70 ? data.desc.slice(0,67)+"..." : data.desc) + "\"" : "No description"), w: data.descEval?.why, s: data.descEval?.suggestions });
+  if (data.headingsStatus !== "good") pB.push({ t: "Heading Structure", w: data.headingsEval?.why, current: data.headingsEval?.current, s: data.headingsEval?.suggestions });
+  if (data.linksStatus !== "good") pB.push({ t: "Links", w: data.linksEval?.why, s: data.linksEval?.suggestions });
+  if (!data.ux?.cta?.found) pB.push({ t: "No CTA Found", w: "No call-to-action detected. Visitors may leave without converting.", s: ["Add a prominent CTA above the fold"] });
+  if (!data.ux?.mobile) pB.push({ t: "Not Mobile-Friendly", w: "Missing viewport meta tag. Google uses mobile-first indexing.", s: ["Add viewport meta tag"] });
+  if (data.ux?.altMissing) pB.push({ t: data.imagesEval?.title || "Images Missing Alt", w: data.imagesEval?.why, s: data.imagesEval?.suggestions });
+  if (data.ux?.noVideo) pB.push({ t: data.videoEval?.title || "No Video", w: data.videoEval?.why, s: data.videoEval?.suggestions });
+  if (data.speedStatus !== "good") pB.push({ t: data.speedEval?.title || "Page Speed", w: data.speedEval?.why, s: data.speedEval?.suggestions });
+  if (data.robotsStatus !== "good") pB.push({ t: "robots.txt Not Found", w: "Tells search engines which pages to crawl. Without it, Google may waste time on unnecessary pages.", s: ["Create robots.txt at your domain root"] });
+  if (data.sitemapStatus !== "good") pB.push({ t: "Sitemap Not Found", w: "Helps Google discover and index pages faster. Without one, new pages may take weeks to appear.", s: ["Generate and submit XML sitemap"] });
+
   if (pB.length > 0) {
-    sectionTitle("Needs Improvement (" + pB.length + ")");
+    sec("Needs Improvement (" + pB.length + ")");
     const niRows = [];
     pB.forEach((item, i) => {
       niRows.push([{ content: String(i + 1), styles: { fontStyle: "bold" } }, { content: item.t, styles: { fontStyle: "bold" } }, item.w || ""]);
+      if (item.serp) niRows.push(["", { content: item.serp, colSpan: 2, styles: { fontSize: 8, fontStyle: "italic", textColor: muted, fillColor: lavBg } }]);
+      if (item.current) niRows.push(["", { content: "Current: " + String(item.current).replace(/\n/g, " | ").slice(0, 140), colSpan: 2, styles: { fontSize: 8, textColor: dark, fillColor: lavBg } }]);
       if (item.s?.length > 0) {
-        item.s.forEach(s => { niRows.push(["", { content: "Suggested:  " + String(s), colSpan: 2, styles: { fillColor: [255, 255, 255], fontSize: 8.5, fontStyle: "normal", textColor: muted } }]); });
+        item.s.forEach(s => { niRows.push(["", { content: "Suggested:  " + String(s), colSpan: 2, styles: { fillColor: white, fontSize: 8.5, textColor: muted } }]); });
       }
     });
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: purpleHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Issue", "Details"]], body: niRows, columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 100 }, 2: { cellWidth: "auto" } } });
-    y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: pH, bodyStyles: tB, alternateRowStyles: tA, head: [["#", "Issue", "Details"]], body: niRows, columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 100 }, 2: { cellWidth: "auto" } } });
+    y = doc.lastAutoTable.finalY + 14; drawLine(); gap(18);
   }
 
-  /* ── COMPETITORS — lavender header ── */
+  /* ═══ COMPETITORS ═══ */
   if (data.competitors?.length > 0) {
-    sectionTitle("Top Competitors in Google");
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Domain", "Strategy"]], body: data.competitors.map((c, i) => [String(i + 1), c.name || "", (c.title || c.tactics || "").slice(0, 78)]) });
-    y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
+    sec("Top Competitors in Google");
+    note("Top organic Google results for \"" + (data.keywords?.[0] || "your topic") + "\".");
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: tH, bodyStyles: tB, alternateRowStyles: tA, head: [["#", "Domain", "SEO Tactics"]], body: data.competitors.map((c, i) => [String(i + 1), c.name || "", c.tactics || c.description || ""]), columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 130 }, 2: { cellWidth: "auto" } } });
+    y = doc.lastAutoTable.finalY + 14; drawLine(); gap(18);
   }
 
-  /* ── BACKLINKS — lavender header ── */
-  sectionTitle("PR & Backlink Opportunities");
+  /* ═══ BACKLINKS ═══ */
+  sec("PR & Backlink Opportunities");
   if (data.backlinksCount != null) {
     ensureSpace(35);
-    [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([label, val], i) => {
+    [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([l, v], i) => {
       const sx = M + (CW / 3) * i;
-      doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor); doc.text(val != null ? val.toLocaleString() : "\u2014", sx, y);
-      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); doc.text(String(label), sx, y + 14);
+      doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...tc); doc.text(v != null ? v.toLocaleString() : "\u2014", sx, y);
+      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted); doc.text(String(l), sx, y + 14);
     }); y += 36;
+    if (data.backlinksCount < 10) { note(data.backlinksCount === 0 ? "No backlinks detected. Backlinks are one of Google's top 3 ranking factors." : "Low backlink count (" + data.backlinksCount + "). Competitors likely have stronger profiles."); gap(4); }
   }
+  note("Every quality link is a 'vote of confidence' for Google. Reach out to these sites.");
   if (data.backlinks?.length > 0) {
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Source", "Description"]], body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""]) });
-    y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: tH, bodyStyles: tB, alternateRowStyles: tA, head: [["#", "Source", "Outreach Strategy"]], body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""]) });
+    y = doc.lastAutoTable.finalY + 14; drawLine(); gap(18);
   }
 
-  /* ── FINAL RECOMMENDATIONS — as table, lavender header ── */
-  sectionTitle("Final Recommendations");
-  const recItems = [
+  /* ═══ FINAL RECOMMENDATIONS ═══ */
+  sec("Final Recommendations");
+  const recs = [
     ...pB.map(item => [item.t, item.s?.[0] || ""]),
-    ["Build quality backlinks", "Reach out to industry blogs, directories, and publications."],
+    [data.backlinksCount != null && data.backlinksCount >= 10 ? "Keep building backlinks" : "Build quality backlinks", "Reach out to industry blogs, directories, and publications."],
     ["Create useful content", "Content that solves real problems is the foundation of lasting SEO success."],
     ["Monitor with Google tools", "Use Search Console and PageSpeed Insights to track improvements."],
     ["Re-audit after changes", "Run another Core Audit to measure your progress."]
   ];
-  doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Action", "Details"]], body: recItems.map((r, i) => [String(i + 1), r[0], r[1]]), columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 140, fontStyle: "bold" }, 2: { cellWidth: "auto" } } });
+  doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: tH, bodyStyles: tB, alternateRowStyles: tA, head: [["#", "Action", "How"]], body: recs.map((r, i) => [String(i + 1), r[0], r[1]]), columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 140, fontStyle: "bold" }, 2: { cellWidth: "auto" } } });
   y = doc.lastAutoTable.finalY + 18;
 
-  /* ── CTA — styled like Run Audit button ── */
+  /* ═══ CTA ═══ */
   gap(8); ensureSpace(40);
   const btnW = 200, btnH = 32, btnX = W / 2 - btnW / 2, btnY = y - 2;
   doc.setFillColor(...purple); doc.roundedRect(btnX, btnY, btnW, btnH, 8, 8, "F");
@@ -620,15 +617,9 @@ async function generatePDF(data) {
   doc.text("Run your audit at ivabot.xyz", W / 2, btnY + 20, { align: "center" });
   doc.link(btnX, btnY, btnW, btnH, { url: "https://ivabot.xyz/app" });
 
-  /* ── FOOTER ── */
+  /* ═══ FOOTER ═══ */
   const tp = doc.getNumberOfPages();
-  for (let i = 1; i <= tp; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8); doc.setTextColor(...muted);
-    doc.text("ivabot.xyz  \u00B7  AI SEO Assistant", W / 2, H - 22, { align: "center" });
-    doc.text("Page " + i + " of " + tp, W - M, H - 22, { align: "right" });
-    doc.link(W / 2 - 60, H - 32, 120, 14, { url: "https://ivabot.xyz" });
-  }
+  for (let i = 1; i <= tp; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...muted); doc.text("ivabot.xyz  \u00B7  AI SEO Assistant", W / 2, H - 22, { align: "center" }); doc.text("Page " + i + " of " + tp, W - M, H - 22, { align: "right" }); doc.link(W / 2 - 60, H - 32, 120, 14, { url: "https://ivabot.xyz/app" }); }
 
   const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
   doc.save("IvaBot-Audit-" + domain + "-" + new Date().toISOString().slice(0,10) + ".pdf");
