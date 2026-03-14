@@ -491,8 +491,8 @@ async function generatePDF(data) {
   // AutoTable style presets
   const lavenderHead = { fillColor: lavHead, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
   const purpleHead = { fillColor: purple, textColor: white, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
-  const tableBody = { fontSize: 9, textColor: dark, cellPadding: 6 };
-  const altRow = { fillColor: [250, 248, 255] };
+  const tableBody = { fontSize: 9, textColor: dark, cellPadding: 6, fillColor: [248, 245, 255] };
+  const altRow = { fillColor: [248, 245, 255] };
 
   /* ── HEADER ── */
   // Gradient #b89cf0 → #d4bef7
@@ -539,7 +539,7 @@ async function generatePDF(data) {
   const kwTable = (title, rows) => {
     if (!rows?.length) return;
     sectionTitle(title);
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 50 }, 2: { halign: "right", cellWidth: 65 }, 3: { halign: "right", cellWidth: 50 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) });
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "center", cellWidth: 40 }, 2: { halign: "right", cellWidth: 55 }, 3: { halign: "right", cellWidth: 40 } }, head: [["Keyword", "Pos.", "Volume", "KD"]], body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"]) });
     y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
   };
   kwTable("How Your Page Ranks in Google", data.rankedKeywords);
@@ -571,10 +571,10 @@ async function generatePDF(data) {
     pB.forEach((item, i) => {
       niRows.push([{ content: String(i + 1), styles: { fontStyle: "bold" } }, { content: item.t, styles: { fontStyle: "bold" } }, item.w || ""]);
       if (item.s?.length > 0) {
-        item.s.forEach(s => { niRows.push(["", { content: "Suggested: " + String(s), colSpan: 2, styles: { fillColor: [248, 245, 255], textColor: purple, fontSize: 8.5, fontStyle: "italic" } }]); });
+        item.s.forEach(s => { niRows.push(["", { content: "Suggested:  " + String(s), colSpan: 2, styles: { fillColor: [243, 240, 252], fontSize: 8.5, fontStyle: "normal", textColor: muted } }]); });
       }
     });
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: purpleHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Issue", "Details"]], body: niRows, columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 120 }, 2: { cellWidth: "auto" } } });
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: purpleHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Issue", "Details"]], body: niRows, columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 100 }, 2: { cellWidth: "auto" } } });
     y = doc.lastAutoTable.finalY + 18; drawLine(y); gap(18);
   }
 
@@ -612,13 +612,13 @@ async function generatePDF(data) {
   doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavenderHead, bodyStyles: tableBody, alternateRowStyles: altRow, head: [["#", "Action", "Details"]], body: recItems.map((r, i) => [String(i + 1), r[0], r[1]]), columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 140, fontStyle: "bold" }, 2: { cellWidth: "auto" } } });
   y = doc.lastAutoTable.finalY + 18;
 
-  /* ── CTA — styled like Export PDF button ── */
-  gap(8); ensureSpace(44);
-  doc.setDrawColor(180, 175, 190); doc.setLineWidth(0.8);
-  doc.setFillColor(...white); doc.roundedRect(W / 2 - 120, y - 4, 240, 34, 6, 6, "FD");
-  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...titleColor);
-  doc.text("Run your audit at ivabot.xyz", W / 2, y + 14, { align: "center" });
-  doc.link(W / 2 - 120, y - 4, 240, 34, { url: "https://ivabot.xyz" });
+  /* ── CTA — styled like Run Audit button ── */
+  gap(8); ensureSpace(40);
+  const btnW = 200, btnH = 32, btnX = W / 2 - btnW / 2, btnY = y - 2;
+  doc.setFillColor(...purple); doc.roundedRect(btnX, btnY, btnW, btnH, 8, 8, "F");
+  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
+  doc.text("Run your audit at ivabot.xyz", W / 2, btnY + 20, { align: "center" });
+  doc.link(btnX, btnY, btnW, btnH, { url: "https://ivabot.xyz" });
 
   /* ── FOOTER ── */
   const tp = doc.getNumberOfPages();
