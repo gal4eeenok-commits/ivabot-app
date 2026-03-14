@@ -142,9 +142,15 @@ function parseSEO(rawHtml, pageUrl) {
   r.desc_too_long = r.desc.length > 200;
 
   // Headings
-  const exH = (h, lv) => [...h.matchAll(new RegExp(`<h${lv}[^>]*>([\\s\\S]*?)<\\/h${lv}>`, 'gi'))].map(m => m[1].replace(/<[^>]+>/g,'').trim()).filter(Boolean);
-  r.h1 = exH(html,1); r.h2 = exH(html,2); r.h3 = exH(html,3);
-  r.h1_missing = r.h1.length===0; r.h2_missing = r.h2.length===0; r.h3_missing = r.h3.length===0;
+  const isTemplate = (t) => /^\{.*\}$/.test(t) || /^\{\{.*\}\}$/.test(t) || /^\[.*\]$/.test(t);
+  const exH = (h, lv) => [...h.matchAll(new RegExp(`<h${lv}[^>]*>([\\s\\S]*?)<\\/h${lv}>`, 'gi'))].map(m => m[1].replace(/<[^>]+>/g,'').trim()).filter(t => t && t.length > 1);
+  r.h1_raw = exH(html,1); r.h2 = exH(html,2); r.h3 = exH(html,3);
+  // Separate real H1s from broken template H1s
+  r.h1 = r.h1_raw.filter(t => !isTemplate(t));
+  r.h1_broken = r.h1_raw.filter(t => isTemplate(t));
+  r.h1_missing = r.h1.length === 0;
+  r.h1_has_broken_template = r.h1_broken.length > 0;
+  r.h2_missing = r.h2.length===0; r.h3_missing = r.h3.length===0;
   const findDups = arr => { const m = new Map(); arr.forEach(t => { const k = t.trim().toLowerCase(); if(k) m.set(k,(m.get(k)||0)+1); }); return [...m.entries()].filter(([,c])=>c>1).length>0; };
   r.h1_has_dups = findDups(r.h1); r.h2_has_dups = findDups(r.h2); r.h3_has_dups = findDups(r.h3);
 
@@ -185,9 +191,11 @@ function parseSEO(rawHtml, pageUrl) {
   const CTA = ["buy","add to cart","checkout","contact","sign up","get started","book","subscribe","download","learn more","shop now","order now","request","pricing","try","start"];
   r.has_cta = false; r.cta_text = "";
   for (const m of html.matchAll(/<(a|button)([^>]*)>([\s\S]*?)<\/\1>/gi)) {
-    const v = (m[3]||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
-    if(!v || v.length>150 || /\b(logo|brand|navbar)\b/i.test(m[2]||"")) continue;
-    if(CTA.some(k=>v.toLowerCase().includes(k)) || /\b(btn|button|cta)\b/i.test(m[2]||"")) { r.has_cta=true; r.cta_text=v.slice(0,100); break; }
+    let v = (m[3]||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
+    // Clean attribute garbage that leaked into text (e.g. Astro data-astro-cid attributes, href fragments)
+    v = v.replace(/["'][^"']*["']\s*[^>]*>/g, "").replace(/data-[a-z-]+="[^"]*"/gi, "").replace(/[a-z-]+#[a-z-]*/gi, "").replace(/\s+/g," ").trim();
+    if(!v || v.length>80 || v.length<2 || /\b(logo|brand|navbar)\b/i.test(m[2]||"")) continue;
+    if(CTA.some(k=>v.toLowerCase().includes(k)) || /\b(btn|button|cta)\b/i.test(m[2]||"")) { r.has_cta=true; r.cta_text=v.slice(0,60); break; }
   }
 
   // robots/sitemap URLs
@@ -242,9 +250,10 @@ function buildReportData(parsed, gpt, dfs) {
     titleEval: parsed.title_status !== "good" ? { currentLabel: "Current Title", current: parsed.title || "Missing", why: parsed.title_missing ? "No meta title found — Google can't generate a proper search snippet." : parsed.title_too_short ? "Too short — users and Google need more context to understand what this page offers." : "Title is too long — Google will truncate it in search results.", sugLabel: "Suggested Titles", suggestions: (Array.isArray(gpt?.suggested_titles) && gpt.suggested_titles.length > 0) ? gpt.suggested_titles : (gpt?.suggested_title ? (Array.isArray(gpt.suggested_title) ? gpt.suggested_title : [gpt.suggested_title]) : (gpt?.keywords?.length > 0 ? gpt.keywords.map(k => k.charAt(0).toUpperCase() + k.slice(1) + " — " + (gpt?.page_context?.owner || parsed.hostname)) : ["Add a descriptive title with your primary keyword"])), showCopy: true, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] } : null,
     descStatus: parsed.desc_status === "good" ? "good" : "bad",
     descEval: parsed.desc_status !== "good" ? { currentLabel: "Current Description", current: parsed.desc || "Missing", why: parsed.desc_missing ? "No meta description found — search engines can't generate a proper snippet." : parsed.desc_too_short ? "Description is too short — aim for 120-160 characters." : "Description is too long — Google may truncate it.", sugLabel: "Suggested Descriptions", suggestions: (Array.isArray(gpt?.suggested_descriptions) && gpt.suggested_descriptions.length > 0) ? gpt.suggested_descriptions : (gpt?.suggested_description ? (Array.isArray(gpt.suggested_description) ? gpt.suggested_description : [gpt.suggested_description]) : ["Write a 120-160 character description including your primary keyword"]), showCopy: true } : null,
-    headings: [...parsed.h1.map(t=>({level:"H1",text:t})), ...parsed.h2.map(t=>({level:"H2",text:t})), ...parsed.h3.map(t=>({level:"H3",text:t}))],
-    headingsStatus: (parsed.h1.length>0 && !parsed.h1_has_dups && parsed.h2.length>0) ? "good" : "bad",
-    headingsEval: { title: "Heading Structure Needs Work", why: parsed.h1_missing ? "H1 is your page's main heading — Google uses it to understand what the page is about. Without it, search engines have to guess your topic, which hurts rankings." : parsed.h1_has_dups ? "Duplicate H1 headings confuse Google about which is the main topic. Keep exactly one H1 per page." : "H2 subheadings break content into sections. Without them, Google sees your page as one big block of text, making it harder to rank for specific topics.", suggestions: (gpt?.suggested_h1?.length > 0 ? gpt.suggested_h1 : gpt?.suggested_h2?.length > 0 ? gpt.suggested_h2 : ["Add clear H1 with primary keyword", "Use H2 for main sections"]), showCopy: true },
+    headings: [...parsed.h1.map(t=>({level:"H1",text:t})), ...parsed.h1_broken.map(t=>({level:"H1",text:t,broken:true})), ...parsed.h2.map(t=>({level:"H2",text:t})), ...parsed.h3.map(t=>({level:"H3",text:t}))],
+    h1HasBrokenTemplate: parsed.h1_has_broken_template,
+    headingsStatus: (parsed.h1.length>0 && !parsed.h1_has_dups && !parsed.h1_has_broken_template && parsed.h2.length>0) ? "good" : "bad",
+    headingsEval: { title: "Heading Structure Needs Work", why: parsed.h1_has_broken_template ? `Your H1 contains an unrendered template variable (${parsed.h1_broken[0]}). This means search engines see a code placeholder instead of your actual heading. This is a critical issue — your framework is not rendering the H1 correctly. Check your CMS or site builder.` : parsed.h1_missing ? "H1 is your page's main heading — Google uses it to understand what the page is about. Without it, search engines have to guess your topic, which hurts rankings." : parsed.h1_has_dups ? "Duplicate H1 headings confuse Google about which is the main topic. Keep exactly one H1 per page." : "H2 subheadings break content into sections. Without them, Google sees your page as one big block of text, making it harder to rank for specific topics.", suggestions: (gpt?.suggested_h1?.length > 0 ? gpt.suggested_h1 : gpt?.suggested_h2?.length > 0 ? gpt.suggested_h2 : ["Add clear H1 with primary keyword", "Use H2 for main sections"]), showCopy: true },
     links: { internal: parsed.int_links, external: parsed.ext_links, social: parsed.social },
     linksStatus: (parsed.int_links > 0 || parsed.ext_links > 0) ? "good" : "bad",
     linksEval: { title: "Links Need Attention", why: parsed.int_links === 0 && parsed.ext_links === 0 ? "Your page has no links at all. Internal links help Google discover your other pages, and external links to trusted sources build credibility and trust." : parsed.int_links === 0 ? "No internal links found. Internal links connect your pages and help Google crawl your site. Consider adding links to related content on your site." : "No external links found. Linking to authoritative sources shows Google your content is well-researched and trustworthy.", suggestions: [...(gpt?.internal_link_suggestions?.map(l => l.text + " — " + l.why) || []), ...(gpt?.external_link_suggestions?.map(l => l.text + " — " + l.why) || [])].slice(0, 4) || ["Add internal links to key pages", "Link to trusted external sources"], showCopy: false },
@@ -273,7 +282,7 @@ function buildResults(d) {
   if (d.titleStatus === "good") g.push({ title: "Meta Title", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} hideDesc /><BotNote inline text={`Your title is ${d.title.length} characters — right in the sweet spot (30–60). This is the #1 on-page signal Google uses to understand your content.`} /></>) }); else b.push({ ...d.titleEval, title: d.titleEval?.title || "Meta Title Too Short", serpSnippet: { url: d.url, title: d.title, desc: d.desc, hideDesc: true } });
   if (d.descStatus === "good") g.push({ title: "Meta Description", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} /><BotNote inline text={`Your description is ${d.desc.length} characters — within 120–160, the sweet spot. This is what users see in search results, so a good one means more clicks.`} /></>) }); else b.push({ ...d.descEval, title: d.descEval?.title || "Description Needs Work", serpSnippet: { url: d.url, title: d.title, desc: d.desc } });
   if (d.headingsStatus === "good") { const h1 = d.headings.filter(h => h.level === "H1"), h2 = d.headings.filter(h => h.level === "H2"), h3 = d.headings.filter(h => h.level === "H3");
-    const HL = ({ tags, lv }) => (<div style={{ display: "flex", flexDirection: "column", gap: 3 }}>{tags.map((h, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 500, color: C.dark }}><span style={{ fontSize: 9, fontWeight: 600, color: C.muted, background: C.bg, padding: "2px 5px", borderRadius: 3, minWidth: 22, textAlign: "center" }}>{lv}</span>{h.text}</div>))}</div>);
+    const HL = ({ tags, lv }) => (<div style={{ display: "flex", flexDirection: "column", gap: 3 }}>{tags.map((h, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 500, color: h.broken ? C.red : C.dark }}><span style={{ fontSize: 9, fontWeight: 600, color: h.broken ? C.red : C.muted, background: h.broken ? "rgba(239,68,68,0.08)" : C.bg, padding: "2px 5px", borderRadius: 3, minWidth: 22, textAlign: "center" }}>{lv}</span>{h.text}{h.broken && <span style={{ fontSize: 10, color: C.red, fontWeight: 600 }}>⚠ unrendered</span>}</div>))}</div>);
     g.push({ title: "Heading Structure", content: (<>
       <InfoBlock label={`H1 — ${h1.length} found`} value={<HL tags={h1} lv="H1" />} borderColor={NB} />
       <InfoBlock label={`H2 — ${h2.length} found`} value={<HL tags={h2} lv="H2" />} borderColor={NB} />
@@ -536,7 +545,8 @@ function IvaBotV6() {
         let gpt = null;
         let dfsSeo = null;
         const domain = new URL(url).hostname.replace(/^www\./, "");
-        const primaryKw = parsed.h1?.[0] || parsed.title || "";
+        const cleanKw = (v) => v && v.length > 2 && !/^\{.*\}$/.test(v) && !/^[^a-zA-Z]*$/.test(v) ? v : null;
+        const primaryKw = cleanKw(parsed.h1?.[0]) || cleanKw(parsed.title) || "";
 
         // Run Make (GPT) and DataForSEO in parallel
         const [makeResult, dfsResult] = await Promise.allSettled([
@@ -575,7 +585,7 @@ function IvaBotV6() {
             const dfsRes = await fetch(DFS_PROXY, {
               method: "POST",
               headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
-              body: JSON.stringify({ domain, keyword: primaryKw })
+              body: JSON.stringify({ domain, keyword: primaryKw, page_url: url })
             });
             if (!dfsRes.ok) { console.log("[IvaBot] DFS proxy HTTP", dfsRes.status); return null; }
             const dfsData = await dfsRes.json();
