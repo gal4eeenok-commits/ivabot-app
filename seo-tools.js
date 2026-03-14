@@ -270,7 +270,7 @@ function buildReportData(parsed, gpt, dfs) {
     headings: [...parsed.h1.map(t=>({level:"H1",text:t})), ...parsed.h1_broken.map(t=>({level:"H1",text:t,broken:true})), ...parsed.h2.map(t=>({level:"H2",text:t})), ...parsed.h3.map(t=>({level:"H3",text:t}))],
     h1HasBrokenTemplate: parsed.h1_has_broken_template,
     headingsStatus: (parsed.h1.length>0 && !parsed.h1_has_dups && !parsed.h1_has_broken_template && parsed.h2.length>0) ? "good" : "bad",
-    headingsEval: { title: "Heading Structure Needs Work", currentLabel: "Current Headings", current: [parsed.h1_has_broken_template ? `H1: ${parsed.h1_broken[0]} ⚠ unrendered template` : null, ...parsed.h1.map(t => `H1: ${t}`), ...parsed.h2.map(t => `H2: ${t}`), ...parsed.h3.map(t => `H3: ${t}`)].filter(Boolean).join("\n") || "No headings found", why: parsed.h1_has_broken_template ? `Your H1 contains an unrendered template variable (${parsed.h1_broken[0]}). Search engines see code instead of your heading — this is a critical rendering issue. Check your CMS or framework.` : parsed.h1_missing ? "H1 is your page's main heading — Google uses it to understand what the page is about. Without it, search engines have to guess your topic, which hurts rankings." : parsed.h1_has_dups ? "Duplicate H1 headings confuse Google about which is the main topic. Keep exactly one H1 per page." : "H2 subheadings break content into sections. Without them, Google sees your page as one big block of text, making it harder to rank for specific topics.", suggestions: (gpt?.suggested_h1?.length > 0 ? gpt.suggested_h1 : gpt?.suggested_h2?.length > 0 ? gpt.suggested_h2 : ["Add clear H1 with primary keyword", "Use H2 for main sections"]), showCopy: !!(gpt?.suggested_h1?.length > 0 || gpt?.suggested_h2?.length > 0) },
+    headingsEval: { title: "Heading Structure Needs Work", currentLabel: "Current Headings", current: [parsed.h1_has_broken_template ? `H1: ${parsed.h1_broken[0]} ⚠ unrendered template` : null, ...parsed.h1.map(t => `H1: ${t}`), ...parsed.h2.map(t => `H2: ${t}`), ...parsed.h3.map(t => `H3: ${t}`)].filter(Boolean).join("\n") || "No headings found", why: parsed.h1_has_broken_template ? `Your H1 contains an unrendered template variable (${parsed.h1_broken[0]}). Search engines see code instead of your heading — this is a critical rendering issue. Check your CMS or framework.` : parsed.h1_missing ? "H1 is your page's main heading — Google uses it to understand what the page is about. Without it, search engines have to guess your topic, which hurts rankings." : parsed.h1_has_dups ? "Duplicate H1 headings confuse Google about which is the main topic. Keep exactly one H1 per page." : "H2 subheadings break content into sections. Without them, Google sees your page as one big block of text, making it harder to rank for specific topics.", suggestions: (gpt?.suggested_h1?.length > 0 ? gpt.suggested_h1 : gpt?.suggested_h2?.length > 0 ? gpt.suggested_h2 : ["Add clear H1 with primary keyword", "Use H2 for main sections"]), showCopy: true },
     links: { internal: parsed.int_links, external: parsed.ext_links, social: parsed.social },
     linksStatus: (parsed.int_links > 0 || parsed.ext_links > 0) ? "good" : "bad",
     linksEval: { title: "Links Need Attention", why: parsed.int_links === 0 && parsed.ext_links === 0 ? "Your page has no links at all. Internal links help Google discover your other pages, and external links to trusted sources build credibility and trust." : parsed.int_links === 0 ? "No internal links found. Internal links connect your pages and help Google crawl your site. Consider adding links to related content on your site." : "No external links found. Linking to authoritative sources shows Google your content is well-researched and trustworthy.", suggestions: [...(gpt?.internal_link_suggestions?.map(l => l.text + " — " + l.why) || []), ...(gpt?.external_link_suggestions?.map(l => l.text + " — " + l.why) || [])].slice(0, 4) || ["Add internal links to key pages", "Link to trusted external sources"], showCopy: false },
@@ -452,12 +452,9 @@ async function generatePDF(data) {
   });
   await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js");
   await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.2/jspdf.plugin.autotable.min.js");
-
-  /* White IvaBot logo via canvas */
   const makeLogo = () => new Promise(resolve => {
     const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
-    const ctx = cvs.getContext("2d"); ctx.fillStyle = "white";
-    ctx.scale(2, 2);
+    const ctx = cvs.getContext("2d"); ctx.fillStyle = "white"; ctx.scale(2, 2);
     ctx.fill(new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z"));
     ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1z"));
     ctx.globalCompositeOperation = "destination-out";
@@ -466,246 +463,185 @@ async function generatePDF(data) {
     resolve(cvs.toDataURL("image/png"));
   });
   const logoImg = await makeLogo();
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   const M = 40, CW = W - M * 2;
   let y = 0;
-
-  /* Colors */
-  const purple = [110, 43, 255];
-  const tc = [90, 85, 100];       /* section titles */
-  const dk = [60, 56, 65];        /* body text */
-  const mt = [146, 142, 149];     /* muted */
-  const wh = [255, 255, 255];
-  const lavH = [184, 156, 240];   /* table headers */
-  const lavBg = [248, 245, 255];  /* table rows */
-
-  /* Helpers */
+  const purple = [110,43,255], tc = [90,85,100], dk = [60,56,65], mt = [146,142,149], wh = [255,255,255];
+  const lavH = [184,156,240], lavBg = [248,245,255];
   const ensureSpace = (n) => { if (y + n > H - 60) { doc.addPage(); y = 44; } };
-  const gap = (n) => { y += (n || 10); };
-  const line = () => { doc.setDrawColor(229, 224, 238); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); };
-  const sec = (t) => { ensureSpace(40); doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(...tc); doc.text(t, M, y); y += 20; };
-  const note = (t) => { doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), CW); ensureSpace(L.length * 12 + 4); doc.text(L, M, y); y += L.length * 12 + 4; };
-  const fmtV = (v) => { if (!v) return "\u2014"; if (v >= 1000000) return (v/1000000).toFixed(1).replace(/\.0$/,"")+"M"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
+  const gap = (n) => { y += (n||10); };
+  const ln = () => { doc.setDrawColor(229,224,238); doc.setLineWidth(0.5); doc.line(M, y, W-M, y); };
+  const sec = (t) => { ensureSpace(40); doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...tc); doc.text(t, M, y); y += 20; };
+  const note = (t) => { doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), CW); ensureSpace(L.length*12+4); doc.text(L, M, y); y += L.length*12+4; };
+  const fV = (v) => { if (!v) return "\u2014"; if (v>=1e6) return (v/1e6).toFixed(1).replace(/\.0$/,"")+"M"; if (v>=1e3) return (v/1e3).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
+  const lH = { fillColor: lavH, textColor: wh, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
+  const pH = { fillColor: purple, textColor: wh, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
+  const tB = { fontSize: 9, textColor: dk, cellPadding: 6, fillColor: lavBg };
+  const tA = { fillColor: lavBg };
 
-  /* Table presets */
-  const lavHead = { fillColor: lavH, textColor: wh, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
-  const purHead = { fillColor: purple, textColor: wh, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
-  const tBody = { fontSize: 9, textColor: dk, cellPadding: 6, fillColor: lavBg };
-  const tAlt = { fillColor: lavBg };
-
-  /* ═══ HEADER — gradient + logo ═══ */
-  const g1 = [184, 156, 240], g2 = [212, 190, 247];
-  for (let i = 0; i < 40; i++) { const t = i / 40; doc.setFillColor(Math.round(g1[0]+(g2[0]-g1[0])*t), Math.round(g1[1]+(g2[1]-g1[1])*t), Math.round(g1[2]+(g2[2]-g1[2])*t)); doc.rect(0, (78/40)*i, W, 78/40+0.5, "F"); }
-  doc.addImage(logoImg, "PNG", M, 22, 22, 19);
-  doc.setFontSize(18); doc.setFont("helvetica", "bold"); doc.setTextColor(...wh); doc.text("IvaBot", M + 28, 36);
-  doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.text("Core Audit Report", M + 28, 48);
+  /* HEADER */
+  const g1=[184,156,240], g2=[212,190,247];
+  for (let i=0;i<40;i++){const t=i/40; doc.setFillColor(Math.round(g1[0]+(g2[0]-g1[0])*t),Math.round(g1[1]+(g2[1]-g1[1])*t),Math.round(g1[2]+(g2[2]-g1[2])*t)); doc.rect(0,(78/40)*i,W,78/40+.5,"F");}
+  doc.addImage(logoImg,"PNG",M,22,22,19);
+  doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...wh); doc.text("IvaBot",M+28,36);
+  doc.setFontSize(9.5); doc.setFont("helvetica","normal"); doc.text("Core Audit Report",M+28,48);
   doc.setFontSize(9);
-  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 30, { align: "right" });
-  const urlS = (data.url || "").length > 56 ? data.url.slice(0, 53) + "..." : (data.url || "");
-  doc.text(urlS, W - M, 44, { align: "right" });
+  doc.text(new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}),W-M,30,{align:"right"});
+  const urlS = (data.url||"").length>56 ? data.url.slice(0,53)+"..." : (data.url||"");
+  doc.text(urlS,W-M,44,{align:"right"});
   y = 96;
 
-  /* ═══ SCORE ═══ */
-  const sL = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
-  const sC = data.score >= 80 ? [155, 122, 230] : data.score >= 50 ? [212, 160, 232] : [226, 212, 245];
-  const cx = M + 28, cy = y + 22;
-  doc.setDrawColor(229, 224, 238); doc.setLineWidth(3.5); doc.circle(cx, cy, 22);
+  /* SCORE */
+  const sL = data.score>=80?"Strong":data.score>=50?"Moderate":"Weak";
+  const sC = data.score>=80?[155,122,230]:data.score>=50?[212,160,232]:[226,212,245];
+  const cx=M+28, cy=y+22;
+  doc.setDrawColor(229,224,238); doc.setLineWidth(3.5); doc.circle(cx,cy,22);
   doc.setDrawColor(...sC); doc.setLineWidth(3.5);
-  for (let a = -90; a < -90 + (data.score/100)*360; a += 2) { const a1 = (a*Math.PI)/180, a2 = ((Math.min(a+2,-90+(data.score/100)*360))*Math.PI)/180; doc.line(cx+22*Math.cos(a1), cy+22*Math.sin(a1), cx+22*Math.cos(a2), cy+22*Math.sin(a2)); }
-  doc.setFontSize(18); doc.setFont("helvetica", "bold"); doc.setTextColor(...tc); doc.text(String(data.score), cx, cy + 3, { align: "center" });
-  doc.setFontSize(7); doc.setTextColor(...sC); doc.text(sL, cx, cy + 13, { align: "center" });
-  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...tc); doc.text("SEO Score", M + 62, y + 10);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(...dk); doc.text(urlS, M + 62, y + 24);
-  doc.setFontSize(9); doc.setTextColor(...mt); doc.text(data.score >= 80 ? "Your page has a strong foundation." : "There's room for improvement.", M + 62, y + 38);
-  y += 60; line(); gap(16);
+  for(let a=-90;a<-90+(data.score/100)*360;a+=2){const a1=(a*Math.PI)/180,a2=((Math.min(a+2,-90+(data.score/100)*360))*Math.PI)/180;doc.line(cx+22*Math.cos(a1),cy+22*Math.sin(a1),cx+22*Math.cos(a2),cy+22*Math.sin(a2));}
+  doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...tc); doc.text(String(data.score),cx,cy+3,{align:"center"});
+  doc.setFontSize(7); doc.setTextColor(...sC); doc.text(sL,cx,cy+13,{align:"center"});
+  doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.setTextColor(...tc); doc.text("SEO Score",M+62,y+10);
+  doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(...dk); doc.text(urlS,M+62,y+24);
+  doc.setFontSize(9); doc.setTextColor(...mt); doc.text(data.score>=80?"Your page has a strong foundation.":"There's room for improvement.",M+62,y+38);
+  y+=60; ln(); gap(16);
 
-  /* ═══ PAGE CONTEXT ═══ */
+  /* PAGE CONTEXT */
   sec("Page context summary");
-  const ctxPairs = [["PAGE URL", data.ctx?.url], ["PAGE TITLE", data.ctx?.title], ["TOPIC", data.ctx?.topic], ["OWNER", data.ctx?.owner], ["GOAL", data.ctx?.goal], ["INDUSTRY", data.ctx?.industry], ["REGION", data.ctx?.region], ["COMPETITION", data.ctx?.competition], ["CORE MESSAGE", data.ctx?.message]];
-  ctxPairs.forEach(([l, v]) => {
-    if (!v) return; ensureSpace(16);
-    doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...mt); doc.text(l, M, y);
-    doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(...dk);
-    const vt = String(v).slice(0, 72); doc.text(vt, M + 90, y); y += 14;
+  [["PAGE URL",data.ctx?.url],["PAGE TITLE",data.ctx?.title],["TOPIC",data.ctx?.topic],["OWNER",data.ctx?.owner],["GOAL",data.ctx?.goal],["INDUSTRY",data.ctx?.industry],["REGION",data.ctx?.region],["COMPETITION",data.ctx?.competition],["CORE MESSAGE",data.ctx?.message]].forEach(([l,v])=>{
+    if(!v)return; ensureSpace(16);
+    doc.setFontSize(7.5); doc.setFont("helvetica","bold"); doc.setTextColor(...mt); doc.text(l,M,y);
+    doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(...dk); doc.text(String(v).slice(0,72),M+90,y); y+=14;
   });
-  gap(10); line(); gap(16);
+  gap(10); ln(); gap(16);
 
-  /* ═══ KEYWORD TABLES ═══ */
+  /* KEYWORD TABLES */
   const kwT = (title, rows) => {
-    if (!rows?.length) return; sec(title);
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavHead, bodyStyles: tBody, alternateRowStyles: tAlt,
-      columnStyles: { 0: { cellWidth: 260, halign: "left" }, 1: { halign: "center", cellWidth: 45 }, 2: { halign: "center", cellWidth: 60 }, 3: { halign: "center", cellWidth: 45 } },
-      head: [["Keyword", "Pos.", "Volume", "KD"]],
-      body: rows.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fmtV(r.volume), r.difficulty != null ? String(r.difficulty) : "\u2014"])
+    if(!rows?.length) return; sec(title);
+    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
+      columnStyles:{0:{cellWidth:260,halign:"left"},1:{halign:"center",cellWidth:45},2:{halign:"center",cellWidth:60},3:{halign:"center",cellWidth:45}},
+      head:[["Keyword","Pos.","Volume","KD"]],
+      body:rows.map(r=>[r.keyword,r.position!=null?String(r.position):"100+",fV(r.volume),r.difficulty!=null?String(r.difficulty):"\u2014"])
     });
-    y = doc.lastAutoTable.finalY + 8;
-    note("Positions 1\u20133 = strong visibility. 4\u201310 = page one below fold. 11+ = page two or deeper.");
-    gap(4); line(); gap(16);
+    y=doc.lastAutoTable.finalY+8; note("Positions 1\u20133 = strong visibility. 4\u201310 = page one below fold. 11+ = page two or deeper."); gap(4); ln(); gap(16);
   };
   kwT("How your page ranks in Google", data.rankedKeywords);
   kwT("What your page is built for", data.keywordMetrics);
 
-  /* ═══ WHAT'S WORKING ═══ */
-  const goodRows = [];
-  if (data.titleStatus === "good") goodRows.push(["Meta Title", "\"" + (data.title.length > 50 ? data.title.slice(0,47)+"..." : data.title) + "\" (" + data.title.length + " chars). Sweet spot 30\u201360."]);
-  if (data.descStatus === "good") goodRows.push(["Meta Description", "\"" + (data.desc.length > 60 ? data.desc.slice(0,57)+"..." : data.desc) + "\" (" + data.desc.length + " chars). Range 120\u2013160."]);
-  if (data.headingsStatus === "good") { const h1 = data.headings.filter(h=>h.level==="H1"), h2 = data.headings.filter(h=>h.level==="H2"), h3 = data.headings.filter(h=>h.level==="H3"); goodRows.push(["Heading Structure", "H1: " + h1.map(h=>h.text).join(", ") + " | H2: " + h2.length + " | H3: " + h3.length]); }
-  if (data.linksStatus === "good") { const sNames = data.links.social.map(s => typeof s === "string" ? s : s.name); goodRows.push(["Links & Social", "Internal: " + data.links.internal + " | External: " + data.links.external + (sNames.length ? "\nSocial: " + sNames.join(" \u00B7 ") : "")]); }
-  if (data.ux?.cta?.found) goodRows.push(["Call to Action", "CTA: \"" + data.ux.cta.text + "\""]);
-  if (data.ux?.mobile) goodRows.push(["Mobile", "Viewport meta present. Mobile-friendly."]);
-  if (!data.ux?.altMissing) goodRows.push(["Image Alt Text", "All images have descriptions."]);
-  if (!data.ux?.noVideo) goodRows.push(["Video Content", "Video detected on page."]);
-  if (data.speedStatus === "good") goodRows.push(["Page Speed", "Fast loading."]);
-  if (data.robotsStatus === "good") goodRows.push(["robots.txt", "Properly configured."]);
-  if (data.sitemapStatus === "good") goodRows.push(["Sitemap", "XML sitemap accessible."]);
-
-  if (goodRows.length > 0) {
-    sec("What's working (" + goodRows.length + ")");
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavHead, bodyStyles: tBody, alternateRowStyles: tAlt,
-      head: [["#", "Check", "Details"]],
-      body: goodRows.map((r, i) => [String(i + 1), r[0], r[1]]),
-      columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 110, fontStyle: "bold" }, 2: { cellWidth: "auto" } }
+  /* WHAT'S WORKING */
+  const gR=[];
+  if(data.titleStatus==="good") gR.push(["Meta Title","\""+(data.title.length>50?data.title.slice(0,47)+"...":data.title)+"\" ("+data.title.length+" chars)"]);
+  if(data.descStatus==="good") gR.push(["Meta Description","\""+(data.desc.length>60?data.desc.slice(0,57)+"...":data.desc)+"\" ("+data.desc.length+" chars)"]);
+  if(data.headingsStatus==="good"){const h1=data.headings.filter(h=>h.level==="H1"),h2=data.headings.filter(h=>h.level==="H2"),h3=data.headings.filter(h=>h.level==="H3"); gR.push(["Heading Structure","H1: "+h1.map(h=>h.text).join(", ")+" | H2: "+h2.length+" | H3: "+h3.length]);}
+  if(data.linksStatus==="good"){const sn=data.links.social.map(s=>typeof s==="string"?s:s.name); gR.push(["Links & Social","Internal: "+data.links.internal+" | External: "+data.links.external+(sn.length?"\nSocial: "+sn.join(" \u00B7 "):"")]);}
+  if(data.ux?.cta?.found) gR.push(["Call to Action","CTA: \""+data.ux.cta.text+"\""]);
+  if(data.ux?.mobile) gR.push(["Mobile","Viewport meta present. Mobile-friendly."]);
+  if(!data.ux?.altMissing) gR.push(["Image Alt Text","All images have descriptions."]);
+  if(!data.ux?.noVideo) gR.push(["Video Content","Video detected."]);
+  if(data.speedStatus==="good") gR.push(["Page Speed","Fast loading."]);
+  if(data.robotsStatus==="good") gR.push(["robots.txt","Properly configured."]);
+  if(data.sitemapStatus==="good") gR.push(["Sitemap","XML sitemap accessible."]);
+  if(gR.length>0){
+    sec("What's working ("+gR.length+")");
+    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
+      head:[["#","Check","Details"]],body:gR.map((r,i)=>[String(i+1),r[0],r[1]]),
+      columnStyles:{0:{cellWidth:26,halign:"center"},1:{cellWidth:110,fontStyle:"bold"},2:{cellWidth:"auto"}}
     });
-    y = doc.lastAutoTable.finalY + 12; line(); gap(16);
+    y=doc.lastAutoTable.finalY+12; ln(); gap(16);
   }
 
-  /* ═══ NEEDS IMPROVEMENT ═══ */
-  const pB = [];
-  if (data.titleStatus !== "good") pB.push({ t: data.titleEval?.title || "Meta Title", serp: "SERP: " + urlS + " \u2014 " + (data.title || "No title"), w: data.titleEval?.why, s: data.titleEval?.suggestions, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] });
-  if (data.descStatus !== "good") pB.push({ t: data.descEval?.title || "Meta Description", serp: "SERP: " + (data.desc ? "\"" + (data.desc.length > 60 ? data.desc.slice(0,57)+"..." : data.desc) + "\"" : "No description"), w: data.descEval?.why, s: data.descEval?.suggestions });
-  if (data.headingsStatus !== "good") pB.push({ t: "Heading Structure", w: data.headingsEval?.why, current: data.headingsEval?.current, s: data.headingsEval?.suggestions });
-  if (data.linksStatus !== "good") pB.push({ t: "Links", w: data.linksEval?.why, s: data.linksEval?.suggestions });
-  if (!data.ux?.cta?.found) pB.push({ t: "No CTA Found", w: "No call-to-action detected. Visitors may leave without converting.", s: ["Add a prominent CTA above the fold"] });
-  if (!data.ux?.mobile) pB.push({ t: "Not Mobile-Friendly", w: "Missing viewport meta tag. Google uses mobile-first indexing.", s: ["Add viewport meta tag"] });
-  if (data.ux?.altMissing) pB.push({ t: data.imagesEval?.title || "Images Missing Alt", w: data.imagesEval?.why, s: data.imagesEval?.suggestions });
-  if (data.ux?.noVideo) pB.push({ t: data.videoEval?.title || "No Video", w: data.videoEval?.why, s: data.videoEval?.suggestions });
-  if (data.speedStatus !== "good") pB.push({ t: data.speedEval?.title || "Page Speed", w: data.speedEval?.why, s: data.speedEval?.suggestions, links: [{ label: "Google PageSpeed Insights", url: "https://pagespeed.web.dev/" }] });
-  if (data.robotsStatus !== "good") pB.push({ t: "robots.txt Not Found", w: "Tells search engines which pages to crawl. Without it, Google may waste time on unnecessary pages.", s: ["Create robots.txt at your domain root"], links: [{ label: "How to create robots.txt", url: "https://developers.google.com/search/docs/crawling-indexing/robots/create-robots-txt" }] });
-  if (data.sitemapStatus !== "good") pB.push({ t: "Sitemap Not Found", w: "Helps Google discover and index pages. Without one, new pages may take weeks to appear.", s: ["Generate and submit XML sitemap"], links: [{ label: "Google Sitemap Guide", url: "https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap" }] });
+  /* NEEDS IMPROVEMENT */
+  const pB=[];
+  if(data.titleStatus!=="good") pB.push({t:data.titleEval?.title||"Meta Title",serp:"SERP: "+urlS+" \u2014 "+(data.title||"No title"),w:data.titleEval?.why,s:data.titleEval?.suggestions,lk:[{l:"Google Search Console",u:"https://search.google.com/search-console"}]});
+  if(data.descStatus!=="good") pB.push({t:data.descEval?.title||"Meta Description",serp:"SERP: "+(data.desc?"\""+( data.desc.length>60?data.desc.slice(0,57)+"...":data.desc)+"\"":"No description"),w:data.descEval?.why,s:data.descEval?.suggestions});
+  if(data.headingsStatus!=="good") pB.push({t:"Heading Structure",w:data.headingsEval?.why,cur:data.headingsEval?.current,s:data.headingsEval?.suggestions});
+  if(data.linksStatus!=="good") pB.push({t:"Links",w:data.linksEval?.why,s:data.linksEval?.suggestions});
+  if(!data.ux?.cta?.found) pB.push({t:"No CTA Found",w:"No call-to-action detected.",s:["Add a prominent CTA above the fold"]});
+  if(!data.ux?.mobile) pB.push({t:"Not Mobile-Friendly",w:"Missing viewport meta tag.",s:["Add viewport meta tag"]});
+  if(data.ux?.altMissing) pB.push({t:data.imagesEval?.title||"Images Missing Alt",w:data.imagesEval?.why,s:data.imagesEval?.suggestions});
+  if(data.ux?.noVideo) pB.push({t:data.videoEval?.title||"No Video",w:data.videoEval?.why,s:data.videoEval?.suggestions});
+  if(data.speedStatus!=="good") pB.push({t:data.speedEval?.title||"Page Speed",w:data.speedEval?.why,s:data.speedEval?.suggestions,lk:[{l:"Google PageSpeed Insights",u:"https://pagespeed.web.dev/"}]});
+  if(data.robotsStatus!=="good") pB.push({t:"robots.txt Not Found",w:"Tells search engines which pages to crawl.",s:["Create robots.txt at your domain root"],lk:[{l:"How to create robots.txt",u:"https://developers.google.com/search/docs/crawling-indexing/robots/create-robots-txt"}]});
+  if(data.sitemapStatus!=="good") pB.push({t:"Sitemap Not Found",w:"Helps Google discover and index pages.",s:["Generate and submit XML sitemap"],lk:[{l:"Google Sitemap Guide",u:"https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap"}]});
 
-  if (pB.length > 0) {
-    sec("Needs improvement (" + pB.length + ")");
-    const niRows = [];
-    pB.forEach((item, i) => {
-      /* Main issue row — lavender bg */
-      niRows.push([{ content: String(i + 1), styles: { fontStyle: "bold" } }, { content: item.t, styles: { fontStyle: "bold" } }, item.w || ""]);
-      /* SERP preview — lavender bg, italic muted */
-      if (item.serp) niRows.push(["", { content: item.serp, colSpan: 2, styles: { fontSize: 8, fontStyle: "italic", textColor: mt, fillColor: lavBg } }]);
-      /* Current headings — lavender bg, normal font */
-      if (item.current) {
-        const cur = String(item.current).slice(0, 300);
-        niRows.push(["", { content: "Current:\n" + cur, colSpan: 2, styles: { fontSize: 8, textColor: dk, fillColor: lavBg, cellPadding: { top: 4, bottom: 4, left: 6, right: 6 } } }]);
-      }
-      /* Suggested — WHITE bg, "Suggested:" purple, rest grey */
-      if (item.s?.length > 0) {
-        item.s.forEach(s => {
-          niRows.push(["", { content: "Suggested:  " + String(s), colSpan: 2, styles: { fillColor: wh, fontSize: 8.5, textColor: mt } }]);
-        });
-      }
-      /* Links — WHITE bg, purple text */
-      if (item.links?.length > 0) {
-        item.links.forEach(l => {
-          niRows.push(["", { content: l.label + " \u2192", colSpan: 2, styles: { fillColor: wh, fontSize: 8, textColor: purple } }]);
-        });
-      }
+  if(pB.length>0){
+    sec("Needs improvement ("+pB.length+")");
+    const rows=[];
+    pB.forEach((item,i)=>{
+      rows.push([{content:String(i+1),styles:{fontStyle:"bold"}},{content:item.t,styles:{fontStyle:"bold"}},item.w||""]);
+      if(item.serp) rows.push(["",{content:item.serp,colSpan:2,styles:{fontSize:8,fontStyle:"italic",textColor:mt,fillColor:lavBg}}]);
+      if(item.cur){const ct=String(item.cur).slice(0,300); rows.push(["",{content:"Current:\n"+ct,colSpan:2,styles:{fontSize:8,textColor:dk,fillColor:lavBg,cellPadding:{top:4,bottom:4,left:6,right:6}}}]);}
+      if(item.s?.length>0) item.s.forEach(s=>{rows.push(["",{content:"Suggested:  "+String(s),colSpan:2,styles:{fillColor:wh,fontSize:8.5,textColor:mt}}]);});
+      if(item.lk?.length>0) item.lk.forEach(l=>{rows.push(["",{content:l.l+" \u2192",colSpan:2,styles:{fillColor:wh,fontSize:8,textColor:purple}}]);});
     });
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: purHead, bodyStyles: tBody, alternateRowStyles: tAlt,
-      head: [["#", "Issue", "Details"]], body: niRows,
-      columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 100 }, 2: { cellWidth: "auto" } }
+    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:pH,bodyStyles:tB,alternateRowStyles:tA,
+      head:[["#","Issue","Details"]],body:rows,
+      columnStyles:{0:{cellWidth:26,halign:"center"},1:{cellWidth:100},2:{cellWidth:"auto"}}
     });
-    y = doc.lastAutoTable.finalY + 12; line(); gap(16);
+    y=doc.lastAutoTable.finalY+12; ln(); gap(16);
   }
 
-  /* ═══ COMPETITORS ═══ */
-  if (data.competitors?.length > 0) {
+  /* COMPETITORS */
+  if(data.competitors?.length>0){
     sec("Top competitors in Google");
-    note("Top organic results for \"" + (data.keywords?.[0] || "your topic") + "\".");
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavHead, bodyStyles: tBody, alternateRowStyles: tAlt,
-      head: [["#", "Domain", "SEO Tactics"]],
-      body: data.competitors.map((c, i) => [
-        String(i + 1),
-        (c.name || "") + (c.url ? "\n" + c.url : ""),
-        c.tactics || ""
-      ]),
-      columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 150 }, 2: { cellWidth: "auto" } },
-      didParseCell: function(d) {
-        /* Color URLs in domain column purple */
-        if (d.section === "body" && d.column.index === 1) {
-          const val = d.cell.raw || "";
-          if (val.includes("\n")) d.cell.styles.textColor = dk;
-        }
-      }
+    note("Top organic results for \""+(data.keywords?.[0]||"your topic")+"\".");
+    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
+      head:[["#","Domain","SEO Tactics"]],
+      body:data.competitors.map((c,i)=>[String(i+1),(c.name||"")+(c.url?"\n"+c.url:""),c.tactics||""]),
+      columnStyles:{0:{cellWidth:26,halign:"center"},1:{cellWidth:150},2:{cellWidth:"auto"}}
     });
-    y = doc.lastAutoTable.finalY + 12; line(); gap(16);
+    y=doc.lastAutoTable.finalY+12; ln(); gap(16);
   }
 
-  /* ═══ BACKLINKS ═══ */
+  /* BACKLINKS */
   sec("PR & backlink opportunities");
-  /* Stats row */
-  if (data.backlinksCount != null) {
+  if(data.backlinksCount!=null){
     ensureSpace(35);
-    [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([l, v], i) => {
-      const sx = M + (CW / 3) * i;
-      doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.setTextColor(...tc);
-      doc.text(v != null ? v.toLocaleString() : "\u2014", sx, y);
-      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...mt);
-      doc.text(String(l), sx, y + 14);
-    }); y += 34;
-    if (data.backlinksCount < 10) {
-      note(data.backlinksCount === 0 ? "No backlinks detected. Backlinks are a top 3 Google ranking factor." : "Low backlink count (" + data.backlinksCount + "). Competitors likely have stronger profiles.");
-      gap(2);
-    }
+    [["Backlinks",data.backlinksCount],["Referring Domains",data.referringDomains],["Ranked Keywords",data.totalRanked]].forEach(([l,v],i)=>{
+      const sx=M+(CW/3)*i;
+      doc.setFontSize(16); doc.setFont("helvetica","bold"); doc.setTextColor(...tc); doc.text(v!=null?v.toLocaleString():"\u2014",sx,y);
+      doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); doc.text(String(l),sx,y+14);
+    }); y+=34;
+    if(data.backlinksCount<10){note(data.backlinksCount===0?"No backlinks detected. Top 3 Google ranking factor.":"Low backlink count ("+data.backlinksCount+")."); gap(2);}
   }
   note("Every quality link is a 'vote of confidence' for Google.");
-  if (data.backlinks?.length > 0) {
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavHead, bodyStyles: tBody, alternateRowStyles: tAlt,
-      head: [["#", "Source", "Outreach Strategy"]],
-      body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""])
+  if(data.backlinks?.length>0){
+    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
+      head:[["#","Source","Outreach Strategy"]],body:data.backlinks.map((b,i)=>[String(i+1),b.name,b.desc||""])
     });
-    y = doc.lastAutoTable.finalY + 12; line(); gap(16);
+    y=doc.lastAutoTable.finalY+12; ln(); gap(16);
   }
 
-  /* ═══ FINAL RECOMMENDATIONS ═══ */
+  /* FINAL RECOMMENDATIONS */
   sec("Final recommendations");
-  const recs = [
-    ...pB.map(item => [item.t, item.s?.[0] || ""]),
-    [data.backlinksCount != null && data.backlinksCount >= 10 ? "Keep building backlinks" : "Build quality backlinks", "Reach out to industry blogs, directories, and publications."],
-    ["Create useful content", "Content that solves real problems."],
-    ["Monitor with Google tools", "Use Search Console and PageSpeed Insights."],
-    ["Re-audit after changes", "Run another Core Audit to measure progress."]
+  const recs=[...pB.map(item=>[item.t,item.s?.[0]||""]),
+    [data.backlinksCount!=null&&data.backlinksCount>=10?"Keep building backlinks":"Build quality backlinks","Reach out to industry blogs, directories."],
+    ["Create useful content","Content that solves real problems."],
+    ["Monitor with Google tools","Use Search Console and PageSpeed Insights."],
+    ["Re-audit after changes","Run another Core Audit to measure progress."]
   ];
-  doc.autoTable({ startY: y, margin: { left: M, right: M }, headStyles: lavHead, bodyStyles: tBody, alternateRowStyles: tAlt,
-    head: [["#", "Action", "How"]],
-    body: recs.map((r, i) => [String(i + 1), r[0], r[1]]),
-    columnStyles: { 0: { cellWidth: 26, halign: "center" }, 1: { cellWidth: 140, fontStyle: "bold" }, 2: { cellWidth: "auto" } }
+  doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
+    head:[["#","Action","How"]],body:recs.map((r,i)=>[String(i+1),r[0],r[1]]),
+    columnStyles:{0:{cellWidth:26,halign:"center"},1:{cellWidth:140,fontStyle:"bold"},2:{cellWidth:"auto"}}
   });
-  y = doc.lastAutoTable.finalY + 20;
+  y=doc.lastAutoTable.finalY+20;
 
-  /* ═══ CTA BUTTON ═══ */
+  /* CTA */
   gap(6); ensureSpace(40);
-  const btnW = 200, btnH = 32, btnX = W / 2 - btnW / 2, btnY = y;
-  doc.setFillColor(...purple); doc.roundedRect(btnX, btnY, btnW, btnH, 8, 8, "F");
-  doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...wh);
-  doc.text("Run your audit at ivabot.xyz", W / 2, btnY + 20, { align: "center" });
-  doc.link(btnX, btnY, btnW, btnH, { url: "https://ivabot.xyz/app" });
+  const bW=200,bH=32,bX=W/2-bW/2,bY=y;
+  doc.setFillColor(...purple); doc.roundedRect(bX,bY,bW,bH,8,8,"F");
+  doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.setTextColor(...wh);
+  doc.text("Run your audit at ivabot.xyz",W/2,bY+20,{align:"center"});
+  doc.link(bX,bY,bW,bH,{url:"https://ivabot.xyz/app"});
 
-  /* ═══ FOOTER on every page ═══ */
-  const tp = doc.getNumberOfPages();
-  for (let i = 1; i <= tp; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8); doc.setTextColor(...mt);
-    doc.text("ivabot.xyz  \u00B7  AI SEO Assistant", W / 2, H - 22, { align: "center" });
-    doc.text("Page " + i + " of " + tp, W - M, H - 22, { align: "right" });
-    doc.link(W / 2 - 60, H - 32, 120, 14, { url: "https://ivabot.xyz/app" });
-  }
+  /* FOOTER */
+  const tp=doc.getNumberOfPages();
+  for(let i=1;i<=tp;i++){doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...mt); doc.text("ivabot.xyz  \u00B7  AI SEO Assistant",W/2,H-22,{align:"center"}); doc.text("Page "+i+" of "+tp,W-M,H-22,{align:"right"}); doc.link(W/2-60,H-32,120,14,{url:"https://ivabot.xyz/app"});}
 
-  /* Save */
-  const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
-  doc.save("IvaBot-Audit-" + domain + "-" + new Date().toISOString().slice(0,10) + ".pdf");
-  } catch(err) { console.error("[IvaBot] PDF error:", err); alert("PDF export failed: " + err.message); }
+  const domain=(()=>{try{return new URL(data.url).hostname.replace(/^www\./,"");}catch(e){return "audit";}})();
+  doc.save("IvaBot-Audit-"+domain+"-"+new Date().toISOString().slice(0,10)+".pdf");
+  } catch(err){console.error("[IvaBot] PDF error:",err); alert("PDF export failed: "+err.message);}
 }
 
 /* ═══ REPORT ═══ */
