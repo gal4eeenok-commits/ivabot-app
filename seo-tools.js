@@ -466,22 +466,46 @@ async function generatePDF(data) {
   const bodyText = (text, opts = {}) => { doc.setFontSize(opts.size || 9); doc.setFont("helvetica", opts.bold ? "bold" : "normal"); doc.setTextColor(...(opts.color || muted)); const lines = doc.splitTextToSize(String(text || ""), opts.width || CW); ensureSpace(lines.length * 14 + 4); doc.text(lines, opts.x || M, y); y += lines.length * 14; };
   const fmtV = (v) => { if (!v) return "\u2014"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
 
-  /* ── HEADER with IvaBot logo ── */
-  doc.setFillColor(...purple); doc.rect(0, 0, W, 78, "F");
-  // IvaBot eyes logo (simplified)
-  const lx = M, ly = 18;
+  /* ── HEADER with real IvaBot logo + brand gradient ── */
+  // Gradient background — simulate with 2-color fill (rose-lavender)
+  const gradSteps = 40;
+  const r1 = [164, 127, 230], r2 = [240, 235, 253]; // #a47fe6 → #f0ebfd
+  for (let i = 0; i < gradSteps; i++) {
+    const t = i / gradSteps;
+    doc.setFillColor(
+      Math.round(r1[0] + (r2[0] - r1[0]) * t),
+      Math.round(r1[1] + (r2[1] - r1[1]) * t),
+      Math.round(r1[2] + (r2[2] - r1[2]) * t)
+    );
+    doc.rect(0, (78 / gradSteps) * i, W, 78 / gradSteps + 0.5, "F");
+  }
+  // IvaBot logo — white version (body + eyes as negative space)
+  const logoX = M, logoY = 20, logoS = 0.5; // scale factor
+  // Main body path
   doc.setFillColor(...white);
-  doc.roundedRect(lx, ly, 38, 22, 4, 4, "F");
-  doc.setFillColor(...purple);
-  doc.circle(lx + 12, ly + 11, 5, "F"); doc.circle(lx + 27, ly + 11, 5, "F");
+  // Simplified logo: rounded rect body + 2 circle eyes
+  doc.roundedRect(logoX, logoY, 33 * logoS, 29 * logoS, 3, 3, "F");
+  // Draw the actual SVG shape using small circle eyes as cutouts
+  // Body
+  doc.setFillColor(...white);
+  doc.roundedRect(logoX, logoY, 34, 20, 4, 4, "F");
+  // Tail
+  doc.triangle(logoX + 24, logoY + 18, logoX + 30, logoY + 24, logoX + 20, logoY + 24, "F");
+  // Eyes (purple on white = cutouts)
+  const eyeR = 4.5;
+  doc.setFillColor(164, 127, 230);
+  doc.circle(logoX + 11, logoY + 10, eyeR, "F");
+  doc.circle(logoX + 23, logoY + 10, eyeR, "F");
+  // "IvaBot" text
   doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(...white);
-  doc.text("IvaBot", lx + 44, ly + 16);
+  doc.text("IvaBot", logoX + 42, logoY + 14);
   doc.setFontSize(10); doc.setFont("helvetica", "normal");
-  doc.text("Core Audit Report", lx + 44, ly + 30);
+  doc.text("Core Audit Report", logoX + 42, logoY + 28);
+  // Right side — date + URL
   doc.setFontSize(9);
-  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, ly + 10, { align: "right" });
+  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, logoY + 10, { align: "right" });
   const urlShort = (data.url || "").length > 58 ? data.url.slice(0, 55) + "..." : (data.url || "");
-  doc.text(urlShort, W - M, ly + 24, { align: "right" });
+  doc.text(urlShort, W - M, logoY + 24, { align: "right" });
   y = 96;
 
   /* ── SCORE ── */
@@ -601,8 +625,8 @@ async function generatePDF(data) {
 
   /* ── CTA: Run your audit ── */
   gap(10); ensureSpace(50);
-  doc.setFillColor(248, 245, 255); doc.roundedRect(M, y - 6, CW, 44, 8, 8, "F");
-  doc.setDrawColor(...purple); doc.setLineWidth(0.5); doc.roundedRect(M, y - 6, CW, 44, 8, 8, "S");
+  doc.setFillColor(240, 235, 253); doc.roundedRect(M, y - 6, CW, 44, 8, 8, "F");
+  doc.setDrawColor(164, 127, 230); doc.setLineWidth(0.8); doc.roundedRect(M, y - 6, CW, 44, 8, 8, "S");
   doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(...purple);
   doc.text("Run your own SEO audit at ivabot.xyz", W / 2, y + 12, { align: "center" });
   doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...muted);
