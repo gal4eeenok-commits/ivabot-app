@@ -640,7 +640,27 @@ async function generatePDF(data) {
   for(let i=1;i<=tp;i++){doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...mt); doc.text("ivabot.xyz  \u00B7  AI SEO Assistant",W/2,H-22,{align:"center"}); doc.text("Page "+i+" of "+tp,W-M,H-22,{align:"right"}); doc.link(W/2-60,H-32,120,14,{url:"https://ivabot.xyz/app"});}
 
   const domain=(()=>{try{return new URL(data.url).hostname.replace(/^www\./,"");}catch(e){return "audit";}})();
-  doc.save("IvaBot-Audit-"+domain+"-"+new Date().toISOString().slice(0,10)+".pdf");
+  const fileName="IvaBot-Audit-"+domain+"-"+new Date().toISOString().slice(0,10)+".pdf";
+  doc.save(fileName);
+
+  /* Upload PDF to Supabase Storage (background, non-blocking) */
+  try {
+    const pdfBlob = doc.output("blob");
+    const memberId = window.__memberId;
+    if (memberId && pdfBlob) {
+      const form = new FormData();
+      form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+      form.append("member_id", memberId);
+      form.append("source_url", data.url || "");
+      form.append("flow_type", "core");
+      fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+        method: "POST", body: form
+      }).then(r => r.json()).then(d => {
+        if (d?.url) console.log("[IvaBot] PDF saved to dashboard:", d.url);
+        else console.warn("[IvaBot] PDF upload response:", d);
+      }).catch(e => console.warn("[IvaBot] PDF upload failed:", e));
+    }
+  } catch(ue) { console.warn("[IvaBot] PDF upload error:", ue); }
   } catch(err){console.error("[IvaBot] PDF error:",err); alert("PDF export failed: "+err.message);}
 }
 
