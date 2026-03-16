@@ -669,7 +669,10 @@ async function generatePDF(data) {
       fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
         method: "POST", body: form
       }).then(r => r.json()).then(d => {
-        if (d?.url) {
+        if (d?.already_saved) {
+          console.log("[IvaBot] PDF already saved for this audit");
+          if (pdfBtn) { pdfBtn.innerHTML = "✓ Already Saved"; pdfBtn.style.color = C.dark; }
+        } else if (d?.url) {
           console.log("[IvaBot] PDF saved to dashboard:", d.url);
           if (pdfBtn) { pdfBtn.innerHTML = "✓ Saved To Dashboard"; pdfBtn.style.color = C.dark; }
         } else {
