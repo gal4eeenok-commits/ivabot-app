@@ -646,7 +646,7 @@ async function generatePDF(data) {
   /* Update button status */
   const pdfBtn = document.getElementById("export-pdf-btn");
   const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
-  if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = "#27ae60"; }
+  if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = C.dark; }
 
   /* Upload PDF to Supabase Storage (background, non-blocking) */
   try {
@@ -660,7 +660,7 @@ async function generatePDF(data) {
       } catch(me) {}
     }
     if (memberId && pdfBlob) {
-      if (pdfBtn) pdfBtn.innerHTML = "Saving to dashboard...";
+      if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
       const form = new FormData();
       form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
       form.append("member_id", memberId);
@@ -671,15 +671,15 @@ async function generatePDF(data) {
       }).then(r => r.json()).then(d => {
         if (d?.url) {
           console.log("[IvaBot] PDF saved to dashboard:", d.url);
-          if (pdfBtn) { pdfBtn.innerHTML = "✓ Saved to dashboard"; pdfBtn.style.color = "#27ae60"; }
+          if (pdfBtn) { pdfBtn.innerHTML = "✓ Saved To Dashboard"; pdfBtn.style.color = C.dark; }
         } else {
           console.warn("[IvaBot] PDF upload response:", d);
-          if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; }
+          if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = C.dark; }
         }
         setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
       }).catch(e => {
         console.warn("[IvaBot] PDF upload failed:", e);
-        if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; }
+        if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = C.dark; }
         setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
       });
     } else {
