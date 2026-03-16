@@ -646,7 +646,14 @@ async function generatePDF(data) {
   /* Upload PDF to Supabase Storage (background, non-blocking) */
   try {
     const pdfBlob = doc.output("blob");
-    const memberId = window.__memberId;
+    /* Get member ID from Memberstack if available */
+    let memberId = window.__memberId;
+    if (!memberId && window.$memberstackDom) {
+      try {
+        const msRes = await window.$memberstackDom.getCurrentMember();
+        memberId = msRes?.data?.id;
+      } catch(me) {}
+    }
     if (memberId && pdfBlob) {
       const form = new FormData();
       form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
@@ -659,6 +666,8 @@ async function generatePDF(data) {
         if (d?.url) console.log("[IvaBot] PDF saved to dashboard:", d.url);
         else console.warn("[IvaBot] PDF upload response:", d);
       }).catch(e => console.warn("[IvaBot] PDF upload failed:", e));
+    } else {
+      console.log("[IvaBot] PDF not uploaded — no member ID (user not logged in)");
     }
   } catch(ue) { console.warn("[IvaBot] PDF upload error:", ue); }
   } catch(err){console.error("[IvaBot] PDF error:",err); alert("PDF export failed: "+err.message);}
