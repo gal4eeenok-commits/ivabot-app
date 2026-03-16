@@ -643,6 +643,11 @@ async function generatePDF(data) {
   const fileName="IvaBot-Audit-"+domain+"-"+new Date().toISOString().slice(0,10)+".pdf";
   doc.save(fileName);
 
+  /* Update button status */
+  const pdfBtn = document.getElementById("export-pdf-btn");
+  const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
+  if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = "#27ae60"; }
+
   /* Upload PDF to Supabase Storage (background, non-blocking) */
   try {
     const pdfBlob = doc.output("blob");
@@ -655,6 +660,7 @@ async function generatePDF(data) {
       } catch(me) {}
     }
     if (memberId && pdfBlob) {
+      if (pdfBtn) pdfBtn.innerHTML = "Saving to dashboard...";
       const form = new FormData();
       form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
       form.append("member_id", memberId);
@@ -663,13 +669,24 @@ async function generatePDF(data) {
       fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
         method: "POST", body: form
       }).then(r => r.json()).then(d => {
-        if (d?.url) console.log("[IvaBot] PDF saved to dashboard:", d.url);
-        else console.warn("[IvaBot] PDF upload response:", d);
-      }).catch(e => console.warn("[IvaBot] PDF upload failed:", e));
+        if (d?.url) {
+          console.log("[IvaBot] PDF saved to dashboard:", d.url);
+          if (pdfBtn) { pdfBtn.innerHTML = "✓ Saved to dashboard"; pdfBtn.style.color = "#27ae60"; }
+        } else {
+          console.warn("[IvaBot] PDF upload response:", d);
+          if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; }
+        }
+        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+      }).catch(e => {
+        console.warn("[IvaBot] PDF upload failed:", e);
+        if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; }
+        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+      });
     } else {
       console.log("[IvaBot] PDF not uploaded — no member ID (user not logged in)");
+      setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
     }
-  } catch(ue) { console.warn("[IvaBot] PDF upload error:", ue); }
+  } catch(ue) { console.warn("[IvaBot] PDF upload error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
   } catch(err){console.error("[IvaBot] PDF error:",err); alert("PDF export failed: "+err.message);}
 }
 
@@ -1065,7 +1082,7 @@ function IvaBotV6() {
           {showR && (
             <div className="iva-actions" style={{ flexShrink: 0, alignItems: "center", padding: "14px 24px 0" }}>
               <button onClick={() => { setSR(false); setMsgs([]); setIV(true); setLS(-1); setAuditData(null); }} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Audit</button>
-              <button onClick={() => generatePDF(auditData || A)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
+              <button id="export-pdf-btn" onClick={() => generatePDF(auditData || A)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background 0.2s, color 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
               <button onClick={home} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>Try Other Tools</button>
             </div>
           )}
