@@ -1,4 +1,5 @@
 const { useState, useRef, useEffect, useCallback } = React;
+console.log("[IvaBot] seo-tools.js v68 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
