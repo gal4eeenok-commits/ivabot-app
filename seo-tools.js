@@ -426,7 +426,7 @@ const SerpSnippet = ({ url, title, desc, hideDesc }) => {
 /* ═══ RANKINGS TABLE ═══ */
 const fmtVol = (v) => { if (!v) return "—"; if (v >= 1000000) return (v/1000000).toFixed(1).replace(/\.0$/,"") + "M"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"") + "K"; return v.toLocaleString(); };
 const RankingsTable = ({ rows, emptyMsg }) => (
-  <div style={{ background: C.surface, borderRadius: 10, padding: "4px 14px", border: `1px solid ${C.cardBorder}`, overflowX: "auto" }}>
+  <div className="iva-scroll-inner" style={{ background: C.surface, borderRadius: 10, padding: "4px 14px", border: `1px solid ${C.cardBorder}`, overflowX: "auto" }}>
   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
     <thead><tr style={{ borderBottom: `1px solid ${C.border}` }}>
       <th style={{ textAlign: "left", padding: "8px 0", color: C.muted, fontWeight: 500, fontSize: 11.5 }}>Keyword</th>
@@ -802,27 +802,8 @@ function IvaBotV6() {
     return () => clearTimeout(timer);
   }, [showR, auditData]);
 
-  /* Sticky fix — remove overflow from all ancestors (like Builder) */
-  useEffect(() => {
-    if (view !== "chat") return;
-    const el = document.getElementById('ca-chat');
-    if (!el) return;
-    const saved = [];
-    let node = el.parentElement;
-    while (node && node !== document.body) {
-      const s = window.getComputedStyle(node);
-      if (s.overflow !== 'visible' || s.overflowY !== 'visible' || s.overflowX !== 'visible') {
-        saved.push({ node, ov: node.style.overflow, ovY: node.style.overflowY, ovX: node.style.overflowX, h: node.style.height, mh: node.style.minHeight });
-        node.style.overflow = 'visible';
-        node.style.overflowY = 'visible';
-        node.style.overflowX = 'visible';
-        if (node.style.height === '100vh') node.style.height = 'auto';
-        node.style.minHeight = '100vh';
-      }
-      node = node.parentElement;
-    }
-    return () => { saved.forEach(({ node, ov, ovY, ovX, h, mh }) => { node.style.overflow = ov; node.style.overflowY = ovY; node.style.overflowX = ovX; node.style.height = h; node.style.minHeight = mh; }); };
-  }, [view]);
+  /* Sticky fix — CSS override instead of JS DOM manipulation to prevent layout jumping */
+  /* The actual override is in the <style> tag below: .iva-root gets overflow:visible!important when in chat view */
 
   const [auditData, setAuditData] = useState(null);
   const addMsg = (f, c, e) => setMsgs(p => [...p, { from: f, content: c, err: e, id: Date.now() + Math.random() }]);
@@ -1111,7 +1092,7 @@ function IvaBotV6() {
   return (
     <div className="iva-root" style={{ fontFamily: "'DM Sans',sans-serif", background: "#f8f7f9", display: "flex", flexDirection: "column", padding: "8px 12px", minHeight: "100vh" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #ffffff 0%, #F8F5FF 15%, #F0EAFF 40%, #E4D8FC 70%, #D9CCFA 100%)", borderRadius: 12, minHeight: 0 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}@keyframes foldOpen{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}.reveal.visible{opacity:1;transform:translateY(0)}.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}.fold-content{animation:foldOpen 0.4s cubic-bezier(0.4,0,0.2,1) forwards;overflow:hidden}.iva-tools{display:flex;gap:14px;width:100%}.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}.iva-seo-title{font-size:64px}.iva-nav{height:84px;padding:24px 0 0}@media(max-width:768px){.iva-tools{flex-direction:column}.iva-buy-grid{grid-template-columns:1fr}.iva-ctx-grid{grid-template-columns:1fr}.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}.iva-seo-title{font-size:32px}.iva-nav{padding:0 12px}}@media(max-width:520px){.iva-seo-title{font-size:26px}.iva-nav{height:48px;padding:0 10px}}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}@keyframes foldOpen{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}.reveal.visible{opacity:1;transform:translateY(0)}.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}.fold-content{animation:foldOpen 0.4s cubic-bezier(0.4,0,0.2,1) forwards;overflow:hidden}.iva-tools{display:flex;gap:14px;width:100%}.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}.iva-seo-title{font-size:64px}.iva-nav{height:84px;padding:24px 0 0}.iva-root{height:auto!important;min-height:100vh!important;overflow:visible!important}#ivabot-root{overflow:visible!important;height:auto!important;min-height:100vh!important}.w-embed,.w-container,.w-layout-cell,.w-layout-layout{overflow:visible!important}.iva-scroll-inner{overflow:auto!important}@media(max-width:768px){.iva-tools{flex-direction:column}.iva-buy-grid{grid-template-columns:1fr}.iva-ctx-grid{grid-template-columns:1fr}.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}.iva-seo-title{font-size:32px}.iva-nav{padding:0 12px}}@media(max-width:520px){.iva-seo-title{font-size:26px}.iva-nav{height:48px;padding:0 10px}}`}</style>
       {showBuy && <BuyM onClose={() => setSB(false)} />}
       <nav className="iva-nav" style={{ display: "flex", justifyContent: "center", background: "transparent", flexShrink: 0, zIndex: 100, height: 84, paddingTop: 24 }}>
         <div style={{ width: "100%", maxWidth: 1224, padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1143,7 +1124,7 @@ function IvaBotV6() {
           {!isMobile && <div style={{ display: "flex", padding: "0 24px 24px", maxWidth: 1224, margin: "0 auto", width: "100%", alignItems: "flex-start", gap: 12 }}>
             {/* Chat — sticky */}
             <div id="ca-chat" style={{ width: "35%", maxWidth: 420, position: "sticky", top: 12, display: "flex", flexDirection: "column", flexShrink: 0, minWidth: 280, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", background: C.card, height: "calc(100vh - 130px)" }}>
-              <div ref={chatRef} style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}><ChatMessages /></div>
+              <div ref={chatRef} className="iva-scroll-inner" style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}><ChatMessages /></div>
               <div style={{ padding: "8px 12px 12px", flexShrink: 0, borderTop: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder={showR ? "Ask me anything about your SEO..." : "Paste your URL here..."} style={{ flex: 1, height: 44, borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 14px", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.dark, outline: "none", background: C.surface }} onFocus={e => { e.target.style.borderColor = C.hoverBorder; e.target.style.boxShadow = C.hoverShadow; }} onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }} />
@@ -1163,7 +1144,7 @@ function IvaBotV6() {
             <MobileTab active={mTab} onSwitch={sMTab} hasReport={showR} />
             {/* Chat */}
             <div style={{ display: mTab === "chat" ? "flex" : "none", flexDirection: "column", borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", background: C.card, maxHeight: "70vh" }}>
-              <div ref={mTab === "chat" ? chatRef : null} style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}><ChatMessages /></div>
+              <div ref={mTab === "chat" ? chatRef : null} className="iva-scroll-inner" style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}><ChatMessages /></div>
               <div style={{ padding: "8px 10px 10px", flexShrink: 0, borderTop: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", gap: 6 }}>
                   <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder={showR ? "Ask me anything..." : "Paste your URL here..."} style={{ flex: 1, height: 42, borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 12px", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.dark, outline: "none", background: C.surface }} onFocus={e => { e.target.style.borderColor = C.hoverBorder; e.target.style.boxShadow = C.hoverShadow; }} onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }} />
