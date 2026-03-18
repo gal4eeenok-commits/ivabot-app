@@ -1,4 +1,4 @@
-const { useState, useRef, useEffect } = React;
+const { useState, useRef, useEffect, useCallback } = React;
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -70,12 +70,37 @@ const ProblemCard = ({ title, why, currentLabel, current, suggestions, sugLabel,
 </div></div>)}</div>); };
 
 const LBar = ({ step, total, text }) => { const p = ((step + 1) / total) * 100; return (<div style={{ padding: "14px 16px", background: C.surface, borderRadius: 10, border: `1px solid ${C.border}` }}><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}><span style={{ fontSize: 12, fontWeight: 500, color: C.dark }}>{text}</span><span style={{ fontSize: 11, fontWeight: 600, color: C.accent }}>{Math.round(p)}%</span></div><div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}><div style={{ height: "100%", background: C.accent, borderRadius: 100, width: `${p}%`, transition: "width 0.5s ease" }} /></div></div>); };
-const Bub = ({ from, children, err }) => { const b = from === "bot"; const formatted = typeof children === "string" ? children.split("\n").map((line, i) => <span key={i}>{i > 0 && <br/>}{line}</span>) : children; return (<div style={{ display: "flex", flexDirection: "column", alignItems: b ? "flex-start" : "flex-end", maxWidth: "88%", alignSelf: b ? "flex-start" : "flex-end" }}><div style={{ padding: "10px 14px", borderRadius: b ? "4px 12px 12px 12px" : "12px 4px 12px 12px", background: err ? "rgba(239,68,68,0.06)" : b ? C.surface : C.accent, color: err ? C.red : b ? C.dark : "#fff", border: b ? `1px solid ${err ? "rgba(239,68,68,0.15)" : C.border}` : "none", fontSize: 13, lineHeight: 1.5 }}>{formatted}</div></div>); };
+
+/* ═══ CHAT BUBBLES (Builder style) ═══ */
+const BL = ({s=16}) => (<svg width={s} height={Math.round(s*0.81)} viewBox="0 0 66 58" fill="none" style={{flexShrink:0,opacity:0.35}}><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill="#6E2BFF"/><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill="#6E2BFF"/></svg>);
+const UA = ({n}) => <div style={{width:20,height:20,borderRadius:"50%",background:C.accent,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:10,fontWeight:700,color:"#fff"}}>{(n||"U")[0].toUpperCase()}</span></div>;
+const BB = ({children}) => <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",maxWidth:"90%",alignSelf:"flex-start",animation:"fadeUp 0.3s ease"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`,fontSize:13,color:C.dark,lineHeight:1.5}}>{children}</div></div>;
+const UB = ({children,n}) => <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",maxWidth:"80%",alignSelf:"flex-end",animation:"fadeUp 0.2s ease"}}><div style={{marginBottom:3,marginRight:2}}><UA n={n}/></div><div style={{padding:"8px 14px",borderRadius:"12px 4px 12px 12px",background:C.accent,fontSize:13,color:"#fff"}}>{children}</div></div>;
+
+/* ═══ Responsive hook ═══ */
+const useIsMobile = () => { const [m,sm] = useState(window.innerWidth < 768); useEffect(() => { const h = () => sm(window.innerWidth < 768); window.addEventListener("resize",h); return () => window.removeEventListener("resize",h); },[]); return m; };
+
+/* ═══ Reveal on scroll ═══ */
+const RevealBlock = ({children, delay=0}) => { const ref = useRef(null); const [vis, setVis] = useState(false); useEffect(() => { const el = ref.current; if(!el) return; const obs = new IntersectionObserver(([e]) => { if(e.isIntersecting){ setVis(true); obs.unobserve(el); } }, {threshold:0.08}); obs.observe(el); return () => obs.disconnect(); },[]); return <div ref={ref} style={{opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(28px)",transition:`opacity 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}s, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}s`}}>{children}</div>; };
+
+/* ═══ Loading & Placeholder panels ═══ */
+const LoadingPanel = ({text}) => <div style={{minHeight:"calc(100vh - 130px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40}}><div style={{width:40,height:40,borderRadius:"50%",border:"3px solid rgba(110,43,255,0.1)",borderTopColor:C.accent,animation:"spin 0.8s linear infinite",marginBottom:16}}/><div style={{fontSize:13,fontWeight:500,color:C.dark,marginBottom:4}}>{text||"Analyzing..."}</div><div style={{fontSize:12,color:C.muted}}>This usually takes a few seconds</div><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
+const AuditPlaceholder = () => <div style={{minHeight:"calc(100vh - 180px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40}}><div style={{width:64,height:64,borderRadius:16,background:"rgba(110,43,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div style={{fontSize:18,fontWeight:700,color:C.dark,marginBottom:8}}>Your report will appear here</div><div style={{fontSize:13,color:C.muted,lineHeight:1.6,textAlign:"center",maxWidth:320,marginBottom:24}}>Paste your URL in the chat, and I'll analyze your page for SEO issues and opportunities.</div><div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:300}}>{[{n:"1",t:"Paste your URL",d:"Any page you want to audit"},{n:"2",t:"AI analysis",d:"Technical SEO, content, links, speed"},{n:"3",t:"Full report + chat",d:"Detailed fixes with AI assistant"}].map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:10,background:"rgba(110,43,255,0.04)",border:"1px solid rgba(110,43,255,0.08)"}}><div style={{width:24,height:24,borderRadius:"50%",background:"rgba(155,122,230,0.12)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:11,fontWeight:700,color:"#9B7AE6"}}>{s.n}</span></div><div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{s.t}</div><div style={{fontSize:11,color:C.muted}}>{s.d}</div></div></div>)}</div></div>;
+
+/* ═══ Mobile Tab Switcher ═══ */
+const MobileTab = ({active, onSwitch, hasReport}) => {
+  if(!hasReport) return null;
+  return <div style={{display:"flex",gap:0,background:"rgba(21,20,21,0.04)",borderRadius:10,padding:3,margin:"0 16px 8px"}}>
+    <button onClick={()=>onSwitch("chat")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="chat"?C.surface:"transparent",color:active==="chat"?C.dark:C.muted,boxShadow:active==="chat"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Chat</button>
+    <button onClick={()=>onSwitch("report")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="report"?C.surface:"transparent",color:active==="report"?C.dark:C.muted,boxShadow:active==="report"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Report</button>
+  </div>;
+};
+
 function valUrl(raw) { let s = raw.trim(); if (!s) return { ok: false, e: "Paste a URL to start." }; const m = s.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/i); if (m) s = m[0]; else { const d = s.match(/[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}[^\s]*/); if (d) s = "https://" + d[0]; else return { ok: false, e: "Need a URL like https://example.com" }; } s = s.replace(/\s+/g, ""); if (!s.startsWith("http")) s = "https://" + s; try { const u = new URL(s); if (!u.hostname.includes(".")) return { ok: false, e: "Not valid." }; return { ok: true, url: u.href }; } catch { return { ok: false, e: "Not valid." }; } }
 const CompBadge = ({ level }) => { const map = { Low: { color: "#9B7AE6", bg: "rgba(155,122,230,0.08)" }, Medium: { color: "#D4A0E8", bg: "rgba(212,160,232,0.08)" }, High: { color: C.accent, bg: "rgba(110,43,255,0.08)" } }; const s = map[level] || map.Medium; return <span style={{ fontSize: 11, fontWeight: 600, color: s.color, background: s.bg, padding: "3px 10px", borderRadius: 20 }}>{level}</span>; };
 
 /* ═══ CONFIG ═══ */
-const USE_MOCK = false; // true for preview in Claude, false for ivabot.xyz
+const USE_MOCK = false;
 const WEBHOOK_URL = "https://hook.eu2.make.com/la0f5jggl23gkearytvw7xjhagwd3ibc";
 const CHAT_WEBHOOK_URL = "https://hook.eu2.make.com/it65d8rtzws93lsnl1jncrcmcwx14xyj";
 const CORS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/fetch-page";
@@ -136,7 +161,6 @@ function parseSEO(rawHtml, pageUrl) {
   let html = rawHtml.replace(/\\"/g,'"').replace(/\\</g,'<').replace(/\\>/g,'>').replace(/\\[nrt]/g,' ')
     .replace(/<svg[\s\S]*?<\/svg>/gi,'').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
 
-  // Title
   const mt = html.match(/<title[^>]*>(.*?)<\/title>/i);
   r.title = mt ? mt[1].trim() : "";
   r.title_missing = !r.title;
@@ -146,11 +170,9 @@ function parseSEO(rawHtml, pageUrl) {
   r.title_too_long = r.title.length > 90;
   const tw = r.title.toLowerCase().match(/\b[\w''-]+\b/g) || [];
   r.title_has_duplicates = [...new Set(tw.filter((w,i,a) => a.indexOf(w)!==i && w.length>2))].length > 0;
-  // Check for repeated brand pattern like "Brand | Brand" or "Brand - Brand"
   const titleParts = r.title.split(/\s*[|–—-]\s*/).map(p => p.trim().toLowerCase()).filter(Boolean);
   r.title_has_repeated_brand = titleParts.length >= 2 && new Set(titleParts).size < titleParts.length;
 
-  // Description — check both attr orders
   const md = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i)
     || html.match(/<meta[^>]*content=["']([\s\S]*?)["'][^>]*name=["']description["']/i);
   r.desc = md ? md[1].trim() : "";
@@ -158,11 +180,9 @@ function parseSEO(rawHtml, pageUrl) {
   r.desc_too_short = r.desc.length > 0 && r.desc.length < 50;
   r.desc_too_long = r.desc.length > 200;
 
-  // Headings
   const isTemplate = (t) => /^\{.*\}$/.test(t) || /^\{\{.*\}\}$/.test(t) || /^\[.*\]$/.test(t);
   const exH = (h, lv) => [...h.matchAll(new RegExp(`<h${lv}[^>]*>([\\s\\S]*?)<\\/h${lv}>`, 'gi'))].map(m => m[1].replace(/<[^>]+>/g,'').trim()).filter(t => t && t.length > 1);
   r.h1_raw = exH(html,1); r.h2 = exH(html,2); r.h3 = exH(html,3);
-  // Separate real H1s from broken template H1s
   r.h1 = r.h1_raw.filter(t => !isTemplate(t));
   r.h1_broken = r.h1_raw.filter(t => isTemplate(t));
   r.h1_missing = r.h1.length === 0;
@@ -171,14 +191,11 @@ function parseSEO(rawHtml, pageUrl) {
   const findDups = arr => { const m = new Map(); arr.forEach(t => { const k = t.trim().toLowerCase(); if(k) m.set(k,(m.get(k)||0)+1); }); return [...m.entries()].filter(([,c])=>c>1).length>0; };
   r.h1_has_dups = findDups(r.h1); r.h2_has_dups = findDups(r.h2); r.h3_has_dups = findDups(r.h3);
 
-  // Visible text
   const vis = html.replace(/<!--[\s\S]*?-->/g,'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/\s+/g,' ').trim();
   r.char_count = vis.length;
 
-  // Mobile
   r.has_mobile = /<meta[^>]*name=["']viewport["'][^>]*>/i.test(html) && /width\s*=\s*device-width/i.test(html);
 
-  // Social
   const socials = [["Facebook",/facebook\.com/i],["Instagram",/instagram\.com/i],["LinkedIn",/linkedin\.com/i],["X (Twitter)",/(?:twitter\.com|x\.com)/i],["YouTube",/youtube\.com|youtu\.be/i],["TikTok",/tiktok\.com/i],["Pinterest",/pinterest\.com/i]];
   r.social = [];
   const allHrefs = [...rawHtml.matchAll(/<a\s[^>]*href=["']([^"']+)["']/gi)].map(m => m[1]);
@@ -187,7 +204,6 @@ function parseSEO(rawHtml, pageUrl) {
     if (found) r.social.push({ name, url: found.startsWith("http") ? found : "https://" + found });
   });
 
-  // Links
   let int=0, ext=0;
   [...html.matchAll(/<a\s[^>]*href=["']([^"']+)["']/gi)].forEach(m => {
     const h = m[1]; try {
@@ -197,29 +213,24 @@ function parseSEO(rawHtml, pageUrl) {
   });
   r.int_links = int; r.ext_links = ext;
 
-  // Images & Videos
   const imgs = [...html.matchAll(/<img\s[^>]*>/gi)].filter(m => !/(logo|icon|sprite|favicon|badge|social|nav|menu)/i.test(m[0]));
   r.img_count = imgs.length;
   r.all_alt = imgs.length===0 || imgs.every(m => /alt=["'][^"']+["']/i.test(m[0]));
   r.alt_missing = imgs.length>0 && !r.all_alt;
   r.vid_count = (html.match(/<video[^>]*>/gi)||[]).length + (html.match(/<iframe[^>]+(youtube|vimeo|wistia|loom|dailymotion)[^>]*>/gi)||[]).length;
 
-  // CTA
   const CTA = ["buy","add to cart","checkout","contact","sign up","get started","book","subscribe","download","learn more","shop now","order now","request","pricing","try","start","browse","explore","view"];
   r.has_cta = false; r.cta_text = "";
   for (const m of html.matchAll(/<(a|button)([^>]*)>([\s\S]*?)<\/\1>/gi)) {
     let v = (m[3]||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
-    // Aggressive cleanup: remove anything that looks like code/attributes
     v = v.replace(/["'][^"']*["']\s*[^>]*>/g, "").replace(/data-[a-z0-9-]+(?:="[^"]*")?/gi, "").replace(/[a-z-]+#[a-z0-9-]*/gi, "").replace(/class="[^"]*"/gi, "").replace(/style="[^"]*"/gi, "").replace(/[{}[\]<>]/g, "").replace(/\s+/g," ").trim();
     if(!v || v.length > 60 || v.length < 2 || /[{}<>\[\]="]/i.test(v) || /\b(logo|brand|navbar|cid)\b/i.test(v)) continue;
     if(CTA.some(k=>v.toLowerCase().includes(k)) || /\b(btn|button|cta)\b/i.test(m[2]||"")) { r.has_cta=true; r.cta_text=v; break; }
   }
 
-  // robots/sitemap URLs
   let base = ""; try { base = new URL(normalized).origin; } catch(e){}
   r.robots_url = base+"/robots.txt"; r.sitemap_url = base+"/sitemap.xml";
 
-  // Score
   let sc = 0;
   const ts = r.title_missing ? "missing" : r.title_too_short ? "too_short" : r.title_too_long ? "too_long" : r.title_has_repeated_brand ? "duplicate" : "good";
   const ds = r.desc_missing ? "missing" : r.desc_too_short ? "too_short" : r.desc_too_long ? "too_long" : "good";
@@ -236,20 +247,16 @@ function parseSEO(rawHtml, pageUrl) {
   r.score = Math.min(sc,100);
   r.title_status = ts; r.desc_status = ds;
 
-  // Summary for GPT
   r.summary = `URL: ${r.url}\nTitle: ${r.title}\nDescription: ${r.desc}\nH1: ${r.h1.join(", ")||"missing"}\nH2 count: ${r.h2.length}\nH3 count: ${r.h3.length}\nInternal links: ${int}\nExternal links: ${ext}\nImages: ${r.img_count}\nVideos: ${r.vid_count}\nHas CTA: ${r.has_cta}\nMobile: ${r.has_mobile}\nSocial: ${r.social.map(s=>s.name).join(", ")||"none"}\nScore: ${r.score}/100`;
   return r;
 }
 
 /* Transform parsed + GPT + DataForSEO data into report format */
 function buildReportData(parsed, gpt, dfs) {
-  /* DataForSEO data comes pre-cleaned from Edge Function:
-     { ranked_keywords: [{keyword, position, volume, difficulty}], serp_competitors: [{name, tactics, url, rank}], total_ranked } */
   const rankedKeywords = dfs?.ranked_keywords || [];
   const serpCompetitors = dfs?.serp_competitors || [];
   const totalRanked = dfs?.total_ranked || 0;
 
-  /* Enrich GPT keywords with DataForSEO volume/difficulty/position data */
   const gptKeywords = gpt?.keywords || [];
   const keywordMetrics = gptKeywords.map(k => {
     const match = rankedKeywords.find(rk => rk.keyword?.toLowerCase() === k.toLowerCase());
@@ -282,7 +289,6 @@ function buildReportData(parsed, gpt, dfs) {
     competitors: (() => {
       const gptComps = gpt?.competitors || [];
       if (serpCompetitors.length > 0) {
-        // Enrich SERP competitors with GPT tactics if GPT has matching domains
         return serpCompetitors.map((sc, i) => {
           const gptMatch = gptComps.find(gc => sc.name.includes(gc.name) || gc.name.includes(sc.name.replace(/^www\./, "")));
           return { ...sc, tactics: gptMatch?.tactics || gptComps[i]?.tactics || "" };
@@ -304,7 +310,7 @@ const A = { score: 85, url: "https://www.apple.com/", title: "Apple", desc: "Dis
 
 /* ═══ Build ═══ */
 function buildResults(d) {
-  const NB = C.cardBorder; // neutral border for all
+  const NB = C.cardBorder;
   const g = [], b = [];
   if (d.titleStatus === "good") g.push({ title: "Meta Title", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} hideDesc /><BotNote inline text={`Your title is ${d.title.length} characters — right in the sweet spot (30–60). This is the #1 on-page signal Google uses to understand your content.`} /></>) }); else b.push({ ...d.titleEval, title: d.titleEval?.title || "Meta Title Too Short", serpSnippet: { url: d.url, title: d.title, desc: d.desc, hideDesc: true } });
   if (d.descStatus === "good") g.push({ title: "Meta Description", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} /><BotNote inline text={`Your description is ${d.desc.length} characters — within 120–160, the sweet spot. This is what users see in search results, so a good one means more clicks.`} /></>) }); else b.push({ ...d.descEval, title: d.descEval?.title || "Description Needs Work", serpSnippet: { url: d.url, title: d.title, desc: d.desc } });
@@ -395,7 +401,7 @@ const BotNote = ({ text, inline }) => inline
   ? (<div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, padding: "4px 0" }}>{text}</div>)
   : (<div className="reveal" style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0", marginBottom: 8 }}><BotLogo /><span style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{text}</span></div>);
 
-/* SERP Snippet Preview — shows how the page looks in Google */
+/* SERP Snippet Preview */
 const SerpSnippet = ({ url, title, desc, hideDesc }) => {
   let displayUrl = url || "";
   try { const u = new URL(url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
@@ -481,7 +487,6 @@ async function generatePDF(data) {
   const tB = { fontSize: 9, textColor: dk, cellPadding: 6, fillColor: lavBg };
   const tA = { fillColor: lavBg };
 
-  /* HEADER */
   const g1=[184,156,240], g2=[212,190,247];
   for (let i=0;i<40;i++){const t=i/40; doc.setFillColor(Math.round(g1[0]+(g2[0]-g1[0])*t),Math.round(g1[1]+(g2[1]-g1[1])*t),Math.round(g1[2]+(g2[2]-g1[2])*t)); doc.rect(0,(78/40)*i,W,78/40+.5,"F");}
   doc.addImage(logoImg,"PNG",M,22,22,19);
@@ -493,7 +498,6 @@ async function generatePDF(data) {
   doc.text(urlS,W-M,44,{align:"right"});
   y = 96;
 
-  /* SCORE */
   const sL = data.score>=80?"Strong":data.score>=50?"Moderate":"Weak";
   const sC = data.score>=80?[155,122,230]:data.score>=50?[212,160,232]:[226,212,245];
   const cx=M+28, cy=y+22;
@@ -507,7 +511,6 @@ async function generatePDF(data) {
   doc.setFontSize(9); doc.setTextColor(...mt); doc.text(data.score>=80?"Your page has a strong foundation.":"There's room for improvement.",M+62,y+38);
   y+=60; ln(); gap(16);
 
-  /* PAGE CONTEXT */
   sec("Page context summary");
   [["PAGE URL",data.ctx?.url],["PAGE TITLE",data.ctx?.title],["TOPIC",data.ctx?.topic],["OWNER",data.ctx?.owner],["GOAL",data.ctx?.goal],["INDUSTRY",data.ctx?.industry],["REGION",data.ctx?.region],["COMPETITION",data.ctx?.competition],["CORE MESSAGE",data.ctx?.message]].forEach(([l,v])=>{
     if(!v)return; ensureSpace(16);
@@ -516,7 +519,6 @@ async function generatePDF(data) {
   });
   gap(10); ln(); gap(16);
 
-  /* KEYWORD TABLES */
   const kwT = (title, rows) => {
     if(!rows?.length) return; sec(title);
     doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
@@ -529,7 +531,6 @@ async function generatePDF(data) {
   kwT("How your page ranks in Google", data.rankedKeywords);
   kwT("What your page is built for", data.keywordMetrics);
 
-  /* WHAT'S WORKING */
   const gR=[];
   if(data.titleStatus==="good") gR.push(["Meta Title","\""+(data.title.length>50?data.title.slice(0,47)+"...":data.title)+"\" ("+data.title.length+" chars)"]);
   if(data.descStatus==="good") gR.push(["Meta Description","\""+(data.desc.length>60?data.desc.slice(0,57)+"...":data.desc)+"\" ("+data.desc.length+" chars)"]);
@@ -551,7 +552,6 @@ async function generatePDF(data) {
     y=doc.lastAutoTable.finalY+12; ln(); gap(16);
   }
 
-  /* NEEDS IMPROVEMENT */
   const pB=[];
   if(data.titleStatus!=="good") pB.push({t:data.titleEval?.title||"Meta Title",serp:"SERP: "+urlS+" \u2014 "+(data.title||"No title"),w:data.titleEval?.why,s:data.titleEval?.suggestions,lk:[{l:"Google Search Console",u:"https://search.google.com/search-console"}]});
   if(data.descStatus!=="good") pB.push({t:data.descEval?.title||"Meta Description",serp:"SERP: "+(data.desc?"\""+( data.desc.length>60?data.desc.slice(0,57)+"...":data.desc)+"\"":"No description"),w:data.descEval?.why,s:data.descEval?.suggestions});
@@ -582,7 +582,6 @@ async function generatePDF(data) {
     y=doc.lastAutoTable.finalY+12; ln(); gap(16);
   }
 
-  /* COMPETITORS */
   if(data.competitors?.length>0){
     sec("Top competitors in Google");
     note("Top organic results for \""+(data.keywords?.[0]||"your topic")+"\".");
@@ -594,7 +593,6 @@ async function generatePDF(data) {
     y=doc.lastAutoTable.finalY+12; ln(); gap(16);
   }
 
-  /* BACKLINKS */
   sec("PR & backlink opportunities");
   if(data.backlinksCount!=null){
     ensureSpace(35);
@@ -613,7 +611,6 @@ async function generatePDF(data) {
     y=doc.lastAutoTable.finalY+12; ln(); gap(16);
   }
 
-  /* FINAL RECOMMENDATIONS */
   sec("Final recommendations");
   const recs=[...pB.map(item=>[item.t,item.s?.[0]||""]),
     [data.backlinksCount!=null&&data.backlinksCount>=10?"Keep building backlinks":"Build quality backlinks","Reach out to industry blogs, directories."],
@@ -627,7 +624,6 @@ async function generatePDF(data) {
   });
   y=doc.lastAutoTable.finalY+20;
 
-  /* CTA */
   gap(6); ensureSpace(40);
   const bW=200,bH=32,bX=W/2-bW/2,bY=y;
   doc.setFillColor(...purple); doc.roundedRect(bX,bY,bW,bH,8,8,"F");
@@ -635,7 +631,6 @@ async function generatePDF(data) {
   doc.text("Run your audit at ivabot.xyz",W/2,bY+20,{align:"center"});
   doc.link(bX,bY,bW,bH,{url:"https://ivabot.xyz/app"});
 
-  /* FOOTER */
   const tp=doc.getNumberOfPages();
   for(let i=1;i<=tp;i++){doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...mt); doc.text("ivabot.xyz  \u00B7  AI SEO Assistant",W/2,H-22,{align:"center"}); doc.text("Page "+i+" of "+tp,W-M,H-22,{align:"right"}); doc.link(W/2-60,H-32,120,14,{url:"https://ivabot.xyz/app"});}
 
@@ -643,15 +638,12 @@ async function generatePDF(data) {
   const fileName="IvaBot-Audit-"+domain+"-"+new Date().toISOString().slice(0,10)+".pdf";
   doc.save(fileName);
 
-  /* Update button status */
   const pdfBtn = document.getElementById("export-pdf-btn");
   const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
   if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = C.dark; }
 
-  /* Upload PDF to Supabase Storage (background, non-blocking) */
   try {
     const pdfBlob = doc.output("blob");
-    /* Get member ID from Memberstack if available */
     let memberId = window.__memberId;
     if (!memberId && window.$memberstackDom) {
       try {
@@ -693,7 +685,7 @@ async function generatePDF(data) {
   } catch(err){console.error("[IvaBot] PDF error:",err); alert("PDF export failed: "+err.message);}
 }
 
-/* ═══ REPORT ═══ */
+/* ═══ REPORT (unchanged) ═══ */
 const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = buildResults(data); return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
   <BotNote text="Here's your full SEO audit. I'll walk you through each part — what's working, what needs fixing, and exactly how to fix it." />
   <div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}><ScoreRing score={data.score} /><div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}><span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>SEO Score</span><QM text="Your overall score based on title, description, headings, speed, mobile, links, robots.txt, and sitemap. Higher is better — aim for 80+." /></div><div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 4, wordBreak: "break-all" }}>{data.url}</div><div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.4 }}>{data.score >= 80 ? "Your page has a strong foundation. Let's fine-tune the details below." : "There's room for improvement — I'll show you exactly what to fix."}</div></div></div>
@@ -776,50 +768,90 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
   </div></div>
 </div>); };
 
-/* ═══ MAIN ═══ */
+/* ═══ MAIN — NEW LAYOUT (Builder-style) ═══ */
 function IvaBotV6() {
-  const [view, setView] = useState("select"), [tool, setTool] = useState(null), [msgs, setMsgs] = useState([]), [input, setInput] = useState(""), [loadStep, setLS] = useState(-1), [showR, setSR] = useState(false), [inputV, setIV] = useState(false), [showBuy, setSB] = useState(false), [expanded, setExpanded] = useState(false), [typing, setTyping] = useState(false), [credits, setCredits] = useState({ core: 0, builder: 0, coverage: 0 }), [memberId, setMemberId] = useState(null), [memberName, setMemberName] = useState(null), [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile();
+  const [mTab, sMTab] = useState("chat");
+  const [pLoad, sPLoad] = useState(null);
+  const [view, setView] = useState("select"), [tool, setTool] = useState(null), [msgs, setMsgs] = useState([]), [input, setInput] = useState(""), [loadStep, setLS] = useState(-1), [showR, setSR] = useState(false), [showBuy, setSB] = useState(false), [typing, setTyping] = useState(false), [credits, setCredits] = useState({ core: 0, builder: 0, coverage: 0 }), [memberId, setMemberId] = useState(null), [memberName, setMemberName] = useState(null), [loading, setLoading] = useState(true);
   useEffect(() => { (async () => { const info = await getMemberInfo(); setMemberId(info.id); setMemberName(info.name); const cr = await fetchCredits(info.id); setCredits(cr); setLoading(false); })(); }, []);
   const chatRef = useRef(null);
-  useEffect(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }); }, [msgs, loadStep]);
-  /* Reveal on scroll */
+  useEffect(() => { requestAnimationFrame(() => { if(chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }); }, [msgs, loadStep, typing]);
+
+  /* Reveal on scroll for report */
   useEffect(() => {
     const obs = new IntersectionObserver((entries) => { entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("visible"); obs.unobserve(e.target); } }); }, { threshold: 0.1 });
     document.querySelectorAll(".reveal").forEach(el => obs.observe(el));
     return () => obs.disconnect();
   });
+
+  /* Sticky fix — remove overflow from all ancestors (like Builder) */
+  useEffect(() => {
+    if (view !== "chat") return;
+    const el = document.getElementById('ca-chat');
+    if (!el) return;
+    const saved = [];
+    let node = el.parentElement;
+    while (node && node !== document.body) {
+      const s = window.getComputedStyle(node);
+      if (s.overflow !== 'visible' || s.overflowY !== 'visible' || s.overflowX !== 'visible') {
+        saved.push({ node, ov: node.style.overflow, ovY: node.style.overflowY, ovX: node.style.overflowX, h: node.style.height, mh: node.style.minHeight });
+        node.style.overflow = 'visible';
+        node.style.overflowY = 'visible';
+        node.style.overflowX = 'visible';
+        if (node.style.height === '100vh') node.style.height = 'auto';
+        node.style.minHeight = '100vh';
+      }
+      node = node.parentElement;
+    }
+    return () => { saved.forEach(({ node, ov, ovY, ovX, h, mh }) => { node.style.overflow = ov; node.style.overflowY = ovY; node.style.overflowX = ovX; node.style.height = h; node.style.minHeight = mh; }); };
+  }, [view]);
+
   const [auditData, setAuditData] = useState(null);
   const addMsg = (f, c, e) => setMsgs(p => [...p, { from: f, content: c, err: e, id: Date.now() + Math.random() }]);
-  const start = (t) => { setTool(t); setView("chat"); setSR(false); setLS(-1); setIV(false); setExpanded(false); setMsgs([]); setAuditData(null); setTyping(true);
-    setTimeout(() => { setTyping(false); setMsgs([{ from: "bot", content: memberName ? `Hey, ${memberName}! Welcome to Core Audit 👋` : "Hey! Welcome to Core Audit 👋", id: Date.now() }]); setTyping(true); }, 2000);
-    setTimeout(() => { setTyping(false); setMsgs(p => [...p, { from: "bot", content: "I'll check your page for technical SEO, content structure, speed, mobile readiness, and more. You'll get clear, actionable recommendations that are easy to apply — even if you're new to SEO. Just paste your URL below and I'll get started.", id: Date.now() + 1 }]); setIV(true); }, 4500);
+
+  const start = (t) => {
+    setTool(t);
+    setView("chat");
+    setSR(false);
+    setLS(-1);
+    setMsgs([]);
+    setAuditData(null);
+    sPLoad(null);
+    sMTab("chat");
+    setTyping(true);
+    setTimeout(() => {
+      setTyping(false);
+      setMsgs([{ from: "bot", content: memberName ? `Hey, ${memberName}! Welcome to Core Audit.` : "Hey! Welcome to Core Audit.", id: Date.now() }]);
+      setTyping(true);
+    }, 1500);
+    setTimeout(() => {
+      setTyping(false);
+      setMsgs(p => [...p, { from: "bot", content: "I'll check your page for technical SEO, content structure, speed, mobile readiness, and more. You'll get clear, actionable recommendations.\n\nJust paste your URL below and I'll get started.", id: Date.now() + 1 }]);
+    }, 4000);
   };
-  const home = () => { setView("select"); setTool(null); setMsgs([]); setSR(false); setLS(-1); setIV(false); setExpanded(false); setAuditData(null); };
+  const home = () => { setView("select"); setTool(null); setMsgs([]); setSR(false); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); };
 
   const runAudit = async (url) => {
-    setSR(false); setAuditData(null); setExpanded(false);
+    setSR(false); setAuditData(null); sPLoad("Analyzing your page...");
     setLS(0);
     const setStep = (s) => setLS(prev => Math.max(prev, s));
-    let step = 0;
 
     try {
       if (USE_MOCK) {
         await new Promise(res => setTimeout(res, STEPS.length * 800));
         var reportData = A;
       } else {
-        // STEP 1: Fetch HTML
         setStep(0);
         const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
         if (!htmlRes.ok) throw new Error("Could not fetch page");
         const rawHtml = await htmlRes.text();
 
-        // STEP 2: Parse HTML locally
         setStep(1);
         await new Promise(r => setTimeout(r, 300));
         setStep(2);
         const parsed = parseSEO(rawHtml, url);
 
-        // STEP 3: Send to Make for GPT + call DataForSEO in parallel
         setStep(3);
         await new Promise(r => setTimeout(r, 300));
         setStep(4);
@@ -829,9 +861,7 @@ function IvaBotV6() {
         const cleanKw = (v) => v && v.length > 2 && !/^\{.*\}$/.test(v) && !/^[^a-zA-Z]*$/.test(v) ? v : null;
         const primaryKw = cleanKw(parsed.h1?.[0]) || cleanKw(parsed.title) || "";
 
-        // Run Make (GPT) and DataForSEO in parallel
         const [makeResult, dfsResult] = await Promise.allSettled([
-          // --- Make: GPT personalization ---
           (async () => {
             const makeRes = await fetch(WEBHOOK_URL, {
               method: "POST",
@@ -841,15 +871,12 @@ function IvaBotV6() {
             if (!makeRes.ok) throw new Error("Make HTTP " + makeRes.status);
             const raw = await makeRes.text();
             console.log("[IvaBot] Make raw length:", raw.length, "first 300:", raw.substring(0, 300));
-            // Make now returns GPT result directly (no wrapper)
             let parsed_gpt = null;
             try { parsed_gpt = JSON.parse(raw); } catch(e) {
               console.log("[IvaBot] GPT JSON parse failed:", e.message);
-              // Try extracting JSON from wrapper
               const m = raw.match(/\{[\s\S]*\}/);
               if (m) try { parsed_gpt = JSON.parse(m[0]); } catch(e2) {}
             }
-            // Handle if Make still wraps in gpt_raw (backward compat)
             if (parsed_gpt?.gpt_raw) {
               const gr = parsed_gpt.gpt_raw;
               parsed_gpt = typeof gr === "string" ? JSON.parse(gr) : gr;
@@ -860,7 +887,6 @@ function IvaBotV6() {
             }
             return parsed_gpt;
           })(),
-          // --- DataForSEO: via Supabase Edge Function proxy ---
           (async () => {
             const DFS_PROXY = SUPABASE_URL + "/functions/v1/dataforseo-proxy";
             const dfsRes = await fetch(DFS_PROXY, {
@@ -875,7 +901,6 @@ function IvaBotV6() {
           })()
         ]);
 
-        // Process results
         if (makeResult.status === "fulfilled" && makeResult.value) {
           gpt = makeResult.value;
           console.log("[IvaBot] GPT OK, keys:", Object.keys(gpt));
@@ -895,21 +920,19 @@ function IvaBotV6() {
           console.log("[IvaBot] DFS failed:", dfsResult.reason?.message || "no data");
         }
 
-        // STEP 4: Build report from parsed data + GPT enrichment
         setStep(5);
         var reportData = buildReportData(parsed, gpt, dfsSeo);
 
-        // Check robots.txt & sitemap
         try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
         try { const sm = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.sitemap_url }) }); if (sm.ok) { const smt = await sm.text(); reportData.sitemapStatus = (smt.includes("<urlset") || smt.includes("<sitemapindex") || smt.includes("<url>")) ? "good" : "bad"; } else { reportData.sitemapStatus = "bad"; } } catch(e){ reportData.sitemapStatus = "bad"; }
       }
 
-      // Done — show report
-      
       setLS(-1);
+      sPLoad(null);
       setSR(true);
       setAuditData(reportData);
       if (!USE_MOCK) setCredits(prev => ({ ...prev, core: Math.max(0, prev.core - 1) }));
+      if (isMobile) sMTab("report");
 
       const d = reportData;
       const { good, bad } = buildResults(d);
@@ -926,18 +949,18 @@ function IvaBotV6() {
           <div style={{ marginBottom: 8 }}>Done! Your page scored <strong>{d.score}/100</strong>.</div>
           <div style={{ marginBottom: 8 }}>{summary}</div>
           {bad.length > 0 && <div style={{ marginBottom: 8 }}>If you fix the issues I found, your score could reach around <strong>{potential}/100</strong>.</div>}
-          <div style={{ color: C.muted }}>Check the report on the right for details. Come back and re-audit once you've made changes — I'll track your progress.</div>
+          <div style={{ color: C.muted, fontSize: 12 }}>{isMobile ? "Switch to the Report tab to see details." : "Check the report on the right for details."} Come back and re-audit once you've made changes — I'll track your progress.</div>
         </div>);
         setTimeout(() => { setTyping(true); }, 5000);
         setTimeout(() => {
           setTyping(false);
-          addMsg("bot", <div>If you have any questions, I'm ready to explain all the SEO details and help fix some of the issues on your page. Just ask!</div>);
+          addMsg("bot", "If you have any questions, I'm ready to explain all the SEO details and help fix some of the issues on your page. Just ask!");
         }, 7000);
       }, 4500);
 
     } catch (err) {
-      
       setLS(-1);
+      sPLoad(null);
       addMsg("bot", `Something went wrong: ${err.message}. Please try again.`, true);
     }
   };
@@ -955,14 +978,14 @@ function IvaBotV6() {
 
     if (USE_MOCK) {
       const mockAnswers = [
-        "To add an image to your search snippet, you need structured data (schema markup). Add a `WebPage` or `Article` schema with an `image` property to your page. Most CMS platforms have an SEO plugin for this — in WordPress it's Yoast or RankMath, in Webflow it's in Page Settings → Open Graph Image. Google doesn't guarantee it'll show, but having it increases your chances.",
-        "Your title is only 5 characters — Google needs more context to understand your page. Aim for 30-60 characters with your main keyword. Go to your CMS → Page Settings → SEO Title and update it there.",
-        "Internal links help Google discover your other pages and pass authority between them. Add 3-5 links to your most important pages within the body content. In your CMS, just highlight text and add a link to another page on your site.",
-        "Meta description doesn't directly affect rankings, but it affects click-through rate. A good one is 120-160 characters, includes your main keyword, and has a clear value proposition. Update it in your CMS → Page Settings → Meta Description.",
-        "H2 headings break your content into sections. Google uses them to understand your page structure. Add 3-5 H2s that describe each main section of your content. Each H2 should ideally include a related keyword naturally.",
-        "Page speed depends on image size, JS/CSS files, and server response time. Run your URL through PageSpeed Insights (pagespeed.web.dev) to see specific issues. The quickest wins are usually compressing images to WebP and removing unused scripts.",
-        "Alt text describes images for Google and screen readers. Go through each image in your CMS and add a short description of what's shown. Include keywords where natural, but don't stuff — describe the image honestly.",
-        "Backlinks take time. Start with directories in your industry, write guest posts on relevant blogs, and share your work on social media. Even 2-3 quality links from trusted sites can move the needle."
+        "To add an image to your search snippet, you need structured data (schema markup). Add a `WebPage` or `Article` schema with an `image` property to your page.",
+        "Your title is only 5 characters — Google needs more context to understand your page. Aim for 30-60 characters with your main keyword.",
+        "Internal links help Google discover your other pages and pass authority between them. Add 3-5 links to your most important pages within the body content.",
+        "Meta description doesn't directly affect rankings, but it affects click-through rate. A good one is 120-160 characters, includes your main keyword.",
+        "H2 headings break your content into sections. Google uses them to understand your page structure. Add 3-5 H2s that describe each main section.",
+        "Page speed depends on image size, JS/CSS files, and server response time. Run your URL through PageSpeed Insights.",
+        "Alt text describes images for Google and screen readers. Go through each image in your CMS and add a short description.",
+        "Backlinks take time. Start with directories in your industry, write guest posts on relevant blogs."
       ];
       setTimeout(() => {
         setTyping(false);
@@ -971,7 +994,6 @@ function IvaBotV6() {
     } else {
       try {
         const d = auditData || A;
-        // Build chat history from last 10 messages for context
         const history = msgs.filter(m => typeof m.content === "string").slice(-10).map(m => `${m.from === "bot" ? "IvaBot" : "User"}: ${m.content}`).join("\n");
         const res = await fetch(CHAT_WEBHOOK_URL, {
           method: "POST",
@@ -989,10 +1011,8 @@ function IvaBotV6() {
           const j = JSON.parse(raw);
           answer = j.answer || j.result || raw;
         } catch(e){
-          // If JSON parse fails, raw text is the answer
           answer = raw;
         }
-        // Clean up - remove wrapping quotes if present
         if (answer.startsWith('"') && answer.endsWith('"')) answer = answer.slice(1, -1);
         answer = answer.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\*\*/g, '').replace(/###\s?/g, '').replace(/^- /gm, '• ');
         addMsg("bot", answer);
@@ -1010,11 +1030,9 @@ function IvaBotV6() {
     const text = input.trim();
     setInput("");
 
-    // pendingUrl handled by buttons — if user types, just clear and continue
     if (pendingUrl) setPendingUrl(null);
 
     if (showR) {
-      // After audit — check if it's a URL for new audit
       const v = valUrl(text);
       if (v.ok) {
         addMsg("user", text);
@@ -1032,11 +1050,9 @@ function IvaBotV6() {
         setPendingUrl(v.url);
         return;
       }
-      // Regular chat
       addMsg("user", text);
       sendChat(text);
     } else {
-      // First audit — run directly, no confirmation needed
       addMsg("user", text);
       const v = valUrl(text);
       if (!v.ok) { addMsg("bot", v.e, true); return; }
@@ -1048,10 +1064,37 @@ function IvaBotV6() {
     }
   };
 
+  /* ═══ Chat Messages — Builder style with BB/UB ═══ */
+  const ChatMessages = () => {
+    const lastBotIdx = msgs.reduce((acc, m, i) => m.from === "bot" ? i : acc, -1);
+    return <React.Fragment>
+      <style>{`.cb-past-msg{pointer-events:none!important;opacity:0.8}.cb-past-msg *{pointer-events:none!important;cursor:default!important}`}</style>
+      {msgs.map((m, i) => m.from === "bot"
+        ? <div key={m.id} className={i < lastBotIdx ? "cb-past-msg" : undefined}>
+            {m.err
+              ? <BB><span style={{color:"rgba(239,68,68,0.8)"}}>{m.content}</span></BB>
+              : <BB>{typeof m.content === "string" ? m.content.split("\n").map((line, j) => <span key={j}>{j > 0 && <br/>}{line}</span>) : m.content}</BB>
+            }
+          </div>
+        : <UB key={m.id} n={memberName}>{m.content}</UB>
+      )}
+      {loadStep >= 0 && <div style={{ animation: "fadeUp 0.3s ease", maxWidth: "95%", alignSelf: "flex-start" }}><LBar step={loadStep} total={STEPS.length} text={STEPS[loadStep]} /></div>}
+      {typing && <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}><div style={{ marginBottom: 3, marginLeft: 2 }}><BL s={16} /></div><div style={{ padding: "10px 14px", borderRadius: "4px 12px 12px 12px", background: C.surface, border: `1px solid ${C.border}` }}><div className="typing-dots"><span /><span /><span /></div></div></div>}
+    </React.Fragment>;
+  };
+
+  /* Right panel content */
+  const PanelContent = () => <React.Fragment>
+    {pLoad && <LoadingPanel text={pLoad} />}
+    {!pLoad && !showR && <AuditPlaceholder />}
+    {!pLoad && showR && auditData && <div style={{ animation: "fadeIn 0.5s ease" }}><ReportV6 data={auditData} onNewAudit={() => { setSR(false); setMsgs([]); setLS(-1); setAuditData(null); sPLoad(null); }} onHome={home} /></div>}
+    <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+  </React.Fragment>;
+
   return (
-    <div className="iva-root" style={{ fontFamily: "'DM Sans',sans-serif", background: "#f8f7f9", height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", padding: "8px 12px" }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "linear-gradient(180deg, #ffffff 0%, #F8F5FF 15%, #F0EAFF 40%, #E4D8FC 70%, #D9CCFA 100%)", borderRadius: 12 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}@keyframes foldOpen{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}.reveal.visible{opacity:1;transform:translateY(0)}.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}.fold-content{animation:foldOpen 0.4s cubic-bezier(0.4,0,0.2,1) forwards;overflow:hidden}.iva-tools{display:flex;gap:14px;width:100%}.iva-chat-wrap{display:flex;overflow:hidden;padding:0 24px 8px;max-width:1224px;margin:0 auto;width:100%}.iva-actions{display:flex;gap:8px;flex-wrap:wrap;padding:8px 24px 0;max-width:1224px;margin:0 auto;width:100%}.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}.iva-seo-title{font-size:64px}.iva-nav{height:84px;padding:24px 0 0}@media(max-width:1024px){.iva-root{height:auto!important;min-height:100vh;overflow:auto!important}.iva-chat-wrap{flex-direction:column;padding:0 12px 8px;gap:12px}.iva-chat-panel{width:100%!important;max-width:none!important;min-width:0!important;margin-right:0!important;max-height:none;height:auto}.iva-report-panel{min-height:auto}.iva-actions{padding:8px 12px 0;justify-content:center}}@media(max-width:768px){.iva-root{height:auto!important;min-height:100vh;overflow:auto!important}.iva-tools{flex-direction:column}.iva-buy-grid{grid-template-columns:1fr}.iva-ctx-grid{grid-template-columns:1fr}.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}.iva-seo-title{font-size:32px}.iva-nav{padding:0 12px}}@media(max-width:520px){.iva-seo-title{font-size:26px}.iva-nav{height:48px;padding:0 10px}}`}</style>
+    <div className="iva-root" style={{ fontFamily: "'DM Sans',sans-serif", background: "#f8f7f9", display: "flex", flexDirection: "column", padding: "8px 12px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #ffffff 0%, #F8F5FF 15%, #F0EAFF 40%, #E4D8FC 70%, #D9CCFA 100%)", borderRadius: 12 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}@keyframes foldOpen{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}.reveal.visible{opacity:1;transform:translateY(0)}.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}.fold-content{animation:foldOpen 0.4s cubic-bezier(0.4,0,0.2,1) forwards;overflow:hidden}.iva-tools{display:flex;gap:14px;width:100%}.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}.iva-seo-title{font-size:64px}.iva-nav{height:84px;padding:24px 0 0}@media(max-width:768px){.iva-tools{flex-direction:column}.iva-buy-grid{grid-template-columns:1fr}.iva-ctx-grid{grid-template-columns:1fr}.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}.iva-seo-title{font-size:32px}.iva-nav{padding:0 12px}}@media(max-width:520px){.iva-seo-title{font-size:26px}.iva-nav{height:48px;padding:0 10px}}`}</style>
       {showBuy && <BuyM onClose={() => setSB(false)} />}
       <nav className="iva-nav" style={{ display: "flex", justifyContent: "center", background: "transparent", flexShrink: 0, zIndex: 100, height: 84, paddingTop: 24 }}>
         <div style={{ width: "100%", maxWidth: 1224, padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1070,27 +1113,57 @@ function IvaBotV6() {
       ) : tool === "builder" && window.ContentBuilder ? (
         React.createElement(window.ContentBuilder, { onHome: home, memberName: memberName || "" })
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "10px 24px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0, maxWidth: 1224, margin: "0 auto", width: "100%" }}><button onClick={home} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button><span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>{tool === "core" ? "Core Audit" : tool === "builder" ? "Content Builder" : "Coverage Audit"}</span>{showR && <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6", background: "rgba(155,122,230,0.08)", padding: "3px 8px", borderRadius: 10, marginLeft: 4 }}>Done</span>}</div>
-          <div className="iva-chat-wrap" style={{ flex: 1 }}>
-            <div className="iva-chat-panel" style={{ width: showR ? "35%" : "100%", maxWidth: showR ? 420 : 640, transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)", display: "flex", flexDirection: "column", background: C.surface, borderRadius: 12, flexShrink: 0, minWidth: showR ? 280 : 0, marginRight: showR ? 12 : 0, border: `1px solid ${C.border}`, overflow: "hidden", ...(showR ? {} : { margin: "0 auto" }) }}>
-              <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: "24px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                {msgs.map(m => <Bub key={m.id} from={m.from} err={m.err}>{m.content}</Bub>)}
-                {loadStep >= 0 && <div style={{ animation: "fadeIn 0.3s ease" }}><LBar step={loadStep} total={STEPS.length} text={STEPS[loadStep]} /></div>}
-                {typing && <div style={{ alignSelf: "flex-start", padding: "10px 14px", borderRadius: "4px 12px 12px 12px", background: C.surface, border: `1px solid ${C.border}` }}><div className="typing-dots"><span /><span /><span /></div></div>}
-              </div>
-              {inputV && (<div style={{ padding: "14px 14px 14px", background: C.surface, flexShrink: 0 }}><div style={{ display: "flex", gap: 8 }}><input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder={showR ? "Ask me anything about your SEO..." : "Paste your URL here..."} autoFocus={!showR} style={{ flex: 1, height: 44, borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 14px", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.dark, outline: "none", background: C.surface, transition: "box-shadow 0.3s, border-color 0.3s" }} onMouseEnter={e => { e.target.style.borderColor = C.hoverBorder; e.target.style.boxShadow = C.hoverShadow; }} onMouseLeave={e => { if (document.activeElement !== e.target) { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; } }} onFocus={e => { e.target.style.borderColor = C.hoverBorder; e.target.style.boxShadow = C.hoverShadow; }} onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }} /><button onClick={send} style={{ width: 44, height: 44, borderRadius: 10, border: `1px solid ${C.borderMid}`, background: C.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button></div></div>)}
-            </div>
-            {showR && (<div className="iva-report-panel" style={{ flex: 1, display: "flex", flexDirection: "column", background: C.surface, animation: "slideIn 0.4s ease", borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}><div style={{ flex: 1, overflowY: "auto" }}><ReportV6 data={auditData || A} onNewAudit={() => { setSR(false); setMsgs([]); setIV(true); setLS(-1); setAuditData(null); }} onHome={home} /></div></div>)}
+        /* ═══ CORE AUDIT — Builder-style layout ═══ */
+        <div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
+          {/* BREADCRUMB */}
+          <div style={{ padding: isMobile ? "0 12px 6px" : "0 24px 10px", display: "flex", alignItems: "center", gap: 6, maxWidth: 1224, margin: "0 auto", width: "100%" }}>
+            <button onClick={home} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button>
+            <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>Core Audit</span>
+            {showR && <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6", background: "rgba(155,122,230,0.08)", padding: "3px 8px", borderRadius: 10, marginLeft: 4 }}>Done</span>}
           </div>
-          {/* ACTION BUTTONS — full width, proper spacing */}
-          {showR && (
-            <div className="iva-actions" style={{ flexShrink: 0, alignItems: "center", padding: "14px 24px 0" }}>
-              <button onClick={() => { setSR(false); setMsgs([]); setIV(true); setLS(-1); setAuditData(null); }} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Audit</button>
-              <button id="export-pdf-btn" onClick={() => generatePDF(auditData || A)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background 0.2s, color 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
-              <button onClick={home} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>Try Other Tools</button>
+
+          {/* ═══ DESKTOP ═══ */}
+          {!isMobile && <div style={{ display: "flex", padding: "0 24px 24px", maxWidth: 1224, margin: "0 auto", width: "100%", alignItems: "flex-start", gap: 12 }}>
+            {/* Chat — sticky */}
+            <div id="ca-chat" style={{ width: "35%", maxWidth: 420, position: "sticky", top: 12, display: "flex", flexDirection: "column", flexShrink: 0, minWidth: 280, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", background: C.card, height: "calc(100vh - 130px)" }}>
+              <div ref={chatRef} style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}><ChatMessages /></div>
+              <div style={{ padding: "8px 12px 12px", flexShrink: 0, borderTop: `1px solid ${C.border}` }}>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder={showR ? "Ask me anything about your SEO..." : "Paste your URL here..."} style={{ flex: 1, height: 44, borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 14px", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.dark, outline: "none", background: C.surface }} onFocus={e => { e.target.style.borderColor = C.hoverBorder; e.target.style.boxShadow = C.hoverShadow; }} onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }} />
+                  <button onClick={send} style={{ width: 44, height: 44, borderRadius: 10, border: `1px solid ${C.borderMid}`, background: C.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
+                </div>
+              </div>
             </div>
-          )}
+            {/* Right panel — scrolls with page */}
+            <div style={{ flex: 1, borderRadius: 12, border: `1px solid ${C.border}`, position: "relative", background: C.surface, minHeight: "calc(100vh - 130px)" }}>
+              <PanelContent />
+              {showR && <div style={{ position: "sticky", bottom: 0, left: 0, right: 0, height: 48, background: "linear-gradient(transparent, #ffffff)", borderRadius: "0 0 12px 12px", pointerEvents: "none" }} />}
+            </div>
+          </div>}
+
+          {/* ═══ MOBILE ═══ */}
+          {isMobile && <div style={{ display: "flex", flexDirection: "column", padding: "0 12px 16px", gap: 12 }}>
+            <MobileTab active={mTab} onSwitch={sMTab} hasReport={showR} />
+            {/* Chat */}
+            <div style={{ display: mTab === "chat" ? "flex" : "none", flexDirection: "column", borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", background: C.card, maxHeight: "70vh" }}>
+              <div ref={mTab === "chat" ? chatRef : null} style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}><ChatMessages /></div>
+              <div style={{ padding: "8px 10px 10px", flexShrink: 0, borderTop: `1px solid ${C.border}` }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder={showR ? "Ask me anything..." : "Paste your URL here..."} style={{ flex: 1, height: 42, borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 12px", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.dark, outline: "none", background: C.surface }} onFocus={e => { e.target.style.borderColor = C.hoverBorder; e.target.style.boxShadow = C.hoverShadow; }} onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }} />
+                  <button onClick={send} style={{ width: 42, height: 42, borderRadius: 10, border: `1px solid ${C.borderMid}`, background: C.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
+                </div>
+              </div>
+            </div>
+            {/* Panel */}
+            <div style={{ display: mTab === "report" ? "block" : "none", background: C.surface, borderRadius: 12, border: `1px solid ${C.border}` }}><PanelContent /></div>
+          </div>}
+
+          {/* ═══ BOTTOM ACTIONS ═══ */}
+          {showR && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: isMobile ? "8px 12px 16px" : "8px 24px 16px", maxWidth: isMobile ? "100%" : 1224, margin: "0 auto", width: "100%", alignItems: "center" }}>
+            <button onClick={() => { setSR(false); setMsgs([]); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); start("core"); }} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Audit</button>
+            <button id="export-pdf-btn" onClick={() => generatePDF(auditData || A)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
+            {!isMobile && <button onClick={home} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>Try Other Tools</button>}
+          </div>}
         </div>
       )}
       <div style={{ padding: "6px 16px 4px", background: "transparent", textAlign: "center", flexShrink: 0 }}><span style={{ fontSize: 10, color: C.muted }}>Powered by IvaBot · AI SEO Assistant</span></div>
