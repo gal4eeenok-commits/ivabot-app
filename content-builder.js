@@ -80,13 +80,16 @@ function ContentBuilder({onHome,memberName:mn}){
 const isMobile=useIsMobile();
 const[mTab,sMTab]=useState("chat");
 const[step,sStep]=useState("init");const[msgs,sMsgs]=useState([]);const[inp,sInp]=useState("");const[typ,sTyp]=useState(false);const[ans,sAns]=useState({});const[skw,sSkw]=useState([]);const[stit,sStit]=useState(null);const[bd,sBd]=useState(null);const[rp,sRp]=useState("ph");const[ls,sLs]=useState(-1);const[lst,sLst]=useState([]);const[dn,sDn]=useState({});const cr=useRef(null);
-useEffect(()=>{cr.current?.scrollTo({top:cr.current.scrollHeight,behavior:"smooth"});},[msgs,typ,ls]);
+useEffect(()=>{requestAnimationFrame(()=>{if(cr.current)cr.current.scrollTop=cr.current.scrollHeight;});},[msgs,typ,ls]);
 const add=useCallback((f,c)=>{sMsgs(p=>[...p,{f,c,id:Date.now()+Math.random()}]);},[]);
 const bot=useCallback((c,dl=800)=>{sTyp(true);return new Promise(r=>{setTimeout(()=>{sTyp(false);add("b",c);r();},dl);});},[add]);
 const rl=useCallback((st,cb)=>{sLst(st);let i=0;sLs(0);const iv=setInterval(()=>{i++;if(i>=st.length){clearInterval(iv);sLs(-1);sLst([]);cb();}else sLs(i);},800);},[]);
 const mk=id=>sDn(p=>({...p,[id]:true}));
 
 useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:500}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1500);},[]);
+
+/* Allow page scroll — parent seo-tools.js has overflow:hidden */
+useEffect(()=>{const root=document.querySelector('.iva-root');const grad=root?.firstElementChild;if(root){root.style.overflow='auto';root.style.height='auto';root.style.minHeight='100vh';}if(grad){grad.style.overflow='visible';grad.style.minHeight='100vh';}return()=>{if(root){root.style.overflow='';root.style.height='';root.style.minHeight='';}if(grad){grad.style.overflow='';grad.style.minHeight='';}};},[]); 
 
 const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:8}}>What type of page are you working on?</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{HINTS.page_type.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("pt",h)}/>)}</div><div style={{fontSize:10,color:"#B8B5BB",marginTop:6}}>Or type your own — you can ask me for advice</div></div>).then(()=>sStep("pt"));},300);}else{setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><div style={{fontSize:11,color:C.muted}}>e.g. coffee shop Berlin, best espresso near me</div></div>).then(()=>sStep("ok"));},300);}};
 
@@ -105,57 +108,55 @@ const gCnt=()=>{sStep("cl");add("b",<div style={{fontSize:12,color:C.muted}}>Gen
 const reset=()=>{sStep("init");sMsgs([]);sInp("");sTyp(false);sAns({});sSkw([]);sStit(null);sBd(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:500}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);};
 const send=()=>{if(!inp.trim())return;const t=inp.trim();sInp("");if(["pt","pd","gl","au","me"].includes(step)){hAns(step,t);}else if(step==="ok"){hAns("ok",t);}else if(step==="ka"){add("u",t);bot("Keywords adjusted!");setTimeout(()=>kwD(),1500);}else if(step==="sr"||step==="cr"){add("u",t);bot("Let me update that for you...");setTimeout(()=>{bot("Done! Check the right panel.");},2000);}else{add("u",t);bot("Follow the steps!");}};
 
-/* ═══ DESKTOP LAYOUT — sticky chat + scrollable page ═══ */
-const DesktopLayout=()=><div style={{display:"flex",padding:"0 24px 24px",maxWidth:1224,margin:"0 auto",width:"100%",alignItems:"flex-start",gap:12}}>
-{/* CHAT — sticky */}
-<div style={{width:"35%",maxWidth:420,position:"sticky",top:12,display:"flex",flexDirection:"column",flexShrink:0,minWidth:280,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,height:"calc(100vh - 120px)"}}>
-<div ref={cr} className="col-scroll" style={{flex:1,padding:"16px 12px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
-{msgs.map(m=>m.f==="b"?<BB key={m.id}>{m.c}</BB>:<UB key={m.id} n={mn}>{m.c}</UB>)}
-{ls>=0&&lst.length>0&&<div style={{animation:"fadeUp 0.3s ease",maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]}/></div>}
-{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}
-{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,animation:"fadeUp 0.3s ease"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}
-</div>
-<div style={{padding:"8px 12px 12px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:8}}><input value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:44,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 14px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div>
-</div>
-{/* RIGHT PANEL — scrolls with page */}
-<div style={{flex:1,background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,minHeight:"calc(100vh - 120px)",animation:rp!=="ph"?"slideIn 0.4s ease":"none"}}>{rp==="ph"&&<Placeholder/>}{rp==="br"&&bd&&<BriefPanel d={bd}/>}{rp==="ct"&&<ContentPanel html={MCONT} d={MST}/>}</div>
-</div>;
+/* ═══ RENDER ═══ */
 
-/* ═══ MOBILE LAYOUT — chat on top, content below ═══ */
-const MobileLayout=()=><div style={{display:"flex",flexDirection:"column",padding:"0 12px 16px",gap:12}}>
-<MobileTab active={mTab} onSwitch={sMTab} hasBrief={rp==="br"} hasContent={rp==="ct"}/>
-{/* CHAT VIEW */}
-<div style={{display:mTab==="chat"?"flex":"none",flexDirection:"column",borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,maxHeight:"70vh"}}>
-<div ref={mTab==="chat"?cr:null} className="col-scroll" style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
+/* Chat messages — shared between desktop and mobile */
+const ChatMessages=()=><React.Fragment>
 {msgs.map(m=>m.f==="b"?<BB key={m.id}>{m.c}</BB>:<UB key={m.id} n={mn}>{m.c}</UB>)}
 {ls>=0&&lst.length>0&&<div style={{animation:"fadeUp 0.3s ease",maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]}/></div>}
 {typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}
 {step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,animation:"fadeUp 0.3s ease",flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}
-</div>
-<div style={{padding:"8px 10px 10px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:6}}><input value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:42,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 12px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:42,height:42,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div>
-</div>
-{/* PANEL VIEW — scrolls naturally */}
-<div style={{display:mTab==="panel"?"block":"none",background:C.surface,borderRadius:12,border:`1px solid ${C.border}`}}>{rp==="br"&&bd&&<BriefPanel d={bd}/>}{rp==="ct"&&<ContentPanel html={MCONT} d={MST}/>}</div>
-</div>;
+</React.Fragment>;
 
-/* ═══ BOTTOM ACTIONS ═══ */
-const BottomActions=()=>{
-  if(rp!=="br"&&rp!=="ct")return null;
-  return<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:isMobile?"8px 12px 0":"8px 24px 0",maxWidth:isMobile?"100%":1224,margin:"0 auto",width:"100%",flexShrink:0,alignItems:"center"}}>
-  {rp==="br"&&<button onClick={gCnt} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Generate Content</button>}
-  {rp==="ct"&&<button onClick={reset} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>New Content</button>}
-  <button style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF</button>
-  {!isMobile&&<button onClick={onHome} style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}>Try Other Tools</button>}
-  </div>;
-};
+/* Right panel content */
+const PanelContent=()=><React.Fragment>
+{rp==="ph"&&<Placeholder/>}{rp==="br"&&bd&&<BriefPanel d={bd}/>}{rp==="ct"&&<ContentPanel html={MCONT} d={MST}/>}
+</React.Fragment>;
 
 return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexDirection:"column"}}>
 {/* BREADCRUMB */}
 <div style={{padding:isMobile?"0 12px 6px":"0 24px 10px",display:"flex",alignItems:"center",gap:6,maxWidth:1224,margin:"0 auto",width:"100%"}}><button onClick={onHome} style={{background:"none",border:"none",cursor:"pointer",padding:2,color:C.muted,display:"flex"}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg></button><span style={{fontSize:13,fontWeight:500,color:C.muted}}>Content Builder</span>{rp==="br"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Structure Ready</span>}{rp==="ct"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Content Ready</span>}</div>
-{/* CONTENT */}
-{isMobile?<MobileLayout/>:<DesktopLayout/>}
-{/* BOTTOM ACTIONS */}
-<BottomActions/>
+
+{/* ═══ DESKTOP ═══ */}
+{!isMobile&&<div style={{display:"flex",padding:"0 24px 24px",maxWidth:1224,margin:"0 auto",width:"100%",alignItems:"flex-start",gap:12}}>
+{/* Chat — sticky */}
+<div style={{width:"35%",maxWidth:420,position:"sticky",top:12,display:"flex",flexDirection:"column",flexShrink:0,minWidth:280,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,height:"calc(100vh - 180px)"}}>
+<div ref={cr} style={{flex:1,padding:"16px 12px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}><ChatMessages/></div>
+<div style={{padding:"8px 12px 12px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:8}}><input value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:44,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 14px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div>
+</div>
+{/* Right panel — scrolls with page */}
+<div style={{flex:1,background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,minHeight:"calc(100vh - 180px)",animation:rp!=="ph"?"slideIn 0.4s ease":"none"}}><PanelContent/></div>
+</div>}
+
+{/* ═══ MOBILE ═══ */}
+{isMobile&&<div style={{display:"flex",flexDirection:"column",padding:"0 12px 16px",gap:12}}>
+<MobileTab active={mTab} onSwitch={sMTab} hasBrief={rp==="br"} hasContent={rp==="ct"}/>
+{/* Chat */}
+<div style={{display:mTab==="chat"?"flex":"none",flexDirection:"column",borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,maxHeight:"70vh"}}>
+<div ref={mTab==="chat"?cr:null} style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}><ChatMessages/></div>
+<div style={{padding:"8px 10px 10px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:6}}><input value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:42,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 12px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:42,height:42,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div>
+</div>
+{/* Panel */}
+<div style={{display:mTab==="panel"?"block":"none",background:C.surface,borderRadius:12,border:`1px solid ${C.border}`}}><PanelContent/></div>
+</div>}
+
+{/* ═══ BOTTOM ACTIONS ═══ */}
+{(rp==="br"||rp==="ct")&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:isMobile?"8px 12px 16px":"8px 24px 16px",maxWidth:isMobile?"100%":1224,margin:"0 auto",width:"100%",alignItems:"center"}}>
+{rp==="br"&&<button onClick={gCnt} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Generate Content</button>}
+{rp==="ct"&&<button onClick={reset} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>New Content</button>}
+<button style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF</button>
+{!isMobile&&<button onClick={onHome} style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}>Try Other Tools</button>}
+</div>}
 </div>;}
 
 /* ═══ EXPORT (used by seo-tools.js) ═══ */
