@@ -1,5 +1,5 @@
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v74 loaded");
+console.log("[IvaBot] seo-tools.js v75 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -97,7 +97,7 @@ const BB = ({children}) => <div style={{display:"flex",flexDirection:"column",al
 const UB = ({children,n}) => <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",maxWidth:"80%",alignSelf:"flex-end"}}><div style={{marginBottom:3,marginRight:2}}><UA n={n}/></div><div style={{padding:"8px 14px",borderRadius:"12px 4px 12px 12px",background:C.accent,fontSize:13,color:"#fff"}}>{children}</div></div>;
 
 /* ═══ Responsive hook ═══ */
-const useIsMobile = () => { const [m,sm] = useState(window.innerWidth < 768); useEffect(() => { const h = () => sm(window.innerWidth < 768); window.addEventListener("resize",h); return () => window.removeEventListener("resize",h); },[]); return m; };
+const useIsMobile = () => { const [m,sm] = useState(window.innerWidth < 1024); useEffect(() => { const h = () => sm(window.innerWidth < 1024); window.addEventListener("resize",h); return () => window.removeEventListener("resize",h); },[]); return m; };
 
 /* ═══ Reveal on scroll ═══ */
 const RevealBlock = ({children, delay=0}) => { const ref = useRef(null); const [vis, setVis] = useState(false); useEffect(() => { const el = ref.current; if(!el) return; const obs = new IntersectionObserver(([e]) => { if(e.isIntersecting){ setVis(true); obs.unobserve(el); } }, {threshold:0.08}); obs.observe(el); return () => obs.disconnect(); },[]); return <div ref={ref} style={{opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(28px)",transition:`opacity 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}s, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}s`}}>{children}</div>; };
