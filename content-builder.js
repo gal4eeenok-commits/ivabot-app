@@ -149,18 +149,14 @@ const BottomActions=()=>{
   </div>;
 };
 
-return<div style={{fontFamily:"'DM Sans',sans-serif",background:"#f8f7f9",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden",padding:isMobile?"4px 4px":"8px 12px"}}><div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",background:"linear-gradient(180deg,#ffffff 0%,#F8F5FF 15%,#F0EAFF 40%,#E4D8FC 70%,#D9CCFA 100%)",borderRadius:12}}>
-{/* NAV */}
-<nav style={{display:"flex",justifyContent:"center",background:"transparent",flexShrink:0,zIndex:100,height:isMobile?60:84,paddingTop:isMobile?12:24}}><div style={{width:"100%",maxWidth:1224,padding:isMobile?"0 12px":"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}><a href="https://ivabot.xyz" style={{display:"flex",alignItems:"center",gap:8,textDecoration:"none"}}><BotLogoFull/>{!isMobile&&<span style={{fontSize:17,fontWeight:700,color:C.dark}}>IvaBot</span>}</a><div style={{display:"flex",gap:isMobile?4:8,alignItems:"center"}}><a href="/dashboard" style={{fontSize:isMobile?12:14,fontWeight:500,color:C.dark,textDecoration:"none",padding:isMobile?"6px 10px":"8px 16px"}}>Dashboard</a><button style={{padding:isMobile?"6px 10px":"8px 16px",borderRadius:8,fontSize:isMobile?12:14,fontWeight:600,color:C.dark,background:"rgba(255,255,255,0.43)",border:"1px solid rgba(21,20,21,0.16)",cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Buy Credits</button>{!isMobile&&<a href="/" style={{fontSize:14,fontWeight:500,color:C.muted,textDecoration:"none",padding:"8px 16px"}}>Log out</a>}</div></div></nav>
+return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
 {/* BREADCRUMB */}
 <div style={{padding:isMobile?"0 12px 6px":"0 24px 10px",display:"flex",alignItems:"center",gap:6,maxWidth:1224,margin:"0 auto",width:"100%"}}><button onClick={onHome} style={{background:"none",border:"none",cursor:"pointer",padding:2,color:C.muted,display:"flex"}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg></button><span style={{fontSize:13,fontWeight:500,color:C.muted}}>Content Builder</span>{rp==="br"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Structure Ready</span>}{rp==="ct"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Content Ready</span>}</div>
 {/* CONTENT */}
 {isMobile?<MobileLayout/>:<DesktopLayout/>}
 {/* BOTTOM ACTIONS */}
 <BottomActions/>
-{/* FOOTER */}
-<div style={{padding:"6px 16px 4px",textAlign:"center",flexShrink:0}}><span style={{fontSize:10,color:C.muted}}>Powered by IvaBot · AI SEO Assistant</span></div>
-</div></div>;}
+</div>;}
 
 /* ═══ EXPORT (used by seo-tools.js) ═══ */
 window.ContentBuilder = ContentBuilder;
