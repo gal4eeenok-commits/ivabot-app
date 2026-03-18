@@ -162,6 +162,5 @@ return<div style={{fontFamily:"'DM Sans',sans-serif",background:"#f8f7f9",height
 <div style={{padding:"6px 16px 4px",textAlign:"center",flexShrink:0}}><span style={{fontSize:10,color:C.muted}}>Powered by IvaBot · AI SEO Assistant</span></div>
 </div></div>;}
 
-/* ═══ MOUNT ═══ */
-const root=document.getElementById("ivabot-root");
-ReactDOM.createRoot(root).render(React.createElement(ContentBuilder,{onHome:()=>{window.location.href="/dashboard";},memberName:window.__memberName||""}));
+/* ═══ EXPORT (used by seo-tools.js) ═══ */
+window.ContentBuilder = ContentBuilder;
