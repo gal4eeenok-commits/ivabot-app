@@ -133,7 +133,8 @@ const ChatMessages=()=>{const lastBotIdx=msgs.reduce((acc,m,i)=>m.f==="b"?i:acc,
 
 /* Right panel content */
 const PanelContent=()=><React.Fragment>
-{pLoad&&<LoadingPanel text={pLoad}/>}{!pLoad&&rp==="ph"&&<Placeholder/>}{!pLoad&&rp==="br"&&bd&&<BriefPanel d={bd}/>}{!pLoad&&rp==="ct"&&<ContentPanel html={MCONT} d={MST}/>}
+{pLoad&&<LoadingPanel text={pLoad}/>}{!pLoad&&rp==="ph"&&<Placeholder/>}{!pLoad&&rp==="br"&&bd&&<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd}/></div>}{!pLoad&&rp==="ct"&&<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={MCONT} d={MST}/></div>}
+<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
 </React.Fragment>;
 
 return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexDirection:"column"}}>
