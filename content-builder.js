@@ -105,37 +105,37 @@ const gCnt=()=>{sStep("cl");add("b",<div style={{fontSize:12,color:C.muted}}>Gen
 const reset=()=>{sStep("init");sMsgs([]);sInp("");sTyp(false);sAns({});sSkw([]);sStit(null);sBd(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:500}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);};
 const send=()=>{if(!inp.trim())return;const t=inp.trim();sInp("");if(["pt","pd","gl","au","me"].includes(step)){hAns(step,t);}else if(step==="ok"){hAns("ok",t);}else if(step==="ka"){add("u",t);bot("Keywords adjusted!");setTimeout(()=>kwD(),1500);}else if(step==="sr"||step==="cr"){add("u",t);bot("Let me update that for you...");setTimeout(()=>{bot("Done! Check the right panel.");},2000);}else{add("u",t);bot("Follow the steps!");}};
 
-/* ═══ DESKTOP LAYOUT ═══ */
-const DesktopLayout=()=><div style={{display:"flex",overflow:"hidden",padding:"0 24px 8px",maxWidth:1224,margin:"0 auto",width:"100%",flex:1}}>
-{/* CHAT */}
-<div style={{width:"35%",maxWidth:420,display:"flex",flexDirection:"column",flexShrink:0,marginRight:12,minWidth:280,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card}}>
-<div ref={cr} className="col-scroll" style={{flex:1,padding:"16px 12px",display:"flex",flexDirection:"column",gap:10}}>
+/* ═══ DESKTOP LAYOUT — sticky chat + scrollable page ═══ */
+const DesktopLayout=()=><div style={{display:"flex",padding:"0 24px 24px",maxWidth:1224,margin:"0 auto",width:"100%",alignItems:"flex-start",gap:12}}>
+{/* CHAT — sticky */}
+<div style={{width:"35%",maxWidth:420,position:"sticky",top:12,display:"flex",flexDirection:"column",flexShrink:0,minWidth:280,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,height:"calc(100vh - 120px)"}}>
+<div ref={cr} className="col-scroll" style={{flex:1,padding:"16px 12px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
 {msgs.map(m=>m.f==="b"?<BB key={m.id}>{m.c}</BB>:<UB key={m.id} n={mn}>{m.c}</UB>)}
 {ls>=0&&lst.length>0&&<div style={{animation:"fadeUp 0.3s ease",maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]}/></div>}
 {typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}
 {step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,animation:"fadeUp 0.3s ease"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}
 </div>
-<div style={{padding:"8px 12px 12px",flexShrink:0}}><div style={{display:"flex",gap:8}}><input value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:44,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 14px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div>
+<div style={{padding:"8px 12px 12px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:8}}><input value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:44,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 14px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div>
 </div>
-{/* RIGHT PANEL */}
-<div className="col-scroll" style={{flex:1,background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,animation:rp!=="ph"?"slideIn 0.4s ease":"none"}}>{rp==="ph"&&<Placeholder/>}{rp==="br"&&bd&&<BriefPanel d={bd}/>}{rp==="ct"&&<ContentPanel html={MCONT} d={MST}/>}</div>
+{/* RIGHT PANEL — scrolls with page */}
+<div style={{flex:1,background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,minHeight:"calc(100vh - 120px)",animation:rp!=="ph"?"slideIn 0.4s ease":"none"}}>{rp==="ph"&&<Placeholder/>}{rp==="br"&&bd&&<BriefPanel d={bd}/>}{rp==="ct"&&<ContentPanel html={MCONT} d={MST}/>}</div>
 </div>;
 
-/* ═══ MOBILE LAYOUT ═══ */
-const MobileLayout=()=><div style={{display:"flex",flexDirection:"column",overflow:"hidden",flex:1,padding:"0 12px 8px"}}>
+/* ═══ MOBILE LAYOUT — chat on top, content below ═══ */
+const MobileLayout=()=><div style={{display:"flex",flexDirection:"column",padding:"0 12px 16px",gap:12}}>
 <MobileTab active={mTab} onSwitch={sMTab} hasBrief={rp==="br"} hasContent={rp==="ct"}/>
 {/* CHAT VIEW */}
-<div style={{display:mTab==="chat"?"flex":"none",flexDirection:"column",flex:1,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card}}>
-<div ref={mTab==="chat"?cr:null} className="col-scroll" style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:10}}>
+<div style={{display:mTab==="chat"?"flex":"none",flexDirection:"column",borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,maxHeight:"70vh"}}>
+<div ref={mTab==="chat"?cr:null} className="col-scroll" style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
 {msgs.map(m=>m.f==="b"?<BB key={m.id}>{m.c}</BB>:<UB key={m.id} n={mn}>{m.c}</UB>)}
 {ls>=0&&lst.length>0&&<div style={{animation:"fadeUp 0.3s ease",maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]}/></div>}
 {typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}
 {step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,animation:"fadeUp 0.3s ease",flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}
 </div>
-<div style={{padding:"8px 10px 10px",flexShrink:0}}><div style={{display:"flex",gap:6}}><input value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:42,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 12px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:42,height:42,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div>
+<div style={{padding:"8px 10px 10px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:6}}><input value={inp} onChange={e=>sInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:42,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 12px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:42,height:42,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div>
 </div>
-{/* PANEL VIEW */}
-<div style={{display:mTab==="panel"?"block":"none",flex:1,background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflowY:"auto"}}>{rp==="br"&&bd&&<BriefPanel d={bd}/>}{rp==="ct"&&<ContentPanel html={MCONT} d={MST}/>}</div>
+{/* PANEL VIEW — scrolls naturally */}
+<div style={{display:mTab==="panel"?"block":"none",background:C.surface,borderRadius:12,border:`1px solid ${C.border}`}}>{rp==="br"&&bd&&<BriefPanel d={bd}/>}{rp==="ct"&&<ContentPanel html={MCONT} d={MST}/>}</div>
 </div>;
 
 /* ═══ BOTTOM ACTIONS ═══ */
@@ -149,7 +149,7 @@ const BottomActions=()=>{
   </div>;
 };
 
-return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexDirection:"column"}}>
 {/* BREADCRUMB */}
 <div style={{padding:isMobile?"0 12px 6px":"0 24px 10px",display:"flex",alignItems:"center",gap:6,maxWidth:1224,margin:"0 auto",width:"100%"}}><button onClick={onHome} style={{background:"none",border:"none",cursor:"pointer",padding:2,color:C.muted,display:"flex"}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg></button><span style={{fontSize:13,fontWeight:500,color:C.muted}}>Content Builder</span>{rp==="br"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Structure Ready</span>}{rp==="ct"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Content Ready</span>}</div>
 {/* CONTENT */}
