@@ -1,14 +1,127 @@
-/* IvaBot Content Builder v5 — fixed jank (no inline animation, uncontrolled input) */
+/* IvaBot Content Builder v19 — real API integration */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v18 loaded");
+console.log("[IvaBot] content-builder.js v19 loaded");
+
+/* ═══ CONFIG ═══ */
+const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
+const CB_CHAT_URL = "https://hook.eu2.make.com/v14qvdq3l3mu2hjevrc7dps9j74a6lkf";
+const DFS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/dataforseo-proxy";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
+
+/* ═══ COLORS ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2),0 8px 32px rgba(110,43,255,0.1)"};
 const FC={HV:{bg:"rgba(110,43,255,0.12)",color:"#6E2BFF"},MV:{bg:"rgba(155,122,230,0.1)",color:"#9B7AE6"},LV:{bg:"rgba(184,156,240,0.12)",color:"#B89CF0"}};
 const HINTS={page_type:["Product page","Service page","Blog post"],goal:["Sell a product","Explain a service","Build trust"],audience:["Professional, for B2B","Friendly, for young people","Warm, for families"]};
-const MKW=[{keyword:"wooden rings with resin",volume:2400,kd:32,freq:"HV"},{keyword:"buy epoxy resin ring",volume:1800,kd:28,freq:"HV"},{keyword:"handmade wooden jewelry",volume:880,kd:41,freq:"MV"},{keyword:"unique wooden rings online",volume:540,kd:35,freq:"MV"},{keyword:"custom resin rings for sale",volume:210,kd:18,freq:"LV"}];
-const MTI=[{text:"Buy Wooden Rings with Resin for Your Unique Style",hl:["Wooden Rings with Resin"]},{text:"Shop Epoxy Resin Ring — Handmade Eco Jewelry",hl:["Epoxy Resin Ring","Handmade"]},{text:"Unique Wooden Rings Online — Custom Resin Designs",hl:["Wooden Rings Online","Custom Resin"]},{text:"Handmade Wooden Jewelry for Nature Lovers",hl:["Handmade Wooden Jewelry"]},{text:"Custom Resin Rings for Sale: Exclusive Eco Jewelry",hl:["Custom Resin Rings for Sale"]}];
-const MST={title:"Custom Resin Rings for Sale: Exclusive Eco Jewelry",titleKw:[{text:"Custom Resin Rings for Sale",freq:"LV"}],description:"Discover unique handmade wooden jewelry at EcoShmeko. Wooden rings with resin — custom options for families looking for sustainable, one-of-a-kind gifts.",descKw:[{text:"handmade wooden jewelry",freq:"MV"},{text:"Wooden rings with resin",freq:"HV"}],keywords:MKW.slice(0,4),recs:[{key:"Length",value:"500-800 words"},{key:"Tone",value:"Warm, simple"},{key:"CTA",value:"Buy Now / Order"},{key:"Goal",value:"Sell product"}],sections:[{level:"H1",title:"Introducing Our Custom Resin Rings",desc:"Intro paragraph — warm welcome, emotional hook.",kwNote:'Use "wooden rings with resin" in first sentence',visuals:[{icon:"image",text:"Hero product photo"}]},{level:"H2",title:"Why Choose Handmade Wooden Jewelry?",desc:"Benefits section — beauty, uniqueness, eco-friendly.",kwNote:null,visuals:[{icon:"image",text:"Close-up photo"},{icon:"list",text:"Bullet list"}]},{level:"H2",title:"Buy Epoxy Resin Ring — Product Details",desc:"Product section — materials, sizes, colors.",kwNote:'Use "buy epoxy resin ring" + "custom resin rings"',visuals:[{icon:"image",text:"Product gallery"},{icon:"table",text:"Size table"}]},{level:"H2",title:"EcoShmeko's Story",desc:"Brand story — sustainability values.",kwNote:null,visuals:[{icon:"video",text:"Workshop video"},{icon:"image",text:"Founder photo"}]},{level:"H2",title:"Customer Reviews + FAQ",desc:"Trust section — testimonials, Q&A.",kwNote:'Use "custom resin rings" in FAQ answers',visuals:[{icon:"quote",text:"Testimonials"},{icon:"faq",text:"FAQ accordion"}]}],related:["epoxy resin jewelry diy","wood ring band","eco friendly rings","handmade resin accessories","sustainable wooden gifts"],paa:["Are wooden rings durable?","How to care for resin jewelry?","What is epoxy resin made of?","Can wooden rings get wet?","How much do resin rings cost?"],autocomplete:["wooden rings with resin buy","epoxy resin ring custom","handmade wooden ring shop","resin ring eco friendly","wood resin ring gift"],contentLength:"~800 words"};
-const MCONT='<h1>Introducing Our Custom Resin Rings</h1><p>Looking for <mark data-freq="HV">wooden rings with resin</mark> that tell a story? At EcoShmeko, every ring is handcrafted from sustainably sourced wood and crystal-clear epoxy resin.</p><p>Whether you are shopping for a meaningful gift or treating yourself, our rings combine the warmth of natural wood with the brilliance of resin art.</p><h2>Why Choose Handmade Wooden Jewelry?</h2><p><mark data-freq="MV">Handmade wooden jewelry</mark> is not just an accessory — it is a statement.</p><ul><li><strong>Unique by nature</strong> — no two rings are identical</li><li><strong>Eco-friendly</strong> — sustainably sourced</li><li><strong>Lightweight and comfortable</strong></li><li><strong>Hypoallergenic</strong></li></ul><p>[visual: Close-up photo of wood grain]</p><h2>Buy Epoxy Resin Ring — Product Details</h2><p>Ready to <mark data-freq="HV">buy epoxy resin ring</mark> pieces? Browse our <mark data-freq="LV">custom resin rings for sale</mark>:</p><table><tr><th>Option</th><th>Choices</th></tr><tr><td>Wood</td><td>Walnut, Oak, Maple, Teak</td></tr><tr><td>Resin</td><td>Ocean Blue, Forest Green, Crystal Clear</td></tr><tr><td>Size</td><td>US 5-13</td></tr><tr><td>Finish</td><td>Matte or Glossy</td></tr></table><p>[visual: Product gallery]</p><p><strong>Starting at $45</strong> — free shipping over $75.</p><h2>EcoShmeko Story</h2><p>Founded in Portland by Maria. Sustainably sourced wood from fallen trees, eco-certified resin.</p><p>[visual: Workshop video]</p><h2>Customer Reviews + FAQ</h2><blockquote>"Stunning craftsmanship." — James R.</blockquote><blockquote>"Finally found <mark data-freq="MV">unique wooden rings online</mark> that look like the photos." — Sarah K.</blockquote><details><summary>Are wooden rings durable?</summary><p>Yes! Protective resin coating.</p></details><details><summary>How to care for resin jewelry?</summary><p>Avoid heat. Clean with soft cloth. Your <mark data-freq="LV">custom resin rings</mark> will last years.</p></details>';
 
+/* ═══ API HELPERS ═══ */
+async function callGPT(step, data) {
+  console.log("[CB] callGPT step:", step);
+  try {
+    const res = await fetch(CB_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step, data: typeof data === "string" ? data : JSON.stringify(data) })
+    });
+    if (!res.ok) throw new Error("GPT HTTP " + res.status);
+    const raw = await res.text();
+    console.log("[CB] GPT raw (" + step + "):", raw.substring(0, 300));
+    let parsed = null;
+    try { parsed = JSON.parse(raw); } catch(e) {
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) try { parsed = JSON.parse(m[0]); } catch(e2) {}
+    }
+    if (parsed?.gpt_raw) { const gr = parsed.gpt_raw; parsed = typeof gr === "string" ? JSON.parse(gr) : gr; }
+    if (parsed?.gpt) { const gr = parsed.gpt; parsed = typeof gr === "string" ? JSON.parse(gr) : gr; }
+    if (parsed?.result) { const gr = parsed.result; if (typeof gr === "string") { try { parsed = JSON.parse(gr); } catch(e) { parsed = { text: gr }; } } else { parsed = gr; } }
+    return parsed || { text: raw };
+  } catch(e) {
+    console.error("[CB] callGPT error:", e);
+    return null;
+  }
+}
+
+async function callDFS(keywords, locationCode = 2840, languageCode = "en") {
+  console.log("[CB] callDFS keywords:", keywords);
+  try {
+    const res = await fetch(DFS_PROXY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+      body: JSON.stringify({ mode: "content_builder", keywords, location_code: locationCode, language_code: languageCode })
+    });
+    if (!res.ok) { console.log("[CB] DFS HTTP", res.status); return null; }
+    const data = await res.json();
+    console.log("[CB] DFS response keys:", Object.keys(data || {}));
+    return data;
+  } catch(e) {
+    console.error("[CB] callDFS error:", e);
+    return null;
+  }
+}
+
+async function callChat(context, chatHistory, question) {
+  console.log("[CB] callChat question:", question.substring(0, 80));
+  try {
+    const res = await fetch(CB_CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context, chat_history: chatHistory, question })
+    });
+    if (!res.ok) throw new Error("Chat HTTP " + res.status);
+    const raw = await res.text();
+    let answer = raw;
+    try { const j = JSON.parse(raw); answer = j.answer || j.result || j.text || raw; } catch(e) { answer = raw; }
+    if (answer.startsWith('"') && answer.endsWith('"')) answer = answer.slice(1, -1);
+    answer = answer.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\*\*/g, '').replace(/###\s?/g, '').replace(/^- /gm, '• ');
+    return answer;
+  } catch(e) {
+    console.error("[CB] callChat error:", e);
+    return null;
+  }
+}
+
+/* Detect if user input is a question/clarification vs a flow answer */
+function isQuestion(text) {
+  const t = text.trim().toLowerCase();
+  if (t.length < 3) return false;
+  if (/^(what|why|how|which|when|where|who|can|could|should|is|are|do|does|will|would|explain|tell me|help me|i('m| am) not sure|not sure|i don'?t (know|understand)|what do you mean|what('s| is) the difference)/i.test(t)) return true;
+  if (t.endsWith("?")) return true;
+  if (/^(hmm|idk|unsure|confused|clarify)/i.test(t)) return true;
+  return false;
+}
+
+/* Build chat history string from messages array */
+function buildChatHistory(msgs) {
+  return msgs.filter(m => typeof m.c === "string").slice(-10).map(m => `${m.f === "b" ? "IvaBot" : "User"}: ${m.c}`).join("\n");
+}
+
+/* Build context summary for current step */
+function buildStepContext(step, ans, keywords, selectedTitle, briefData) {
+  const parts = ["Content Builder tool"];
+  if (ans.pt) parts.push("Page type: " + ans.pt);
+  if (ans.pd) parts.push("Page description: " + ans.pd);
+  if (keywords?.length) parts.push("Keywords: " + keywords.map(k => typeof k === "string" ? k : k.keyword).join(", "));
+  if (ans.gl) parts.push("Goal: " + ans.gl);
+  if (ans.au) parts.push("Audience/tone: " + ans.au);
+  if (selectedTitle) parts.push("Selected title: " + selectedTitle);
+  if (ans.me) parts.push("Brand details: " + ans.me);
+  if (briefData) parts.push("Structure generated: yes");
+  parts.push("Current step: " + step);
+  return parts.join("\n");
+}
+
+/* Assign frequency label based on volume */
+function assignFreq(volume, maxVol) {
+  if (!volume || !maxVol) return "MV";
+  const ratio = volume / maxVol;
+  if (ratio >= 0.6) return "HV";
+  if (ratio >= 0.2) return "MV";
+  return "LV";
+}
+
+/* Format volume number */
+const fmtVol = v => { if (!v) return "—"; if (v >= 1000) return (v / 1000).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
+
+/* ═══ UI PRIMITIVES (same as v18) ═══ */
 const useIsMobile=()=>{const[m,sm]=useState(window.innerWidth<1024);useEffect(()=>{const h=()=>sm(window.innerWidth<1024);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);return m;};
 const BotLogoFull=()=>(<svg width="33" height="29" viewBox="0 0 66 58" fill="none"><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill="#6E2BFF"/><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill="#6E2BFF"/></svg>);
 const BL=({s=16})=>(<svg width={s} height={Math.round(s*0.81)} viewBox="0 0 66 58" fill="none" style={{flexShrink:0,opacity:0.35}}><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill="#6E2BFF"/><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill="#6E2BFF"/></svg>);
@@ -24,7 +137,11 @@ const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onCl
 const HP=({text,onClick,disabled:d})=><span onClick={d?undefined:onClick} style={{padding:"5px 12px",borderRadius:8,background:d?"rgba(21,20,21,0.02)":"rgba(21,20,21,0.03)",color:d?"rgba(21,20,21,0.2)":"#B8B5BB",fontSize:11,cursor:d?"default":"pointer",border:"1px solid transparent",fontFamily:"'DM Sans',sans-serif",pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!d){e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}}} onMouseLeave={e=>{if(!d){e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}}>{text}</span>;
 const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif"}}>{text}</span>;
 const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
-const KwS=({keywords,init,onDone,onAdj})=>{const[s,ss]=useState(init);const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=7)return p;return[...p,k];});};const fV=v=>v>=1000?(v/1000).toFixed(1).replace(/\.0$/,"")+"K":String(v);return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq];return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{fontSize:10,color:C.muted}}>{fV(k.volume)}</span><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span>{a&&<span onClick={e=>{e.stopPropagation();t(k.keyword);}} style={{fontSize:14,color:C.muted,cursor:"pointer",lineHeight:1}}>×</span>}</div>;})}</div><div style={{fontSize:10,color:C.muted,marginBottom:8}}>Min 2, max 7. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={onAdj}/></div></div>;};
+
+/* ═══ KEYWORD SELECTOR ═══ */
+const KwS=({keywords,init,onDone,onAdj})=>{const[s,ss]=useState(init);const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=7)return p;return[...p,k];});};return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq]||FC.MV;return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{fontSize:10,color:C.muted}}>{fmtVol(k.volume)}</span><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span>{a&&<span onClick={e=>{e.stopPropagation();t(k.keyword);}} style={{fontSize:14,color:C.muted,cursor:"pointer",lineHeight:1}}>×</span>}</div>;})}</div><div style={{fontSize:10,color:C.muted,marginBottom:8}}>Min 2, max 7. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={onAdj}/></div></div>;};
+
+/* ═══ HIGHLIGHT HELPERS ═══ */
 const HlT=({text,hl})=>{if(!hl?.length)return<span>{text}</span>;const p=[];let r=text;hl.forEach(h=>{const i=r.toLowerCase().indexOf(h.toLowerCase());if(i>=0){if(i>0)p.push({t:r.slice(0,i),h:false});p.push({t:r.slice(i,i+h.length),h:true});r=r.slice(i+h.length);}});if(r)p.push({t:r,h:false});return<span>{p.map((x,i)=>x.h?<span key={i} style={{background:"rgba(110,43,255,0.1)",color:C.accent,padding:"1px 3px",borderRadius:3}}>{x.t}</span>:<span key={i}>{x.t}</span>)}</span>;};
 const TSel=({titles,onSelect})=><div><div style={{fontWeight:600,marginBottom:8,fontSize:13}}>Choose a title for your page:</div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:6}}>{titles.map((t,i)=><div key={i} onClick={()=>onSelect(t.text)} style={{padding:"9px 12px",borderRadius:8,border:`1px solid ${C.border}`,background:C.surface,fontSize:12.5,cursor:"pointer"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.hoverBorder;e.currentTarget.style.background=C.accentLight;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.background=C.surface;}}><HlT text={t.text} hl={t.hl}/></div>)}</div><div style={{fontSize:10,color:C.muted}}>Or type your own title below</div></div>;
 const VI=({type})=>{const s={width:11,height:11,viewBox:"0 0 24 24",fill:"none",stroke:"#928E95",strokeWidth:"1.5"};const m={image:<svg {...s}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>,video:<svg {...s}><polygon points="23 7 16 12 23 17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>,list:<svg {...s}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/></svg>,table:<svg {...s}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,quote:<svg {...s}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,faq:<svg {...s}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>};return m[type]||m.image;};
@@ -32,45 +149,461 @@ const hlF=(text,kd)=>{if(!text||!kd?.length)return text;let p=[{t:text,h:false,f
 const RevealBlock=({children,delay=0})=>{const ref=useRef(null);const[vis,setVis]=useState(false);useEffect(()=>{const el=ref.current;if(!el)return;const obs=new IntersectionObserver(([e])=>{if(e.isIntersecting){setVis(true);obs.unobserve(el);}},{threshold:0.08});obs.observe(el);return()=>obs.disconnect();},[]);return<div ref={ref} style={{opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(28px)",transition:`opacity 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}s, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}s`}}>{children}</div>;};
 const LoadingPanel=({text})=><div style={{minHeight:"calc(100vh - 130px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40}}><div style={{width:40,height:40,borderRadius:"50%",border:"3px solid rgba(110,43,255,0.1)",borderTopColor:C.accent,animation:"spin 0.8s linear infinite",marginBottom:16}}/><div style={{fontSize:13,fontWeight:500,color:C.dark,marginBottom:4}}>{text||"Generating..."}</div><div style={{fontSize:12,color:C.muted}}>This usually takes a few seconds</div><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
 const Placeholder=()=><div style={{minHeight:"calc(100vh - 180px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40}}><div style={{width:64,height:64,borderRadius:16,background:"rgba(110,43,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div style={{fontSize:18,fontWeight:700,color:C.dark,marginBottom:8}}>Your content will appear here</div><div style={{fontSize:13,color:C.muted,lineHeight:1.6,textAlign:"center",maxWidth:320,marginBottom:24}}>Answer the questions on the left, and I'll build your SEO brief and content step by step.</div><div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:300}}>{[{n:"1",t:"Keywords + context",d:"Topic, audience, tone, goals"},{n:"2",t:"SEO structure",d:"Title, description, H1-H3"},{n:"3",t:"Full content",d:"Complete page text, ready to publish"}].map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:10,background:"rgba(110,43,255,0.04)",border:"1px solid rgba(110,43,255,0.08)"}}><div style={{width:24,height:24,borderRadius:"50%",background:"rgba(155,122,230,0.12)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:11,fontWeight:700,color:"#9B7AE6"}}>{s.n}</span></div><div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{s.t}</div><div style={{fontSize:11,color:C.muted}}>{s.d}</div></div></div>)}</div></div>;
-const BriefInner=({d})=>{const[kwE,skE]=useState(false);const fV=v=>v>=1000?(v/1000).toFixed(1).replace(/\.0$/,"")+"K":String(v);return<div><RevealBlock><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>SEO TITLE</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13.5,fontWeight:500,color:C.dark}}>{hlF(d.title,d.titleKw)}</span><CB t={d.title}/></div></div></RevealBlock><RevealBlock delay={0.06}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>META DESCRIPTION</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}><span style={{fontSize:12.5,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</span><CB t={d.description}/></div></div></RevealBlock><RevealBlock delay={0.12}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>FOCUS KEYWORDS</div><div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:"visible"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}><thead><tr style={{borderBottom:"1px solid rgba(21,20,21,0.06)"}}><th style={{textAlign:"left",padding:"8px 12px",color:C.muted,fontWeight:500,fontSize:10}}>Keyword</th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:55,whiteSpace:"nowrap"}}>Vol.<QM text="Monthly search volume — how many people search this per month."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:40,whiteSpace:"nowrap"}}>KD<QM text="Keyword difficulty (0–100). Lower is easier to rank for."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:45,whiteSpace:"nowrap"}}>Freq<QM text="How often to use this keyword. HV = high priority. MV = medium. LV = low."/></th></tr></thead><tbody>{d.keywords.map((k,i)=>{const fc=FC[k.freq];return<tr key={i} style={{borderBottom:i<d.keywords.length-1?"1px solid rgba(21,20,21,0.04)":"none"}}><td style={{padding:"7px 12px",color:C.dark,fontWeight:500,fontSize:12}}>{k.keyword}</td><td style={{textAlign:"center",padding:"7px",color:C.dark,fontWeight:600}}>{fV(k.volume)}</td><td style={{textAlign:"center",padding:"7px",color:C.muted}}>{k.kd}</td><td style={{textAlign:"center",padding:"7px"}}><span style={{fontSize:10,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></td></tr>;})}</tbody></table></div><button onClick={()=>skE(!kwE)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"6px 0",display:"flex",alignItems:"center",gap:4,marginTop:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="2" strokeLinecap="round" style={{transform:kwE?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>Additional search phrases from Google</button>{kwE&&<div style={{marginTop:6,padding:10,borderRadius:8,background:"rgba(21,20,21,0.02)",border:"1px solid rgba(21,20,21,0.06)",fontSize:11}}><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>RELATED SEARCHES</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>{d.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>PEOPLE ALSO ASK</div><div style={{fontSize:10.5,color:C.dark,lineHeight:1.6,marginBottom:8}}>{d.paa.map((q,i)=><div key={i}>• {q}</div>)}</div><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>AUTOCOMPLETE</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{d.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></div>}</div></RevealBlock><RevealBlock delay={0.18}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>RECOMMENDATIONS</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>{d.recs.map((r,i)=><div key={i} style={{padding:"8px 10px",borderRadius:8,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)"}}><div style={{fontSize:9,color:C.muted,textTransform:"capitalize"}}>{r.key}</div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{r.value}</div></div>)}</div></div></RevealBlock><RevealBlock delay={0.24}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>PAGE STRUCTURE</div>{d.sections.map((sec,i)=><div key={i} style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{fontSize:9,fontWeight:600,color:sec.level==="H1"?"#6E2BFF":"#9B7AE6",background:sec.level==="H1"?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>{sec.level}</span><span style={{fontSize:sec.level==="H1"?13:12.5,fontWeight:600,color:C.dark}}>{sec.title}</span></div><div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,marginTop:4}}>{sec.desc}</div>{sec.kwNote&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>{sec.kwNote}</div>}{sec.visuals?.length>0&&<div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>{sec.visuals.map((v,j)=><span key={j} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:C.muted,padding:"3px 8px",borderRadius:6,background:"rgba(21,20,21,0.03)"}}><VI type={v.icon}/>{v.text}</span>)}</div>}</div>)}</div></RevealBlock><RevealBlock delay={0.3}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your page to <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></RevealBlock></div>;};
-const BriefPanel=({d})=><div style={{padding:"28px 24px"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>Product Page</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>structure ready</span></div><BriefInner d={d}/></div>;
-const ContentPanel=({html,d})=>{const[bo,sbo]=useState(false);const render=()=>{const secs=html.split(/(?=<h[12]>)/);return secs.map((sec,i)=>{const hm=sec.match(/<h([12])>(.*?)<\/h\1>/);const lv=hm?parseInt(hm[1]):null;const hd=hm?hm[2]:null;const body=sec.replace(/<h[12]>.*?<\/h[12]>/,"").trim();return<RevealBlock key={i} delay={i*0.08}><div style={{marginBottom:24}}>{hd&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><span style={{fontSize:9,fontWeight:600,color:lv===1?"#6E2BFF":"#9B7AE6",background:lv===1?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>H{lv}</span><span style={{fontSize:lv===1?18:15,fontWeight:700,color:C.dark}}>{hd}</span></div>}<div style={{fontSize:13,color:C.dark,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:body.replace(/<mark data-freq="HV">(.*?)<\/mark>/g,'<span style="background:rgba(110,43,255,0.12);color:#6E2BFF;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="MV">(.*?)<\/mark>/g,'<span style="background:rgba(155,122,230,0.1);color:#9B7AE6;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="LV">(.*?)<\/mark>/g,'<span style="background:rgba(184,156,240,0.12);color:#B89CF0;padding:1px 4px;border-radius:3px">$1</span>').replace(/<strong>(.*?)<\/strong>/g,'<strong style="font-weight:600">$1</strong>').replace(/<ul>/g,'<ul style="padding-left:20px;margin:8px 0">').replace(/<li>/g,'<li style="margin-bottom:4px">').replace(/<blockquote>(.*?)<\/blockquote>/g,'<div style="border-left:3px solid rgba(110,43,255,0.2);padding:10px 14px;background:rgba(110,43,255,0.03);border-radius:0 8px 8px 0;margin:8px 0;font-style:italic">$1</div>').replace(/<table>/g,'<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px">').replace(/<th>/g,'<th style="text-align:left;padding:6px 10px;background:rgba(110,43,255,0.06);border:1px solid rgba(21,20,21,0.06);font-weight:600">').replace(/<td>/g,'<td style="padding:6px 10px;border:1px solid rgba(21,20,21,0.06)">').replace(/<details><summary>(.*?)<\/summary>/g,'<div style="border:1px solid rgba(21,20,21,0.08);border-radius:8px;margin:4px 0"><div style="padding:8px 12px;font-weight:600;font-size:12px;background:rgba(21,20,21,0.02)">$1</div><div style="padding:8px 12px;font-size:12px">').replace(/<\/details>/g,'</div></div>').replace(/\[visual:([^\]]*)\]/g,'<div style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:rgba(21,20,21,0.03);color:#928E95;font-size:11px;margin:4px 0">$1</div>')}}/></div></RevealBlock>;});};return<div style={{padding:"28px 24px"}}><RevealBlock><div style={{marginBottom:20,borderRadius:12,border:`1px solid ${C.cardBorder}`,overflow:"hidden"}}><button onClick={()=>sbo(!bo)} style={{width:"100%",padding:"14px 16px",background:C.card,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><BL s={16}/><span style={{fontSize:14,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 8px",borderRadius:8,fontWeight:500}}>view</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:bo?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s"}}><polyline points="6 9 12 15 18 9"/></svg></button>{bo&&<div style={{padding:16,borderTop:`1px solid ${C.cardBorder}`}}><BriefInner d={d}/></div>}</div></RevealBlock><RevealBlock delay={0.06}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>Full Content</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>~800 words</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>ready to use</span></div></RevealBlock><RevealBlock delay={0.12}><div style={{padding:"14px 16px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)",marginBottom:20}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>SEO TITLE</div><div style={{fontSize:13,fontWeight:600,color:C.dark,marginBottom:8}}>{d.title}</div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>META DESCRIPTION</div><div style={{fontSize:12,color:C.dark,lineHeight:1.5}}>{d.description}</div></div></RevealBlock>{render()}<RevealBlock delay={0.1}><div style={{marginTop:16}}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your URL in <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></div></RevealBlock></div>;};
-const LKW=["Searching Google data...","Analyzing search volume...","Ranking by difficulty..."];const LST=["Preparing meta data...","Building content structure...","Adding visual suggestions..."];const LCN=["Writing intro section...","Building product details...","Adding FAQ and reviews...","Polishing final copy..."];
+
+/* ═══ BRIEF & CONTENT PANELS (same rendering as v18) ═══ */
+const BriefInner=({d})=>{const[kwE,skE]=useState(false);return<div><RevealBlock><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>SEO TITLE</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13.5,fontWeight:500,color:C.dark}}>{hlF(d.title,d.titleKw)}</span><CB t={d.title}/></div></div></RevealBlock><RevealBlock delay={0.06}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>META DESCRIPTION</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}><span style={{fontSize:12.5,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</span><CB t={d.description}/></div></div></RevealBlock><RevealBlock delay={0.12}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>FOCUS KEYWORDS</div><div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:"visible"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}><thead><tr style={{borderBottom:"1px solid rgba(21,20,21,0.06)"}}><th style={{textAlign:"left",padding:"8px 12px",color:C.muted,fontWeight:500,fontSize:10}}>Keyword</th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:55,whiteSpace:"nowrap"}}>Vol.<QM text="Monthly search volume — how many people search this per month."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:40,whiteSpace:"nowrap"}}>KD<QM text="Keyword difficulty (0–100). Lower is easier to rank for."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:45,whiteSpace:"nowrap"}}>Freq<QM text="How often to use this keyword. HV = high priority. MV = medium. LV = low."/></th></tr></thead><tbody>{d.keywords.map((k,i)=>{const fc=FC[k.freq]||FC.MV;return<tr key={i} style={{borderBottom:i<d.keywords.length-1?"1px solid rgba(21,20,21,0.04)":"none"}}><td style={{padding:"7px 12px",color:C.dark,fontWeight:500,fontSize:12}}>{k.keyword}</td><td style={{textAlign:"center",padding:"7px",color:C.dark,fontWeight:600}}>{fmtVol(k.volume)}</td><td style={{textAlign:"center",padding:"7px",color:C.muted}}>{k.kd||"—"}</td><td style={{textAlign:"center",padding:"7px"}}><span style={{fontSize:10,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></td></tr>;})}</tbody></table></div>{d.related?.length>0&&<button onClick={()=>skE(!kwE)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"6px 0",display:"flex",alignItems:"center",gap:4,marginTop:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="2" strokeLinecap="round" style={{transform:kwE?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>Additional search phrases from Google</button>}{kwE&&<div style={{marginTop:6,padding:10,borderRadius:8,background:"rgba(21,20,21,0.02)",border:"1px solid rgba(21,20,21,0.06)",fontSize:11}}>{d.related?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>RELATED SEARCHES</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>{d.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}{d.paa?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>PEOPLE ALSO ASK</div><div style={{fontSize:10.5,color:C.dark,lineHeight:1.6,marginBottom:8}}>{d.paa.map((q,i)=><div key={i}>• {q}</div>)}</div></>}{d.autocomplete?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>AUTOCOMPLETE</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{d.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}</div>}</div></RevealBlock><RevealBlock delay={0.18}>{d.recs?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>RECOMMENDATIONS</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>{d.recs.map((r,i)=><div key={i} style={{padding:"8px 10px",borderRadius:8,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)"}}><div style={{fontSize:9,color:C.muted,textTransform:"capitalize"}}>{r.key}</div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{r.value}</div></div>)}</div></div>}</RevealBlock><RevealBlock delay={0.24}>{d.sections?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>PAGE STRUCTURE</div>{d.sections.map((sec,i)=><div key={i} style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{fontSize:9,fontWeight:600,color:sec.level==="H1"?"#6E2BFF":"#9B7AE6",background:sec.level==="H1"?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>{sec.level}</span><span style={{fontSize:sec.level==="H1"?13:12.5,fontWeight:600,color:C.dark}}>{sec.title}</span></div><div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,marginTop:4}}>{sec.desc}</div>{sec.kwNote&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>{sec.kwNote}</div>}{sec.visuals?.length>0&&<div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>{sec.visuals.map((v,j)=><span key={j} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:C.muted,padding:"3px 8px",borderRadius:6,background:"rgba(21,20,21,0.03)"}}><VI type={v.icon}/>{v.text}</span>)}</div>}</div>)}</div>}</RevealBlock><RevealBlock delay={0.3}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your page to <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></RevealBlock></div>;};
+const BriefPanel=({d})=><div style={{padding:"28px 24px"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.recs?.find(r=>r.key==="Goal")?.value||"Content"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>structure ready</span></div><BriefInner d={d}/></div>;
+const ContentPanel=({html,d})=>{const[bo,sbo]=useState(false);const render=()=>{if(!html)return null;const secs=html.split(/(?=<h[12]>)/);return secs.map((sec,i)=>{const hm=sec.match(/<h([12])>(.*?)<\/h\1>/);const lv=hm?parseInt(hm[1]):null;const hd=hm?hm[2]:null;const body=sec.replace(/<h[12]>.*?<\/h[12]>/,"").trim();return<RevealBlock key={i} delay={i*0.08}><div style={{marginBottom:24}}>{hd&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><span style={{fontSize:9,fontWeight:600,color:lv===1?"#6E2BFF":"#9B7AE6",background:lv===1?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>H{lv}</span><span style={{fontSize:lv===1?18:15,fontWeight:700,color:C.dark}}>{hd}</span></div>}<div style={{fontSize:13,color:C.dark,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:body.replace(/<mark data-freq="HV">(.*?)<\/mark>/g,'<span style="background:rgba(110,43,255,0.12);color:#6E2BFF;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="MV">(.*?)<\/mark>/g,'<span style="background:rgba(155,122,230,0.1);color:#9B7AE6;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="LV">(.*?)<\/mark>/g,'<span style="background:rgba(184,156,240,0.12);color:#B89CF0;padding:1px 4px;border-radius:3px">$1</span>').replace(/<strong>(.*?)<\/strong>/g,'<strong style="font-weight:600">$1</strong>').replace(/<ul>/g,'<ul style="padding-left:20px;margin:8px 0">').replace(/<li>/g,'<li style="margin-bottom:4px">').replace(/<blockquote>(.*?)<\/blockquote>/g,'<div style="border-left:3px solid rgba(110,43,255,0.2);padding:10px 14px;background:rgba(110,43,255,0.03);border-radius:0 8px 8px 0;margin:8px 0;font-style:italic">$1</div>').replace(/<table>/g,'<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px">').replace(/<th>/g,'<th style="text-align:left;padding:6px 10px;background:rgba(110,43,255,0.06);border:1px solid rgba(21,20,21,0.06);font-weight:600">').replace(/<td>/g,'<td style="padding:6px 10px;border:1px solid rgba(21,20,21,0.06)">').replace(/<details><summary>(.*?)<\/summary>/g,'<div style="border:1px solid rgba(21,20,21,0.08);border-radius:8px;margin:4px 0"><div style="padding:8px 12px;font-weight:600;font-size:12px;background:rgba(21,20,21,0.02)">$1</div><div style="padding:8px 12px;font-size:12px">').replace(/<\/details>/g,'</div></div>').replace(/\[visual:([^\]]*)\]/g,'<div style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:rgba(21,20,21,0.03);color:#928E95;font-size:11px;margin:4px 0">$1</div>')}}/></div></RevealBlock>;});};return<div style={{padding:"28px 24px"}}><RevealBlock><div style={{marginBottom:20,borderRadius:12,border:`1px solid ${C.cardBorder}`,overflow:"hidden"}}><button onClick={()=>sbo(!bo)} style={{width:"100%",padding:"14px 16px",background:C.card,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><BL s={16}/><span style={{fontSize:14,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 8px",borderRadius:8,fontWeight:500}}>view</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:bo?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s"}}><polyline points="6 9 12 15 18 9"/></svg></button>{bo&&<div style={{padding:16,borderTop:`1px solid ${C.cardBorder}`}}><BriefInner d={d}/></div>}</div></RevealBlock><RevealBlock delay={0.06}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>Full Content</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.contentLength||"~800 words"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>ready to use</span></div></RevealBlock><RevealBlock delay={0.12}><div style={{padding:"14px 16px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)",marginBottom:20}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>SEO TITLE</div><div style={{fontSize:13,fontWeight:600,color:C.dark,marginBottom:8}}>{d.title}</div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>META DESCRIPTION</div><div style={{fontSize:12,color:C.dark,lineHeight:1.5}}>{d.description}</div></div></RevealBlock>{render()}<RevealBlock delay={0.1}><div style={{marginTop:16}}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your URL in <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></div></RevealBlock></div>;};
+
+/* ═══ LOADING STEP LABELS ═══ */
+const LKW=["Generating keyword ideas...","Searching Google data...","Analyzing search volume...","Ranking by difficulty..."];
+const LST=["Preparing meta data...","Building content structure...","Adding visual suggestions..."];
+const LCN=["Writing intro section...","Building product details...","Adding FAQ and reviews...","Polishing final copy..."];
+
 const MobileTab=({active,onSwitch,hasBrief,hasContent})=>{if(!hasBrief&&!hasContent)return null;return<div style={{display:"flex",gap:0,background:"rgba(21,20,21,0.04)",borderRadius:10,padding:3,margin:"0 16px 8px"}}><button onClick={()=>onSwitch("chat")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="chat"?C.surface:"transparent",color:active==="chat"?C.dark:C.muted,boxShadow:active==="chat"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Chat</button><button onClick={()=>onSwitch("panel")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="panel"?C.surface:"transparent",color:active==="panel"?C.dark:C.muted,boxShadow:active==="panel"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>{hasContent?"Content":"Brief"}</button></div>;};
 
+/* ═══════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════════════ */
 function ContentBuilder({onHome,memberName:mn}){
 const isMobile=useIsMobile();const[mTab,sMTab]=useState("chat");const[pLoad,sPLoad]=useState(null);
-const[step,sStep]=useState("init");const[msgs,sMsgs]=useState([]);const[typ,sTyp]=useState(false);const[ans,sAns]=useState({});const[skw,sSkw]=useState([]);const[stit,sStit]=useState(null);const[bd,sBd]=useState(null);const[rp,sRp]=useState("ph");const[ls,sLs]=useState(-1);const[lst,sLst]=useState([]);const[dn,sDn]=useState({});const cr=useRef(null);const inpRef=useRef(null);
-const prevMsgCount=useRef(0);const scrollChat=useCallback(()=>{if(cr.current)cr.current.scrollTop=cr.current.scrollHeight;},[]);
+const[step,sStep]=useState("init");const[msgs,sMsgs]=useState([]);const[typ,sTyp]=useState(false);
+const[ans,sAns]=useState({});
+const[kwData,sKwData]=useState([]);    /* [{keyword,volume,kd,freq}] */
+const[dfsExtra,sDfsExtra]=useState({}); /* {suggestions,paa,related,autocomplete} */
+const[skw,sSkw]=useState([]);           /* selected keyword strings */
+const[stit,sStit]=useState(null);
+const[bd,sBd]=useState(null);           /* brief/structure data */
+const[contentHtml,sContentHtml]=useState(null); /* generated HTML */
+const[rp,sRp]=useState("ph");           /* ph | br | ct */
+const[ls,sLs]=useState(-1);const[lst,sLst]=useState([]);
+const[dn,sDn]=useState({});
+const[tweakCount,sTweakCount]=useState(0);
+const[kwFlowType,sKwFlowType]=useState(null); /* "find" | "own" */
+const[adjustUsed,sAdjustUsed]=useState(false);
+const cr=useRef(null);const inpRef=useRef(null);
+const prevMsgCount=useRef(0);
+const scrollChat=useCallback(()=>{if(cr.current)cr.current.scrollTop=cr.current.scrollHeight;},[]);
 useEffect(()=>{if(msgs.length>prevMsgCount.current)setTimeout(scrollChat,50);prevMsgCount.current=msgs.length;},[msgs.length]);
 useEffect(()=>{if(typ)setTimeout(scrollChat,50);},[typ]);
+
 const add=useCallback((f,c)=>{sMsgs(p=>[...p,{f,c,id:Date.now()+Math.random()}]);},[]);
 const bot=useCallback((c,dl=800)=>{sTyp(true);return new Promise(r=>{setTimeout(()=>{sTyp(false);add("b",c);r();},dl);});},[add]);
-const rl=useCallback((st,cb)=>{sLst(st);let i=0;sLs(0);const iv=setInterval(()=>{i++;if(i>=st.length){clearInterval(iv);sLs(-1);sLst([]);cb();}else sLs(i);},800);},[]);
+const botInstant=useCallback((c)=>{sTyp(false);add("b",c);},[add]);
+const rl=useCallback((st,cb)=>{sLst(st);let i=0;sLs(0);const iv=setInterval(()=>{i++;if(i>=st.length){clearInterval(iv);sLs(-1);sLst([]);cb();}else sLs(i);},1200);},[]);
 const mk=id=>sDn(p=>({...p,[id]:true}));
+
+/* ═══ AI CHAT (works on any step) ═══ */
+const handleAiChat=useCallback(async(text)=>{
+  sTyp(true);
+  const ctx=buildStepContext(step,ans,kwData,stit,bd);
+  const history=buildChatHistory(msgs);
+  const answer=await callChat(ctx,history,text);
+  sTyp(false);
+  if(answer){
+    add("b",typeof answer==="string"?answer:"I couldn't process that. Try rephrasing.");
+  } else {
+    add("b","Sorry, I couldn't get a response. Try again.");
+  }
+},[step,ans,kwData,stit,bd,msgs,add]);
+
+/* ═══ INIT ═══ */
 useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1500);},[]);
-const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.page_type.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("pt",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me choose the right structure. Or type your own.</div></div>).then(()=>sStep("pt"));},300);}else{setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><div style={{color:C.muted,fontSize:12}}>e.g. coffee shop Berlin, best espresso near me</div></div>).then(()=>sStep("ok"));},300);}};
-const hAns=(sid,val)=>{mk(sid);add("u",val);sAns(p=>({...p,[sid]:val}));if(sid==="pt"){sStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);}else if(sid==="pd"||sid==="ok"){sStep("kl");rl(LKW,()=>{const init=MKW.map(k=>k.keyword);sSkw(init);sStep("kw");add("b",<div><div style={{marginBottom:6}}>I found keywords that real people search for on Google. Pick the ones that match your page best.</div><BotTip short="Each keyword has volume, difficulty, and frequency data."><div><div style={{marginBottom:6}}>Vol. — monthly searches.</div><div style={{marginBottom:6}}>KD — keyword difficulty (0–100). Under 30 is great.</div><div>Freq — HV = use in title + H1. MV = subheadings. LV = once or twice.</div></div></BotTip><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Not sure what to pick? Just trust me — I'll select the best mix.</div><KwS keywords={MKW} init={init} onDone={s=>{sSkw(s);kwD();}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/></div>);});}else if(sid==="gl"){sStep("au");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your audience and how should it sound?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.audience.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("au",h)}/>)}</div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{color:C.muted,fontSize:12}}>This shapes the tone. Or type your own.</div><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);}else if(sid==="au"){sStep("tl");rl(["Generating titles...","Applying keyword rules..."],()=>{sStep("ti");add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={MTI} onSelect={t=>{sStit(t);hAns("ti",t);}}/></div>);});}else if(sid==="ti"){sStep("me");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust.</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HE text="Founder story, brand name"/><HE text="Brand values, mission"/><HP text="Nothing special to add" onClick={()=>hAns("me","Nothing special to add")}/></div><div style={{color:C.muted,fontSize:12}}>Or type your own</div></div>);}else if(sid==="me"){sStep("cf");bot(<div><div style={{marginBottom:6}}>All steps done! I have everything I need.</div><div style={{fontWeight:600,marginBottom:6}}>Ready to generate your SEO structure?</div><div style={{color:C.muted,fontSize:12,marginBottom:10}}>You can use this as a brief for your copywriter, or click Generate Content.</div><div style={{display:"flex",gap:8}}><Btn text="Generate Structure" onClick={gStr} primary/><Btn text="Go Back" onClick={()=>{sStep("me");bot("What would you like to change?");}}/></div></div>);}};
-const kwD=()=>{mk("kw");bot(<div><div style={{marginBottom:6}}>Great keywords! I also found additional search phrases from Google.</div><BotTip short="See related searches, questions, and autocomplete suggestions."><div><div style={{marginBottom:6}}>Related Searches — use as subtopics or H2 ideas.</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:10}}>{MST.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.04)",color:C.dark,fontSize:11}}>{s}</span>)}</div><div style={{marginBottom:6}}>People Also Ask — great for FAQ.</div><div style={{lineHeight:1.6,marginBottom:10}}>{MST.paa.map((q,i)=><div key={i}>• {q}</div>)}</div><div style={{marginBottom:6}}>Autocomplete — real search patterns.</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{MST.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.04)",color:C.dark,fontSize:11}}>{s}</span>)}</div></div></BotTip></div>).then(()=>{sStep("gl");bot(<div><div style={{fontWeight:600,marginBottom:6}}>What should this page achieve?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.goal.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("gl",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>A sales page needs CTAs, an info page needs depth.</div></div>);});};
-const gStr=()=>{mk("cf");sStep("sl");window.scrollTo({top:0,behavior:"smooth"});sPLoad("Building SEO structure...");rl(LST,()=>{sBd(MST);sRp("br");sPLoad(null);sStep("sr");if(isMobile)sMTab("panel");bot(<div><div style={{marginBottom:6}}>Your SEO structure is ready! {isMobile?"Switch to the Brief tab.":"Check the brief on the right."}</div><div style={{marginBottom:6}}>I recommend <strong>{MST.contentLength}</strong> for this page.</div><div style={{color:C.muted,fontSize:12}}>Edit the structure, or click "Generate Content" when ready.</div></div>);});};
-const gCnt=()=>{sStep("cl");add("b",<div style={{color:C.muted,fontSize:12}}>Generating full page content...</div>);window.scrollTo({top:0,behavior:"smooth"});sPLoad("Writing your content...");rl(LCN,()=>{sRp("ct");sPLoad(null);sStep("cr");if(isMobile)sMTab("panel");bot(<div><div style={{marginBottom:6}}>Your full content is ready!</div><BotTip short="Keywords are color-coded."><div><div style={{marginBottom:3}}>• <span style={{background:"rgba(110,43,255,0.12)",color:"#6E2BFF",padding:"1px 4px",borderRadius:3}}>Purple</span> = high-volume</div><div style={{marginBottom:3}}>• <span style={{background:"rgba(155,122,230,0.1)",color:"#9B7AE6",padding:"1px 4px",borderRadius:3}}>Light</span> = medium</div><div>• <span style={{background:"rgba(184,156,240,0.12)",color:"#B89CF0",padding:"1px 4px",borderRadius:3}}>Soft</span> = low</div></div></BotTip><div style={{color:C.muted,fontSize:12,marginTop:4}}>Want changes? Just ask.</div></div>);});};
-const reset=()=>{sStep("init");sMsgs([]);sTyp(false);sAns({});sSkw([]);sStit(null);sBd(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");sPLoad(null);setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);};
-const send=()=>{const el=inpRef.current;if(!el||!el.value.trim())return;const t=el.value.trim();el.value="";if(["pt","pd","gl","au","me"].includes(step)){hAns(step,t);}else if(step==="ok"){hAns("ok",t);}else if(step==="ka"){add("u",t);bot("Keywords adjusted!");setTimeout(()=>kwD(),1500);}else if(step==="sr"||step==="cr"){add("u",t);bot("Let me update that for you...");setTimeout(()=>{bot("Done! Check the right panel.");},2000);}else{add("u",t);bot("Follow the steps!");}};
 
+/* ═══ ENTRY CHOICE ═══ */
+const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){sKwFlowType("find");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.page_type.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("pt",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me choose the right structure. Or type your own.</div></div>).then(()=>sStep("pt"));},300);}else{sKwFlowType("own");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><div style={{color:C.muted,fontSize:12}}>e.g. coffee shop Berlin, best espresso near me</div></div>).then(()=>sStep("ok"));},300);}};
+
+/* ═══ ANSWER HANDLER (flow steps) ═══ */
+const hAns=(sid,val)=>{
+mk(sid);add("u",val);sAns(p=>({...p,[sid]:val}));
+
+if(sid==="pt"){
+  sStep("pd");
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);
+}
+else if(sid==="pd"||sid==="ok"){
+  /* === KEYWORDS: GPT generate_keywords → DFS content_builder → merge === */
+  sStep("kl");
+  rl(LKW, async()=>{
+    let rawKeywords=[];
+    let dfsData=null;
+
+    if(sid==="ok"){
+      /* User provided own keywords */
+      rawKeywords=val.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean);
+    } else {
+      /* GPT generates keywords based on page description */
+      const gptRes=await callGPT("generate_keywords",{
+        page_type:ans.pt||"",
+        page_description:val,
+        ...ans
+      });
+      if(gptRes){
+        rawKeywords=Array.isArray(gptRes.keywords)?gptRes.keywords:
+          Array.isArray(gptRes)?gptRes:
+          typeof gptRes.text==="string"?gptRes.text.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean):[];
+      }
+      if(rawKeywords.length===0) rawKeywords=[val]; /* fallback: use description as keyword */
+    }
+
+    /* Call DFS for volume/KD/suggestions */
+    dfsData=await callDFS(rawKeywords.slice(0,5));
+
+    let enrichedKw=[];
+    if(dfsData?.keyword_metrics){
+      const maxVol=Math.max(...(dfsData.keyword_metrics.map(m=>m.search_volume||0)),1);
+      enrichedKw=rawKeywords.map(kw=>{
+        const match=dfsData.keyword_metrics?.find(m=>m.keyword?.toLowerCase()===kw.toLowerCase());
+        const vol=match?.search_volume||null;
+        const kd=match?.keyword_difficulty||match?.competition_index||null;
+        return{keyword:kw,volume:vol,kd:kd,freq:assignFreq(vol,maxVol)};
+      });
+      /* Add DFS suggestions as extra keywords if we have room */
+      if(dfsData.suggestions?.length>0){
+        const existing=new Set(enrichedKw.map(k=>k.keyword.toLowerCase()));
+        dfsData.suggestions.slice(0,3).forEach(s=>{
+          const kw=typeof s==="string"?s:s.keyword;
+          if(kw&&!existing.has(kw.toLowerCase())){
+            const sm=dfsData.keyword_metrics?.find(m=>m.keyword?.toLowerCase()===kw.toLowerCase());
+            enrichedKw.push({keyword:kw,volume:sm?.search_volume||null,kd:sm?.keyword_difficulty||null,freq:assignFreq(sm?.search_volume||0,maxVol)});
+          }
+        });
+      }
+    } else {
+      /* DFS failed — GPT fallback (no volume/KD) */
+      enrichedKw=rawKeywords.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
+    }
+
+    /* Store DFS extra data */
+    sDfsExtra({
+      suggestions:dfsData?.suggestions||[],
+      paa:dfsData?.people_also_ask||[],
+      related:dfsData?.related_searches||[],
+      autocomplete:dfsData?.autocomplete||[]
+    });
+
+    sKwData(enrichedKw);
+    const init=enrichedKw.map(k=>k.keyword);
+    sSkw(init);
+    sStep("kw");
+    add("b",<div>
+      <div style={{marginBottom:6}}>{dfsData?"I found keywords with real Google search data. Pick the ones that match your page best.":"Here are keyword suggestions. Pick the ones that fit."}</div>
+      <BotTip short="Each keyword has volume, difficulty, and frequency data."><div><div style={{marginBottom:6}}>Vol. — monthly searches.</div><div style={{marginBottom:6}}>KD — keyword difficulty (0–100). Under 30 is great.</div><div>Freq — HV = use in title + H1. MV = subheadings. LV = once or twice.</div></div></BotTip>
+      <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Not sure what to pick? Just ask me in the chat!</div>
+      <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);kwD(enrichedKw);}} onAdj={()=>{
+        if(kwFlowType==="own"||adjustUsed){
+          bot("You can adjust keywords once per session with 'Find Keywords' flow. Type your changes or ask me for help.");
+          return;
+        }
+        sAdjustUsed(true);
+        sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
+      }}/>
+    </div>);
+  });
+}
+else if(sid==="gl"){
+  sStep("au");
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your audience and how should it sound?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.audience.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("au",h)}/>)}</div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{color:C.muted,fontSize:12}}>This shapes the tone. Or type your own.</div><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
+}
+else if(sid==="au"){
+  /* === TITLES: GPT generate_titles === */
+  sStep("tl");
+  rl(["Generating titles...","Applying keyword rules..."], async()=>{
+    const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
+    const gptRes=await callGPT("generate_titles",{
+      keywords:selKw,
+      page_type:ans.pt||"",
+      page_description:ans.pd||"",
+      goal:ans.gl||"",
+      audience:ans.au||val,
+      ...ans
+    });
+    let titles=[];
+    if(gptRes){
+      const raw=Array.isArray(gptRes.titles)?gptRes.titles:
+        Array.isArray(gptRes)?gptRes:
+        gptRes.titles?[gptRes.titles]:[];
+      titles=raw.map(t=>{
+        if(typeof t==="string") return{text:t,hl:selKw.filter(k=>t.toLowerCase().includes(k.toLowerCase()))};
+        return{text:t.text||t.title||String(t),hl:t.highlights||t.hl||selKw.filter(k=>(t.text||t.title||"").toLowerCase().includes(k.toLowerCase()))};
+      });
+    }
+    if(titles.length===0){
+      /* Fallback: generate simple titles from keywords */
+      titles=selKw.slice(0,5).map(k=>({text:k.charAt(0).toUpperCase()+k.slice(1)+" — Your Guide",hl:[k]}));
+    }
+    sStep("ti");
+    add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={titles} onSelect={t=>{sStit(t);hAns("ti",t);}}/></div>);
+  });
+}
+else if(sid==="ti"){
+  sStep("me");
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust.</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HE text="Founder story, brand name"/><HE text="Brand values, mission"/><HP text="Nothing special to add" onClick={()=>hAns("me","Nothing special to add")}/></div><div style={{color:C.muted,fontSize:12}}>Or type your own</div></div>);
+}
+else if(sid==="me"){
+  sStep("cf");
+  bot(<div><div style={{marginBottom:6}}>All steps done! I have everything I need.</div><div style={{fontWeight:600,marginBottom:6}}>Ready to generate your SEO structure?</div><div style={{color:C.muted,fontSize:12,marginBottom:10}}>You can use this as a brief for your copywriter, or click Generate Content.</div><div style={{display:"flex",gap:8}}><Btn text="Generate Structure" onClick={gStr} primary/><Btn text="Go Back" onClick={()=>{sStep("me");bot("What would you like to change?");}}/></div></div>);
+}};
+
+/* ═══ KEYWORD DONE → show extras + ask goal ═══ */
+const kwD=(enrichedKwOverride)=>{
+  const extra=dfsExtra;
+  mk("kw");
+  bot(<div>
+    <div style={{marginBottom:6}}>Great keywords! {extra.related?.length>0||extra.paa?.length>0?"I also found additional search phrases from Google.":"Let's continue."}</div>
+    {(extra.related?.length>0||extra.paa?.length>0||extra.autocomplete?.length>0)&&<BotTip short="See related searches, questions, and autocomplete suggestions."><div>
+      {extra.related?.length>0&&<><div style={{marginBottom:6}}>Related Searches — use as subtopics or H2 ideas.</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:10}}>{extra.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.04)",color:C.dark,fontSize:11}}>{typeof s==="string"?s:s.keyword||s}</span>)}</div></>}
+      {extra.paa?.length>0&&<><div style={{marginBottom:6}}>People Also Ask — great for FAQ.</div><div style={{lineHeight:1.6,marginBottom:10}}>{extra.paa.map((q,i)=><div key={i}>• {typeof q==="string"?q:q.question||q}</div>)}</div></>}
+      {extra.autocomplete?.length>0&&<><div style={{marginBottom:6}}>Autocomplete — real search patterns.</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{extra.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.04)",color:C.dark,fontSize:11}}>{typeof s==="string"?s:s.keyword||s}</span>)}</div></>}
+    </div></BotTip>}
+  </div>).then(()=>{
+    sStep("gl");
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>What should this page achieve?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.goal.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("gl",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>A sales page needs CTAs, an info page needs depth.</div></div>);
+  });
+};
+
+/* ═══ GENERATE STRUCTURE ═══ */
+const gStr=async()=>{
+  mk("cf");sStep("sl");
+  window.scrollTo({top:0,behavior:"smooth"});
+  sPLoad("Building SEO structure...");
+  rl(LST, async()=>{
+    const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
+    const kwWithData=kwData.filter(k=>selKw.includes(k.keyword));
+    const gptRes=await callGPT("generate_structure",{
+      title:stit||"",
+      keywords:kwWithData,
+      page_type:ans.pt||"",
+      page_description:ans.pd||"",
+      goal:ans.gl||"",
+      audience:ans.au||"",
+      brand_details:ans.me||"",
+      related:dfsExtra.related||[],
+      paa:dfsExtra.paa||[],
+      autocomplete:dfsExtra.autocomplete||[]
+    });
+
+    /* Build brief data from GPT response */
+    let briefData;
+    if(gptRes&&(gptRes.title||gptRes.sections)){
+      const titleKw=kwWithData.filter(k=>k.freq==="HV").map(k=>({text:k.keyword,freq:k.freq}));
+      const descKw=kwWithData.filter(k=>k.freq==="HV"||k.freq==="MV").slice(0,2).map(k=>({text:k.keyword,freq:k.freq}));
+      briefData={
+        title:gptRes.title||stit||"Untitled",
+        titleKw,
+        description:gptRes.description||gptRes.meta_description||"",
+        descKw,
+        keywords:kwWithData,
+        recs:gptRes.recs||gptRes.recommendations||[
+          {key:"Length",value:gptRes.content_length||"500-800 words"},
+          {key:"Tone",value:ans.au||"Professional"},
+          {key:"CTA",value:gptRes.cta||"Learn More"},
+          {key:"Goal",value:ans.gl||"Inform"}
+        ],
+        sections:Array.isArray(gptRes.sections)?gptRes.sections.map(s=>({
+          level:s.level||"H2",
+          title:s.title||"",
+          desc:s.desc||s.description||"",
+          kwNote:s.kwNote||s.keyword_note||null,
+          visuals:s.visuals||[]
+        })):[],
+        related:dfsExtra.related?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
+        paa:dfsExtra.paa?.map(q=>typeof q==="string"?q:q.question||String(q))||[],
+        autocomplete:dfsExtra.autocomplete?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
+        contentLength:gptRes.content_length||"~800 words"
+      };
+    } else {
+      /* Fallback: minimal structure */
+      briefData={
+        title:stit||"Untitled Page",
+        titleKw:[],
+        description:"Generated SEO content for your page.",
+        descKw:[],
+        keywords:kwWithData,
+        recs:[{key:"Length",value:"500-800 words"},{key:"Tone",value:ans.au||"Professional"},{key:"Goal",value:ans.gl||"Inform"}],
+        sections:[{level:"H1",title:stit||"Main Heading",desc:"Introduction paragraph",kwNote:null,visuals:[]}],
+        related:dfsExtra.related?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
+        paa:dfsExtra.paa?.map(q=>typeof q==="string"?q:q.question||String(q))||[],
+        autocomplete:dfsExtra.autocomplete?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
+        contentLength:"~800 words"
+      };
+    }
+
+    sBd(briefData);sRp("br");sPLoad(null);sStep("sr");
+    if(isMobile)sMTab("panel");
+    bot(<div>
+      <div style={{marginBottom:6}}>Your SEO structure is ready! {isMobile?"Switch to the Brief tab.":"Check the brief on the right."}</div>
+      <div style={{marginBottom:6}}>I recommend <strong>{briefData.contentLength}</strong> for this page.</div>
+      <div style={{color:C.muted,fontSize:12}}>Edit the structure, or click "Generate Content" when ready.</div>
+    </div>);
+  });
+};
+
+/* ═══ GENERATE CONTENT ═══ */
+const gCnt=async()=>{
+  sStep("cl");
+  add("b",<div style={{color:C.muted,fontSize:12}}>Generating full page content...</div>);
+  window.scrollTo({top:0,behavior:"smooth"});
+  sPLoad("Writing your content...");
+  rl(LCN, async()=>{
+    const gptRes=await callGPT("generate_content",{
+      structure:bd,
+      keywords:kwData.filter(k=>skw.includes(k.keyword)),
+      page_type:ans.pt||"",
+      goal:ans.gl||"",
+      audience:ans.au||"",
+      brand_details:ans.me||"",
+      title:bd?.title||stit||""
+    });
+
+    let html="";
+    if(gptRes){
+      html=gptRes.html||gptRes.content||gptRes.text||"";
+      if(typeof html!=="string") html=JSON.stringify(html);
+    }
+    if(!html||html.length<50){
+      html="<h1>"+(bd?.title||"Content")+"</h1><p>Content generation is being set up. Please try again shortly.</p>";
+    }
+
+    sContentHtml(html);sRp("ct");sPLoad(null);sStep("cr");
+    if(isMobile)sMTab("panel");
+    bot(<div>
+      <div style={{marginBottom:6}}>Your full content is ready!</div>
+      <BotTip short="Keywords are color-coded."><div>
+        <div style={{marginBottom:3}}>• <span style={{background:"rgba(110,43,255,0.12)",color:"#6E2BFF",padding:"1px 4px",borderRadius:3}}>Purple</span> = high-volume</div>
+        <div style={{marginBottom:3}}>• <span style={{background:"rgba(155,122,230,0.1)",color:"#9B7AE6",padding:"1px 4px",borderRadius:3}}>Light</span> = medium</div>
+        <div>• <span style={{background:"rgba(184,156,240,0.12)",color:"#B89CF0",padding:"1px 4px",borderRadius:3}}>Soft</span> = low</div>
+      </div></BotTip>
+      <div style={{color:C.muted,fontSize:12,marginTop:4}}>Want changes? Just ask.</div>
+    </div>);
+  });
+};
+
+/* ═══ TWEAK ═══ */
+const handleTweak=async(text)=>{
+  sTyp(true);
+  const newCount=tweakCount+1;
+  sTweakCount(newCount);
+
+  const gptRes=await callGPT("tweak",{
+    current_content:contentHtml,
+    request:text,
+    keywords:kwData.filter(k=>skw.includes(k.keyword)),
+    structure:bd
+  });
+
+  sTyp(false);
+  if(gptRes){
+    const newHtml=gptRes.html||gptRes.content||gptRes.text||contentHtml;
+    if(typeof newHtml==="string"&&newHtml.length>50){
+      sContentHtml(newHtml);
+      add("b","Done! I've updated the content. Check the right panel.");
+    } else {
+      add("b","I made some adjustments. Check the content panel.");
+    }
+  } else {
+    add("b","Sorry, I couldn't process that tweak. Try describing the change differently.");
+  }
+
+  if(newCount>=3){
+    setTimeout(()=>{
+      bot(<div style={{color:C.muted,fontSize:12}}>You've made {newCount} edits. The content is looking good! Consider finalizing and exporting. Of course, you can keep tweaking if needed.</div>,500);
+    },1000);
+  }
+};
+
+/* ═══ RESET ═══ */
+const reset=()=>{
+  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});sSkw([]);sStit(null);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
+  setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);
+};
+
+/* ═══ SEND (main input handler) ═══ */
+const send=()=>{
+  const el=inpRef.current;if(!el||!el.value.trim())return;
+  const t=el.value.trim();el.value="";
+
+  /* If user is asking a question on any step → AI Chat */
+  if(isQuestion(t)&&step!=="ok"){
+    add("u",t);
+    handleAiChat(t);
+    return;
+  }
+
+  /* Flow-specific handling */
+  if(["pt","pd","gl","au","me"].includes(step)){
+    hAns(step,t);
+  }else if(step==="ok"){
+    hAns("ok",t);
+  }else if(step==="ka"){
+    /* Adjust keywords — send to GPT for new keywords */
+    add("u",t);
+    sStep("kl");
+    sTyp(true);
+    (async()=>{
+      const gptRes=await callGPT("generate_keywords",{
+        page_type:ans.pt||"",
+        page_description:ans.pd||"",
+        adjustment:t,
+        previous_keywords:kwData.map(k=>k.keyword)
+      });
+      let newRaw=[];
+      if(gptRes){
+        newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
+      }
+      if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
+      const dfsData=await callDFS(newRaw.slice(0,5));
+      let enriched=[];
+      if(dfsData?.keyword_metrics){
+        const maxV=Math.max(...dfsData.keyword_metrics.map(m=>m.search_volume||0),1);
+        enriched=newRaw.map(kw=>{
+          const match=dfsData.keyword_metrics?.find(m=>m.keyword?.toLowerCase()===kw.toLowerCase());
+          return{keyword:kw,volume:match?.search_volume||null,kd:match?.keyword_difficulty||null,freq:assignFreq(match?.search_volume||0,maxV)};
+        });
+      } else {
+        enriched=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
+      }
+      if(dfsData){
+        sDfsExtra({suggestions:dfsData.suggestions||[],paa:dfsData.people_also_ask||[],related:dfsData.related_searches||[],autocomplete:dfsData.autocomplete||[]});
+      }
+      sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
+      add("b",<div>
+        <div style={{marginBottom:6}}>Keywords adjusted! Here's the updated list.</div>
+        <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched);}} onAdj={()=>{bot("You've already used your keyword adjustment. You can ask me questions about the keywords instead.");}}/>
+      </div>);
+    })();
+  }else if(step==="sr"){
+    /* On structure step — could be a question or edit request */
+    add("u",t);
+    handleAiChat(t);
+  }else if(step==="cr"){
+    /* On content step — treat as tweak request */
+    add("u",t);
+    handleTweak(t);
+  }else if(step==="ti"){
+    /* User types custom title */
+    sStit(t);hAns("ti",t);
+  }else{
+    add("u",t);
+    handleAiChat(t);
+  }
+};
+
+/* ═══ RENDER ═══ */
 const lastBotIdx=msgs.reduce((acc,m,i)=>m.f==="b"?i:acc,-1);
-const chatMessages=<React.Fragment><style>{`.cb-past-msg{pointer-events:none!important;opacity:0.8}.cb-past-msg *{pointer-events:none!important;cursor:default!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}</React.Fragment>;
+const chatMessages=<React.Fragment><style>{`.cb-past-msg{pointer-events:none!important;opacity:0.8}.cb-past-msg *{pointer-events:none!important;cursor:default!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}</React.Fragment>;
 
-const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd}/></div>:rp==="ct"?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={MCONT} d={MST}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
+const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd}/></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={contentHtml} d={bd}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
 
 return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexDirection:"column"}}>
 <div style={{padding:isMobile?"0 12px 6px":"0 24px 10px",display:"flex",alignItems:"center",gap:6,maxWidth:1224,margin:"0 auto",width:"100%"}}><button onClick={onHome} style={{background:"none",border:"none",cursor:"pointer",padding:2,color:C.muted,display:"flex"}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg></button><span style={{fontSize:13,fontWeight:500,color:C.muted}}>Content Builder</span>{rp==="br"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Structure Ready</span>}{rp==="ct"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Content Ready</span>}</div>
 {!isMobile&&<div style={{display:"flex",padding:"0 24px 24px",maxWidth:1224,margin:"0 auto",width:"100%",alignItems:"flex-start",gap:12}}>
-<div id="cb-chat" style={{width:"35%",maxWidth:420,position:"sticky",top:12,display:"flex",flexDirection:"column",flexShrink:0,minWidth:280,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,height:"calc(100vh - 130px)"}}><div ref={cr} className="iva-scroll-inner" style={{flex:1,padding:"16px 12px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>{chatMessages}</div><div style={{padding:"8px 12px 12px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:8}}><input ref={inpRef} defaultValue="" onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:44,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 14px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div></div>
+<div id="cb-chat" style={{width:"35%",maxWidth:420,position:"sticky",top:12,display:"flex",flexDirection:"column",flexShrink:0,minWidth:280,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,height:"calc(100vh - 130px)"}}><div ref={cr} className="iva-scroll-inner" style={{flex:1,padding:"16px 12px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>{chatMessages}</div><div style={{padding:"8px 12px 12px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:8}}><input ref={inpRef} defaultValue="" onKeyDown={e=>e.key==="Enter"&&send()} placeholder={step==="cr"?"Ask a question or request changes...":"Type your answer or ask a question..."} style={{flex:1,height:44,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 14px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div></div>
 <div style={{flex:1,borderRadius:12,border:`1px solid ${C.border}`,position:"relative",background:C.surface,minHeight:"calc(100vh - 130px)"}}>{panelContent}{rp!=="ph"&&<div style={{position:"sticky",bottom:0,left:0,right:0,height:48,background:"linear-gradient(transparent, #ffffff)",borderRadius:"0 0 12px 12px",pointerEvents:"none"}}/>}</div>
 </div>}
 {isMobile&&<div style={{display:"flex",flexDirection:"column",padding:"0 12px 16px",gap:12}}>
 <MobileTab active={mTab} onSwitch={sMTab} hasBrief={rp==="br"} hasContent={rp==="ct"}/>
-<div style={{display:mTab==="chat"?"flex":"none",flexDirection:"column",borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,maxHeight:"70vh"}}><div ref={mTab==="chat"?cr:null} className="iva-scroll-inner" style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>{chatMessages}</div><div style={{padding:"8px 10px 10px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:6}}><input ref={isMobile?inpRef:null} defaultValue="" onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type your answer..." style={{flex:1,height:42,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 12px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:42,height:42,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div></div>
+<div style={{display:mTab==="chat"?"flex":"none",flexDirection:"column",borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,maxHeight:"70vh"}}><div ref={mTab==="chat"?cr:null} className="iva-scroll-inner" style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>{chatMessages}</div><div style={{padding:"8px 10px 10px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:6}}><input ref={isMobile?inpRef:null} defaultValue="" onKeyDown={e=>e.key==="Enter"&&send()} placeholder={step==="cr"?"Ask a question or request changes...":"Type your answer or ask a question..."} style={{flex:1,height:42,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 12px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:42,height:42,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div></div>
 <div style={{display:mTab==="panel"?"block":"none",background:C.surface,borderRadius:12,border:`1px solid ${C.border}`}}>{panelContent}</div>
 </div>}
 {(rp==="br"||rp==="ct")&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:isMobile?"8px 12px 16px":"8px 24px 16px",maxWidth:isMobile?"100%":1224,margin:"0 auto",width:"100%",alignItems:"center"}}>
