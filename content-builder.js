@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v25 — Hybrid: regex flow + GPT router (kw/sr/cr) */
+/* IvaBot Content Builder v26 — No adjust limits, proceed=kwD, always can continue */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v25 loaded");
+console.log("[IvaBot] content-builder.js v26 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -537,11 +537,6 @@ else if(sid==="pd"||sid==="ok"){
         <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium, supporting keyword. LV = Low, extra keyword.</div></div></BotTip>
         <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Not sure what to pick? Just ask me in the chat!</div>
         <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{
-          if(kwFlowType==="own"||adjustUsed){
-            bot("You can adjust keywords once per session with 'Find Keywords' flow. Type your changes or ask me for help.");
-            return;
-          }
-          sAdjustUsed(true);
           sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
         }}/>
       </div>);
@@ -844,7 +839,7 @@ const doKeywordAdjust=async(adjustText)=>{
     sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
     add("b",<div>
       <div style={{marginBottom:6}}>Keywords updated! Here's the new list.</div>
-      <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched,adjustExtras);}} onAdj={()=>{bot("You've already adjusted keywords. Select from the list and click 'Build With These'.");}}/>
+      <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched,adjustExtras);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
     </div>);
   } catch(err) {
     console.error("[CB] keyword adjust error:", err);
@@ -969,26 +964,13 @@ const send=()=>{
 
       if(step==="kw"){
         if(action==="proceed"||(action==="flow_answer"&&isConfirmation(t))){
-          bot(<div>
-            <div style={{marginBottom:6}}>Review your keyword selection and click "Build With These" to continue.</div>
-            <KwS keywords={kwData} init={skw} onDone={s=>{sSkw(s);kwD(kwData);}} onAdj={()=>{
-              if(kwFlowType==="own"||adjustUsed){
-                bot("You can adjust keywords once per session. Select from the list.");
-                return;
-              }
-              sAdjustUsed(true);
-              sStep("ka");bot("What would you like to change?");
-            }}/>
-          </div>);
-        } else if(action==="adjust_keywords"){
-          if(kwFlowType==="own"||adjustUsed){
-            bot("You can adjust keywords once per session. Select from the list or ask me questions.");
-          } else {
-            sAdjustUsed(true);
-            doKeywordAdjust(r.adjustment||t);
-          }
+          /* User wants to continue → go straight to goal step */
+          kwD(kwData);
+        } else if(action==="adjust_keywords"||(action==="flow_answer"&&!isConfirmation(t))){
+          /* Adjust keywords — no limit, always allowed */
+          doKeywordAdjust(r.adjustment||r.text||t);
         } else {
-          /* answer, flow_answer (non-confirm), or anything else — show GPT's text */
+          /* answer or anything else — show GPT's text */
           const text=r.text;
           if(text && typeof text==="string" && text.length>10){
             add("b",text);
