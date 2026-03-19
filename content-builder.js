@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v21 — all v20 fixes applied */
+/* IvaBot Content Builder v22 — Chat Router (replaces regex intent detection) */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v21 loaded");
+console.log("[IvaBot] content-builder.js v22 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -85,6 +85,59 @@ async function callChat(context, chatHistory, question) {
   }
 }
 
+/* ═══ CHAT ROUTER — parses JSON action from GPT ═══ */
+async function callChatRouter(context, chatHistory, question) {
+  console.log("[CB] callChatRouter:", question.substring(0, 80));
+  try {
+    const res = await fetch(CB_CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context, chat_history: chatHistory, question })
+    });
+    if (!res.ok) throw new Error("ChatRouter HTTP " + res.status);
+    const raw = await res.text();
+    console.log("[CB] Router raw:", raw.substring(0, 300));
+
+    /* Try to parse JSON action from response */
+    let parsed = null;
+    try { parsed = JSON.parse(raw); } catch(e) {
+      /* GPT sometimes wraps in quotes or adds text around JSON */
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) try { parsed = JSON.parse(m[0]); } catch(e2) {}
+    }
+
+    /* Handle Make's toString wrapper: {result: "..."} or {answer: "..."} */
+    if (parsed && !parsed.action) {
+      const inner = parsed.result || parsed.answer || parsed.text;
+      if (typeof inner === "string") {
+        try { parsed = JSON.parse(inner); } catch(e) {
+          const m2 = inner.match(/\{[\s\S]*\}/);
+          if (m2) try { parsed = JSON.parse(m2[0]); } catch(e3) {}
+        }
+      }
+    }
+
+    /* Valid action response */
+    if (parsed && parsed.action) {
+      console.log("[CB] Router action:", parsed.action);
+      return parsed;
+    }
+
+    /* Fallback: treat as plain text answer */
+    let fallbackText = raw;
+    if (parsed) fallbackText = parsed.text || parsed.answer || parsed.result || raw;
+    if (typeof fallbackText === "string") {
+      if (fallbackText.startsWith('"') && fallbackText.endsWith('"')) fallbackText = fallbackText.slice(1, -1);
+      fallbackText = fallbackText.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\*\*/g, '').replace(/###\s?/g, '').replace(/^- /gm, '• ');
+    }
+    console.log("[CB] Router fallback to answer");
+    return { action: "answer", text: fallbackText };
+  } catch(e) {
+    console.error("[CB] callChatRouter error:", e);
+    return { action: "answer", text: "Sorry, I couldn't process that. Try again." };
+  }
+}
+
 /* Track usage: increment builder_used in Supabase usage table */
 async function trackBuilderUsage(memberId) {
   if (!memberId) { console.log("[CB] trackUsage: no memberId"); return; }
@@ -124,7 +177,7 @@ async function trackBuilderUsage(memberId) {
   }
 }
 
-/* Detect if user input is a question/clarification vs a flow answer */
+/* === LEGACY REGEX HELPERS (kept as offline fallback, no longer used in send()) === */
 function isQuestion(text) {
   const t = text.trim().toLowerCase();
   if (t.length < 3) return false;
@@ -133,15 +186,11 @@ function isQuestion(text) {
   if (/^(hmm|idk|unsure|confused|clarify)/i.test(t)) return true;
   return false;
 }
-
-/* Detect non-answer acknowledgements that shouldn't be accepted as flow answers */
 function isAcknowledgement(text) {
   const t = text.trim().toLowerCase().replace(/[!.,]+$/,"");
   const acks = ["ok","okay","got it","sure","thanks","thank you","i see","yeah","yes","yep","alright","cool","nice","great","good","right","understood","i get it","i understand","fine","noted","aha","ah","oh"];
   return acks.includes(t) || t.length < 3;
 }
-
-/* Detect confirmation intent — user wants to proceed/continue */
 function isConfirmation(text) {
   const t = text.trim().toLowerCase().replace(/[!.,]+$/,"");
   return /^(yes|yeah|yep|sure|ok|okay|go|let'?s? (go|do it|do this|move|continue|proceed|start)|do it|go ahead|continue|move (on|forward)|next|proceed|let'?s? move|what'?s? next|ready|i'?m? ready|build|generate|sounds good|perfect|let'?s?)$/i.test(t);
@@ -263,7 +312,6 @@ const QM=({text})=>{const[s,ss]=useState(false);const r=useRef(null);return<span
 
 /* ═══ FIX #2: Loading bar that waits for API ═══ */
 const LB=({step,total,text,waiting})=>{
-  /* If waiting=true, we're on the last step and the bar stays at ~95% */
   const p = waiting ? Math.min(((step+1)/total)*100, 95) : ((step+1)/total)*100;
   return<div style={{padding:"14px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
     <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
@@ -282,7 +330,6 @@ const BB=({children})=><div style={{display:"flex",flexDirection:"column",alignI
 const UB=({children,n})=><div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",maxWidth:"80%",alignSelf:"flex-end"}}><div style={{marginBottom:3,marginRight:2}}><UA n={n}/></div><div style={{padding:"8px 14px",borderRadius:"12px 4px 12px 12px",background:C.accent,fontSize:13,color:"#fff"}}>{children}</div></div>;
 const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 const HP=({text,onClick,disabled:d})=><span onClick={d?undefined:onClick} style={{padding:"5px 12px",borderRadius:8,background:d?"rgba(21,20,21,0.02)":"rgba(21,20,21,0.03)",color:d?"rgba(21,20,21,0.2)":"#B8B5BB",fontSize:11,cursor:d?"default":"pointer",border:"1px solid transparent",fontFamily:"'DM Sans',sans-serif",pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!d){e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}}} onMouseLeave={e=>{if(!d){e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}}>{text}</span>;
-/* FIX #5: HE = non-clickable hint (grey, no pointer) */
 const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif",cursor:"default",pointerEvents:"none"}}>{text}</span>;
 const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
 
@@ -335,7 +382,7 @@ const[kwFlowType,sKwFlowType]=useState(null);
 const[adjustUsed,sAdjustUsed]=useState(false);
 const cr=useRef(null);const inpRef=useRef(null);
 const prevMsgCount=useRef(0);
-const loadingResolveRef=useRef(null); /* FIX #2: ref to resolve loading when API done */
+const loadingResolveRef=useRef(null);
 const scrollChat=useCallback(()=>{if(cr.current)cr.current.scrollTop=cr.current.scrollHeight;},[]);
 useEffect(()=>{if(msgs.length>prevMsgCount.current)setTimeout(scrollChat,50);prevMsgCount.current=msgs.length;},[msgs.length]);
 useEffect(()=>{if(typ)setTimeout(scrollChat,50);},[typ]);
@@ -344,9 +391,6 @@ const add=useCallback((f,c)=>{sMsgs(p=>[...p,{f,c,id:Date.now()+Math.random()}])
 const bot=useCallback((c,dl=800)=>{sTyp(true);return new Promise(r=>{setTimeout(()=>{sTyp(false);add("b",c);r();},dl);});},[add]);
 const botInstant=useCallback((c)=>{sTyp(false);add("b",c);},[add]);
 
-/* ═══ FIX #2: Loading bar that waits for API ═══
-   Steps show on timer up to the LAST step. Last step stays (waiting=true)
-   until stopLoading() is called. */
 const startLoading=useCallback((steps)=>{
   sLst(steps);sLs(0);sLsWaiting(false);
   return new Promise(resolve=>{
@@ -355,7 +399,6 @@ const startLoading=useCallback((steps)=>{
     const iv=setInterval(()=>{
       i++;
       if(i>=steps.length-1){
-        /* Stay on last step — waiting for API */
         clearInterval(iv);
         sLs(steps.length-1);
         sLsWaiting(true);
@@ -372,7 +415,7 @@ const stopLoading=useCallback(()=>{
 
 const mk=id=>sDn(p=>({...p,[id]:true}));
 
-/* ═══ AI CHAT ═══ */
+/* ═══ AI CHAT (plain text answer, used as fallback) ═══ */
 const handleAiChat=useCallback(async(text)=>{
   sTyp(true);
   const ctx=buildStepContext(step,ans,kwData,stit,bd);
@@ -392,7 +435,7 @@ useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{
 /* ═══ ENTRY CHOICE ═══ */
 const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){sKwFlowType("find");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.page_type.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("pt",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me choose the right structure. Or type your own.</div></div>).then(()=>sStep("pt"));},300);}else{sKwFlowType("own");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><div style={{color:C.muted,fontSize:12}}>e.g. coffee shop Berlin, best espresso near me</div></div>).then(()=>sStep("ok"));},300);}};
 
-/* ═══ ANSWER HANDLER (flow steps) ═══ */
+/* ═══ ANSWER HANDLER (flow steps) — UNCHANGED from v21 ═══ */
 const hAns=(sid,val)=>{
 mk(sid);add("u",val);sAns(p=>({...p,[sid]:val}));
 
@@ -400,7 +443,6 @@ if(sid==="pt"){
   const cfg=getPageConfig(val);
   if(cfg){
     sStep("ptx");
-    /* FIX #5 & #9: ptx hints are HE (non-clickable), not HP */
     bot(<div><div style={{marginBottom:6}}>{cfg.extraQ}</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{cfg.hints.map((h,i)=><HE key={i} text={h}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me write better content for your specific page.</div></div>);
   } else {
     sStep("pd");
@@ -408,7 +450,6 @@ if(sid==="pt"){
   }
 }
 else if(sid==="ptx"){
-  /* If ptx answer is substantial, offer to skip pd */
   if(val.length>15){
     sStep("pd");
     bot(<div><div style={{marginBottom:6}}>Got it! Anything else to describe about your page, or should I use what you shared to find keywords?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HP text="That's enough, find keywords" onClick={()=>{sAns(p=>({...p,pd:val}));hAns("pd",val);}}/></div><div style={{color:C.muted,fontSize:12}}>Or type more details below.</div></div>);
@@ -418,11 +459,9 @@ else if(sid==="ptx"){
   }
 }
 else if(sid==="pd"||sid==="ok"){
-  /* === KEYWORDS: GPT generate_keywords → DFS content_builder → merge === */
   sStep("kl");
-  /* FIX #1 & #2: wrap all async in try/catch, loading waits for API */
   startLoading(LKW);
-  sTyp(true); /* show typing indicator in parallel */
+  sTyp(true);
   (async()=>{
     try {
       let rawKeywords=[];
@@ -520,15 +559,12 @@ else if(sid==="gl"){
   bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your audience, where are they, and how should it sound?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.audience.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("au",h)}/>)}</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HP text="US market" onClick={()=>hAns("au","US market, English")}/><HP text="UK market" onClick={()=>hAns("au","UK market, English")}/><HP text="Global / English" onClick={()=>hAns("au","Global audience, English")}/></div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{color:C.muted,fontSize:12}}>Include your target country if specific. This affects keyword data.</div><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
 }
 else if(sid==="au"){
-  /* === TITLES: GPT generate_titles === */
   sStep("tl");
-  /* FIX #1 & #2 & #3: try/catch + wait-for-API loading + explicit keywords array */
   startLoading(["Generating titles...","Applying keyword rules..."]);
   sTyp(true);
   (async()=>{
     try {
       const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
-      /* FIX #3: pass keywords as explicit array of strings */
       const gptRes=await callGPT("generate_titles",{
         keywords:selKw,
         page_type:ans.pt||"",
@@ -593,7 +629,6 @@ const kwD=(enrichedKwOverride,extrasOverride)=>{
 };
 
 /* ═══ GENERATE STRUCTURE ═══ */
-/* FIX #1: entire gStr wrapped in try/catch */
 const gStr=async()=>{
   mk("cf");sStep("sl");
   window.scrollTo({top:0,behavior:"smooth"});
@@ -622,7 +657,6 @@ const gStr=async()=>{
 
     let briefData;
     if(gptRes&&(gptRes.title||gptRes.sections)){
-      /* FIX #7: titleKw = ALL selected keywords that appear in title text (case-insensitive) */
       const titleText=(gptRes.title||stit||"").toLowerCase();
       const titleKw=kwWithData.filter(k=>titleText.includes(k.keyword.toLowerCase())).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
       const descText=(gptRes.description||gptRes.meta_description||"").toLowerCase();
@@ -682,7 +716,6 @@ const gStr=async()=>{
 };
 
 /* ═══ GENERATE CONTENT ═══ */
-/* FIX #1: entire gCnt wrapped in try/catch */
 const gCnt=async()=>{
   sStep("cl");
   add("b",<div style={{color:C.muted,fontSize:12}}>Generating full page content...</div>);
@@ -711,7 +744,6 @@ const gCnt=async()=>{
     }
 
     sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);sStep("cr");
-    /* Credit tracking: increment builder_used */
     try { const msId=window.__memberId||window._msData?.id; trackBuilderUsage(msId); } catch(e) { console.log("[CB] credit track skip:", e); }
     if(isMobile)sMTab("panel");
     bot(<div>
@@ -769,247 +801,272 @@ const handleTweak=async(text)=>{
   }
 };
 
+/* ═══ KEYWORD ADJUST (shared helper for ka step + inline modify) ═══ */
+const doKeywordAdjust=async(adjustText)=>{
+  sStep("kl");
+  sTyp(true);
+  try {
+    const gptRes=await callGPT("generate_keywords",{
+      page_type:ans.pt||"",
+      page_description:ans.pd||"",
+      page_type_details:ans.ptx||"",
+      adjustment:adjustText,
+      previous_keywords:kwData.map(k=>k.keyword)
+    });
+    let newRaw=[];
+    if(gptRes){
+      newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
+    }
+    if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
+    const locCode=parseLocationCode(ans.au||"");
+    const dfsData=await callDFS(newRaw.slice(0,5),locCode);
+    let enriched=[];
+    const metrics2=dfsData?.keyword_metrics||[];
+    const sug2=dfsData?.suggestions||[];
+    const lookup2=new Map();
+    metrics2.forEach(m=>{if(m?.keyword)lookup2.set(m.keyword.toLowerCase(),m);});
+    sug2.forEach(s=>{if(s?.keyword&&!lookup2.has(s.keyword.toLowerCase()))lookup2.set(s.keyword.toLowerCase(),s);});
+    const gV2=m=>(m?.search_volume??m?.volume??null);
+    const gK2=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
+    const maxV2=Math.max(...[...lookup2.values()].map(m=>gV2(m)||0),1);
+    if(lookup2.size>0){
+      enriched=newRaw.map(kw=>{const match=lookup2.get(kw.toLowerCase());return{keyword:kw,volume:gV2(match),kd:gK2(match),freq:assignFreq(gV2(match)||0,maxV2)};});
+    } else {
+      enriched=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
+    }
+    let adjustExtras=dfsExtraRef.current;
+    if(dfsData){
+      const normArr2=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
+      adjustExtras={suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")};
+      sDfsExtra(adjustExtras);
+      dfsExtraRef.current=adjustExtras;
+    }
+    sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
+    add("b",<div>
+      <div style={{marginBottom:6}}>Keywords updated! Here's the new list.</div>
+      <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched,adjustExtras);}} onAdj={()=>{bot("You've already adjusted keywords. Select from the list and click 'Build With These'.");}}/>
+    </div>);
+  } catch(err) {
+    console.error("[CB] keyword adjust error:", err);
+    sTyp(false);
+    bot("Something went wrong adjusting keywords. Try again.");
+    sStep("kw");
+  }
+};
+
+/* ═══ HANDLE LENGTH CHANGE (shared for sr and cr steps) ═══ */
+const handleLengthChange=(words)=>{
+  const cfg=getPageConfig(ans.pt||"");
+  const absMax=cfg?.maxLen||10000;
+  if(words>absMax){
+    bot(`The maximum for this page type is about ${absMax} words. Want me to set it to ${absMax}?`);
+    return;
+  }
+  if(bd){
+    const updatedBd={...bd,contentLength:`~${words} words`};
+    const updatedRecs=(updatedBd.recs||[]).map(r=>r.key==="Length"?{...r,value:`${words} words`}:r);
+    updatedBd.recs=updatedRecs;
+    sBd(updatedBd);
+  }
+  if(step==="cr"){
+    handleTweak(`Rewrite the full content to be approximately ${words} words. Keep the same structure and keywords.`);
+  } else {
+    bot(`Updated to ~${words} words. Click "Generate Content" when ready.`);
+  }
+};
+
+/* ═══ STEP REMINDERS ═══ */
+const STEP_REMINDERS={
+  pt:"What type of page are you working on? (Product, Service, Blog, About, Landing, Category)",
+  ptx:"Can you share details about your page? It helps me write better content.",
+  pd:"Describe your page briefly so I can find the right keywords.",
+  gl:"What should this page achieve? (Sell, Explain, Build trust)",
+  au:"Who is your audience and what market? (e.g. Young people, US market)",
+  ti:"Which title do you want? Pick one above or type your own.",
+  me:"Any brand details to add, or click 'Nothing special to add' to continue."
+};
+
 /* ═══ RESET ═══ */
 const reset=()=>{
   sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);sStit(null);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sLsWaiting(false);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
   setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);
 };
 
-/* ═══ SEND (main input handler) ═══ */
+/* ═══════════════════════════════════════════════════════════
+   SEND — v22 Chat Router (replaces all regex intent detection)
+   ═══════════════════════════════════════════════════════════ */
 const send=()=>{
   const el=inpRef.current;if(!el||!el.value.trim())return;
   const t=el.value.trim();el.value="";
+  add("u",t);
 
-  if(isQuestion(t)){
-    add("u",t);
-    handleAiChat(t);
+  /* Steps that don't go through router */
+  if(step==="ec") { /* entry choice — buttons only, but handle typed input */
+    const tl=t.toLowerCase();
+    if(/\b(find|search|suggest|get)\b/i.test(tl)) { hEntry("Find Keywords"); return; }
+    if(/\b(my|own|have|paste|use)\b/i.test(tl)) { hEntry("Use My Keywords"); return; }
+    /* Default: treat as keywords if has commas, else find */
+    if(t.includes(",")) { hEntry("Use My Keywords"); return; }
+    hEntry("Find Keywords");
     return;
   }
 
-  /* FIX #6: acknowledgements on flow steps → remind */
-  if(isAcknowledgement(t)&&["pt","ptx","pd","gl","au","ti","me"].includes(step)){
-    add("u",t);
-    const reminders={
-      pt:"Got it! So what type of page are you working on? (Product, Service, Blog, About, Landing, Category)",
-      ptx:"Noted! Can you share those details about your page? It helps me write better content.",
-      pd:"Sure! Now describe your page briefly so I can find the right keywords.",
-      gl:"Alright! What should this page achieve? (Sell, Explain, Build trust)",
-      au:"Got it! Who is your audience and what market? (e.g. Young people, US market)",
-      ti:"Sounds good! Which title do you want to go with? Pick one above or type your own.",
-      me:"Noted! Any brand details to add, or click 'Nothing special to add' to continue."
-    };
-    bot(reminders[step]||"Got it! Please answer the current question to continue.");
-    return;
-  }
-
-  if(["pt","ptx","gl","au","me"].includes(step)){
-    hAns(step,t);
-  }else if(step==="pd"){
-    /* If user says no/nope/nothing and we have ptx data, use ptx as description */
-    const isNegative=/^(no|nope|nothing|nah|not really|none|skip|n\/a|na)$/i.test(t.replace(/[!.,]+$/,"").trim());
-    if(isNegative&&ans.ptx&&ans.ptx.length>10){
-      hAns("pd",ans.ptx);
-    } else if(isNegative){
-      add("u",t);
-      bot("I need at least a brief description to find the right keywords. What is your page about?");
-    } else {
-      hAns("pd",t);
-    }
-  }else if(step==="ok"){
+  if(step==="ok") { /* own keywords paste — always treat as keyword input */
     hAns("ok",t);
-  }else if(step==="ka"){
-    add("u",t);
-    sStep("kl");
-    sTyp(true);
-    /* FIX #1: try/catch around keyword adjust async */
-    (async()=>{
-      try {
-        const gptRes=await callGPT("generate_keywords",{
-          page_type:ans.pt||"",
-          page_description:ans.pd||"",
-          page_type_details:ans.ptx||"",
-          adjustment:t,
-          previous_keywords:kwData.map(k=>k.keyword)
-        });
-        let newRaw=[];
-        if(gptRes){
-          newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
-        }
-        if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
-        const locCode=parseLocationCode(ans.au||"");
-        const dfsData=await callDFS(newRaw.slice(0,5),locCode);
-        let enriched=[];
-        const metrics2=dfsData?.keyword_metrics||[];
-        const sug2=dfsData?.suggestions||[];
-        const lookup2=new Map();
-        metrics2.forEach(m=>{if(m?.keyword)lookup2.set(m.keyword.toLowerCase(),m);});
-        sug2.forEach(s=>{if(s?.keyword&&!lookup2.has(s.keyword.toLowerCase()))lookup2.set(s.keyword.toLowerCase(),s);});
-        const gV2=m=>(m?.search_volume??m?.volume??null);
-        const gK2=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
-        const maxV2=Math.max(...[...lookup2.values()].map(m=>gV2(m)||0),1);
-        if(lookup2.size>0){
-          enriched=newRaw.map(kw=>{const match=lookup2.get(kw.toLowerCase());return{keyword:kw,volume:gV2(match),kd:gK2(match),freq:assignFreq(gV2(match)||0,maxV2)};});
-        } else {
-          enriched=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
-        }
-        let adjustExtras=dfsExtra;
-        if(dfsData){
-          const normArr2=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
-          adjustExtras={suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")};
-          sDfsExtra(adjustExtras);
-          dfsExtraRef.current=adjustExtras;
-        }
-        sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
-        add("b",<div>
-          <div style={{marginBottom:6}}>Keywords adjusted! Here's the updated list.</div>
-          <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched,adjustExtras);}} onAdj={()=>{bot("You've already used your keyword adjustment. You can ask me questions about the keywords instead.");}}/>
-        </div>);
-      } catch(err) {
-        console.error("[CB] keyword adjust error:", err);
-        sTyp(false);
-        bot("Something went wrong adjusting keywords. Try again.");
-      }
-    })();
-  }else if(step==="sr"){
-    /* FIX #13: parse content length from chat on structure step */
-    add("u",t);
-    const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
-    if(lenMatch){
-      const requested=parseInt(lenMatch[1]);
-      const cfg=getPageConfig(ans.pt||"");
-      const absMax=cfg?.maxLen||10000;
-      if(requested>absMax){
-        bot(`The maximum for this page type is about ${absMax} words. Want me to set it to ${absMax}?`);
-      } else {
-        if(bd){
-          const updatedBd={...bd,contentLength:`~${requested} words`};
-          const updatedRecs=(updatedBd.recs||[]).map(r=>r.key==="Length"?{...r,value:`${requested} words`}:r);
-          updatedBd.recs=updatedRecs;
-          sBd(updatedBd);
-          bot(`Updated to ~${requested} words. I'll generate content at this length. Click "Generate Content" when ready.`);
-        }
-      }
-    } else {
-      handleAiChat(t);
-    }
-  }else if(step==="cr"){
-    add("u",t);
-    /* Catch content length change requests on content step */
-    const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
-    if(lenMatch){
-      const requested=parseInt(lenMatch[1]);
-      const cfg=getPageConfig(ans.pt||"");
-      const absMax=cfg?.maxLen||10000;
-      if(requested>absMax){
-        bot(`The maximum for this page type is about ${absMax} words. Want me to set it to ${absMax}?`);
-      } else {
-        /* Update brief data + trigger tweak with length instruction */
-        if(bd){
-          const updatedBd={...bd,contentLength:`~${requested} words`};
-          const updatedRecs=(updatedBd.recs||[]).map(r=>r.key==="Length"?{...r,value:`${requested} words`}:r);
-          updatedBd.recs=updatedRecs;
-          sBd(updatedBd);
-        }
-        handleTweak(`Rewrite the full content to be approximately ${requested} words. Keep the same structure and keywords.`);
-      }
-    } else {
-      handleTweak(t);
-    }
-  }else if(step==="kw"){
-    /* On keyword selector step: confirmation → fresh KwS; keyword modify → adjust; question → chat */
-    add("u",t);
-    const isKeywordModify=/\b(add|remove|change|replace|include|exclude|swap|drop|use|want|need|put|insert|добавь|убери|замени|включи)\b/i.test(t)&&!isQuestion(t);
-    if(isConfirmation(t)){
-      /* Variant B: render fresh KwS so user can review/update selection, then proceed */
-      bot(<div>
-        <div style={{marginBottom:6}}>Great! Review your keyword selection and click "Build With These" to continue.</div>
-        <KwS keywords={kwData} init={skw} onDone={s=>{sSkw(s);kwD(kwData);}} onAdj={()=>{
-          if(kwFlowType==="own"||adjustUsed){
-            bot("You can adjust keywords once per session with 'Find Keywords' flow. Type your changes or ask me for help.");
-            return;
-          }
-          sAdjustUsed(true);
-          sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
-        }}/>
-      </div>);
-    } else if(isKeywordModify){
-      /* User wants to modify keywords — trigger adjust flow */
-      if(kwFlowType==="own"||adjustUsed){
-        bot("You can adjust keywords once per session. Try selecting different ones from the list above, or click 'Build With These' to continue.");
-      } else {
-        sAdjustUsed(true);
-        sStep("ka");
-        /* Pass user's request directly to keyword adjust GPT */
-        sTyp(true);
-        (async()=>{
-          try {
-            const gptRes=await callGPT("generate_keywords",{
-              page_type:ans.pt||"",
-              page_description:ans.pd||"",
-              page_type_details:ans.ptx||"",
-              adjustment:t,
-              previous_keywords:kwData.map(k=>k.keyword)
-            });
-            let newRaw=[];
-            if(gptRes){
-              newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
-            }
-            if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
-            const locCode=parseLocationCode(ans.au||"");
-            const dfsData2=await callDFS(newRaw.slice(0,5),locCode);
-            let enriched2=[];
-            const metrics3=dfsData2?.keyword_metrics||[];
-            const sug3=dfsData2?.suggestions||[];
-            const lookup3=new Map();
-            metrics3.forEach(m=>{if(m?.keyword)lookup3.set(m.keyword.toLowerCase(),m);});
-            sug3.forEach(s=>{if(s?.keyword&&!lookup3.has(s.keyword.toLowerCase()))lookup3.set(s.keyword.toLowerCase(),s);});
-            const gV3=m=>(m?.search_volume??m?.volume??null);
-            const gK3=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
-            const maxV3=Math.max(...[...lookup3.values()].map(m=>gV3(m)||0),1);
-            if(lookup3.size>0){
-              enriched2=newRaw.map(kw=>{const match=lookup3.get(kw.toLowerCase());return{keyword:kw,volume:gV3(match),kd:gK3(match),freq:assignFreq(gV3(match)||0,maxV3)};});
-            } else {
-              enriched2=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
-            }
-            let adjustExtras2=dfsExtraRef.current;
-            if(dfsData2){
-              const normArr3=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
-              adjustExtras2={suggestions:dfsData2.suggestions||[],paa:normArr3(dfsData2.people_also_ask,"question"),related:normArr3(dfsData2.related_searches,"title"),autocomplete:normArr3(dfsData2.autocomplete,"suggestion")};
-              sDfsExtra(adjustExtras2);
-              dfsExtraRef.current=adjustExtras2;
-            }
-            sKwData(enriched2);sSkw(enriched2.map(k=>k.keyword));sTyp(false);sStep("kw");
-            add("b",<div>
-              <div style={{marginBottom:6}}>Keywords updated! Here's the new list with your changes.</div>
-              <KwS keywords={enriched2} init={enriched2.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched2,adjustExtras2);}} onAdj={()=>{bot("You've already adjusted keywords. Select from the list and click 'Build With These'.");}}/>
-            </div>);
-          } catch(err) {
-            console.error("[CB] keyword modify error:", err);
-            sTyp(false);
-            bot("Something went wrong adjusting keywords. Try again or click 'Adjust' button.");
-            sStep("kw");
-          }
-        })();
-      }
-    } else {
-      handleAiChat(t);
-    }
-  }else if(step==="ti"){
-    if(isAcknowledgement(t)){
-      add("u",t);
-      bot("Which title do you want? Pick one from the list or type your own.");
-      return;
-    }
-    sStit(t);hAns("ti",t);
-  }else{
-    add("u",t);
-    handleAiChat(t);
+    return;
   }
+
+  if(step==="ka") { /* keyword adjust — always pass text to adjust */
+    sAdjustUsed(true);
+    doKeywordAdjust(t);
+    return;
+  }
+
+  /* ═══ ROUTER: send to GPT for intent classification ═══ */
+  sTyp(true);
+  const ctx=buildStepContext(step,ans,kwData,stit,bd);
+  const history=buildChatHistory(msgs);
+
+  (async()=>{
+    try {
+      const r=await callChatRouter(ctx,history,t);
+      sTyp(false);
+      const action=r.action||"answer";
+      console.log("[CB] Router dispatch:", action, "step:", step);
+
+      switch(action){
+
+        case "flow_answer": {
+          /* GPT recognized this as a real answer to the current flow question */
+          const ansText=r.text||t;
+          if(["pt","ptx","pd","gl","au","me"].includes(step)){
+            hAns(step,ansText);
+          } else if(step==="ti"){
+            sStit(ansText);hAns("ti",ansText);
+          } else {
+            /* Not on a flow step — show as chat */
+            add("b",ansText);
+          }
+          break;
+        }
+
+        case "proceed": {
+          /* User wants to move forward */
+          if(step==="kw"){
+            /* Proceed from keywords → show fresh KwS to confirm */
+            bot(<div>
+              <div style={{marginBottom:6}}>Review your keyword selection and click "Build With These" to continue.</div>
+              <KwS keywords={kwData} init={skw} onDone={s=>{sSkw(s);kwD(kwData);}} onAdj={()=>{
+                if(kwFlowType==="own"||adjustUsed){
+                  bot("You can adjust keywords once per session. Select from the list.");
+                  return;
+                }
+                sAdjustUsed(true);
+                sStep("ka");bot("What would you like to change?");
+              }}/>
+            </div>);
+          } else if(step==="sr"){
+            gCnt();
+          } else if(step==="cf"){
+            gStr();
+          } else if(["pt","ptx","pd","gl","au","ti","me"].includes(step)){
+            /* Can't proceed without answering — remind */
+            bot(STEP_REMINDERS[step]||"Please answer the current question to continue.");
+          } else {
+            bot("What would you like to do next?");
+          }
+          break;
+        }
+
+        case "adjust_keywords": {
+          if(step==="kw"||step==="sr"){
+            if(kwFlowType==="own"||adjustUsed){
+              bot("You can adjust keywords once per session. Select from the list or ask me questions.");
+            } else {
+              sAdjustUsed(true);
+              doKeywordAdjust(r.adjustment||t);
+            }
+          } else {
+            bot(r.text||"You can adjust keywords during the keyword selection step.");
+          }
+          break;
+        }
+
+        case "set_length": {
+          const words=r.words||parseInt((t.match(/(\d{3,5})/)||[])[1]);
+          if(words&&(step==="sr"||step==="cr")){
+            handleLengthChange(words);
+          } else if(words){
+            bot(`I'll set the length to ~${words} words when we get to the structure step.`);
+            sAns(p=>({...p,requestedLen:words}));
+          } else {
+            bot("How many words would you like? Tell me a number, e.g. 1500 words.");
+          }
+          break;
+        }
+
+        case "select_title": {
+          if(step==="ti"){
+            const title=r.title||t;
+            sStit(title);hAns("ti",title);
+          } else {
+            bot(r.text||"You can select a title during the title selection step.");
+          }
+          break;
+        }
+
+        case "remind_question": {
+          /* User acknowledged but didn't answer */
+          bot(STEP_REMINDERS[step]||"Got it! Please answer the current question to continue.");
+          break;
+        }
+
+        case "nope": {
+          /* User says no/nothing/skip */
+          if(step==="pd"&&ans.ptx&&ans.ptx.length>10){
+            /* Use ptx as pd fallback */
+            hAns("pd",ans.ptx);
+          } else if(step==="me"){
+            hAns("me","Nothing special to add");
+          } else if(step==="pd"){
+            bot("I need at least a brief description to find the right keywords. What is your page about?");
+          } else {
+            bot("No problem! " + (STEP_REMINDERS[step]||"What would you like to do?"));
+          }
+          break;
+        }
+
+        case "answer":
+        default: {
+          /* GPT answered the question directly */
+          const text=r.text||"I'm not sure how to help with that. Try rephrasing.";
+          if(step==="cr"){
+            /* On content step, check if it's actually a tweak request GPT misclassified */
+            handleTweak(t);
+          } else if(step==="sr"){
+            /* On structure step, check for length in answer */
+            const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
+            if(lenMatch){
+              handleLengthChange(parseInt(lenMatch[1]));
+            } else {
+              add("b",typeof text==="string"?text:"I couldn't process that.");
+            }
+          } else {
+            add("b",typeof text==="string"?text:"I couldn't process that.");
+          }
+          break;
+        }
+      }
+    } catch(err) {
+      console.error("[CB] Router error:", err);
+      sTyp(false);
+      add("b","Sorry, something went wrong. Try again.");
+    }
+  })();
 };
 
 /* ═══ RENDER ═══ */
 const lastBotIdx=msgs.reduce((acc,m,i)=>m.f==="b"?i:acc,-1);
-/* FIX #4: cb-past-msg excludes .bot-tip-expand from pointer-events:none */
 const chatMessages=<React.Fragment><style>{`.cb-past-msg{pointer-events:none!important;opacity:0.8}.cb-past-msg *{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}</React.Fragment>;
 
 const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd} kwData={kwData}/></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={contentHtml} d={bd} kwData={kwData}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
