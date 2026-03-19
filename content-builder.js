@@ -436,8 +436,8 @@ useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{
 const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){sKwFlowType("find");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.page_type.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("pt",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me choose the right structure. Or type your own.</div></div>).then(()=>sStep("pt"));},300);}else{sKwFlowType("own");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><div style={{color:C.muted,fontSize:12}}>e.g. coffee shop Berlin, best espresso near me</div></div>).then(()=>sStep("ok"));},300);}};
 
 /* ═══ ANSWER HANDLER (flow steps) — UNCHANGED from v21 ═══ */
-const hAns=(sid,val)=>{
-mk(sid);add("u",val);sAns(p=>({...p,[sid]:val}));
+const hAns=(sid,val,skipAdd)=>{
+mk(sid);if(!skipAdd)add("u",val);sAns(p=>({...p,[sid]:val}));
 
 if(sid==="pt"){
   const cfg=getPageConfig(val);
@@ -898,14 +898,14 @@ const reset=()=>{
 const send=()=>{
   const el=inpRef.current;if(!el||!el.value.trim())return;
   const t=el.value.trim();el.value="";
-  add("u",t);
+  /* NOTE: do NOT add("u",t) here — hAns/hEntry already call add("u") internally.
+     Only add("u",t) in cases where we don't call hAns/hEntry. */
 
   /* Steps that don't go through router */
   if(step==="ec") { /* entry choice — buttons only, but handle typed input */
     const tl=t.toLowerCase();
     if(/\b(find|search|suggest|get)\b/i.test(tl)) { hEntry("Find Keywords"); return; }
     if(/\b(my|own|have|paste|use)\b/i.test(tl)) { hEntry("Use My Keywords"); return; }
-    /* Default: treat as keywords if has commas, else find */
     if(t.includes(",")) { hEntry("Use My Keywords"); return; }
     hEntry("Find Keywords");
     return;
@@ -917,12 +917,14 @@ const send=()=>{
   }
 
   if(step==="ka") { /* keyword adjust — always pass text to adjust */
+    add("u",t); /* ka doesn't go through hAns, so add manually */
     sAdjustUsed(true);
     doKeywordAdjust(t);
     return;
   }
 
   /* ═══ ROUTER: send to GPT for intent classification ═══ */
+  add("u",t); /* show user bubble once — hAns calls below use skipAdd=true */
   sTyp(true);
   const ctx=buildStepContext(step,ans,kwData,stit,bd);
   const history=buildChatHistory(msgs);
@@ -940,9 +942,9 @@ const send=()=>{
           /* GPT recognized this as a real answer to the current flow question */
           const ansText=r.text||t;
           if(["pt","ptx","pd","gl","au","me"].includes(step)){
-            hAns(step,ansText);
+            hAns(step,ansText,true);
           } else if(step==="ti"){
-            sStit(ansText);hAns("ti",ansText);
+            sStit(ansText);hAns("ti",ansText,true);
           } else {
             /* Not on a flow step — show as chat */
             add("b",ansText);
@@ -1008,7 +1010,7 @@ const send=()=>{
         case "select_title": {
           if(step==="ti"){
             const title=r.title||t;
-            sStit(title);hAns("ti",title);
+            sStit(title);hAns("ti",title,true);
           } else {
             bot(r.text||"You can select a title during the title selection step.");
           }
@@ -1025,9 +1027,9 @@ const send=()=>{
           /* User says no/nothing/skip */
           if(step==="pd"&&ans.ptx&&ans.ptx.length>10){
             /* Use ptx as pd fallback */
-            hAns("pd",ans.ptx);
+            hAns("pd",ans.ptx,true);
           } else if(step==="me"){
-            hAns("me","Nothing special to add");
+            hAns("me","Nothing special to add",true);
           } else if(step==="pd"){
             bot("I need at least a brief description to find the right keywords. What is your page about?");
           } else {
