@@ -360,8 +360,14 @@ if(sid==="pt"){
   }
 }
 else if(sid==="ptx"){
-  sStep("pd");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);
+  /* If ptx answer is substantial, offer to skip pd */
+  if(val.length>15){
+    sStep("pd");
+    bot(<div><div style={{marginBottom:6}}>Got it! Anything else to describe about your page, or should I use what you shared to find keywords?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HP text="That's enough, find keywords" onClick={()=>{sAns(p=>({...p,pd:val}));hAns("pd",val);}}/></div><div style={{color:C.muted,fontSize:12}}>Or type more details below.</div></div>);
+  } else {
+    sStep("pd");
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);
+  }
 }
 else if(sid==="pd"||sid==="ok"){
   /* === KEYWORDS: GPT generate_keywords → DFS content_builder → merge === */
@@ -587,9 +593,9 @@ const gStr=async()=>{
           kwNote:s.kwNote||s.keyword_note||null,
           visuals:s.visuals||[]
         })):[],
-        related:dfsExtra.related?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
-        paa:dfsExtra.paa?.map(q=>typeof q==="string"?q:q.question||String(q))||[],
-        autocomplete:dfsExtra.autocomplete?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
+        related:[...new Set([...(dfsExtra.related||[]).map(s=>typeof s==="string"?s:s.keyword||String(s)),...(Array.isArray(gptRes.related)?gptRes.related:[])])],
+        paa:[...new Set([...(dfsExtra.paa||[]).map(q=>typeof q==="string"?q:q.question||String(q)),...(Array.isArray(gptRes.paa)?gptRes.paa:[])])],
+        autocomplete:[...new Set([...(dfsExtra.autocomplete||[]).map(s=>typeof s==="string"?s:s.keyword||String(s)),...(Array.isArray(gptRes.autocomplete)?gptRes.autocomplete:[])])],
         contentLength:gptRes.content_length||defaultLen
       };
     } else {
@@ -819,12 +825,43 @@ const send=()=>{
     }
   }else if(step==="cr"){
     add("u",t);
-    handleTweak(t);
+    /* Catch content length change requests on content step */
+    const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
+    if(lenMatch){
+      const requested=parseInt(lenMatch[1]);
+      const cfg=getPageConfig(ans.pt||"");
+      const absMax=cfg?.maxLen||10000;
+      if(requested>absMax){
+        bot(`The maximum for this page type is about ${absMax} words. Want me to set it to ${absMax}?`);
+      } else {
+        /* Update brief data + trigger tweak with length instruction */
+        if(bd){
+          const updatedBd={...bd,contentLength:`~${requested} words`};
+          const updatedRecs=(updatedBd.recs||[]).map(r=>r.key==="Length"?{...r,value:`${requested} words`}:r);
+          updatedBd.recs=updatedRecs;
+          sBd(updatedBd);
+        }
+        handleTweak(`Rewrite the full content to be approximately ${requested} words. Keep the same structure and keywords.`);
+      }
+    } else {
+      handleTweak(t);
+    }
   }else if(step==="kw"){
-    /* On keyword selector step: confirmation → proceed; question → chat; else → chat */
+    /* On keyword selector step: confirmation → show fresh KwS; question → chat; else → chat */
     add("u",t);
     if(isConfirmation(t)){
-      kwD(kwData);
+      /* Variant B: render fresh KwS so user can review/update selection, then proceed */
+      bot(<div>
+        <div style={{marginBottom:6}}>Great! Review your keyword selection and click "Build With These" to continue.</div>
+        <KwS keywords={kwData} init={skw} onDone={s=>{sSkw(s);kwD(kwData);}} onAdj={()=>{
+          if(kwFlowType==="own"||adjustUsed){
+            bot("You can adjust keywords once per session with 'Find Keywords' flow. Type your changes or ask me for help.");
+            return;
+          }
+          sAdjustUsed(true);
+          sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
+        }}/>
+      </div>);
     } else {
       handleAiChat(t);
     }
@@ -861,7 +898,7 @@ return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexD
 </div>}
 {(rp==="br"||rp==="ct")&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:isMobile?"8px 12px 16px":"8px 24px 16px",maxWidth:isMobile?"100%":1224,margin:"0 auto",width:"100%",alignItems:"center"}}>
 {rp==="br"&&<button onClick={gCnt} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Generate Content</button>}
-{rp==="ct"&&<button onClick={reset} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>New Content</button>}
+{rp==="ct"&&<button onClick={reset} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Start New Page</button>}
 <button style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF</button>
 {!isMobile&&<button onClick={onHome} style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}>Try Other Tools</button>}
 </div>}
