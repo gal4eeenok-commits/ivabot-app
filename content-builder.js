@@ -429,12 +429,14 @@ else if(sid==="pd"||sid==="ok"){
       }
 
       const normArr=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
-      sDfsExtra({
+      const dfsExtraData={
         suggestions:dfsData?.suggestions||[],
         paa:normArr(dfsData?.people_also_ask,"question"),
         related:normArr(dfsData?.related_searches,"title"),
         autocomplete:normArr(dfsData?.autocomplete,"suggestion")
-      });
+      };
+      console.log("[CB] DFS extras:", JSON.stringify({paa:dfsExtraData.paa.length,related:dfsExtraData.related.length,autocomplete:dfsExtraData.autocomplete.length,raw_keys:Object.keys(dfsData||{})}));
+      sDfsExtra(dfsExtraData);
 
       sKwData(enrichedKw);
       const init=enrichedKw.map(k=>k.keyword);
@@ -525,10 +527,12 @@ else if(sid==="me"){
 /* ═══ KEYWORD DONE → show extras + ask goal ═══ */
 const kwD=(enrichedKwOverride)=>{
   const extra=dfsExtra;
+  console.log("[CB] kwD dfsExtra:", JSON.stringify({related:extra.related?.length||0,paa:extra.paa?.length||0,autocomplete:extra.autocomplete?.length||0}));
   mk("kw");
+  const hasExtras=extra.related?.length>0||extra.paa?.length>0||extra.autocomplete?.length>0;
   bot(<div>
-    <div style={{marginBottom:6}}>Great keywords! {extra.related?.length>0||extra.paa?.length>0?"I also found additional search phrases from Google.":"Let's continue."}</div>
-    {(extra.related?.length>0||extra.paa?.length>0||extra.autocomplete?.length>0)&&<BotTip short="See related searches, questions, and autocomplete suggestions."><div>
+    <div style={{marginBottom:6}}>Great keywords! {hasExtras?"I also found additional search phrases from Google.":"Let's continue."}</div>
+    {hasExtras&&<BotTip short="See related searches, questions, and autocomplete suggestions."><div>
       {extra.related?.length>0&&<><div style={{marginBottom:6}}>Related Searches — use as subtopics or H2 ideas.</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:10}}>{extra.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.04)",color:C.dark,fontSize:11}}>{typeof s==="string"?s:s.keyword||s}</span>)}</div></>}
       {extra.paa?.length>0&&<><div style={{marginBottom:6}}>People Also Ask — great for FAQ.</div><div style={{lineHeight:1.6,marginBottom:10}}>{extra.paa.map((q,i)=><div key={i}>• {typeof q==="string"?q:q.question||q}</div>)}</div></>}
       {extra.autocomplete?.length>0&&<><div style={{marginBottom:6}}>Autocomplete — real search patterns.</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{extra.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.04)",color:C.dark,fontSize:11}}>{typeof s==="string"?s:s.keyword||s}</span>)}</div></>}
