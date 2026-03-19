@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v22 — Chat Router (replaces regex intent detection) */
+/* IvaBot Content Builder v25 — Hybrid: regex flow + GPT router (kw/sr/cr) */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v22 loaded");
+console.log("[IvaBot] content-builder.js v25 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
