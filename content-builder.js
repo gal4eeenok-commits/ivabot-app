@@ -893,16 +893,15 @@ const reset=()=>{
 };
 
 /* ═══════════════════════════════════════════════════════════
-   SEND — v22 Chat Router (replaces all regex intent detection)
+   SEND — v22 hybrid: regex for flow steps, GPT router for kw/sr/cr
    ═══════════════════════════════════════════════════════════ */
 const send=()=>{
   const el=inpRef.current;if(!el||!el.value.trim())return;
   const t=el.value.trim();el.value="";
-  /* NOTE: do NOT add("u",t) here — hAns/hEntry already call add("u") internally.
-     Only add("u",t) in cases where we don't call hAns/hEntry. */
 
-  /* Steps that don't go through router */
-  if(step==="ec") { /* entry choice — buttons only, but handle typed input */
+  /* === FLOW STEPS: direct regex handling (proven from v21) === */
+
+  if(step==="ec") {
     const tl=t.toLowerCase();
     if(/\b(find|search|suggest|get)\b/i.test(tl)) { hEntry("Find Keywords"); return; }
     if(/\b(my|own|have|paste|use)\b/i.test(tl)) { hEntry("Use My Keywords"); return; }
@@ -911,20 +910,52 @@ const send=()=>{
     return;
   }
 
-  if(step==="ok") { /* own keywords paste — always treat as keyword input */
-    hAns("ok",t);
-    return;
-  }
+  if(step==="ok") { hAns("ok",t); return; }
 
-  if(step==="ka") { /* keyword adjust — always pass text to adjust */
-    add("u",t); /* ka doesn't go through hAns, so add manually */
+  if(step==="ka") {
+    add("u",t);
     sAdjustUsed(true);
     doKeywordAdjust(t);
     return;
   }
 
-  /* ═══ ROUTER: send to GPT for intent classification ═══ */
-  add("u",t); /* show user bubble once — hAns calls below use skipAdd=true */
+  /* Simple flow steps: pt, ptx, pd, gl, au, me — regex like v21 */
+  if(["pt","ptx","gl","au","me"].includes(step)){
+    if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
+    if(isAcknowledgement(t)){
+      add("u",t);
+      bot(STEP_REMINDERS[step]||"Got it! Please answer the current question to continue.");
+      return;
+    }
+    hAns(step,t);
+    return;
+  }
+
+  if(step==="pd"){
+    if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
+    const isNeg=/^(no|nope|nothing|nah|not really|none|skip|n\/a|na)$/i.test(t.replace(/[!.,]+$/,"").trim());
+    if(isNeg&&ans.ptx&&ans.ptx.length>10){ hAns("pd",ans.ptx); return; }
+    if(isNeg){ add("u",t); bot("I need at least a brief description to find the right keywords. What is your page about?"); return; }
+    if(isAcknowledgement(t)){ add("u",t); bot(STEP_REMINDERS.pd); return; }
+    hAns("pd",t);
+    return;
+  }
+
+  if(step==="ti"){
+    if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
+    if(isAcknowledgement(t)){ add("u",t); bot("Which title do you want? Pick one from the list or type your own."); return; }
+    sStit(t);hAns("ti",t);
+    return;
+  }
+
+  if(step==="cf"){
+    if(isConfirmation(t)){ add("u",t); gStr(); return; }
+    add("u",t); handleAiChat(t);
+    return;
+  }
+
+  /* === AMBIGUOUS STEPS: GPT router for kw, sr, cr === */
+  add("u",t);
   sTyp(true);
   const ctx=buildStepContext(step,ans,kwData,stit,bd);
   const history=buildChatHistory(msgs);
@@ -936,129 +967,71 @@ const send=()=>{
       const action=r.action||"answer";
       console.log("[CB] Router dispatch:", action, "step:", step);
 
-      switch(action){
-
-        case "flow_answer": {
-          /* GPT recognized this as a real answer to the current flow question */
-          const ansText=r.text||t;
-          if(["pt","ptx","pd","gl","au","me"].includes(step)){
-            hAns(step,ansText,true);
-          } else if(step==="ti"){
-            sStit(ansText);hAns("ti",ansText,true);
-          } else {
-            /* Not on a flow step — show as chat */
-            add("b",ansText);
-          }
-          break;
-        }
-
-        case "proceed": {
-          /* User wants to move forward */
-          if(step==="kw"){
-            /* Proceed from keywords → show fresh KwS to confirm */
-            bot(<div>
-              <div style={{marginBottom:6}}>Review your keyword selection and click "Build With These" to continue.</div>
-              <KwS keywords={kwData} init={skw} onDone={s=>{sSkw(s);kwD(kwData);}} onAdj={()=>{
-                if(kwFlowType==="own"||adjustUsed){
-                  bot("You can adjust keywords once per session. Select from the list.");
-                  return;
-                }
-                sAdjustUsed(true);
-                sStep("ka");bot("What would you like to change?");
-              }}/>
-            </div>);
-          } else if(step==="sr"){
-            gCnt();
-          } else if(step==="cf"){
-            gStr();
-          } else if(["pt","ptx","pd","gl","au","ti","me"].includes(step)){
-            /* Can't proceed without answering — remind */
-            bot(STEP_REMINDERS[step]||"Please answer the current question to continue.");
-          } else {
-            bot("What would you like to do next?");
-          }
-          break;
-        }
-
-        case "adjust_keywords": {
-          if(step==="kw"||step==="sr"){
-            if(kwFlowType==="own"||adjustUsed){
-              bot("You can adjust keywords once per session. Select from the list or ask me questions.");
-            } else {
+      if(step==="kw"){
+        if(action==="proceed"||action==="flow_answer"&&isConfirmation(t)){
+          bot(<div>
+            <div style={{marginBottom:6}}>Review your keyword selection and click "Build With These" to continue.</div>
+            <KwS keywords={kwData} init={skw} onDone={s=>{sSkw(s);kwD(kwData);}} onAdj={()=>{
+              if(kwFlowType==="own"||adjustUsed){
+                bot("You can adjust keywords once per session. Select from the list.");
+                return;
+              }
               sAdjustUsed(true);
-              doKeywordAdjust(r.adjustment||t);
-            }
+              sStep("ka");bot("What would you like to change?");
+            }}/>
+          </div>);
+        } else if(action==="adjust_keywords"){
+          if(kwFlowType==="own"||adjustUsed){
+            bot("You can adjust keywords once per session. Select from the list or ask me questions.");
           } else {
-            bot(r.text||"You can adjust keywords during the keyword selection step.");
+            sAdjustUsed(true);
+            doKeywordAdjust(r.adjustment||t);
           }
-          break;
-        }
-
-        case "set_length": {
-          const words=r.words||parseInt((t.match(/(\d{3,5})/)||[])[1]);
-          if(words&&(step==="sr"||step==="cr")){
-            handleLengthChange(words);
-          } else if(words){
-            bot(`I'll set the length to ~${words} words when we get to the structure step.`);
-            sAns(p=>({...p,requestedLen:words}));
+        } else {
+          /* answer or anything else — show GPT's text, or use handleAiChat */
+          const text=r.text;
+          if(text && typeof text==="string" && text.length>10){
+            add("b",text);
           } else {
-            bot("How many words would you like? Tell me a number, e.g. 1500 words.");
+            handleAiChat(t);
           }
-          break;
         }
-
-        case "select_title": {
-          if(step==="ti"){
-            const title=r.title||t;
-            sStit(title);hAns("ti",title,true);
-          } else {
-            bot(r.text||"You can select a title during the title selection step.");
-          }
-          break;
-        }
-
-        case "remind_question": {
-          /* User acknowledged but didn't answer */
-          bot(STEP_REMINDERS[step]||"Got it! Please answer the current question to continue.");
-          break;
-        }
-
-        case "nope": {
-          /* User says no/nothing/skip */
-          if(step==="pd"&&ans.ptx&&ans.ptx.length>10){
-            /* Use ptx as pd fallback */
-            hAns("pd",ans.ptx,true);
-          } else if(step==="me"){
-            hAns("me","Nothing special to add",true);
-          } else if(step==="pd"){
-            bot("I need at least a brief description to find the right keywords. What is your page about?");
-          } else {
-            bot("No problem! " + (STEP_REMINDERS[step]||"What would you like to do?"));
-          }
-          break;
-        }
-
-        case "answer":
-        default: {
-          /* GPT answered the question directly */
-          const text=r.text||"I'm not sure how to help with that. Try rephrasing.";
-          if(step==="cr"){
-            /* On content step, check if it's actually a tweak request GPT misclassified */
-            handleTweak(t);
-          } else if(step==="sr"){
-            /* On structure step, check for length in answer */
-            const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
-            if(lenMatch){
-              handleLengthChange(parseInt(lenMatch[1]));
-            } else {
-              add("b",typeof text==="string"?text:"I couldn't process that.");
-            }
-          } else {
-            add("b",typeof text==="string"?text:"I couldn't process that.");
-          }
-          break;
-        }
+        return;
       }
+
+      if(step==="sr"){
+        if(action==="proceed"){ gCnt(); return; }
+        if(action==="set_length"){
+          const words=r.words||parseInt((t.match(/(\d{3,5})/)||[])[1]);
+          if(words){ handleLengthChange(words); } else { bot("How many words? e.g. 1500 words."); }
+          return;
+        }
+        /* Length from text even if GPT didn't catch it */
+        const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
+        if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
+        /* Otherwise chat */
+        const text=r.text;
+        if(text && typeof text==="string" && text.length>10){ add("b",text); } else { handleAiChat(t); }
+        return;
+      }
+
+      if(step==="cr"){
+        if(action==="set_length"){
+          const words=r.words||parseInt((t.match(/(\d{3,5})/)||[])[1]);
+          if(words){ handleLengthChange(words); return; }
+        }
+        /* Length from text */
+        const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
+        if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
+        /* Everything else on cr = tweak */
+        handleTweak(t);
+        return;
+      }
+
+      /* Fallback for any other step */
+      const text=r.text;
+      if(text && typeof text==="string" && text.length>10){ add("b",text); } else { handleAiChat(t); }
+
     } catch(err) {
       console.error("[CB] Router error:", err);
       sTyp(false);
