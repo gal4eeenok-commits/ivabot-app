@@ -96,6 +96,12 @@ function isAcknowledgement(text) {
   return acks.includes(t) || t.length < 3;
 }
 
+/* Detect confirmation intent — user wants to proceed/continue */
+function isConfirmation(text) {
+  const t = text.trim().toLowerCase().replace(/[!.,]+$/,"");
+  return /^(yes|yeah|yep|sure|ok|okay|go|let'?s? (go|do it|do this|move|continue|proceed|start)|do it|go ahead|continue|move (on|forward)|next|proceed|let'?s? move|what'?s? next|ready|i'?m? ready|build|generate|sounds good|perfect|let'?s?)$/i.test(t);
+}
+
 /* Page type config: guided questions + content length limits */
 const PAGE_TYPE_CONFIG = {
   "about page": { 
@@ -236,7 +242,8 @@ const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"r
 const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
 
 /* ═══ KEYWORD SELECTOR ═══ */
-const KwS=({keywords,init,onDone,onAdj})=>{const[s,ss]=useState(init);const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=7)return p;return[...p,k];});};return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq]||FC.MV;return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{fontSize:10,color:C.muted}}>{fmtVol(k.volume)}</span><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span>{a&&<span onClick={e=>{e.stopPropagation();t(k.keyword);}} style={{fontSize:14,color:C.muted,cursor:"pointer",lineHeight:1}}>×</span>}</div>;})}</div><div style={{fontSize:10,color:C.muted,marginBottom:8}}>Min 2, max 7. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={onAdj}/></div></div>;};
+const fmtKd=v=>{if(v==null)return"—";if(typeof v==="number")return String(v);const s=String(v);if(s==="LOW")return"Low";if(s==="HIGH")return"High";if(s==="MEDIUM")return"Med";return s;};
+const KwS=({keywords,init,onDone,onAdj})=>{const[s,ss]=useState(init);const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=7)return p;return[...p,k];});};return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 4px",fontSize:9,fontWeight:500,color:C.muted}}><span style={{width:16,flexShrink:0}}/><span style={{flex:1}}>Keyword</span><span style={{width:42,textAlign:"right"}}>Vol.</span><span style={{width:32,textAlign:"center"}}>KD</span><span style={{width:30,textAlign:"center"}}>Freq</span><span style={{width:14}}/></div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq]||FC.MV;return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{width:42,textAlign:"right",fontSize:10,color:C.muted,fontWeight:600}}>{fmtVol(k.volume)}</span><span style={{width:32,textAlign:"center",fontSize:10,color:C.muted}}>{fmtKd(k.kd)}</span><span style={{width:30,textAlign:"center"}}><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></span>{a?<span onClick={e=>{e.stopPropagation();t(k.keyword);}} style={{width:14,fontSize:14,color:C.muted,cursor:"pointer",lineHeight:1,textAlign:"center"}}>×</span>:<span style={{width:14}}/>}</div>;})}</div><div style={{fontSize:10,color:C.muted,marginBottom:8}}>Min 2, max 7. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={onAdj}/></div></div>;};
 
 /* ═══ HIGHLIGHT HELPERS ═══ */
 const HlT=({text,hl})=>{if(!hl?.length)return<span>{text}</span>;const p=[];let r=text;hl.forEach(h=>{const i=r.toLowerCase().indexOf(h.toLowerCase());if(i>=0){if(i>0)p.push({t:r.slice(0,i),h:false});p.push({t:r.slice(i,i+h.length),h:true});r=r.slice(i+h.length);}});if(r)p.push({t:r,h:false});return<span>{p.map((x,i)=>x.h?<span key={i} style={{background:"rgba(110,43,255,0.1)",color:C.accent,padding:"1px 3px",borderRadius:3}}>{x.t}</span>:<span key={i}>{x.t}</span>)}</span>;};
@@ -813,6 +820,14 @@ const send=()=>{
   }else if(step==="cr"){
     add("u",t);
     handleTweak(t);
+  }else if(step==="kw"){
+    /* On keyword selector step: confirmation → proceed; question → chat; else → chat */
+    add("u",t);
+    if(isConfirmation(t)){
+      kwD(kwData);
+    } else {
+      handleAiChat(t);
+    }
   }else if(step==="ti"){
     if(isAcknowledgement(t)){
       add("u",t);
