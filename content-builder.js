@@ -448,7 +448,7 @@ else if(sid==="pd"||sid==="ok"){
         <div style={{marginBottom:6}}>{dfsData?"I found keywords with real Google search data. Pick the ones that match your page best.":"Here are keyword suggestions. Pick the ones that fit."}</div>
         <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium, supporting keyword. LV = Low, extra keyword.</div></div></BotTip>
         <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Not sure what to pick? Just ask me in the chat!</div>
-        <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);kwD(enrichedKw);}} onAdj={()=>{
+        <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{
           if(kwFlowType==="own"||adjustUsed){
             bot("You can adjust keywords once per session with 'Find Keywords' flow. Type your changes or ask me for help.");
             return;
@@ -525,9 +525,9 @@ else if(sid==="me"){
 }};
 
 /* ═══ KEYWORD DONE → show extras + ask goal ═══ */
-const kwD=(enrichedKwOverride)=>{
-  const extra=dfsExtra;
-  console.log("[CB] kwD dfsExtra:", JSON.stringify({related:extra.related?.length||0,paa:extra.paa?.length||0,autocomplete:extra.autocomplete?.length||0}));
+const kwD=(enrichedKwOverride,extrasOverride)=>{
+  const extra=extrasOverride||dfsExtra;
+  console.log("[CB] kwD extras:", JSON.stringify({related:extra.related?.length||0,paa:extra.paa?.length||0,autocomplete:extra.autocomplete?.length||0}));
   mk("kw");
   const hasExtras=extra.related?.length>0||extra.paa?.length>0||extra.autocomplete?.length>0;
   bot(<div>
@@ -801,14 +801,16 @@ const send=()=>{
         } else {
           enriched=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
         }
+        let adjustExtras=dfsExtra;
         if(dfsData){
           const normArr2=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
-          sDfsExtra({suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")});
+          adjustExtras={suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")};
+          sDfsExtra(adjustExtras);
         }
         sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
         add("b",<div>
           <div style={{marginBottom:6}}>Keywords adjusted! Here's the updated list.</div>
-          <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched);}} onAdj={()=>{bot("You've already used your keyword adjustment. You can ask me questions about the keywords instead.");}}/>
+          <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched,adjustExtras);}} onAdj={()=>{bot("You've already used your keyword adjustment. You can ask me questions about the keywords instead.");}}/>
         </div>);
       } catch(err) {
         console.error("[CB] keyword adjust error:", err);
