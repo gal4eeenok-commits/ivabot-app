@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v26 — No adjust limits, proceed=kwD, always can continue */
+/* IvaBot Content Builder v27 — isQuestion fix: uncertainty phrases standalone only */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v26 loaded");
+console.log("[IvaBot] content-builder.js v27 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -181,9 +181,12 @@ async function trackBuilderUsage(memberId) {
 function isQuestion(text) {
   const t = text.trim().toLowerCase();
   if (t.length < 3) return false;
-  if (/^(what|why|how|which|when|where|who|can|could|should|is|are|do|does|will|would|explain|tell me|help me|i('m| am) not sure|not sure|i don'?t (know|understand)|what do you mean|what('s| is) the difference)/i.test(t)) return true;
+  /* Clear question words — always a question */
+  if (/^(what|why|how|which|when|where|who|can|could|should|is|are|do|does|will|would|explain|tell me|help me|what do you mean|what('s| is) the difference)/i.test(t)) return true;
+  /* Ends with ? — always a question */
   if (t.endsWith("?")) return true;
-  if (/^(hmm|idk|unsure|confused|clarify)/i.test(t)) return true;
+  /* Uncertainty phrases — only question when STANDALONE (no real content after) */
+  if (/^(hmm|idk|unsure|confused|clarify|not sure|i('m| am) not sure|i don'?t know|i don'?t understand)[\s!.?,]*$/i.test(t)) return true;
   return false;
 }
 function isAcknowledgement(text) {
