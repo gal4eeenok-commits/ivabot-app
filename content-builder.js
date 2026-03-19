@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v19 — real API integration */
+/* IvaBot Content Builder v20 — real API + all fixes */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v19 loaded");
+console.log("[IvaBot] content-builder.js v20 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -11,7 +11,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 /* ═══ COLORS ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2),0 8px 32px rgba(110,43,255,0.1)"};
 const FC={HV:{bg:"rgba(110,43,255,0.12)",color:"#6E2BFF"},MV:{bg:"rgba(155,122,230,0.1)",color:"#9B7AE6"},LV:{bg:"rgba(184,156,240,0.12)",color:"#B89CF0"}};
-const HINTS={page_type:["Product page","Service page","Blog post"],goal:["Sell a product","Explain a service","Build trust"],audience:["Professional, for B2B","Friendly, for young people","Warm, for families"]};
+const HINTS={page_type:["Product page","Service page","Blog post","About page","Landing page","Category page"],goal:["Sell a product","Explain a service","Build trust"],audience:["Professional, for B2B","Friendly, for young people","Warm, for families"]};
 
 /* ═══ API HELPERS ═══ */
 async function callGPT(step, data) {
@@ -89,6 +89,77 @@ function isQuestion(text) {
   return false;
 }
 
+/* Detect non-answer acknowledgements that shouldn't be accepted as flow answers */
+function isAcknowledgement(text) {
+  const t = text.trim().toLowerCase().replace(/[!.,]+$/,"");
+  const acks = ["ok","okay","got it","sure","thanks","thank you","i see","yeah","yes","yep","alright","cool","nice","great","good","right","understood","i get it","i understand","fine","noted","aha","ah","oh"];
+  return acks.includes(t) || t.length < 3;
+}
+
+/* Page type config: guided questions + content length limits */
+const PAGE_TYPE_CONFIG = {
+  "about page": { 
+    extraQ: "What's your company/brand name? Any founder story or mission you'd like to include?",
+    hints: ["Company name + founder story", "Mission and values", "Team background"],
+    defaultLen: "500-800 words", maxLen: 3000
+  },
+  "product page": {
+    extraQ: "Tell me about the product: name, price range, key features, sizes or variants?",
+    hints: ["Product name + price", "Key features + materials", "Sizes / variants"],
+    defaultLen: "300-600 words", maxLen: 2500
+  },
+  "service page": {
+    extraQ: "What service do you offer? Any pricing model, service area, or process details?",
+    hints: ["Service name + pricing", "Service area / location", "Process / how it works"],
+    defaultLen: "500-1000 words", maxLen: 4000
+  },
+  "blog post": {
+    extraQ: "What's the main topic or angle? Any specific points you want to cover?",
+    hints: ["Main topic / angle", "Key points to cover", "Target reader"],
+    defaultLen: "1000-2000 words", maxLen: 11000
+  },
+  "landing page": {
+    extraQ: "What's the main offer or CTA? Any urgency, deadline, or special deal?",
+    hints: ["Main offer / CTA", "Urgency / deadline", "Key benefit"],
+    defaultLen: "500-1000 words", maxLen: 4000
+  },
+  "category page": {
+    extraQ: "How many products/items in this category? Any filters like price range or type?",
+    hints: ["Number of products", "Category structure", "Filters (price, type)"],
+    defaultLen: "300-500 words", maxLen: 2000
+  }
+};
+function getPageConfig(pt) {
+  if (!pt) return null;
+  const t = pt.toLowerCase().trim();
+  for (const [key, cfg] of Object.entries(PAGE_TYPE_CONFIG)) {
+    if (t.includes(key) || key.includes(t.replace(" page",""))) return cfg;
+  }
+  return null;
+}
+
+/* Location codes for common markets */
+const LOCATION_CODES = {
+  "us": 2840, "usa": 2840, "united states": 2840,
+  "uk": 2826, "united kingdom": 2826, "england": 2826,
+  "germany": 2276, "de": 2276,
+  "france": 2250, "fr": 2250,
+  "canada": 2124, "ca": 2124,
+  "australia": 2036, "au": 2036,
+  "netherlands": 2528, "nl": 2528,
+  "spain": 2724, "es": 2724,
+  "italy": 2380, "it": 2380,
+  "global": 2840 /* default to US for global */
+};
+function parseLocationCode(text) {
+  if (!text) return 2840;
+  const t = text.toLowerCase().trim();
+  for (const [key, code] of Object.entries(LOCATION_CODES)) {
+    if (t.includes(key)) return code;
+  }
+  return 2840; /* default US */
+}
+
 /* Build chat history string from messages array */
 function buildChatHistory(msgs) {
   return msgs.filter(m => typeof m.c === "string").slice(-10).map(m => `${m.f === "b" ? "IvaBot" : "User"}: ${m.c}`).join("\n");
@@ -96,15 +167,25 @@ function buildChatHistory(msgs) {
 
 /* Build context summary for current step */
 function buildStepContext(step, ans, keywords, selectedTitle, briefData) {
-  const parts = ["Content Builder tool"];
+  const parts = ["Content Builder tool. Keep answers SHORT: 2-3 sentences max. Use specific numbers when available. No generic SEO advice paragraphs."];
   if (ans.pt) parts.push("Page type: " + ans.pt);
+  if (ans.ptx) parts.push("Page details: " + ans.ptx);
   if (ans.pd) parts.push("Page description: " + ans.pd);
-  if (keywords?.length) parts.push("Keywords: " + keywords.map(k => typeof k === "string" ? k : k.keyword).join(", "));
+  if (keywords?.length) {
+    const kwStr = keywords.map(k => {
+      const parts2 = [k.keyword || k];
+      if (k.volume) parts2.push("Vol:" + k.volume);
+      if (k.kd != null) parts2.push("KD:" + k.kd);
+      if (k.freq) parts2.push(k.freq);
+      return parts2.join(" ");
+    }).join(" | ");
+    parts.push("Keywords: " + kwStr);
+  }
   if (ans.gl) parts.push("Goal: " + ans.gl);
-  if (ans.au) parts.push("Audience/tone: " + ans.au);
+  if (ans.au) parts.push("Audience/tone/market: " + ans.au);
   if (selectedTitle) parts.push("Selected title: " + selectedTitle);
   if (ans.me) parts.push("Brand details: " + ans.me);
-  if (briefData) parts.push("Structure generated: yes");
+  if (briefData) parts.push("Structure generated: yes, length: " + (briefData.contentLength || "~800 words"));
   parts.push("Current step: " + step);
   return parts.join("\n");
 }
@@ -151,7 +232,7 @@ const LoadingPanel=({text})=><div style={{minHeight:"calc(100vh - 130px)",displa
 const Placeholder=()=><div style={{minHeight:"calc(100vh - 180px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40}}><div style={{width:64,height:64,borderRadius:16,background:"rgba(110,43,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div style={{fontSize:18,fontWeight:700,color:C.dark,marginBottom:8}}>Your content will appear here</div><div style={{fontSize:13,color:C.muted,lineHeight:1.6,textAlign:"center",maxWidth:320,marginBottom:24}}>Answer the questions on the left, and I'll build your SEO brief and content step by step.</div><div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:300}}>{[{n:"1",t:"Keywords + context",d:"Topic, audience, tone, goals"},{n:"2",t:"SEO structure",d:"Title, description, H1-H3"},{n:"3",t:"Full content",d:"Complete page text, ready to publish"}].map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:10,background:"rgba(110,43,255,0.04)",border:"1px solid rgba(110,43,255,0.08)"}}><div style={{width:24,height:24,borderRadius:"50%",background:"rgba(155,122,230,0.12)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:11,fontWeight:700,color:"#9B7AE6"}}>{s.n}</span></div><div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{s.t}</div><div style={{fontSize:11,color:C.muted}}>{s.d}</div></div></div>)}</div></div>;
 
 /* ═══ BRIEF & CONTENT PANELS (same rendering as v18) ═══ */
-const BriefInner=({d})=>{const[kwE,skE]=useState(false);return<div><RevealBlock><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>SEO TITLE</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13.5,fontWeight:500,color:C.dark}}>{hlF(d.title,d.titleKw)}</span><CB t={d.title}/></div></div></RevealBlock><RevealBlock delay={0.06}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>META DESCRIPTION</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}><span style={{fontSize:12.5,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</span><CB t={d.description}/></div></div></RevealBlock><RevealBlock delay={0.12}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>FOCUS KEYWORDS</div><div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:"visible"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}><thead><tr style={{borderBottom:"1px solid rgba(21,20,21,0.06)"}}><th style={{textAlign:"left",padding:"8px 12px",color:C.muted,fontWeight:500,fontSize:10}}>Keyword</th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:55,whiteSpace:"nowrap"}}>Vol.<QM text="Monthly search volume — how many people search this per month."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:40,whiteSpace:"nowrap"}}>KD<QM text="Keyword difficulty (0–100). Lower is easier to rank for."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:45,whiteSpace:"nowrap"}}>Freq<QM text="How often to use this keyword. HV = high priority. MV = medium. LV = low."/></th></tr></thead><tbody>{d.keywords.map((k,i)=>{const fc=FC[k.freq]||FC.MV;return<tr key={i} style={{borderBottom:i<d.keywords.length-1?"1px solid rgba(21,20,21,0.04)":"none"}}><td style={{padding:"7px 12px",color:C.dark,fontWeight:500,fontSize:12}}>{k.keyword}</td><td style={{textAlign:"center",padding:"7px",color:C.dark,fontWeight:600}}>{fmtVol(k.volume)}</td><td style={{textAlign:"center",padding:"7px",color:C.muted}}>{k.kd||"—"}</td><td style={{textAlign:"center",padding:"7px"}}><span style={{fontSize:10,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></td></tr>;})}</tbody></table></div>{d.related?.length>0&&<button onClick={()=>skE(!kwE)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"6px 0",display:"flex",alignItems:"center",gap:4,marginTop:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="2" strokeLinecap="round" style={{transform:kwE?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>Additional search phrases from Google</button>}{kwE&&<div style={{marginTop:6,padding:10,borderRadius:8,background:"rgba(21,20,21,0.02)",border:"1px solid rgba(21,20,21,0.06)",fontSize:11}}>{d.related?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>RELATED SEARCHES</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>{d.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}{d.paa?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>PEOPLE ALSO ASK</div><div style={{fontSize:10.5,color:C.dark,lineHeight:1.6,marginBottom:8}}>{d.paa.map((q,i)=><div key={i}>• {q}</div>)}</div></>}{d.autocomplete?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>AUTOCOMPLETE</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{d.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}</div>}</div></RevealBlock><RevealBlock delay={0.18}>{d.recs?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>RECOMMENDATIONS</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>{d.recs.map((r,i)=><div key={i} style={{padding:"8px 10px",borderRadius:8,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)"}}><div style={{fontSize:9,color:C.muted,textTransform:"capitalize"}}>{r.key}</div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{r.value}</div></div>)}</div></div>}</RevealBlock><RevealBlock delay={0.24}>{d.sections?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>PAGE STRUCTURE</div>{d.sections.map((sec,i)=><div key={i} style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{fontSize:9,fontWeight:600,color:sec.level==="H1"?"#6E2BFF":"#9B7AE6",background:sec.level==="H1"?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>{sec.level}</span><span style={{fontSize:sec.level==="H1"?13:12.5,fontWeight:600,color:C.dark}}>{sec.title}</span></div><div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,marginTop:4}}>{sec.desc}</div>{sec.kwNote&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>{sec.kwNote}</div>}{sec.visuals?.length>0&&<div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>{sec.visuals.map((v,j)=><span key={j} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:C.muted,padding:"3px 8px",borderRadius:6,background:"rgba(21,20,21,0.03)"}}><VI type={v.icon}/>{v.text}</span>)}</div>}</div>)}</div>}</RevealBlock><RevealBlock delay={0.3}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your page to <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></RevealBlock></div>;};
+const BriefInner=({d})=>{const[kwE,skE]=useState(false);return<div><RevealBlock><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>SEO TITLE</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13.5,fontWeight:500,color:C.dark}}>{hlF(d.title,d.titleKw)}</span><CB t={d.title}/></div></div></RevealBlock><RevealBlock delay={0.06}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>META DESCRIPTION</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}><span style={{fontSize:12.5,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</span><CB t={d.description}/></div></div></RevealBlock><RevealBlock delay={0.12}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>FOCUS KEYWORDS</div><div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:"visible"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}><thead><tr style={{borderBottom:"1px solid rgba(21,20,21,0.06)"}}><th style={{textAlign:"left",padding:"8px 12px",color:C.muted,fontWeight:500,fontSize:10}}>Keyword</th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:55,whiteSpace:"nowrap"}}>Vol.<QM text="Monthly search volume — how many people search this per month."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:40,whiteSpace:"nowrap"}}>KD<QM text="Keyword difficulty (0–100). Lower is easier to rank for."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:45,whiteSpace:"nowrap"}}>Freq<QM text="How often to use this keyword. HV = high priority. MV = medium. LV = low."/></th></tr></thead><tbody>{d.keywords.map((k,i)=>{const fc=FC[k.freq]||FC.MV;return<tr key={i} style={{borderBottom:i<d.keywords.length-1?"1px solid rgba(21,20,21,0.04)":"none"}}><td style={{padding:"7px 12px",color:C.dark,fontWeight:500,fontSize:12}}>{k.keyword}</td><td style={{textAlign:"center",padding:"7px",color:C.dark,fontWeight:600}}>{fmtVol(k.volume)}</td><td style={{textAlign:"center",padding:"7px",color:C.muted}}>{k.kd!=null?(typeof k.kd==="number"?k.kd:String(k.kd)):"—"}</td><td style={{textAlign:"center",padding:"7px"}}><span style={{fontSize:10,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></td></tr>;})}</tbody></table></div>{(kwData.some&&d.keywords.some(k=>k.volume==null))&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>— = Google doesn't have enough search data for this keyword in the selected market.</div>}{d.related?.length>0&&<button onClick={()=>skE(!kwE)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"6px 0",display:"flex",alignItems:"center",gap:4,marginTop:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="2" strokeLinecap="round" style={{transform:kwE?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>Additional search phrases from Google</button>}{kwE&&<div style={{marginTop:6,padding:10,borderRadius:8,background:"rgba(21,20,21,0.02)",border:"1px solid rgba(21,20,21,0.06)",fontSize:11}}>{d.related?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>RELATED SEARCHES</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>{d.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}{d.paa?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>PEOPLE ALSO ASK</div><div style={{fontSize:10.5,color:C.dark,lineHeight:1.6,marginBottom:8}}>{d.paa.map((q,i)=><div key={i}>• {q}</div>)}</div></>}{d.autocomplete?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>AUTOCOMPLETE</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{d.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}</div>}</div></RevealBlock><RevealBlock delay={0.18}>{d.recs?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>RECOMMENDATIONS</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>{d.recs.map((r,i)=><div key={i} style={{padding:"8px 10px",borderRadius:8,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)"}}><div style={{fontSize:9,color:C.muted,textTransform:"capitalize"}}>{r.key}</div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{r.value}</div></div>)}</div></div>}</RevealBlock><RevealBlock delay={0.24}>{d.sections?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>PAGE STRUCTURE</div>{d.sections.map((sec,i)=><div key={i} style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{fontSize:9,fontWeight:600,color:sec.level==="H1"?"#6E2BFF":"#9B7AE6",background:sec.level==="H1"?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>{sec.level}</span><span style={{fontSize:sec.level==="H1"?13:12.5,fontWeight:600,color:C.dark}}>{sec.title}</span></div><div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,marginTop:4}}>{sec.desc}</div>{sec.kwNote&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>{sec.kwNote}</div>}{sec.visuals?.length>0&&<div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>{sec.visuals.map((v,j)=><span key={j} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:C.muted,padding:"3px 8px",borderRadius:6,background:"rgba(21,20,21,0.03)"}}><VI type={v.icon}/>{v.text}</span>)}</div>}</div>)}</div>}</RevealBlock><RevealBlock delay={0.3}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your page to <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></RevealBlock></div>;};
 const BriefPanel=({d})=><div style={{padding:"28px 24px"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.recs?.find(r=>r.key==="Goal")?.value||"Content"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>structure ready</span></div><BriefInner d={d}/></div>;
 const ContentPanel=({html,d})=>{const[bo,sbo]=useState(false);const render=()=>{if(!html)return null;const secs=html.split(/(?=<h[12]>)/);return secs.map((sec,i)=>{const hm=sec.match(/<h([12])>(.*?)<\/h\1>/);const lv=hm?parseInt(hm[1]):null;const hd=hm?hm[2]:null;const body=sec.replace(/<h[12]>.*?<\/h[12]>/,"").trim();return<RevealBlock key={i} delay={i*0.08}><div style={{marginBottom:24}}>{hd&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><span style={{fontSize:9,fontWeight:600,color:lv===1?"#6E2BFF":"#9B7AE6",background:lv===1?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>H{lv}</span><span style={{fontSize:lv===1?18:15,fontWeight:700,color:C.dark}}>{hd}</span></div>}<div style={{fontSize:13,color:C.dark,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:body.replace(/<mark data-freq="HV">(.*?)<\/mark>/g,'<span style="background:rgba(110,43,255,0.12);color:#6E2BFF;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="MV">(.*?)<\/mark>/g,'<span style="background:rgba(155,122,230,0.1);color:#9B7AE6;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="LV">(.*?)<\/mark>/g,'<span style="background:rgba(184,156,240,0.12);color:#B89CF0;padding:1px 4px;border-radius:3px">$1</span>').replace(/<strong>(.*?)<\/strong>/g,'<strong style="font-weight:600">$1</strong>').replace(/<ul>/g,'<ul style="padding-left:20px;margin:8px 0">').replace(/<li>/g,'<li style="margin-bottom:4px">').replace(/<blockquote>(.*?)<\/blockquote>/g,'<div style="border-left:3px solid rgba(110,43,255,0.2);padding:10px 14px;background:rgba(110,43,255,0.03);border-radius:0 8px 8px 0;margin:8px 0;font-style:italic">$1</div>').replace(/<table>/g,'<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px">').replace(/<th>/g,'<th style="text-align:left;padding:6px 10px;background:rgba(110,43,255,0.06);border:1px solid rgba(21,20,21,0.06);font-weight:600">').replace(/<td>/g,'<td style="padding:6px 10px;border:1px solid rgba(21,20,21,0.06)">').replace(/<details><summary>(.*?)<\/summary>/g,'<div style="border:1px solid rgba(21,20,21,0.08);border-radius:8px;margin:4px 0"><div style="padding:8px 12px;font-weight:600;font-size:12px;background:rgba(21,20,21,0.02)">$1</div><div style="padding:8px 12px;font-size:12px">').replace(/<\/details>/g,'</div></div>').replace(/\[visual:([^\]]*)\]/g,'<div style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:rgba(21,20,21,0.03);color:#928E95;font-size:11px;margin:4px 0">$1</div>')}}/></div></RevealBlock>;});};return<div style={{padding:"28px 24px"}}><RevealBlock><div style={{marginBottom:20,borderRadius:12,border:`1px solid ${C.cardBorder}`,overflow:"hidden"}}><button onClick={()=>sbo(!bo)} style={{width:"100%",padding:"14px 16px",background:C.card,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><BL s={16}/><span style={{fontSize:14,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 8px",borderRadius:8,fontWeight:500}}>view</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:bo?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s"}}><polyline points="6 9 12 15 18 9"/></svg></button>{bo&&<div style={{padding:16,borderTop:`1px solid ${C.cardBorder}`}}><BriefInner d={d}/></div>}</div></RevealBlock><RevealBlock delay={0.06}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>Full Content</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.contentLength||"~800 words"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>ready to use</span></div></RevealBlock><RevealBlock delay={0.12}><div style={{padding:"14px 16px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)",marginBottom:20}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>SEO TITLE</div><div style={{fontSize:13,fontWeight:600,color:C.dark,marginBottom:8}}>{d.title}</div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>META DESCRIPTION</div><div style={{fontSize:12,color:C.dark,lineHeight:1.5}}>{d.description}</div></div></RevealBlock>{render()}<RevealBlock delay={0.1}><div style={{marginTop:16}}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your URL in <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></div></RevealBlock></div>;};
 
@@ -218,6 +299,16 @@ const hAns=(sid,val)=>{
 mk(sid);add("u",val);sAns(p=>({...p,[sid]:val}));
 
 if(sid==="pt"){
+  const cfg=getPageConfig(val);
+  if(cfg){
+    sStep("ptx"); /* extra page-type question */
+    bot(<div><div style={{marginBottom:6}}>{cfg.extraQ}</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{cfg.hints.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("ptx",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me write better content for your specific page.</div></div>);
+  } else {
+    sStep("pd");
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);
+  }
+}
+else if(sid==="ptx"){
   sStep("pd");
   bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);
 }
@@ -246,40 +337,48 @@ else if(sid==="pd"||sid==="ok"){
       if(rawKeywords.length===0) rawKeywords=[val]; /* fallback: use description as keyword */
     }
 
-    /* Call DFS for volume/KD/suggestions */
-    dfsData=await callDFS(rawKeywords.slice(0,5));
+    /* Call DFS for volume/KD/suggestions — use location from audience if available */
+    const locCode=parseLocationCode(ans.au||"");
+    dfsData=await callDFS(rawKeywords.slice(0,5),locCode);
 
     let enrichedKw=[];
-    if(dfsData?.keyword_metrics){
-      const maxVol=Math.max(...(dfsData.keyword_metrics.map(m=>m.search_volume||0)),1);
+    const metrics=dfsData?.keyword_metrics||[];
+    const allSugs=dfsData?.suggestions||[];
+    /* Build a lookup from both metrics and suggestions */
+    const lookup=new Map();
+    metrics.forEach(m=>{if(m?.keyword)lookup.set(m.keyword.toLowerCase(),m);});
+    allSugs.forEach(s=>{if(s?.keyword&&!lookup.has(s.keyword.toLowerCase()))lookup.set(s.keyword.toLowerCase(),s);});
+    const getVol=m=>(m?.search_volume??m?.volume??null);
+    const getKd=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);if(typeof v==="number")return v;return null;};
+    const allVols=[...lookup.values()].map(m=>getVol(m)||0);
+    const maxVol=Math.max(...allVols,1);
+
+    if(lookup.size>0){
       enrichedKw=rawKeywords.map(kw=>{
-        const match=dfsData.keyword_metrics?.find(m=>m.keyword?.toLowerCase()===kw.toLowerCase());
-        const vol=match?.search_volume||null;
-        const kd=match?.keyword_difficulty||match?.competition_index||null;
+        const match=lookup.get(kw.toLowerCase());
+        const vol=getVol(match);
+        const kd=getKd(match);
         return{keyword:kw,volume:vol,kd:kd,freq:assignFreq(vol,maxVol)};
       });
       /* Add DFS suggestions as extra keywords if we have room */
-      if(dfsData.suggestions?.length>0){
+      if(allSugs.length>0){
         const existing=new Set(enrichedKw.map(k=>k.keyword.toLowerCase()));
-        dfsData.suggestions.slice(0,3).forEach(s=>{
-          const kw=typeof s==="string"?s:s.keyword;
-          if(kw&&!existing.has(kw.toLowerCase())){
-            const sm=dfsData.keyword_metrics?.find(m=>m.keyword?.toLowerCase()===kw.toLowerCase());
-            enrichedKw.push({keyword:kw,volume:sm?.search_volume||null,kd:sm?.keyword_difficulty||null,freq:assignFreq(sm?.search_volume||0,maxVol)});
-          }
+        allSugs.filter(s=>s.keyword&&!existing.has(s.keyword.toLowerCase())&&(getVol(s)||0)>0).slice(0,3).forEach(s=>{
+          enrichedKw.push({keyword:s.keyword,volume:getVol(s),kd:getKd(s),freq:assignFreq(getVol(s)||0,maxVol)});
         });
       }
     } else {
-      /* DFS failed — GPT fallback (no volume/KD) */
+      /* DFS returned no data — GPT fallback (no volume/KD) */
       enrichedKw=rawKeywords.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
     }
 
-    /* Store DFS extra data */
+    /* Store DFS extra data — handle both string arrays and object arrays */
+    const normArr=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
     sDfsExtra({
       suggestions:dfsData?.suggestions||[],
-      paa:dfsData?.people_also_ask||[],
-      related:dfsData?.related_searches||[],
-      autocomplete:dfsData?.autocomplete||[]
+      paa:normArr(dfsData?.people_also_ask,"question"),
+      related:normArr(dfsData?.related_searches,"title"),
+      autocomplete:normArr(dfsData?.autocomplete,"suggestion")
     });
 
     sKwData(enrichedKw);
@@ -303,7 +402,7 @@ else if(sid==="pd"||sid==="ok"){
 }
 else if(sid==="gl"){
   sStep("au");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your audience and how should it sound?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.audience.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("au",h)}/>)}</div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{color:C.muted,fontSize:12}}>This shapes the tone. Or type your own.</div><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your audience, where are they, and how should it sound?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.audience.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("au",h)}/>)}</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HP text="US market" onClick={()=>hAns("au","US market, English")}/><HP text="UK market" onClick={()=>hAns("au","UK market, English")}/><HP text="Global / English" onClick={()=>hAns("au","Global audience, English")}/></div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{color:C.muted,fontSize:12}}>Include your target country if specific. This affects keyword data.</div><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
 }
 else if(sid==="au"){
   /* === TITLES: GPT generate_titles === */
@@ -370,14 +469,18 @@ const gStr=async()=>{
   rl(LST, async()=>{
     const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
     const kwWithData=kwData.filter(k=>selKw.includes(k.keyword));
+    const pageCfg=getPageConfig(ans.pt||"");
+    const defaultLen=pageCfg?.defaultLen||"500-800 words";
     const gptRes=await callGPT("generate_structure",{
       title:stit||"",
       keywords:kwWithData,
       page_type:ans.pt||"",
+      page_type_details:ans.ptx||"",
       page_description:ans.pd||"",
       goal:ans.gl||"",
       audience:ans.au||"",
       brand_details:ans.me||"",
+      target_length:defaultLen,
       related:dfsExtra.related||[],
       paa:dfsExtra.paa||[],
       autocomplete:dfsExtra.autocomplete||[]
@@ -386,8 +489,8 @@ const gStr=async()=>{
     /* Build brief data from GPT response */
     let briefData;
     if(gptRes&&(gptRes.title||gptRes.sections)){
-      const titleKw=kwWithData.filter(k=>k.freq==="HV").map(k=>({text:k.keyword,freq:k.freq}));
-      const descKw=kwWithData.filter(k=>k.freq==="HV"||k.freq==="MV").slice(0,2).map(k=>({text:k.keyword,freq:k.freq}));
+      const titleKw=kwWithData.filter(k=>(gptRes.title||stit||"").toLowerCase().includes(k.keyword.toLowerCase())).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+      const descKw=kwWithData.filter(k=>(gptRes.description||gptRes.meta_description||"").toLowerCase().includes(k.keyword.toLowerCase())).slice(0,3).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
       briefData={
         title:gptRes.title||stit||"Untitled",
         titleKw,
@@ -524,19 +627,34 @@ const send=()=>{
   const t=el.value.trim();el.value="";
 
   /* If user is asking a question on any step → AI Chat */
-  if(isQuestion(t)&&step!=="ok"){
+  if(isQuestion(t)){
     add("u",t);
     handleAiChat(t);
     return;
   }
 
+  /* If user sends acknowledgement on a step that needs a real answer → remind */
+  if(isAcknowledgement(t)&&["pt","ptx","pd","gl","au","ti","me"].includes(step)){
+    add("u",t);
+    const reminders={
+      pt:"Got it! So what type of page are you working on? (Product, Service, Blog, About, Landing, Category)",
+      ptx:"Noted! Can you share those details about your page? It helps me write better content.",
+      pd:"Sure! Now describe your page briefly so I can find the right keywords.",
+      gl:"Alright! What should this page achieve? (Sell, Explain, Build trust)",
+      au:"Got it! Who is your audience and what market? (e.g. Young people, US market)",
+      ti:"Sounds good! Which title do you want to go with? Pick one above or type your own.",
+      me:"Noted! Any brand details to add, or click 'Nothing special to add' to continue."
+    };
+    bot(reminders[step]||"Got it! Please answer the current question to continue.");
+    return;
+  }
+
   /* Flow-specific handling */
-  if(["pt","pd","gl","au","me"].includes(step)){
+  if(["pt","ptx","pd","gl","au","me"].includes(step)){
     hAns(step,t);
   }else if(step==="ok"){
     hAns("ok",t);
   }else if(step==="ka"){
-    /* Adjust keywords — send to GPT for new keywords */
     add("u",t);
     sStep("kl");
     sTyp(true);
@@ -552,19 +670,25 @@ const send=()=>{
         newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
       }
       if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
-      const dfsData=await callDFS(newRaw.slice(0,5));
+      const locCode=parseLocationCode(ans.au||"");
+      const dfsData=await callDFS(newRaw.slice(0,5),locCode);
       let enriched=[];
-      if(dfsData?.keyword_metrics){
-        const maxV=Math.max(...dfsData.keyword_metrics.map(m=>m.search_volume||0),1);
-        enriched=newRaw.map(kw=>{
-          const match=dfsData.keyword_metrics?.find(m=>m.keyword?.toLowerCase()===kw.toLowerCase());
-          return{keyword:kw,volume:match?.search_volume||null,kd:match?.keyword_difficulty||null,freq:assignFreq(match?.search_volume||0,maxV)};
-        });
+      const metrics2=dfsData?.keyword_metrics||[];
+      const sug2=dfsData?.suggestions||[];
+      const lookup2=new Map();
+      metrics2.forEach(m=>{if(m?.keyword)lookup2.set(m.keyword.toLowerCase(),m);});
+      sug2.forEach(s=>{if(s?.keyword&&!lookup2.has(s.keyword.toLowerCase()))lookup2.set(s.keyword.toLowerCase(),s);});
+      const gV2=m=>(m?.search_volume??m?.volume??null);
+      const gK2=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
+      const maxV2=Math.max(...[...lookup2.values()].map(m=>gV2(m)||0),1);
+      if(lookup2.size>0){
+        enriched=newRaw.map(kw=>{const match=lookup2.get(kw.toLowerCase());return{keyword:kw,volume:gV2(match),kd:gK2(match),freq:assignFreq(gV2(match)||0,maxV2)};});
       } else {
         enriched=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
       }
       if(dfsData){
-        sDfsExtra({suggestions:dfsData.suggestions||[],paa:dfsData.people_also_ask||[],related:dfsData.related_searches||[],autocomplete:dfsData.autocomplete||[]});
+        const normArr2=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
+        sDfsExtra({suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")});
       }
       sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
       add("b",<div>
@@ -573,15 +697,37 @@ const send=()=>{
       </div>);
     })();
   }else if(step==="sr"){
-    /* On structure step — could be a question or edit request */
+    /* On structure step — check if user wants to change length */
     add("u",t);
-    handleAiChat(t);
+    const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
+    if(lenMatch){
+      const requested=parseInt(lenMatch[1]);
+      const cfg=getPageConfig(ans.pt||"");
+      const maxAllowed=(cfg?.maxLen||11000)+1000;
+      if(requested>maxAllowed){
+        bot(`The maximum for this page type is about ${maxAllowed} words. Want me to set it to ${maxAllowed}?`);
+      } else {
+        if(bd){
+          const updatedBd={...bd,contentLength:`~${requested} words`};
+          const updatedRecs=(updatedBd.recs||[]).map(r=>r.key==="Length"?{...r,value:`${requested} words`}:r);
+          updatedBd.recs=updatedRecs;
+          sBd(updatedBd);
+          bot(`Updated to ~${requested} words. I'll generate content at this length. Click "Generate Content" when ready.`);
+        }
+      }
+    } else {
+      handleAiChat(t);
+    }
   }else if(step==="cr"){
-    /* On content step — treat as tweak request */
     add("u",t);
     handleTweak(t);
   }else if(step==="ti"){
-    /* User types custom title */
+    /* Validate title — must be meaningful */
+    if(isAcknowledgement(t)){
+      add("u",t);
+      bot("Which title do you want? Pick one from the list or type your own.");
+      return;
+    }
     sStit(t);hAns("ti",t);
   }else{
     add("u",t);
