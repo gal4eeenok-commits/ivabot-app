@@ -916,8 +916,9 @@ const send=()=>{
       handleTweak(t);
     }
   }else if(step==="kw"){
-    /* On keyword selector step: confirmation → show fresh KwS; question → chat; else → chat */
+    /* On keyword selector step: confirmation → fresh KwS; keyword modify → adjust; question → chat */
     add("u",t);
+    const isKeywordModify=/\b(add|remove|change|replace|include|exclude|swap|drop|use|want|need|put|insert|добавь|убери|замени|включи)\b/i.test(t)&&!isQuestion(t);
     if(isConfirmation(t)){
       /* Variant B: render fresh KwS so user can review/update selection, then proceed */
       bot(<div>
@@ -931,6 +932,65 @@ const send=()=>{
           sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
         }}/>
       </div>);
+    } else if(isKeywordModify){
+      /* User wants to modify keywords — trigger adjust flow */
+      if(kwFlowType==="own"||adjustUsed){
+        bot("You can adjust keywords once per session. Try selecting different ones from the list above, or click 'Build With These' to continue.");
+      } else {
+        sAdjustUsed(true);
+        sStep("ka");
+        /* Pass user's request directly to keyword adjust GPT */
+        sTyp(true);
+        (async()=>{
+          try {
+            const gptRes=await callGPT("generate_keywords",{
+              page_type:ans.pt||"",
+              page_description:ans.pd||"",
+              page_type_details:ans.ptx||"",
+              adjustment:t,
+              previous_keywords:kwData.map(k=>k.keyword)
+            });
+            let newRaw=[];
+            if(gptRes){
+              newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
+            }
+            if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
+            const locCode=parseLocationCode(ans.au||"");
+            const dfsData2=await callDFS(newRaw.slice(0,5),locCode);
+            let enriched2=[];
+            const metrics3=dfsData2?.keyword_metrics||[];
+            const sug3=dfsData2?.suggestions||[];
+            const lookup3=new Map();
+            metrics3.forEach(m=>{if(m?.keyword)lookup3.set(m.keyword.toLowerCase(),m);});
+            sug3.forEach(s=>{if(s?.keyword&&!lookup3.has(s.keyword.toLowerCase()))lookup3.set(s.keyword.toLowerCase(),s);});
+            const gV3=m=>(m?.search_volume??m?.volume??null);
+            const gK3=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
+            const maxV3=Math.max(...[...lookup3.values()].map(m=>gV3(m)||0),1);
+            if(lookup3.size>0){
+              enriched2=newRaw.map(kw=>{const match=lookup3.get(kw.toLowerCase());return{keyword:kw,volume:gV3(match),kd:gK3(match),freq:assignFreq(gV3(match)||0,maxV3)};});
+            } else {
+              enriched2=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
+            }
+            let adjustExtras2=dfsExtraRef.current;
+            if(dfsData2){
+              const normArr3=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
+              adjustExtras2={suggestions:dfsData2.suggestions||[],paa:normArr3(dfsData2.people_also_ask,"question"),related:normArr3(dfsData2.related_searches,"title"),autocomplete:normArr3(dfsData2.autocomplete,"suggestion")};
+              sDfsExtra(adjustExtras2);
+              dfsExtraRef.current=adjustExtras2;
+            }
+            sKwData(enriched2);sSkw(enriched2.map(k=>k.keyword));sTyp(false);sStep("kw");
+            add("b",<div>
+              <div style={{marginBottom:6}}>Keywords updated! Here's the new list with your changes.</div>
+              <KwS keywords={enriched2} init={enriched2.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched2,adjustExtras2);}} onAdj={()=>{bot("You've already adjusted keywords. Select from the list and click 'Build With These'.");}}/>
+            </div>);
+          } catch(err) {
+            console.error("[CB] keyword modify error:", err);
+            sTyp(false);
+            bot("Something went wrong adjusting keywords. Try again or click 'Adjust' button.");
+            sStep("kw");
+          }
+        })();
+      }
     } else {
       handleAiChat(t);
     }
