@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v27 — isQuestion fix: uncertainty phrases standalone only */
+/* IvaBot Content Builder v28 — Full prompt audit + extras in chat fix */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v27 loaded");
+console.log("[IvaBot] content-builder.js v28 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -968,7 +968,7 @@ const send=()=>{
       if(step==="kw"){
         if(action==="proceed"||(action==="flow_answer"&&isConfirmation(t))){
           /* User wants to continue → go straight to goal step */
-          kwD(kwData);
+          kwD(kwData, dfsExtraRef.current);
         } else if(action==="adjust_keywords"||(action==="flow_answer"&&!isConfirmation(t))){
           /* Adjust keywords — no limit, always allowed */
           doKeywordAdjust(r.adjustment||r.text||t);
