@@ -314,6 +314,9 @@ const[step,sStep]=useState("init");const[msgs,sMsgs]=useState([]);const[typ,sTyp
 const[ans,sAns]=useState({});
 const[kwData,sKwData]=useState([]);
 const[dfsExtra,sDfsExtra]=useState({});
+const dfsExtraRef=useRef({});
+/* Keep ref in sync with state */
+useEffect(()=>{dfsExtraRef.current=dfsExtra;},[dfsExtra]);
 const[skw,sSkw]=useState([]);
 const[stit,sStit]=useState(null);
 const[bd,sBd]=useState(null);
@@ -476,6 +479,7 @@ else if(sid==="pd"||sid==="ok"){
       };
       console.log("[CB] DFS extras:", JSON.stringify({paa:dfsExtraData.paa.length,related:dfsExtraData.related.length,autocomplete:dfsExtraData.autocomplete.length,raw_keys:Object.keys(dfsData||{})}));
       sDfsExtra(dfsExtraData);
+      dfsExtraRef.current=dfsExtraData;
 
       sKwData(enrichedKw);
       const init=enrichedKw.map(k=>k.keyword);
@@ -605,9 +609,9 @@ const gStr=async()=>{
       audience:ans.au||"",
       brand_details:ans.me||"",
       target_length:defaultLen,
-      related:dfsExtra.related||[],
-      paa:dfsExtra.paa||[],
-      autocomplete:dfsExtra.autocomplete||[]
+      related:dfsExtraRef.current.related||[],
+      paa:dfsExtraRef.current.paa||[],
+      autocomplete:dfsExtraRef.current.autocomplete||[]
     });
 
     let briefData;
@@ -636,9 +640,9 @@ const gStr=async()=>{
           kwNote:s.kwNote||s.keyword_note||null,
           visuals:s.visuals||[]
         })):[],
-        related:[...new Set([...(dfsExtra.related||[]).map(s=>typeof s==="string"?s:s.keyword||String(s)),...(Array.isArray(gptRes.related)?gptRes.related:[])])],
-        paa:[...new Set([...(dfsExtra.paa||[]).map(q=>typeof q==="string"?q:q.question||String(q)),...(Array.isArray(gptRes.paa)?gptRes.paa:[])])],
-        autocomplete:[...new Set([...(dfsExtra.autocomplete||[]).map(s=>typeof s==="string"?s:s.keyword||String(s)),...(Array.isArray(gptRes.autocomplete)?gptRes.autocomplete:[])])],
+        related:[...new Set([...(dfsExtraRef.current.related||[]).map(s=>typeof s==="string"?s:s.keyword||String(s)),...(Array.isArray(gptRes.related)?gptRes.related:[])])],
+        paa:[...new Set([...(dfsExtraRef.current.paa||[]).map(q=>typeof q==="string"?q:q.question||String(q)),...(Array.isArray(gptRes.paa)?gptRes.paa:[])])],
+        autocomplete:[...new Set([...(dfsExtraRef.current.autocomplete||[]).map(s=>typeof s==="string"?s:s.keyword||String(s)),...(Array.isArray(gptRes.autocomplete)?gptRes.autocomplete:[])])],
         contentLength:gptRes.content_length||defaultLen
       };
     } else {
@@ -650,9 +654,9 @@ const gStr=async()=>{
         keywords:kwWithData,
         recs:[{key:"Length",value:defaultLen},{key:"Tone",value:ans.au||"Professional"},{key:"Goal",value:ans.gl||"Inform"}],
         sections:[{level:"H1",title:stit||"Main Heading",desc:"Introduction paragraph",kwNote:null,visuals:[]}],
-        related:dfsExtra.related?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
-        paa:dfsExtra.paa?.map(q=>typeof q==="string"?q:q.question||String(q))||[],
-        autocomplete:dfsExtra.autocomplete?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
+        related:dfsExtraRef.current.related?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
+        paa:dfsExtraRef.current.paa?.map(q=>typeof q==="string"?q:q.question||String(q))||[],
+        autocomplete:dfsExtraRef.current.autocomplete?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
         contentLength:defaultLen
       };
     }
@@ -761,7 +765,7 @@ const handleTweak=async(text)=>{
 
 /* ═══ RESET ═══ */
 const reset=()=>{
-  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});sSkw([]);sStit(null);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sLsWaiting(false);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
+  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);sStit(null);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sLsWaiting(false);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
   setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);
 };
 
@@ -847,6 +851,7 @@ const send=()=>{
           const normArr2=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
           adjustExtras={suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")};
           sDfsExtra(adjustExtras);
+          dfsExtraRef.current=adjustExtras;
         }
         sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
         add("b",<div>
