@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v28 — Full prompt audit + extras in chat fix */
+/* IvaBot Content Builder v29 — sr extra info fix, no raw JSON shown */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v28 loaded");
+console.log("[IvaBot] content-builder.js v29 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -973,9 +973,9 @@ const send=()=>{
           /* Adjust keywords — no limit, always allowed */
           doKeywordAdjust(r.adjustment||r.text||t);
         } else {
-          /* answer or anything else — show GPT's text */
+          /* answer or anything else — show GPT's text, never raw JSON */
           const text=r.text;
-          if(text && typeof text==="string" && text.length>10){
+          if(text && typeof text==="string" && text.length>10 && !text.startsWith("{")){
             add("b",text);
           } else {
             handleAiChat(t);
@@ -994,9 +994,21 @@ const send=()=>{
         /* Length from text even if GPT didn't catch it */
         const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
         if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
-        /* Otherwise chat */
-        const text=r.text;
-        if(text && typeof text==="string" && text.length>10){ add("b",text); } else { handleAiChat(t); }
+        /* adjust_keywords on sr = user adding extra info for content (address, details) */
+        if(action==="adjust_keywords"){
+          /* Save the extra info into brand_details / page context for content generation */
+          const extra=r.adjustment||t;
+          sAns(p=>({...p,me:(p.me||"")+"\n"+extra}));
+          bot("Got it! I'll include this in your content when you generate it. Click 'Generate Content' when ready.");
+          return;
+        }
+        /* Otherwise chat — use GPT answer text, but never show raw JSON */
+        const ansText=r.text;
+        if(ansText && typeof ansText==="string" && ansText.length>10 && !ansText.startsWith("{")){
+          add("b",ansText);
+        } else {
+          handleAiChat(t);
+        }
         return;
       }
 
