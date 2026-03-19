@@ -968,7 +968,7 @@ const send=()=>{
       console.log("[CB] Router dispatch:", action, "step:", step);
 
       if(step==="kw"){
-        if(action==="proceed"||action==="flow_answer"&&isConfirmation(t)){
+        if(action==="proceed"||(action==="flow_answer"&&isConfirmation(t))){
           bot(<div>
             <div style={{marginBottom:6}}>Review your keyword selection and click "Build With These" to continue.</div>
             <KwS keywords={kwData} init={skw} onDone={s=>{sSkw(s);kwD(kwData);}} onAdj={()=>{
@@ -988,7 +988,7 @@ const send=()=>{
             doKeywordAdjust(r.adjustment||t);
           }
         } else {
-          /* answer or anything else — show GPT's text, or use handleAiChat */
+          /* answer, flow_answer (non-confirm), or anything else — show GPT's text */
           const text=r.text;
           if(text && typeof text==="string" && text.length>10){
             add("b",text);
