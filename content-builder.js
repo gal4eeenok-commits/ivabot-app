@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v20 — real API + all fixes */
+/* IvaBot Content Builder v21 — all v20 fixes applied */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v20 loaded");
+console.log("[IvaBot] content-builder.js v21 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -149,7 +149,7 @@ const LOCATION_CODES = {
   "netherlands": 2528, "nl": 2528,
   "spain": 2724, "es": 2724,
   "italy": 2380, "it": 2380,
-  "global": 2840 /* default to US for global */
+  "global": 2840
 };
 function parseLocationCode(text) {
   if (!text) return 2840;
@@ -157,7 +157,7 @@ function parseLocationCode(text) {
   for (const [key, code] of Object.entries(LOCATION_CODES)) {
     if (t.includes(key)) return code;
   }
-  return 2840; /* default US */
+  return 2840;
 }
 
 /* Build chat history string from messages array */
@@ -202,21 +202,37 @@ function assignFreq(volume, maxVol) {
 /* Format volume number */
 const fmtVol = v => { if (!v) return "—"; if (v >= 1000) return (v / 1000).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
 
-/* ═══ UI PRIMITIVES (same as v18) ═══ */
+/* ═══ UI PRIMITIVES ═══ */
 const useIsMobile=()=>{const[m,sm]=useState(window.innerWidth<1024);useEffect(()=>{const h=()=>sm(window.innerWidth<1024);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);return m;};
 const BotLogoFull=()=>(<svg width="33" height="29" viewBox="0 0 66 58" fill="none"><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill="#6E2BFF"/><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill="#6E2BFF"/></svg>);
 const BL=({s=16})=>(<svg width={s} height={Math.round(s*0.81)} viewBox="0 0 66 58" fill="none" style={{flexShrink:0,opacity:0.35}}><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill="#6E2BFF"/><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill="#6E2BFF"/></svg>);
 const UA=({n})=><div style={{width:20,height:20,borderRadius:"50%",background:C.accent,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:10,fontWeight:700,color:"#fff"}}>{(n||"U")[0].toUpperCase()}</span></div>;
 const CB=({t})=>{const[c,sc]=useState(false);return<button onClick={()=>{navigator.clipboard?.writeText(t);sc(true);setTimeout(()=>sc(false),1500);}} style={{fontSize:10,fontWeight:600,color:c?"#9B7AE6":C.accent,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"2px 6px",whiteSpace:"nowrap"}}>{c?"Copied!":"Copy"}</button>;};
 const QM=({text})=>{const[s,ss]=useState(false);const r=useRef(null);return<span ref={r} style={{position:"relative",display:"inline-flex",alignItems:"center",verticalAlign:"middle"}} onMouseEnter={()=>ss(true)} onMouseLeave={()=>ss(false)} onClick={()=>ss(!s)}><span style={{width:16,height:16,borderRadius:"50%",border:`1px solid ${C.borderMid}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,cursor:"help",marginLeft:4,verticalAlign:"middle"}}>?</span>{s&&<span style={{position:"fixed",top:r.current?r.current.getBoundingClientRect().bottom+8:0,left:r.current?Math.min(r.current.getBoundingClientRect().left,window.innerWidth-260):0,background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:240,zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal"}}>{text}</span>}</span>;};
-const LB=({step,total,text})=>{const p=((step+1)/total)*100;return<div style={{padding:"14px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,fontWeight:500,color:C.dark}}>{text}</span><span style={{fontSize:11,fontWeight:600,color:C.accent}}>{Math.round(p)}%</span></div><div style={{height:4,background:"rgba(110,43,255,0.08)",borderRadius:100,overflow:"hidden"}}><div style={{height:"100%",background:C.accent,borderRadius:100,width:`${p}%`,transition:"width 0.5s ease"}}/></div></div>;};
+
+/* ═══ FIX #2: Loading bar that waits for API ═══ */
+const LB=({step,total,text,waiting})=>{
+  /* If waiting=true, we're on the last step and the bar stays at ~95% */
+  const p = waiting ? Math.min(((step+1)/total)*100, 95) : ((step+1)/total)*100;
+  return<div style={{padding:"14px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
+    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+      <span style={{fontSize:12,fontWeight:500,color:C.dark}}>{text}</span>
+      <span style={{fontSize:11,fontWeight:600,color:C.accent}}>{Math.round(p)}%</span>
+    </div>
+    <div style={{height:4,background:"rgba(110,43,255,0.08)",borderRadius:100,overflow:"hidden"}}>
+      <div style={{height:"100%",background:C.accent,borderRadius:100,width:`${p}%`,transition:"width 0.5s ease"}}/>
+    </div>
+  </div>;
+};
+
 const BN=({text})=><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>{text}</span></div>;
-const BotTip=({short,children})=>{const[o,so]=useState(false);return<div style={{padding:"8px 12px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:`1px solid ${C.cardBorder}`,marginTop:6,marginBottom:4}}><div style={{fontSize:12,color:C.muted,lineHeight:1.5}}>{short}</div>{children&&<button onClick={()=>so(!o)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"4px 0 0",display:"flex",alignItems:"center",gap:3}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>{o?"Less":"Learn more"}</button>}{o&&children&&<div style={{fontSize:12,color:C.dark,lineHeight:1.6,marginTop:6,paddingTop:6,borderTop:`1px solid ${C.cardBorder}`}}>{children}</div>}</div>;};
+const BotTip=({short,children})=>{const[o,so]=useState(false);return<div style={{padding:"8px 12px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:`1px solid ${C.cardBorder}`,marginTop:6,marginBottom:4}}><div style={{fontSize:12,color:C.muted,lineHeight:1.5}}>{short}</div>{children&&<button className="bot-tip-expand" onClick={()=>so(!o)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"4px 0 0",display:"flex",alignItems:"center",gap:3}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>{o?"Less":"Learn more"}</button>}{o&&children&&<div style={{fontSize:12,color:C.dark,lineHeight:1.6,marginTop:6,paddingTop:6,borderTop:`1px solid ${C.cardBorder}`}}>{children}</div>}</div>;};
 const BB=({children})=><div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",maxWidth:"90%",alignSelf:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`,fontSize:13,color:C.dark,lineHeight:1.5}}>{children}</div></div>;
 const UB=({children,n})=><div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",maxWidth:"80%",alignSelf:"flex-end"}}><div style={{marginBottom:3,marginRight:2}}><UA n={n}/></div><div style={{padding:"8px 14px",borderRadius:"12px 4px 12px 12px",background:C.accent,fontSize:13,color:"#fff"}}>{children}</div></div>;
 const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 const HP=({text,onClick,disabled:d})=><span onClick={d?undefined:onClick} style={{padding:"5px 12px",borderRadius:8,background:d?"rgba(21,20,21,0.02)":"rgba(21,20,21,0.03)",color:d?"rgba(21,20,21,0.2)":"#B8B5BB",fontSize:11,cursor:d?"default":"pointer",border:"1px solid transparent",fontFamily:"'DM Sans',sans-serif",pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!d){e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}}} onMouseLeave={e=>{if(!d){e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}}>{text}</span>;
-const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif"}}>{text}</span>;
+/* FIX #5: HE = non-clickable hint (grey, no pointer) */
+const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif",cursor:"default",pointerEvents:"none"}}>{text}</span>;
 const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
 
 /* ═══ KEYWORD SELECTOR ═══ */
@@ -231,10 +247,10 @@ const RevealBlock=({children,delay=0})=>{const ref=useRef(null);const[vis,setVis
 const LoadingPanel=({text})=><div style={{minHeight:"calc(100vh - 130px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40}}><div style={{width:40,height:40,borderRadius:"50%",border:"3px solid rgba(110,43,255,0.1)",borderTopColor:C.accent,animation:"spin 0.8s linear infinite",marginBottom:16}}/><div style={{fontSize:13,fontWeight:500,color:C.dark,marginBottom:4}}>{text||"Generating..."}</div><div style={{fontSize:12,color:C.muted}}>This usually takes a few seconds</div><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
 const Placeholder=()=><div style={{minHeight:"calc(100vh - 180px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40}}><div style={{width:64,height:64,borderRadius:16,background:"rgba(110,43,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div style={{fontSize:18,fontWeight:700,color:C.dark,marginBottom:8}}>Your content will appear here</div><div style={{fontSize:13,color:C.muted,lineHeight:1.6,textAlign:"center",maxWidth:320,marginBottom:24}}>Answer the questions on the left, and I'll build your SEO brief and content step by step.</div><div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:300}}>{[{n:"1",t:"Keywords + context",d:"Topic, audience, tone, goals"},{n:"2",t:"SEO structure",d:"Title, description, H1-H3"},{n:"3",t:"Full content",d:"Complete page text, ready to publish"}].map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:10,background:"rgba(110,43,255,0.04)",border:"1px solid rgba(110,43,255,0.08)"}}><div style={{width:24,height:24,borderRadius:"50%",background:"rgba(155,122,230,0.12)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:11,fontWeight:700,color:"#9B7AE6"}}>{s.n}</span></div><div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{s.t}</div><div style={{fontSize:11,color:C.muted}}>{s.d}</div></div></div>)}</div></div>;
 
-/* ═══ BRIEF & CONTENT PANELS (same rendering as v18) ═══ */
-const BriefInner=({d})=>{const[kwE,skE]=useState(false);return<div><RevealBlock><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>SEO TITLE</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13.5,fontWeight:500,color:C.dark}}>{hlF(d.title,d.titleKw)}</span><CB t={d.title}/></div></div></RevealBlock><RevealBlock delay={0.06}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>META DESCRIPTION</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}><span style={{fontSize:12.5,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</span><CB t={d.description}/></div></div></RevealBlock><RevealBlock delay={0.12}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>FOCUS KEYWORDS</div><div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:"visible"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}><thead><tr style={{borderBottom:"1px solid rgba(21,20,21,0.06)"}}><th style={{textAlign:"left",padding:"8px 12px",color:C.muted,fontWeight:500,fontSize:10}}>Keyword</th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:55,whiteSpace:"nowrap"}}>Vol.<QM text="Monthly search volume — how many people search this per month."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:40,whiteSpace:"nowrap"}}>KD<QM text="Keyword difficulty (0–100). Lower is easier to rank for."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:45,whiteSpace:"nowrap"}}>Freq<QM text="How often to use this keyword. HV = high priority. MV = medium. LV = low."/></th></tr></thead><tbody>{d.keywords.map((k,i)=>{const fc=FC[k.freq]||FC.MV;return<tr key={i} style={{borderBottom:i<d.keywords.length-1?"1px solid rgba(21,20,21,0.04)":"none"}}><td style={{padding:"7px 12px",color:C.dark,fontWeight:500,fontSize:12}}>{k.keyword}</td><td style={{textAlign:"center",padding:"7px",color:C.dark,fontWeight:600}}>{fmtVol(k.volume)}</td><td style={{textAlign:"center",padding:"7px",color:C.muted}}>{k.kd!=null?(typeof k.kd==="number"?k.kd:String(k.kd)):"—"}</td><td style={{textAlign:"center",padding:"7px"}}><span style={{fontSize:10,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></td></tr>;})}</tbody></table></div>{(kwData.some&&d.keywords.some(k=>k.volume==null))&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>— = Google doesn't have enough search data for this keyword in the selected market.</div>}{d.related?.length>0&&<button onClick={()=>skE(!kwE)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"6px 0",display:"flex",alignItems:"center",gap:4,marginTop:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="2" strokeLinecap="round" style={{transform:kwE?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>Additional search phrases from Google</button>}{kwE&&<div style={{marginTop:6,padding:10,borderRadius:8,background:"rgba(21,20,21,0.02)",border:"1px solid rgba(21,20,21,0.06)",fontSize:11}}>{d.related?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>RELATED SEARCHES</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>{d.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}{d.paa?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>PEOPLE ALSO ASK</div><div style={{fontSize:10.5,color:C.dark,lineHeight:1.6,marginBottom:8}}>{d.paa.map((q,i)=><div key={i}>• {q}</div>)}</div></>}{d.autocomplete?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>AUTOCOMPLETE</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{d.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}</div>}</div></RevealBlock><RevealBlock delay={0.18}>{d.recs?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>RECOMMENDATIONS</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>{d.recs.map((r,i)=><div key={i} style={{padding:"8px 10px",borderRadius:8,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)"}}><div style={{fontSize:9,color:C.muted,textTransform:"capitalize"}}>{r.key}</div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{r.value}</div></div>)}</div></div>}</RevealBlock><RevealBlock delay={0.24}>{d.sections?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>PAGE STRUCTURE</div>{d.sections.map((sec,i)=><div key={i} style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{fontSize:9,fontWeight:600,color:sec.level==="H1"?"#6E2BFF":"#9B7AE6",background:sec.level==="H1"?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>{sec.level}</span><span style={{fontSize:sec.level==="H1"?13:12.5,fontWeight:600,color:C.dark}}>{sec.title}</span></div><div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,marginTop:4}}>{sec.desc}</div>{sec.kwNote&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>{sec.kwNote}</div>}{sec.visuals?.length>0&&<div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>{sec.visuals.map((v,j)=><span key={j} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:C.muted,padding:"3px 8px",borderRadius:6,background:"rgba(21,20,21,0.03)"}}><VI type={v.icon}/>{v.text}</span>)}</div>}</div>)}</div>}</RevealBlock><RevealBlock delay={0.3}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your page to <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></RevealBlock></div>;};
-const BriefPanel=({d})=><div style={{padding:"28px 24px"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.recs?.find(r=>r.key==="Goal")?.value||"Content"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>structure ready</span></div><BriefInner d={d}/></div>;
-const ContentPanel=({html,d})=>{const[bo,sbo]=useState(false);const render=()=>{if(!html)return null;const secs=html.split(/(?=<h[12]>)/);return secs.map((sec,i)=>{const hm=sec.match(/<h([12])>(.*?)<\/h\1>/);const lv=hm?parseInt(hm[1]):null;const hd=hm?hm[2]:null;const body=sec.replace(/<h[12]>.*?<\/h[12]>/,"").trim();return<RevealBlock key={i} delay={i*0.08}><div style={{marginBottom:24}}>{hd&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><span style={{fontSize:9,fontWeight:600,color:lv===1?"#6E2BFF":"#9B7AE6",background:lv===1?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>H{lv}</span><span style={{fontSize:lv===1?18:15,fontWeight:700,color:C.dark}}>{hd}</span></div>}<div style={{fontSize:13,color:C.dark,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:body.replace(/<mark data-freq="HV">(.*?)<\/mark>/g,'<span style="background:rgba(110,43,255,0.12);color:#6E2BFF;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="MV">(.*?)<\/mark>/g,'<span style="background:rgba(155,122,230,0.1);color:#9B7AE6;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="LV">(.*?)<\/mark>/g,'<span style="background:rgba(184,156,240,0.12);color:#B89CF0;padding:1px 4px;border-radius:3px">$1</span>').replace(/<strong>(.*?)<\/strong>/g,'<strong style="font-weight:600">$1</strong>').replace(/<ul>/g,'<ul style="padding-left:20px;margin:8px 0">').replace(/<li>/g,'<li style="margin-bottom:4px">').replace(/<blockquote>(.*?)<\/blockquote>/g,'<div style="border-left:3px solid rgba(110,43,255,0.2);padding:10px 14px;background:rgba(110,43,255,0.03);border-radius:0 8px 8px 0;margin:8px 0;font-style:italic">$1</div>').replace(/<table>/g,'<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px">').replace(/<th>/g,'<th style="text-align:left;padding:6px 10px;background:rgba(110,43,255,0.06);border:1px solid rgba(21,20,21,0.06);font-weight:600">').replace(/<td>/g,'<td style="padding:6px 10px;border:1px solid rgba(21,20,21,0.06)">').replace(/<details><summary>(.*?)<\/summary>/g,'<div style="border:1px solid rgba(21,20,21,0.08);border-radius:8px;margin:4px 0"><div style="padding:8px 12px;font-weight:600;font-size:12px;background:rgba(21,20,21,0.02)">$1</div><div style="padding:8px 12px;font-size:12px">').replace(/<\/details>/g,'</div></div>').replace(/\[visual:([^\]]*)\]/g,'<div style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:rgba(21,20,21,0.03);color:#928E95;font-size:11px;margin:4px 0">$1</div>')}}/></div></RevealBlock>;});};return<div style={{padding:"28px 24px"}}><RevealBlock><div style={{marginBottom:20,borderRadius:12,border:`1px solid ${C.cardBorder}`,overflow:"hidden"}}><button onClick={()=>sbo(!bo)} style={{width:"100%",padding:"14px 16px",background:C.card,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><BL s={16}/><span style={{fontSize:14,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 8px",borderRadius:8,fontWeight:500}}>view</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:bo?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s"}}><polyline points="6 9 12 15 18 9"/></svg></button>{bo&&<div style={{padding:16,borderTop:`1px solid ${C.cardBorder}`}}><BriefInner d={d}/></div>}</div></RevealBlock><RevealBlock delay={0.06}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>Full Content</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.contentLength||"~800 words"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>ready to use</span></div></RevealBlock><RevealBlock delay={0.12}><div style={{padding:"14px 16px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)",marginBottom:20}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>SEO TITLE</div><div style={{fontSize:13,fontWeight:600,color:C.dark,marginBottom:8}}>{d.title}</div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>META DESCRIPTION</div><div style={{fontSize:12,color:C.dark,lineHeight:1.5}}>{d.description}</div></div></RevealBlock>{render()}<RevealBlock delay={0.1}><div style={{marginTop:16}}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your URL in <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></div></RevealBlock></div>;};
+/* ═══ BRIEF & CONTENT PANELS ═══ */
+const BriefInner=({d,kwData:kwDataProp})=>{const[kwE,skE]=useState(false);return<div><RevealBlock><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>SEO TITLE</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13.5,fontWeight:500,color:C.dark}}>{hlF(d.title,d.titleKw)}</span><CB t={d.title}/></div></div></RevealBlock><RevealBlock delay={0.06}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>META DESCRIPTION</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}><span style={{fontSize:12.5,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</span><CB t={d.description}/></div></div></RevealBlock><RevealBlock delay={0.12}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>FOCUS KEYWORDS</div><div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:"visible"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}><thead><tr style={{borderBottom:"1px solid rgba(21,20,21,0.06)"}}><th style={{textAlign:"left",padding:"8px 12px",color:C.muted,fontWeight:500,fontSize:10}}>Keyword</th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:55,whiteSpace:"nowrap"}}>Vol.<QM text="Monthly search volume — how many people search this per month."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:40,whiteSpace:"nowrap"}}>KD<QM text="Keyword difficulty (0–100). Lower is easier to rank for."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:45,whiteSpace:"nowrap"}}>Freq<QM text="How often to use this keyword. HV = high priority. MV = medium. LV = low."/></th></tr></thead><tbody>{d.keywords.map((k,i)=>{const fc=FC[k.freq]||FC.MV;return<tr key={i} style={{borderBottom:i<d.keywords.length-1?"1px solid rgba(21,20,21,0.04)":"none"}}><td style={{padding:"7px 12px",color:C.dark,fontWeight:500,fontSize:12}}>{k.keyword}</td><td style={{textAlign:"center",padding:"7px",color:C.dark,fontWeight:600}}>{fmtVol(k.volume)}</td><td style={{textAlign:"center",padding:"7px",color:C.muted}}>{k.kd!=null?(typeof k.kd==="number"?k.kd:String(k.kd)):"—"}</td><td style={{textAlign:"center",padding:"7px"}}><span style={{fontSize:10,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></td></tr>;})}</tbody></table></div>{d.keywords.some(k=>k.volume==null)&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>— = Google doesn't have enough search data for this keyword in the selected market.</div>}{d.related?.length>0&&<button onClick={()=>skE(!kwE)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"6px 0",display:"flex",alignItems:"center",gap:4,marginTop:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="2" strokeLinecap="round" style={{transform:kwE?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>Additional search phrases from Google</button>}{kwE&&<div style={{marginTop:6,padding:10,borderRadius:8,background:"rgba(21,20,21,0.02)",border:"1px solid rgba(21,20,21,0.06)",fontSize:11}}>{d.related?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>RELATED SEARCHES</div><div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>{d.related.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}{d.paa?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>PEOPLE ALSO ASK</div><div style={{fontSize:10.5,color:C.dark,lineHeight:1.6,marginBottom:8}}>{d.paa.map((q,i)=><div key={i}>• {q}</div>)}</div></>}{d.autocomplete?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.muted,marginBottom:4}}>AUTOCOMPLETE</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{d.autocomplete.map((s,i)=><span key={i} style={{padding:"2px 7px",borderRadius:4,background:"rgba(21,20,21,0.03)",color:C.dark,fontSize:10}}>{s}</span>)}</div></>}</div>}</div></RevealBlock><RevealBlock delay={0.18}>{d.recs?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>RECOMMENDATIONS</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>{d.recs.map((r,i)=><div key={i} style={{padding:"8px 10px",borderRadius:8,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)"}}><div style={{fontSize:9,color:C.muted,textTransform:"capitalize"}}>{r.key}</div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{r.value}</div></div>)}</div></div>}</RevealBlock><RevealBlock delay={0.24}>{d.sections?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>PAGE STRUCTURE</div>{d.sections.map((sec,i)=><div key={i} style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{fontSize:9,fontWeight:600,color:sec.level==="H1"?"#6E2BFF":"#9B7AE6",background:sec.level==="H1"?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>{sec.level}</span><span style={{fontSize:sec.level==="H1"?13:12.5,fontWeight:600,color:C.dark}}>{sec.title}</span></div><div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,marginTop:4}}>{sec.desc}</div>{sec.kwNote&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>{sec.kwNote}</div>}{sec.visuals?.length>0&&<div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>{sec.visuals.map((v,j)=><span key={j} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:C.muted,padding:"3px 8px",borderRadius:6,background:"rgba(21,20,21,0.03)"}}><VI type={v.icon}/>{v.text}</span>)}</div>}</div>)}</div>}</RevealBlock><RevealBlock delay={0.3}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your page to <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></RevealBlock></div>;};
+const BriefPanel=({d,kwData:kwDataProp})=><div style={{padding:"28px 24px"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.recs?.find(r=>r.key==="Goal")?.value||"Content"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>structure ready</span></div><BriefInner d={d} kwData={kwDataProp}/></div>;
+const ContentPanel=({html,d,kwData:kwDataProp})=>{const[bo,sbo]=useState(false);const render=()=>{if(!html)return null;const secs=html.split(/(?=<h[12]>)/);return secs.map((sec,i)=>{const hm=sec.match(/<h([12])>(.*?)<\/h\1>/);const lv=hm?parseInt(hm[1]):null;const hd=hm?hm[2]:null;const body=sec.replace(/<h[12]>.*?<\/h[12]>/,"").trim();return<RevealBlock key={i} delay={i*0.08}><div style={{marginBottom:24}}>{hd&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><span style={{fontSize:9,fontWeight:600,color:lv===1?"#6E2BFF":"#9B7AE6",background:lv===1?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>H{lv}</span><span style={{fontSize:lv===1?18:15,fontWeight:700,color:C.dark}}>{hd}</span></div>}<div style={{fontSize:13,color:C.dark,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:body.replace(/<mark data-freq="HV">(.*?)<\/mark>/g,'<span style="background:rgba(110,43,255,0.12);color:#6E2BFF;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="MV">(.*?)<\/mark>/g,'<span style="background:rgba(155,122,230,0.1);color:#9B7AE6;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="LV">(.*?)<\/mark>/g,'<span style="background:rgba(184,156,240,0.12);color:#B89CF0;padding:1px 4px;border-radius:3px">$1</span>').replace(/<strong>(.*?)<\/strong>/g,'<strong style="font-weight:600">$1</strong>').replace(/<ul>/g,'<ul style="padding-left:20px;margin:8px 0">').replace(/<li>/g,'<li style="margin-bottom:4px">').replace(/<blockquote>(.*?)<\/blockquote>/g,'<div style="border-left:3px solid rgba(110,43,255,0.2);padding:10px 14px;background:rgba(110,43,255,0.03);border-radius:0 8px 8px 0;margin:8px 0;font-style:italic">$1</div>').replace(/<table>/g,'<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px">').replace(/<th>/g,'<th style="text-align:left;padding:6px 10px;background:rgba(110,43,255,0.06);border:1px solid rgba(21,20,21,0.06);font-weight:600">').replace(/<td>/g,'<td style="padding:6px 10px;border:1px solid rgba(21,20,21,0.06)">').replace(/<details><summary>(.*?)<\/summary>/g,'<div style="border:1px solid rgba(21,20,21,0.08);border-radius:8px;margin:4px 0"><div style="padding:8px 12px;font-weight:600;font-size:12px;background:rgba(21,20,21,0.02)">$1</div><div style="padding:8px 12px;font-size:12px">').replace(/<\/details>/g,'</div></div>').replace(/\[visual:([^\]]*)\]/g,'<div style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:rgba(21,20,21,0.03);color:#928E95;font-size:11px;margin:4px 0">$1</div>')}}/></div></RevealBlock>;});};return<div style={{padding:"28px 24px"}}><RevealBlock><div style={{marginBottom:20,borderRadius:12,border:`1px solid ${C.cardBorder}`,overflow:"hidden"}}><button onClick={()=>sbo(!bo)} style={{width:"100%",padding:"14px 16px",background:C.card,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><BL s={16}/><span style={{fontSize:14,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 8px",borderRadius:8,fontWeight:500}}>view</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:bo?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s"}}><polyline points="6 9 12 15 18 9"/></svg></button>{bo&&<div style={{padding:16,borderTop:`1px solid ${C.cardBorder}`}}><BriefInner d={d} kwData={kwDataProp}/></div>}</div></RevealBlock><RevealBlock delay={0.06}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>Full Content</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.contentLength||"~800 words"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>ready to use</span></div></RevealBlock><RevealBlock delay={0.12}><div style={{padding:"14px 16px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)",marginBottom:20}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>SEO TITLE</div><div style={{fontSize:13,fontWeight:600,color:C.dark,marginBottom:8}}>{d.title}</div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>META DESCRIPTION</div><div style={{fontSize:12,color:C.dark,lineHeight:1.5}}>{d.description}</div></div></RevealBlock>{render()}<RevealBlock delay={0.1}><div style={{marginTop:16}}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your URL in <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></div></RevealBlock></div>;};
 
 /* ═══ LOADING STEP LABELS ═══ */
 const LKW=["Generating keyword ideas...","Searching Google data...","Analyzing search volume...","Ranking by difficulty..."];
@@ -250,20 +266,21 @@ function ContentBuilder({onHome,memberName:mn}){
 const isMobile=useIsMobile();const[mTab,sMTab]=useState("chat");const[pLoad,sPLoad]=useState(null);
 const[step,sStep]=useState("init");const[msgs,sMsgs]=useState([]);const[typ,sTyp]=useState(false);
 const[ans,sAns]=useState({});
-const[kwData,sKwData]=useState([]);    /* [{keyword,volume,kd,freq}] */
-const[dfsExtra,sDfsExtra]=useState({}); /* {suggestions,paa,related,autocomplete} */
-const[skw,sSkw]=useState([]);           /* selected keyword strings */
+const[kwData,sKwData]=useState([]);
+const[dfsExtra,sDfsExtra]=useState({});
+const[skw,sSkw]=useState([]);
 const[stit,sStit]=useState(null);
-const[bd,sBd]=useState(null);           /* brief/structure data */
-const[contentHtml,sContentHtml]=useState(null); /* generated HTML */
-const[rp,sRp]=useState("ph");           /* ph | br | ct */
-const[ls,sLs]=useState(-1);const[lst,sLst]=useState([]);
+const[bd,sBd]=useState(null);
+const[contentHtml,sContentHtml]=useState(null);
+const[rp,sRp]=useState("ph");
+const[ls,sLs]=useState(-1);const[lst,sLst]=useState([]);const[lsWaiting,sLsWaiting]=useState(false);
 const[dn,sDn]=useState({});
 const[tweakCount,sTweakCount]=useState(0);
-const[kwFlowType,sKwFlowType]=useState(null); /* "find" | "own" */
+const[kwFlowType,sKwFlowType]=useState(null);
 const[adjustUsed,sAdjustUsed]=useState(false);
 const cr=useRef(null);const inpRef=useRef(null);
 const prevMsgCount=useRef(0);
+const loadingResolveRef=useRef(null); /* FIX #2: ref to resolve loading when API done */
 const scrollChat=useCallback(()=>{if(cr.current)cr.current.scrollTop=cr.current.scrollHeight;},[]);
 useEffect(()=>{if(msgs.length>prevMsgCount.current)setTimeout(scrollChat,50);prevMsgCount.current=msgs.length;},[msgs.length]);
 useEffect(()=>{if(typ)setTimeout(scrollChat,50);},[typ]);
@@ -271,10 +288,36 @@ useEffect(()=>{if(typ)setTimeout(scrollChat,50);},[typ]);
 const add=useCallback((f,c)=>{sMsgs(p=>[...p,{f,c,id:Date.now()+Math.random()}]);},[]);
 const bot=useCallback((c,dl=800)=>{sTyp(true);return new Promise(r=>{setTimeout(()=>{sTyp(false);add("b",c);r();},dl);});},[add]);
 const botInstant=useCallback((c)=>{sTyp(false);add("b",c);},[add]);
-const rl=useCallback((st,cb)=>{sLst(st);let i=0;sLs(0);const iv=setInterval(()=>{i++;if(i>=st.length){clearInterval(iv);sLs(-1);sLst([]);cb();}else sLs(i);},1200);},[]);
+
+/* ═══ FIX #2: Loading bar that waits for API ═══
+   Steps show on timer up to the LAST step. Last step stays (waiting=true)
+   until stopLoading() is called. */
+const startLoading=useCallback((steps)=>{
+  sLst(steps);sLs(0);sLsWaiting(false);
+  return new Promise(resolve=>{
+    loadingResolveRef.current=resolve;
+    let i=0;
+    const iv=setInterval(()=>{
+      i++;
+      if(i>=steps.length-1){
+        /* Stay on last step — waiting for API */
+        clearInterval(iv);
+        sLs(steps.length-1);
+        sLsWaiting(true);
+      } else {
+        sLs(i);
+      }
+    },1200);
+  });
+},[]);
+const stopLoading=useCallback(()=>{
+  sLs(-1);sLst([]);sLsWaiting(false);
+  if(loadingResolveRef.current){loadingResolveRef.current();loadingResolveRef.current=null;}
+},[]);
+
 const mk=id=>sDn(p=>({...p,[id]:true}));
 
-/* ═══ AI CHAT (works on any step) ═══ */
+/* ═══ AI CHAT ═══ */
 const handleAiChat=useCallback(async(text)=>{
   sTyp(true);
   const ctx=buildStepContext(step,ans,kwData,stit,bd);
@@ -301,8 +344,9 @@ mk(sid);add("u",val);sAns(p=>({...p,[sid]:val}));
 if(sid==="pt"){
   const cfg=getPageConfig(val);
   if(cfg){
-    sStep("ptx"); /* extra page-type question */
-    bot(<div><div style={{marginBottom:6}}>{cfg.extraQ}</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{cfg.hints.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("ptx",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me write better content for your specific page.</div></div>);
+    sStep("ptx");
+    /* FIX #5 & #9: ptx hints are HE (non-clickable), not HP */
+    bot(<div><div style={{marginBottom:6}}>{cfg.extraQ}</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{cfg.hints.map((h,i)=><HE key={i} text={h}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me write better content for your specific page.</div></div>);
   } else {
     sStep("pd");
     bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);
@@ -315,90 +359,97 @@ else if(sid==="ptx"){
 else if(sid==="pd"||sid==="ok"){
   /* === KEYWORDS: GPT generate_keywords → DFS content_builder → merge === */
   sStep("kl");
-  rl(LKW, async()=>{
-    let rawKeywords=[];
-    let dfsData=null;
+  /* FIX #1 & #2: wrap all async in try/catch, loading waits for API */
+  startLoading(LKW);
+  sTyp(true); /* show typing indicator in parallel */
+  (async()=>{
+    try {
+      let rawKeywords=[];
+      let dfsData=null;
 
-    if(sid==="ok"){
-      /* User provided own keywords */
-      rawKeywords=val.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean);
-    } else {
-      /* GPT generates keywords based on page description */
-      const gptRes=await callGPT("generate_keywords",{
-        page_type:ans.pt||"",
-        page_description:val,
-        ...ans
-      });
-      if(gptRes){
-        rawKeywords=Array.isArray(gptRes.keywords)?gptRes.keywords:
-          Array.isArray(gptRes)?gptRes:
-          typeof gptRes.text==="string"?gptRes.text.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean):[];
-      }
-      if(rawKeywords.length===0) rawKeywords=[val]; /* fallback: use description as keyword */
-    }
-
-    /* Call DFS for volume/KD/suggestions — use location from audience if available */
-    const locCode=parseLocationCode(ans.au||"");
-    dfsData=await callDFS(rawKeywords.slice(0,5),locCode);
-
-    let enrichedKw=[];
-    const metrics=dfsData?.keyword_metrics||[];
-    const allSugs=dfsData?.suggestions||[];
-    /* Build a lookup from both metrics and suggestions */
-    const lookup=new Map();
-    metrics.forEach(m=>{if(m?.keyword)lookup.set(m.keyword.toLowerCase(),m);});
-    allSugs.forEach(s=>{if(s?.keyword&&!lookup.has(s.keyword.toLowerCase()))lookup.set(s.keyword.toLowerCase(),s);});
-    const getVol=m=>(m?.search_volume??m?.volume??null);
-    const getKd=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);if(typeof v==="number")return v;return null;};
-    const allVols=[...lookup.values()].map(m=>getVol(m)||0);
-    const maxVol=Math.max(...allVols,1);
-
-    if(lookup.size>0){
-      enrichedKw=rawKeywords.map(kw=>{
-        const match=lookup.get(kw.toLowerCase());
-        const vol=getVol(match);
-        const kd=getKd(match);
-        return{keyword:kw,volume:vol,kd:kd,freq:assignFreq(vol,maxVol)};
-      });
-      /* Add DFS suggestions as extra keywords if we have room */
-      if(allSugs.length>0){
-        const existing=new Set(enrichedKw.map(k=>k.keyword.toLowerCase()));
-        allSugs.filter(s=>s.keyword&&!existing.has(s.keyword.toLowerCase())&&(getVol(s)||0)>0).slice(0,3).forEach(s=>{
-          enrichedKw.push({keyword:s.keyword,volume:getVol(s),kd:getKd(s),freq:assignFreq(getVol(s)||0,maxVol)});
+      if(sid==="ok"){
+        rawKeywords=val.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean);
+      } else {
+        const gptRes=await callGPT("generate_keywords",{
+          page_type:ans.pt||"",
+          page_description:val,
+          page_type_details:ans.ptx||"",
+          ...ans
         });
-      }
-    } else {
-      /* DFS returned no data — GPT fallback (no volume/KD) */
-      enrichedKw=rawKeywords.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
-    }
-
-    /* Store DFS extra data — handle both string arrays and object arrays */
-    const normArr=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
-    sDfsExtra({
-      suggestions:dfsData?.suggestions||[],
-      paa:normArr(dfsData?.people_also_ask,"question"),
-      related:normArr(dfsData?.related_searches,"title"),
-      autocomplete:normArr(dfsData?.autocomplete,"suggestion")
-    });
-
-    sKwData(enrichedKw);
-    const init=enrichedKw.map(k=>k.keyword);
-    sSkw(init);
-    sStep("kw");
-    add("b",<div>
-      <div style={{marginBottom:6}}>{dfsData?"I found keywords with real Google search data. Pick the ones that match your page best.":"Here are keyword suggestions. Pick the ones that fit."}</div>
-      <BotTip short="Each keyword has volume, difficulty, and frequency data."><div><div style={{marginBottom:6}}>Vol. — monthly searches.</div><div style={{marginBottom:6}}>KD — keyword difficulty (0–100). Under 30 is great.</div><div>Freq — HV = use in title + H1. MV = subheadings. LV = once or twice.</div></div></BotTip>
-      <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Not sure what to pick? Just ask me in the chat!</div>
-      <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);kwD(enrichedKw);}} onAdj={()=>{
-        if(kwFlowType==="own"||adjustUsed){
-          bot("You can adjust keywords once per session with 'Find Keywords' flow. Type your changes or ask me for help.");
-          return;
+        if(gptRes){
+          rawKeywords=Array.isArray(gptRes.keywords)?gptRes.keywords:
+            Array.isArray(gptRes)?gptRes:
+            typeof gptRes.text==="string"?gptRes.text.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean):[];
         }
-        sAdjustUsed(true);
-        sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
-      }}/>
-    </div>);
-  });
+        if(rawKeywords.length===0) rawKeywords=[val];
+      }
+
+      const locCode=parseLocationCode(ans.au||"");
+      dfsData=await callDFS(rawKeywords.slice(0,5),locCode);
+
+      let enrichedKw=[];
+      const metrics=dfsData?.keyword_metrics||[];
+      const allSugs=dfsData?.suggestions||[];
+      const lookup=new Map();
+      metrics.forEach(m=>{if(m?.keyword)lookup.set(m.keyword.toLowerCase(),m);});
+      allSugs.forEach(s=>{if(s?.keyword&&!lookup.has(s.keyword.toLowerCase()))lookup.set(s.keyword.toLowerCase(),s);});
+      const getVol=m=>(m?.search_volume??m?.volume??null);
+      const getKd=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);if(typeof v==="number")return v;return null;};
+      const allVols=[...lookup.values()].map(m=>getVol(m)||0);
+      const maxVol=Math.max(...allVols,1);
+
+      if(lookup.size>0){
+        enrichedKw=rawKeywords.map(kw=>{
+          const match=lookup.get(kw.toLowerCase());
+          const vol=getVol(match);
+          const kd=getKd(match);
+          return{keyword:kw,volume:vol,kd:kd,freq:assignFreq(vol,maxVol)};
+        });
+        if(allSugs.length>0){
+          const existing=new Set(enrichedKw.map(k=>k.keyword.toLowerCase()));
+          allSugs.filter(s=>s.keyword&&!existing.has(s.keyword.toLowerCase())&&(getVol(s)||0)>0).slice(0,3).forEach(s=>{
+            enrichedKw.push({keyword:s.keyword,volume:getVol(s),kd:getKd(s),freq:assignFreq(getVol(s)||0,maxVol)});
+          });
+        }
+      } else {
+        enrichedKw=rawKeywords.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
+      }
+
+      const normArr=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
+      sDfsExtra({
+        suggestions:dfsData?.suggestions||[],
+        paa:normArr(dfsData?.people_also_ask,"question"),
+        related:normArr(dfsData?.related_searches,"title"),
+        autocomplete:normArr(dfsData?.autocomplete,"suggestion")
+      });
+
+      sKwData(enrichedKw);
+      const init=enrichedKw.map(k=>k.keyword);
+      sSkw(init);
+      stopLoading();
+      sTyp(false);
+      sStep("kw");
+      add("b",<div>
+        <div style={{marginBottom:6}}>{dfsData?"I found keywords with real Google search data. Pick the ones that match your page best.":"Here are keyword suggestions. Pick the ones that fit."}</div>
+        <BotTip short="Each keyword has volume, difficulty, and frequency data."><div><div style={{marginBottom:6}}>Vol. — monthly searches.</div><div style={{marginBottom:6}}>KD — keyword difficulty (0–100). Under 30 is great.</div><div>Freq — HV = use in title + H1. MV = subheadings. LV = once or twice.</div></div></BotTip>
+        <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Not sure what to pick? Just ask me in the chat!</div>
+        <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);kwD(enrichedKw);}} onAdj={()=>{
+          if(kwFlowType==="own"||adjustUsed){
+            bot("You can adjust keywords once per session with 'Find Keywords' flow. Type your changes or ask me for help.");
+            return;
+          }
+          sAdjustUsed(true);
+          sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
+        }}/>
+      </div>);
+    } catch(err) {
+      console.error("[CB] keyword flow error:", err);
+      stopLoading();
+      sTyp(false);
+      sPLoad(null);
+      bot("Something went wrong while generating keywords. Please try again.");
+    }
+  })();
 }
 else if(sid==="gl"){
   sStep("au");
@@ -407,33 +458,47 @@ else if(sid==="gl"){
 else if(sid==="au"){
   /* === TITLES: GPT generate_titles === */
   sStep("tl");
-  rl(["Generating titles...","Applying keyword rules..."], async()=>{
-    const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
-    const gptRes=await callGPT("generate_titles",{
-      keywords:selKw,
-      page_type:ans.pt||"",
-      page_description:ans.pd||"",
-      goal:ans.gl||"",
-      audience:ans.au||val,
-      ...ans
-    });
-    let titles=[];
-    if(gptRes){
-      const raw=Array.isArray(gptRes.titles)?gptRes.titles:
-        Array.isArray(gptRes)?gptRes:
-        gptRes.titles?[gptRes.titles]:[];
-      titles=raw.map(t=>{
-        if(typeof t==="string") return{text:t,hl:selKw.filter(k=>t.toLowerCase().includes(k.toLowerCase()))};
-        return{text:t.text||t.title||String(t),hl:t.highlights||t.hl||selKw.filter(k=>(t.text||t.title||"").toLowerCase().includes(k.toLowerCase()))};
+  /* FIX #1 & #2 & #3: try/catch + wait-for-API loading + explicit keywords array */
+  startLoading(["Generating titles...","Applying keyword rules..."]);
+  sTyp(true);
+  (async()=>{
+    try {
+      const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
+      /* FIX #3: pass keywords as explicit array of strings */
+      const gptRes=await callGPT("generate_titles",{
+        keywords:selKw,
+        page_type:ans.pt||"",
+        page_type_details:ans.ptx||"",
+        page_description:ans.pd||"",
+        goal:ans.gl||"",
+        audience:ans.au||val,
+        ...ans
       });
+      let titles=[];
+      if(gptRes){
+        const raw=Array.isArray(gptRes.titles)?gptRes.titles:
+          Array.isArray(gptRes)?gptRes:
+          gptRes.titles?[gptRes.titles]:[];
+        titles=raw.map(t=>{
+          if(typeof t==="string") return{text:t,hl:selKw.filter(k=>t.toLowerCase().includes(k.toLowerCase()))};
+          return{text:t.text||t.title||String(t),hl:t.highlights||t.hl||selKw.filter(k=>(t.text||t.title||"").toLowerCase().includes(k.toLowerCase()))};
+        });
+      }
+      if(titles.length===0){
+        titles=selKw.slice(0,5).map(k=>({text:k.charAt(0).toUpperCase()+k.slice(1)+" — Your Guide",hl:[k]}));
+      }
+      stopLoading();
+      sTyp(false);
+      sStep("ti");
+      add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={titles} onSelect={t=>{sStit(t);hAns("ti",t);}}/></div>);
+    } catch(err) {
+      console.error("[CB] title flow error:", err);
+      stopLoading();
+      sTyp(false);
+      sPLoad(null);
+      bot("Something went wrong while generating titles. Please try again.");
     }
-    if(titles.length===0){
-      /* Fallback: generate simple titles from keywords */
-      titles=selKw.slice(0,5).map(k=>({text:k.charAt(0).toUpperCase()+k.slice(1)+" — Your Guide",hl:[k]}));
-    }
-    sStep("ti");
-    add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={titles} onSelect={t=>{sStit(t);hAns("ti",t);}}/></div>);
-  });
+  })();
 }
 else if(sid==="ti"){
   sStep("me");
@@ -462,11 +527,14 @@ const kwD=(enrichedKwOverride)=>{
 };
 
 /* ═══ GENERATE STRUCTURE ═══ */
+/* FIX #1: entire gStr wrapped in try/catch */
 const gStr=async()=>{
   mk("cf");sStep("sl");
   window.scrollTo({top:0,behavior:"smooth"});
   sPLoad("Building SEO structure...");
-  rl(LST, async()=>{
+  startLoading(LST);
+  sTyp(true);
+  try {
     const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
     const kwWithData=kwData.filter(k=>selKw.includes(k.keyword));
     const pageCfg=getPageConfig(ans.pt||"");
@@ -486,11 +554,13 @@ const gStr=async()=>{
       autocomplete:dfsExtra.autocomplete||[]
     });
 
-    /* Build brief data from GPT response */
     let briefData;
     if(gptRes&&(gptRes.title||gptRes.sections)){
-      const titleKw=kwWithData.filter(k=>(gptRes.title||stit||"").toLowerCase().includes(k.keyword.toLowerCase())).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
-      const descKw=kwWithData.filter(k=>(gptRes.description||gptRes.meta_description||"").toLowerCase().includes(k.keyword.toLowerCase())).slice(0,3).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+      /* FIX #7: titleKw = ALL selected keywords that appear in title text (case-insensitive) */
+      const titleText=(gptRes.title||stit||"").toLowerCase();
+      const titleKw=kwWithData.filter(k=>titleText.includes(k.keyword.toLowerCase())).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+      const descText=(gptRes.description||gptRes.meta_description||"").toLowerCase();
+      const descKw=kwWithData.filter(k=>descText.includes(k.keyword.toLowerCase())).slice(0,3).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
       briefData={
         title:gptRes.title||stit||"Untitled",
         titleKw,
@@ -498,7 +568,7 @@ const gStr=async()=>{
         descKw,
         keywords:kwWithData,
         recs:gptRes.recs||gptRes.recommendations||[
-          {key:"Length",value:gptRes.content_length||"500-800 words"},
+          {key:"Length",value:gptRes.content_length||defaultLen},
           {key:"Tone",value:ans.au||"Professional"},
           {key:"CTA",value:gptRes.cta||"Learn More"},
           {key:"Goal",value:ans.gl||"Inform"}
@@ -513,42 +583,48 @@ const gStr=async()=>{
         related:dfsExtra.related?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
         paa:dfsExtra.paa?.map(q=>typeof q==="string"?q:q.question||String(q))||[],
         autocomplete:dfsExtra.autocomplete?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
-        contentLength:gptRes.content_length||"~800 words"
+        contentLength:gptRes.content_length||defaultLen
       };
     } else {
-      /* Fallback: minimal structure */
       briefData={
         title:stit||"Untitled Page",
         titleKw:[],
         description:"Generated SEO content for your page.",
         descKw:[],
         keywords:kwWithData,
-        recs:[{key:"Length",value:"500-800 words"},{key:"Tone",value:ans.au||"Professional"},{key:"Goal",value:ans.gl||"Inform"}],
+        recs:[{key:"Length",value:defaultLen},{key:"Tone",value:ans.au||"Professional"},{key:"Goal",value:ans.gl||"Inform"}],
         sections:[{level:"H1",title:stit||"Main Heading",desc:"Introduction paragraph",kwNote:null,visuals:[]}],
         related:dfsExtra.related?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
         paa:dfsExtra.paa?.map(q=>typeof q==="string"?q:q.question||String(q))||[],
         autocomplete:dfsExtra.autocomplete?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
-        contentLength:"~800 words"
+        contentLength:defaultLen
       };
     }
 
-    sBd(briefData);sRp("br");sPLoad(null);sStep("sr");
+    sBd(briefData);sRp("br");sPLoad(null);stopLoading();sTyp(false);sStep("sr");
     if(isMobile)sMTab("panel");
     bot(<div>
       <div style={{marginBottom:6}}>Your SEO structure is ready! {isMobile?"Switch to the Brief tab.":"Check the brief on the right."}</div>
       <div style={{marginBottom:6}}>I recommend <strong>{briefData.contentLength}</strong> for this page.</div>
       <div style={{color:C.muted,fontSize:12}}>Edit the structure, or click "Generate Content" when ready.</div>
     </div>);
-  });
+  } catch(err) {
+    console.error("[CB] gStr error:", err);
+    stopLoading();sTyp(false);sPLoad(null);
+    bot("Something went wrong while generating the structure. Please try again.");
+  }
 };
 
 /* ═══ GENERATE CONTENT ═══ */
+/* FIX #1: entire gCnt wrapped in try/catch */
 const gCnt=async()=>{
   sStep("cl");
   add("b",<div style={{color:C.muted,fontSize:12}}>Generating full page content...</div>);
   window.scrollTo({top:0,behavior:"smooth"});
   sPLoad("Writing your content...");
-  rl(LCN, async()=>{
+  startLoading(LCN);
+  sTyp(true);
+  try {
     const gptRes=await callGPT("generate_content",{
       structure:bd,
       keywords:kwData.filter(k=>skw.includes(k.keyword)),
@@ -568,7 +644,7 @@ const gCnt=async()=>{
       html="<h1>"+(bd?.title||"Content")+"</h1><p>Content generation is being set up. Please try again shortly.</p>";
     }
 
-    sContentHtml(html);sRp("ct");sPLoad(null);sStep("cr");
+    sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);sStep("cr");
     if(isMobile)sMTab("panel");
     bot(<div>
       <div style={{marginBottom:6}}>Your full content is ready!</div>
@@ -579,7 +655,11 @@ const gCnt=async()=>{
       </div></BotTip>
       <div style={{color:C.muted,fontSize:12,marginTop:4}}>Want changes? Just ask.</div>
     </div>);
-  });
+  } catch(err) {
+    console.error("[CB] gCnt error:", err);
+    stopLoading();sTyp(false);sPLoad(null);
+    bot("Something went wrong while generating content. Please try again.");
+  }
 };
 
 /* ═══ TWEAK ═══ */
@@ -588,36 +668,42 @@ const handleTweak=async(text)=>{
   const newCount=tweakCount+1;
   sTweakCount(newCount);
 
-  const gptRes=await callGPT("tweak",{
-    current_content:contentHtml,
-    request:text,
-    keywords:kwData.filter(k=>skw.includes(k.keyword)),
-    structure:bd
-  });
+  try {
+    const gptRes=await callGPT("tweak",{
+      current_content:contentHtml,
+      request:text,
+      keywords:kwData.filter(k=>skw.includes(k.keyword)),
+      structure:bd
+    });
 
-  sTyp(false);
-  if(gptRes){
-    const newHtml=gptRes.html||gptRes.content||gptRes.text||contentHtml;
-    if(typeof newHtml==="string"&&newHtml.length>50){
-      sContentHtml(newHtml);
-      add("b","Done! I've updated the content. Check the right panel.");
+    sTyp(false);
+    if(gptRes){
+      const newHtml=gptRes.html||gptRes.content||gptRes.text||contentHtml;
+      if(typeof newHtml==="string"&&newHtml.length>50){
+        sContentHtml(newHtml);
+        add("b","Done! I've updated the content. Check the right panel.");
+      } else {
+        add("b","I made some adjustments. Check the content panel.");
+      }
     } else {
-      add("b","I made some adjustments. Check the content panel.");
+      add("b","Sorry, I couldn't process that tweak. Try describing the change differently.");
     }
-  } else {
-    add("b","Sorry, I couldn't process that tweak. Try describing the change differently.");
-  }
 
-  if(newCount>=3){
-    setTimeout(()=>{
-      bot(<div style={{color:C.muted,fontSize:12}}>You've made {newCount} edits. The content is looking good! Consider finalizing and exporting. Of course, you can keep tweaking if needed.</div>,500);
-    },1000);
+    if(newCount>=3){
+      setTimeout(()=>{
+        bot(<div style={{color:C.muted,fontSize:12}}>You've made {newCount} edits. The content is looking good! Consider finalizing and exporting. Of course, you can keep tweaking if needed.</div>,500);
+      },1000);
+    }
+  } catch(err) {
+    console.error("[CB] tweak error:", err);
+    sTyp(false);
+    add("b","Something went wrong with that tweak. Try again.");
   }
 };
 
 /* ═══ RESET ═══ */
 const reset=()=>{
-  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});sSkw([]);sStit(null);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
+  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});sSkw([]);sStit(null);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sLsWaiting(false);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
   setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);
 };
 
@@ -626,14 +712,13 @@ const send=()=>{
   const el=inpRef.current;if(!el||!el.value.trim())return;
   const t=el.value.trim();el.value="";
 
-  /* If user is asking a question on any step → AI Chat */
   if(isQuestion(t)){
     add("u",t);
     handleAiChat(t);
     return;
   }
 
-  /* If user sends acknowledgement on a step that needs a real answer → remind */
+  /* FIX #6: acknowledgements on flow steps → remind */
   if(isAcknowledgement(t)&&["pt","ptx","pd","gl","au","ti","me"].includes(step)){
     add("u",t);
     const reminders={
@@ -649,7 +734,6 @@ const send=()=>{
     return;
   }
 
-  /* Flow-specific handling */
   if(["pt","ptx","pd","gl","au","me"].includes(step)){
     hAns(step,t);
   }else if(step==="ok"){
@@ -658,54 +742,62 @@ const send=()=>{
     add("u",t);
     sStep("kl");
     sTyp(true);
+    /* FIX #1: try/catch around keyword adjust async */
     (async()=>{
-      const gptRes=await callGPT("generate_keywords",{
-        page_type:ans.pt||"",
-        page_description:ans.pd||"",
-        adjustment:t,
-        previous_keywords:kwData.map(k=>k.keyword)
-      });
-      let newRaw=[];
-      if(gptRes){
-        newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
+      try {
+        const gptRes=await callGPT("generate_keywords",{
+          page_type:ans.pt||"",
+          page_description:ans.pd||"",
+          page_type_details:ans.ptx||"",
+          adjustment:t,
+          previous_keywords:kwData.map(k=>k.keyword)
+        });
+        let newRaw=[];
+        if(gptRes){
+          newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
+        }
+        if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
+        const locCode=parseLocationCode(ans.au||"");
+        const dfsData=await callDFS(newRaw.slice(0,5),locCode);
+        let enriched=[];
+        const metrics2=dfsData?.keyword_metrics||[];
+        const sug2=dfsData?.suggestions||[];
+        const lookup2=new Map();
+        metrics2.forEach(m=>{if(m?.keyword)lookup2.set(m.keyword.toLowerCase(),m);});
+        sug2.forEach(s=>{if(s?.keyword&&!lookup2.has(s.keyword.toLowerCase()))lookup2.set(s.keyword.toLowerCase(),s);});
+        const gV2=m=>(m?.search_volume??m?.volume??null);
+        const gK2=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
+        const maxV2=Math.max(...[...lookup2.values()].map(m=>gV2(m)||0),1);
+        if(lookup2.size>0){
+          enriched=newRaw.map(kw=>{const match=lookup2.get(kw.toLowerCase());return{keyword:kw,volume:gV2(match),kd:gK2(match),freq:assignFreq(gV2(match)||0,maxV2)};});
+        } else {
+          enriched=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
+        }
+        if(dfsData){
+          const normArr2=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
+          sDfsExtra({suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")});
+        }
+        sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
+        add("b",<div>
+          <div style={{marginBottom:6}}>Keywords adjusted! Here's the updated list.</div>
+          <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched);}} onAdj={()=>{bot("You've already used your keyword adjustment. You can ask me questions about the keywords instead.");}}/>
+        </div>);
+      } catch(err) {
+        console.error("[CB] keyword adjust error:", err);
+        sTyp(false);
+        bot("Something went wrong adjusting keywords. Try again.");
       }
-      if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
-      const locCode=parseLocationCode(ans.au||"");
-      const dfsData=await callDFS(newRaw.slice(0,5),locCode);
-      let enriched=[];
-      const metrics2=dfsData?.keyword_metrics||[];
-      const sug2=dfsData?.suggestions||[];
-      const lookup2=new Map();
-      metrics2.forEach(m=>{if(m?.keyword)lookup2.set(m.keyword.toLowerCase(),m);});
-      sug2.forEach(s=>{if(s?.keyword&&!lookup2.has(s.keyword.toLowerCase()))lookup2.set(s.keyword.toLowerCase(),s);});
-      const gV2=m=>(m?.search_volume??m?.volume??null);
-      const gK2=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
-      const maxV2=Math.max(...[...lookup2.values()].map(m=>gV2(m)||0),1);
-      if(lookup2.size>0){
-        enriched=newRaw.map(kw=>{const match=lookup2.get(kw.toLowerCase());return{keyword:kw,volume:gV2(match),kd:gK2(match),freq:assignFreq(gV2(match)||0,maxV2)};});
-      } else {
-        enriched=newRaw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
-      }
-      if(dfsData){
-        const normArr2=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
-        sDfsExtra({suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")});
-      }
-      sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
-      add("b",<div>
-        <div style={{marginBottom:6}}>Keywords adjusted! Here's the updated list.</div>
-        <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched);}} onAdj={()=>{bot("You've already used your keyword adjustment. You can ask me questions about the keywords instead.");}}/>
-      </div>);
     })();
   }else if(step==="sr"){
-    /* On structure step — check if user wants to change length */
+    /* FIX #13: parse content length from chat on structure step */
     add("u",t);
     const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
     if(lenMatch){
       const requested=parseInt(lenMatch[1]);
       const cfg=getPageConfig(ans.pt||"");
-      const maxAllowed=(cfg?.maxLen||11000)+1000;
-      if(requested>maxAllowed){
-        bot(`The maximum for this page type is about ${maxAllowed} words. Want me to set it to ${maxAllowed}?`);
+      const absMax=cfg?.maxLen||10000;
+      if(requested>absMax){
+        bot(`The maximum for this page type is about ${absMax} words. Want me to set it to ${absMax}?`);
       } else {
         if(bd){
           const updatedBd={...bd,contentLength:`~${requested} words`};
@@ -722,7 +814,6 @@ const send=()=>{
     add("u",t);
     handleTweak(t);
   }else if(step==="ti"){
-    /* Validate title — must be meaningful */
     if(isAcknowledgement(t)){
       add("u",t);
       bot("Which title do you want? Pick one from the list or type your own.");
@@ -737,9 +828,10 @@ const send=()=>{
 
 /* ═══ RENDER ═══ */
 const lastBotIdx=msgs.reduce((acc,m,i)=>m.f==="b"?i:acc,-1);
-const chatMessages=<React.Fragment><style>{`.cb-past-msg{pointer-events:none!important;opacity:0.8}.cb-past-msg *{pointer-events:none!important;cursor:default!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}</React.Fragment>;
+/* FIX #4: cb-past-msg excludes .bot-tip-expand from pointer-events:none */
+const chatMessages=<React.Fragment><style>{`.cb-past-msg{pointer-events:none!important;opacity:0.8}.cb-past-msg *{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>hEntry("Find Keywords")}/><Btn text="Use My Keywords" onClick={()=>hEntry("Use My Keywords")}/></div>}</React.Fragment>;
 
-const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd}/></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={contentHtml} d={bd}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
+const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd} kwData={kwData}/></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={contentHtml} d={bd} kwData={kwData}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
 
 return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexDirection:"column"}}>
 <div style={{padding:isMobile?"0 12px 6px":"0 24px 10px",display:"flex",alignItems:"center",gap:6,maxWidth:1224,margin:"0 auto",width:"100%"}}><button onClick={onHome} style={{background:"none",border:"none",cursor:"pointer",padding:2,color:C.muted,display:"flex"}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg></button><span style={{fontSize:13,fontWeight:500,color:C.muted}}>Content Builder</span>{rp==="br"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Structure Ready</span>}{rp==="ct"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Content Ready</span>}</div>
