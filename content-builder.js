@@ -17,10 +17,16 @@ const HINTS={page_type:["Product page","Service page","Blog post","About page","
 async function callGPT(step, data) {
   console.log("[CB] callGPT step:", step);
   try {
+    const payload = { step, data: typeof data === "string" ? data : JSON.stringify(data) };
+    /* Send critical fields as top-level so GPT sees them clearly via {{1.field}} */
+    if (data && typeof data === "object") {
+      if (data.brand_details) payload.brand_details = data.brand_details;
+      if (data.title) payload.title = data.title;
+    }
     const res = await fetch(CB_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ step, data: typeof data === "string" ? data : JSON.stringify(data) })
+      body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error("GPT HTTP " + res.status);
     const raw = await res.text();
