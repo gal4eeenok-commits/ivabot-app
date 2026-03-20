@@ -1,6 +1,6 @@
 /* IvaBot Content Builder v42 — Separate scenarios per step, error boundary, all fixes */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v40 loaded");
+console.log("[IvaBot] content-builder.js v42 loaded");
 
 /* ═══ CONFIG — separate scenarios for each step ═══ */
 const CB_URL_KEYWORDS = "https://hook.eu2.make.com/wno4ptvdy64dlcb8pqdoyrec7ozajxax";
