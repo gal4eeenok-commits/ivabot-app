@@ -20,7 +20,7 @@ async function callGPT(step, data) {
     const payload = { step, data: typeof data === "string" ? data : JSON.stringify(data) };
     /* Send critical fields as top-level so GPT sees them clearly via {{1.field}} */
     if (data && typeof data === "object") {
-      if (data.brand_details) payload.brand_details = data.brand_details;
+      if (data.brand_details !== undefined && data.brand_details !== null) payload.brand_details = data.brand_details;
       if (data.title !== undefined && data.title !== null) payload.title = data.title;
     }
     console.log("[CB] callGPT payload title:", payload.title, "step:", step);
