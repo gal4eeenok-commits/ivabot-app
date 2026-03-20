@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v34 — deep research + all UI fixes */
+/* IvaBot Content Builder v35 — title GPT validation + confirmation, article alias */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v34 loaded");
+console.log("[IvaBot] content-builder.js v35 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -233,42 +233,49 @@ function isConfirmation(text) {
 
 /* Page type config: guided questions + content length limits */
 const PAGE_TYPE_CONFIG = {
+  "homepage": {
+    extraQ: "What does your company do? Any key products, services, or value props?",
+    hints: ["Company name + what you do", "Key products or services", "Main value proposition", "Target customer"],
+    defaultLen: "900-1200 words", maxLen: 5000
+  },
   "about page": { 
     extraQ: "What's your company/brand name? Any founder story or mission you'd like to include?",
-    hints: ["Company name + founder story", "Mission and values", "Team background"],
-    defaultLen: "500-800 words", maxLen: 3000
+    hints: ["Company name + founder story", "Mission and values", "Team background", "History / timeline"],
+    defaultLen: "700-1000 words", maxLen: 4000
   },
   "product page": {
     extraQ: "Tell me about the product: name, price range, key features, sizes or variants?",
-    hints: ["Product name + price", "Key features + materials", "Sizes / variants"],
-    defaultLen: "300-600 words", maxLen: 2500
+    hints: ["Product name + price", "Key features + materials", "Sizes / variants", "Shipping / availability"],
+    defaultLen: "500-800 words", maxLen: 3000
   },
   "service page": {
     extraQ: "What service do you offer? Any pricing model, service area, or process details?",
-    hints: ["Service name + pricing", "Service area / location", "Process / how it works"],
-    defaultLen: "500-1000 words", maxLen: 4000
+    hints: ["Service name + pricing", "Service area / location", "Process / how it works", "Key benefits"],
+    defaultLen: "500-800 words", maxLen: 4000
   },
   "blog post": {
     extraQ: "What's the main topic or angle? Any specific points you want to cover?",
-    hints: ["Main topic / angle", "Key points to cover", "Target reader"],
-    defaultLen: "1000-2000 words", maxLen: 11000
+    hints: ["Main topic / angle", "Key points to cover", "Target reader", "Unique perspective"],
+    defaultLen: "1500-3000 words", maxLen: 11000
   },
   "landing page": {
     extraQ: "What's the main offer or CTA? Any urgency, deadline, or special deal?",
-    hints: ["Main offer / CTA", "Urgency / deadline", "Key benefit"],
-    defaultLen: "500-1000 words", maxLen: 4000
+    hints: ["Main offer / CTA", "Urgency / deadline", "Key benefit", "Social proof"],
+    defaultLen: "900-1200 words", maxLen: 4000
   },
   "category page": {
     extraQ: "How many products/items in this category? Any filters like price range or type?",
-    hints: ["Number of products", "Category structure", "Filters (price, type)"],
-    defaultLen: "300-500 words", maxLen: 2000
+    hints: ["Number of products", "Category structure", "Filters (price, type)", "Featured items"],
+    defaultLen: "500-800 words", maxLen: 2000
   }
 };
 function getPageConfig(pt) {
   if (!pt) return null;
   const t = pt.toLowerCase().trim();
+  /* article = blog post alias */
+  const normalized = t.replace("article","blog post");
   for (const [key, cfg] of Object.entries(PAGE_TYPE_CONFIG)) {
-    if (t.includes(key) || key.includes(t.replace(" page",""))) return cfg;
+    if (normalized.includes(key) || key.includes(normalized.replace(" page",""))) return cfg;
   }
   return null;
 }
@@ -681,7 +688,7 @@ else if(sid==="tn"){
       stopLoading();
       sTyp(false);
       sStep("ti");
-      add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={titles} onSelect={t=>{sStit(t);hAns("ti",t);}}/></div>);
+      add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={titles} onSelect={t=>{hAns("ti",t);}}/></div>);
     } catch(err) {
       console.error("[CB] title flow error:", err);
       stopLoading();
@@ -692,8 +699,38 @@ else if(sid==="tn"){
   })();
 }
 else if(sid==="ti"){
-  sStep("me");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);
+  /* Title validation: call GPT clean_title, then show confirmation */
+  sTyp(true);
+  (async()=>{
+    try {
+      const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
+      const gptRes=await callGPT("clean_title",{
+        user_title:val,
+        keywords:selKw,
+        page_type:ans.pt||""
+      });
+      sTyp(false);
+      if(gptRes&&gptRes.valid===false){
+        /* Invalid title — show error, stay on ti */
+        bot(<div><div style={{color:"#c0392b",marginBottom:6}}>{gptRes.error||"This doesn't look like a page title. Please pick one from the list or type your own."}</div></div>);
+        sStep("ti");
+      } else {
+        /* Valid — show confirmation */
+        const cleanTitle=gptRes?.title||val;
+        sStit(cleanTitle);
+        sAns(p=>({...p,ti:cleanTitle}));
+        sStep("tc");
+        bot(<div><div style={{fontWeight:600,marginBottom:6}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:`1px solid rgba(110,43,255,0.2)`,background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark,marginBottom:8}}>{cleanTitle}</div><div style={{display:"flex",gap:8}}><Btn text="Confirm" onClick={()=>{sStep("me");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);}} primary/><Btn text="Choose Another" onClick={()=>{sStep("ti");sStit(null);bot(<div><div style={{marginBottom:6}}>No problem! Pick a different title or type your own.</div></div>);}}/></div></div>);
+      }
+    } catch(e){
+      console.error("[CB] clean_title error:", e);
+      sTyp(false);
+      /* Fallback: accept title without validation */
+      sStit(val);sAns(p=>({...p,ti:val}));
+      sStep("me");
+      bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);
+    }
+  })();
 }
 else if(sid==="me"){
   sStep("cf");
@@ -1075,7 +1112,23 @@ const send=()=>{
   if(step==="ti"){
     if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
     if(isAcknowledgement(t)){ add("u",t); bot("Which title do you want? Pick one from the list or type your own."); return; }
-    sStit(t);hAns("ti",t);
+    hAns("ti",t);
+    return;
+  }
+
+  /* tc = title confirmation step — user can type to change or confirm */
+  if(step==="tc"){
+    const tl=t.toLowerCase().replace(/[!.,?]+$/,"").trim();
+    if(/^(yes|ok|confirm|sure|go|да|ок)$/i.test(tl)){
+      /* Confirm → move to me */
+      add("u",t);
+      sStep("me");
+      bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);
+      return;
+    }
+    if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
+    /* Anything else = new title attempt */
+    hAns("ti",t);
     return;
   }
 
