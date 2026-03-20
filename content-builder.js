@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v36 — NO ROUTER. Linear flow. Buttons=actions, input=chat. */
+/* IvaBot Content Builder v38 — Spec v2: guided flow, confirmedTitle/Keywords, step numbers */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v36 loaded");
+console.log("[IvaBot] content-builder.js v38 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -452,6 +452,9 @@ const dfsExtraRef=useRef({});
 useEffect(()=>{dfsExtraRef.current=dfsExtra;},[dfsExtra]);
 const[skw,sSkw]=useState([]);
 const[stit,sStit]=useState(null);
+const confirmedTitleRef=useRef(null);
+const[confirmedKeywords,sConfirmedKeywords]=useState([]);
+const[savedTitles,sSavedTitles]=useState([]);
 const[bd,sBd]=useState(null);
 const[contentHtml,sContentHtml]=useState(null);
 const[rp,sRp]=useState("ph");
@@ -510,7 +513,7 @@ const handleAiChat=useCallback(async(text)=>{
 },[step,ans,kwData,stit,bd,msgs,add]);
 
 /* ═══ INIT ═══ */
-useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1500);},[]);
+useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} I'll guide you step by step to build SEO content for your page.</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Just answer each question — pick the closest option or type your own. At the end, you can edit everything.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1500);},[]);
 
 /* ═══ ENTRY CHOICE ═══ */
 const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){sKwFlowType("find");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>).then(()=>sStep("pt"));},300);}else{sKwFlowType("own");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><ExBox items={["coffee shop Berlin, best espresso near me","vegan sweets online, buy vegan candy","massage Kyiv, therapeutic massage","handmade jewelry, silver rings for women"]}/></div>).then(()=>sStep("ok"));},300);}};
@@ -630,11 +633,11 @@ else if(sid==="mk"){
       add("b",<div>
         <div style={{marginBottom:6}}>{dfsData?"I found keywords with real Google search data. Pick the ones that match your page best.":"Here are keyword suggestions. Pick the ones that fit."}</div>
         <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium, supporting keyword. LV = Low, extra keyword.</div></div></BotTip>
-        <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Not sure what to pick? Just ask me in the chat!</div>
-        <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{
-          sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
+        <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);sConfirmedKeywords(kwData.filter(k=>s.includes(k.keyword)));kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{
+          sStep("ka");bot("What would you like to change?");
         }}/>
         <ExtrasBlock extra={dfsExtraData}/>
+        <div style={{marginTop:6}}><Btn text="Ask AI for Help" onClick={()=>{bot("Ask me anything about these keywords — which ones to pick, what KD means, or what would work best for your page.");}}/></div>
       </div>);
     } catch(err) {
       console.error("[CB] keyword flow error:", err);
@@ -647,11 +650,11 @@ else if(sid==="mk"){
 }
 else if(sid==="gl"){
   sStep("au");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your target audience?</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids"]}/></div>);
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>STEP 3 — Who is your target audience?</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids"]}/></div>);
 }
 else if(sid==="au"){
   sStep("tn");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What tone should the content have?</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>How should the content sound?</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
 }
 else if(sid==="tn"){
   /* mk already answered before keywords, go straight to titles */
@@ -688,6 +691,7 @@ else if(sid==="tn"){
       stopLoading();
       sTyp(false);
       sStep("ti");
+      sSavedTitles(titles);
       add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={titles} onSelect={t=>{hAns("ti",t);}}/></div>);
     } catch(err) {
       console.error("[CB] title flow error:", err);
@@ -718,9 +722,10 @@ else if(sid==="ti"){
         /* Valid — show confirmation */
         const cleanTitle=gptRes?.title||val;
         sStit(cleanTitle);
+        confirmedTitleRef.current=cleanTitle;
         sAns(p=>({...p,ti:cleanTitle}));
         sStep("tc");
-        bot(<div><div style={{fontWeight:600,marginBottom:6}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:`1px solid rgba(110,43,255,0.2)`,background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark,marginBottom:8}}>{cleanTitle}</div><div style={{display:"flex",gap:8}}><Btn text="Confirm" onClick={()=>{sStep("me");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);}} primary/><Btn text="Choose Another" onClick={()=>{sStep("ti");sStit(null);bot(<div><div style={{marginBottom:6}}>No problem! Pick a different title or type your own.</div></div>);}}/></div></div>);
+        bot(<div><div style={{fontWeight:600,marginBottom:6}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:`1px solid rgba(110,43,255,0.2)`,background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark,marginBottom:8}}>{cleanTitle}</div><div style={{display:"flex",gap:8}}><Btn text="Confirm ✓" onClick={()=>{confirmedTitleRef.current=cleanTitle;sStep("me");bot(<div><div style={{fontWeight:600,marginBottom:6}}>STEP 4 — Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);}} primary/><Btn text="Choose Another" onClick={()=>{sStep("ti");sStit(null);confirmedTitleRef.current=null;bot(<div><div style={{marginBottom:6}}>No problem! Pick a different title or type your own.</div>{savedTitles.length>0&&<TSel titles={savedTitles} onSelect={t=>{hAns("ti",t);}}/>}</div>);}}/></div></div>);
       }
     } catch(e){
       console.error("[CB] clean_title error:", e);
@@ -737,22 +742,16 @@ else if(sid==="me"){
   bot(<div><div style={{marginBottom:6}}>All steps done! I have everything I need.</div><div style={{fontWeight:600,marginBottom:6}}>Ready to generate your SEO structure?</div><div style={{color:C.muted,fontSize:12,marginBottom:10}}>You can use this as a brief for your copywriter, or click Generate Content.</div><div style={{display:"flex",gap:8}}><Btn text="Generate Structure" onClick={gStr} primary/><Btn text="Go Back" onClick={()=>{sStep("me");bot("What would you like to change?");}}/></div></div>);
 }};
 
-/* ═══ KEYWORD DONE → show extras + ask goal ═══ */
+/* ═══ KEYWORD DONE → save confirmed keywords + ask goal ═══ */
 const kwD=(enrichedKwOverride,extrasOverride)=>{
-  const extra=extrasOverride||dfsExtra;
-  console.log("[CB] kwD extras:", JSON.stringify({related:extra.related?.length||0,paa:extra.paa?.length||0,autocomplete:extra.autocomplete?.length||0}));
   mk("kw");
-  const hasExtras=extra.related?.length>0||extra.paa?.length>0||extra.autocomplete?.length>0;
-  bot(<div>
-    <div style={{marginBottom:6}}>Great keywords! {hasExtras?"I also found additional search data from Google.":"Let's continue."}</div>
-    {hasExtras&&<BotTip short="Real Google search data for your topic — related searches, questions, and autocomplete."><div>
-      {extra.related?.length>0&&<><div style={{fontWeight:600,fontSize:11,color:C.accent,marginBottom:3}}>Related Searches</div><div style={{fontSize:11,color:C.muted,marginBottom:4}}>Other searches Google considers relevant — use as subtopics or H2 ideas.</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>{extra.related.map((s,i)=><span key={i} style={{padding:"3px 8px",borderRadius:6,background:"rgba(110,43,255,0.05)",border:"1px solid rgba(110,43,255,0.1)",color:C.dark,fontSize:11}}>{typeof s==="string"?s:s.keyword||s}</span>)}</div></>}
-      {extra.paa?.length>0&&<><div style={{fontWeight:600,fontSize:11,color:C.accent,marginBottom:3}}>People Also Ask</div><div style={{fontSize:11,color:C.muted,marginBottom:4}}>Real questions people ask Google — great for FAQ sections.</div><div style={{lineHeight:1.7,marginBottom:10,fontSize:11}}>{extra.paa.map((q,i)=><div key={i}>• {typeof q==="string"?q:q.question||q}</div>)}</div></>}
-      {extra.autocomplete?.length>0&&<><div style={{fontWeight:600,fontSize:11,color:C.accent,marginBottom:3}}>Autocomplete</div><div style={{fontSize:11,color:C.muted,marginBottom:4}}>What Google suggests as people type — shows real search patterns.</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{extra.autocomplete.map((s,i)=><span key={i} style={{padding:"3px 8px",borderRadius:6,background:"rgba(110,43,255,0.05)",border:"1px solid rgba(110,43,255,0.1)",color:C.dark,fontSize:11}}>{typeof s==="string"?s:s.keyword||s}</span>)}</div></>}
-    </div></BotTip>}
-  </div>).then(()=>{
+  /* Save confirmed keywords */
+  const confirmed=kwData.filter(k=>skw.includes(k.keyword));
+  sConfirmedKeywords(confirmed);
+  console.log("[CB] confirmedKeywords:", confirmed.map(k=>k.keyword));
+  bot(<div><div style={{marginBottom:6}}>Keywords confirmed! Let's set up your content.</div></div>).then(()=>{
     sStep("gl");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>What should this page achieve?</div><ExBox items={HINTS.goal}/></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>STEP 2 — What should this page achieve?</div><ExBox items={HINTS.goal}/></div>);
   });
 };
 
@@ -764,12 +763,12 @@ const gStr=async()=>{
   startLoading(LST);
   sTyp(true);
   try {
-    const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
-    const kwWithData=kwData.filter(k=>selKw.includes(k.keyword));
+    const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):skw.length>0?skw:kwData.map(k=>k.keyword);
+    const kwWithData=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>selKw.includes(k.keyword));
     const pageCfg=getPageConfig(ans.pt||"");
     const defaultLen=pageCfg?.defaultLen||"500-800 words";
-    const chosenTitle=stit||ans.ti||"";
-    console.log("[CB] gStr title:", chosenTitle);
+    const chosenTitle=confirmedTitleRef.current||stit||ans.ti||"";
+    console.log("[CB] gStr title:", chosenTitle, "keywords:", selKw);
     const gptRes=await callGPT("generate_structure",{
       title:chosenTitle,
       keywords:kwWithData,
@@ -857,7 +856,7 @@ const gCnt=async()=>{
   sTyp(true);
   try {
     /* Step 1: Research real facts via web search */
-    const selKw=kwData.filter(k=>skw.includes(k.keyword)).map(k=>k.keyword);
+    const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):kwData.filter(k=>skw.includes(k.keyword)).map(k=>k.keyword);
     const researchTopic=(bd?.title||ans.pd||ans.ptx||"").substring(0,200);
     let researchData=null;
     try {
@@ -866,9 +865,11 @@ const gCnt=async()=>{
     } catch(e) { console.log("[CB] Research skipped:", e); }
 
     /* Step 2: Generate content with research */
+    const contentTitle=confirmedTitleRef.current||bd?.title||stit||ans.ti||"";
+    console.log("[CB] gCnt title:", contentTitle);
     const gptRes=await callGPT("generate_content",{
       structure:bd,
-      keywords:kwData.filter(k=>skw.includes(k.keyword)),
+      keywords:confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skw.includes(k.keyword)),
       page_type:ans.pt||"",
       goal:ans.gl||"",
       audience:ans.au||"",
@@ -876,7 +877,7 @@ const gCnt=async()=>{
       market:ans.mk||"",
       brand_details:ans.me||"",
       extra_instructions:ans.sr_extra||"",
-      title:bd?.title||stit||ans.ti||"",
+      title:contentTitle,
       research:researchData||null
     });
 
@@ -918,7 +919,7 @@ const handleTweak=async(text)=>{
     const gptRes=await callGPT("tweak",{
       current_content:contentHtml,
       request:text,
-      keywords:kwData.filter(k=>skw.includes(k.keyword)),
+      keywords:confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skw.includes(k.keyword)),
       structure:bd
     });
 
@@ -997,8 +998,9 @@ const doKeywordAdjust=async(adjustText)=>{
     sKwData(enriched);sSkw(enriched.map(k=>k.keyword));sTyp(false);sStep("kw");
     add("b",<div>
       <div style={{marginBottom:6}}>Keywords updated! Here's the new list.</div>
-      <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched,adjustExtras);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
+      <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);sConfirmedKeywords(enriched.filter(k=>s.includes(k.keyword)));kwD(enriched,adjustExtras);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
       <ExtrasBlock extra={adjustExtras}/>
+      <div style={{marginTop:6}}><Btn text="Ask AI for Help" onClick={()=>{bot("Ask me anything about these keywords.");}}/></div>
     </div>);
   } catch(err) {
     console.error("[CB] keyword adjust error:", err);
@@ -1044,7 +1046,7 @@ const STEP_REMINDERS={
 
 /* ═══ RESET ═══ */
 const reset=()=>{
-  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);sStit(null);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sLsWaiting(false);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
+  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);sStit(null);confirmedTitleRef.current=null;sConfirmedKeywords([]);sSavedTitles([]);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sLsWaiting(false);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
   setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);
 };
 
@@ -1120,8 +1122,9 @@ const send=()=>{
     const tl=t.toLowerCase().replace(/[!.,?]+$/,"").trim();
     if(/^(yes|ok|confirm|sure|go|да|ок|ладно)$/i.test(tl)){
       add("u",t);
+      /* confirmedTitleRef already set when title was validated */
       sStep("me");
-      bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);
+      bot(<div><div style={{fontWeight:600,marginBottom:6}}>STEP 4 — Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);
       return;
     }
     /* Chat open — questions, comments, new title attempts */
