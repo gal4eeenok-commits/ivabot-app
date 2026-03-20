@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v35 — title GPT validation + confirmation, article alias */
+/* IvaBot Content Builder v36 — NO ROUTER. Linear flow. Buttons=actions, input=chat. */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v35 loaded");
+console.log("[IvaBot] content-builder.js v36 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -1049,56 +1049,47 @@ const reset=()=>{
 };
 
 /* ═══════════════════════════════════════════════════════════
-   SEND — v22 hybrid: regex for flow steps, GPT router for kw/sr/cr
+   SEND — v36: NO ROUTER. Linear flow. Buttons = actions, input = chat.
+   kw/ti: chat open until user clicks button.
+   sr: text = extra info saved for content. cr: text = tweak (? = chat).
    ═══════════════════════════════════════════════════════════ */
 const send=()=>{
   const el=inpRef.current;if(!el||!el.value.trim())return;
   const t=el.value.trim();el.value="";
 
-  /* === FLOW STEPS: direct regex handling (proven from v21) === */
-
+  /* === ec: entry choice === */
   if(step==="ec") {
     const tl=t.toLowerCase().replace(/[!.,?]+$/,"").trim();
-    /* Greeting → reply + keep buttons */
     const greetings=["hi","hey","hello","привет","хай","добрый день","доброе утро","good morning","sup","yo","hola"];
     if(greetings.includes(tl)||tl.length<4){
       add("u",t);
       bot(<div><div style={{marginBottom:6}}>Hey! Ready to start?</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);
       return;
     }
-    /* Question → answer via chat, keep buttons */
     if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
-    /* Intent detection */
     if(/\b(find|search|suggest|get|help)\b/i.test(tl)) { hEntry("Find Keywords"); return; }
     if(/\b(my|own|have|paste|use)\b/i.test(tl)) { hEntry("Use My Keywords"); return; }
     if(t.includes(",")) { hEntry("Use My Keywords"); return; }
-    /* Default: ask to choose, don't auto-select */
     add("u",t);
     bot(<div><div style={{marginBottom:6}}>Please choose one of the options below to get started.</div></div>);
     return;
   }
 
+  /* === ok: own keywords paste === */
   if(step==="ok") { hAns("ok",t); return; }
 
-  if(step==="ka") {
-    add("u",t);
-    sAdjustUsed(true);
-    doKeywordAdjust(t);
-    return;
-  }
+  /* === ka: keyword adjust === */
+  if(step==="ka") { add("u",t); doKeywordAdjust(t); return; }
 
-  /* Simple flow steps: pt, ptx, gl, au, tn, mk, me — regex like v21 */
+  /* === Simple flow steps: one question, one answer === */
   if(["pt","ptx","gl","au","tn","mk","me"].includes(step)){
     if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
-    if(isAcknowledgement(t)){
-      add("u",t);
-      bot(STEP_REMINDERS[step]||"Got it! Please answer the current question to continue.");
-      return;
-    }
+    if(isAcknowledgement(t)){ add("u",t); bot(STEP_REMINDERS[step]||"Please answer the current question to continue."); return; }
     hAns(step,t);
     return;
   }
 
+  /* === pd: page description === */
   if(step==="pd"){
     if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
     const isNeg=/^(no|nope|nothing|nah|not really|none|skip|n\/a|na)$/i.test(t.replace(/[!.,]+$/,"").trim());
@@ -1109,6 +1100,14 @@ const send=()=>{
     return;
   }
 
+  /* === kw: keywords shown — CHAT OPEN until button === */
+  if(step==="kw"){
+    add("u",t);
+    handleAiChat(t);
+    return;
+  }
+
+  /* === ti: title selection — send to clean_title validation === */
   if(step==="ti"){
     if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
     if(isAcknowledgement(t)){ add("u",t); bot("Which title do you want? Pick one from the list or type your own."); return; }
@@ -1116,124 +1115,57 @@ const send=()=>{
     return;
   }
 
-  /* tc = title confirmation step — user can type to change or confirm */
+  /* === tc: title confirmation — CHAT OPEN until button === */
   if(step==="tc"){
     const tl=t.toLowerCase().replace(/[!.,?]+$/,"").trim();
-    if(/^(yes|ok|confirm|sure|go|да|ок)$/i.test(tl)){
-      /* Confirm → move to me */
+    if(/^(yes|ok|confirm|sure|go|да|ок|ладно)$/i.test(tl)){
       add("u",t);
       sStep("me");
       bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);
       return;
     }
+    /* Chat open — questions, comments, new title attempts */
     if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
-    /* Anything else = new title attempt */
+    /* Anything else = try as new title */
     hAns("ti",t);
     return;
   }
 
+  /* === cf: confirm before structure === */
   if(step==="cf"){
     if(isConfirmation(t)){ add("u",t); gStr(); return; }
     add("u",t); handleAiChat(t);
     return;
   }
 
-  /* === AMBIGUOUS STEPS: GPT router for kw, sr, cr === */
+  /* === sr: structure ready — text = extra info for content === */
+  if(step==="sr"){
+    add("u",t);
+    /* Check for word count */
+    const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
+    if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
+    /* Save as extra info for content generation */
+    sAns(p=>({...p,sr_extra:(p.sr_extra||"")+"\n"+t}));
+    bot("Got it! I'll include this when generating content. Click 'Generate Content' when ready.");
+    return;
+  }
+
+  /* === cr: content ready — text = tweak, ? = chat === */
+  if(step==="cr"){
+    add("u",t);
+    /* Word count change */
+    const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
+    if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
+    /* Question → chat */
+    if(t.trim().endsWith("?")){ handleAiChat(t); return; }
+    /* Everything else → tweak */
+    handleTweak(t);
+    return;
+  }
+
+  /* === Fallback: any other step → chat === */
   add("u",t);
-  sTyp(true);
-  const ctx=buildStepContext(step,ans,kwData,stit,bd);
-  const history=buildChatHistory(msgs);
-
-  (async()=>{
-    try {
-      const r=await callChatRouter(ctx,history,t);
-      sTyp(false);
-      const action=r.action||"answer";
-      console.log("[CB] Router dispatch:", action, "step:", step);
-
-      if(step==="kw"){
-        if(action==="proceed"||(action==="flow_answer"&&isConfirmation(t))){
-          /* User wants to continue → go straight to goal step */
-          kwD(kwData, dfsExtraRef.current);
-        } else if(action==="adjust_keywords"||(action==="flow_answer"&&!isConfirmation(t))){
-          /* Adjust keywords — no limit, always allowed */
-          doKeywordAdjust(r.adjustment||r.text||t);
-        } else {
-          /* answer or anything else — show GPT's text, never raw JSON */
-          const text=r.text;
-          if(text && typeof text==="string" && text.length>10 && !text.startsWith("{")){
-            add("b",text);
-          } else {
-            handleAiChat(t);
-          }
-        }
-        return;
-      }
-
-      if(step==="sr"){
-        if(action==="proceed"){ gCnt(); return; }
-        if(action==="set_length"){
-          const words=r.words||parseInt((t.match(/(\d{3,5})/)||[])[1]);
-          if(words){ handleLengthChange(words); } else { bot("How many words? e.g. 1500 words."); }
-          return;
-        }
-        /* Length from text even if GPT didn't catch it */
-        const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
-        if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
-        /* adjust_keywords on sr = user adding extra info for content (address, details) */
-        if(action==="adjust_keywords"){
-          const extra=r.adjustment||t;
-          sAns(p=>({...p,sr_extra:(p.sr_extra||"")+"\n"+extra}));
-          bot("Got it! I'll include this in your content when you generate it. Click 'Generate Content' when ready.");
-          return;
-        }
-        /* answer on sr = user adding info or asking question */
-        if(action==="answer"){
-          const ansText=r.text||"";
-          /* If GPT's answer suggests it understood extra info, save it */
-          if(ansText.toLowerCase().includes("got it") || ansText.toLowerCase().includes("include") || ansText.toLowerCase().includes("записала") || ansText.toLowerCase().includes("добавлю")){
-            sAns(p=>({...p,sr_extra:(p.sr_extra||"")+"\n"+t}));
-          }
-          if(ansText && ansText.length>5 && !ansText.startsWith("{")){
-            add("b",ansText);
-          } else {
-            handleAiChat(t);
-          }
-          return;
-        }
-        /* Otherwise chat — use GPT answer text, but never show raw JSON */
-        const ansText=r.text;
-        if(ansText && typeof ansText==="string" && ansText.length>10 && !ansText.startsWith("{")){
-          add("b",ansText);
-        } else {
-          handleAiChat(t);
-        }
-        return;
-      }
-
-      if(step==="cr"){
-        if(action==="set_length"){
-          const words=r.words||parseInt((t.match(/(\d{3,5})/)||[])[1]);
-          if(words){ handleLengthChange(words); return; }
-        }
-        /* Length from text */
-        const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
-        if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
-        /* Everything else on cr = tweak */
-        handleTweak(t);
-        return;
-      }
-
-      /* Fallback for any other step */
-      const text=r.text;
-      if(text && typeof text==="string" && text.length>10){ add("b",text); } else { handleAiChat(t); }
-
-    } catch(err) {
-      console.error("[CB] Router error:", err);
-      sTyp(false);
-      add("b","Sorry, something went wrong. Try again.");
-    }
-  })();
+  handleAiChat(t);
 };
 
 /* ═══ RENDER ═══ */
