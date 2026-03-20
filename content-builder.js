@@ -1,11 +1,16 @@
-/* IvaBot Content Builder v41 — All bug fixes: highlights, no TC, textarea, acks, prompts v19 */
+/* IvaBot Content Builder v42 — Separate scenarios per step, error boundary, all fixes */
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] content-builder.js v40 loaded");
 
-/* ═══ CONFIG ═══ */
-const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
-const CB_CHAT_URL = "https://hook.eu2.make.com/v14qvdq3l3mu2hjevrc7dps9j74a6lkf";
-const CB_KW_CHAT_URL = "https://hook.eu2.make.com/gbus7qu28olhuxni23hvq88bf17adv19";
+/* ═══ CONFIG — separate scenarios for each step ═══ */
+const CB_URL_KEYWORDS = "https://hook.eu2.make.com/wno4ptvdy64dlcb8pqdoyrec7ozajxax";
+const CB_URL_TITLES = "https://hook.eu2.make.com/tc1xmog521hrcxbfbct6t0lgxgnilist";
+const CB_URL_CLEAN_TITLE = "https://hook.eu2.make.com/im5rzxyhlqcchpkfga7dpcb2vhau19t1";
+const CB_URL_STRUCTURE = "https://hook.eu2.make.com/voty3fnm51j1wvb3p74fpijmsqiwjmgf";
+const CB_URL_CONTENT = "https://hook.eu2.make.com/c4n1pqmfuou8g2b0rulykph8dwixcavw";
+const CB_URL_TWEAK = "https://hook.eu2.make.com/vpnsgekil97sn2xdl8pwz2odav1djakb";
+const CB_URL_CHAT = "https://hook.eu2.make.com/unwt94sj3bdytb0yfz6iu581mcqq14mo";
+const CB_URL_KW_CHAT = "https://hook.eu2.make.com/gbus7qu28olhuxni23hvq88bf17adv19";
 const CB_RESEARCH_URL = "https://hook.eu2.make.com/l2oskfgirlj3twospfbjt5ada9vstsf5";
 const DFS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/dataforseo-proxy";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
@@ -16,17 +21,30 @@ const FC={HV:{bg:"rgba(110,43,255,0.12)",color:"#6E2BFF"},MV:{bg:"rgba(155,122,2
 const HINTS={page_type:["Product page","Service page","Blog post","About page"],goal:["Sell a product","Explain a service","Build trust","Get leads"],audience:["Professional, for B2B","Friendly, for young people","Warm, for families"]};
 
 /* ═══ API HELPERS ═══ */
+function getUrlForStep(step) {
+  const map = {
+    "generate_keywords": CB_URL_KEYWORDS,
+    "generate_titles": CB_URL_TITLES,
+    "clean_title": CB_URL_CLEAN_TITLE,
+    "generate_structure": CB_URL_STRUCTURE,
+    "generate_content": CB_URL_CONTENT,
+    "tweak": CB_URL_TWEAK,
+    "chat": CB_URL_CHAT
+  };
+  return map[step] || CB_URL_CHAT;
+}
+
 async function callGPT(step, data) {
-  console.log("[CB] callGPT step:", step);
+  const url = getUrlForStep(step);
+  console.log("[CB] callGPT step:", step, "url:", url.substring(url.lastIndexOf("/")+1, url.lastIndexOf("/")+10));
   try {
-    const payload = { step, data: typeof data === "string" ? data : JSON.stringify(data) };
-    /* Send critical fields as top-level so GPT sees them clearly via {{1.field}} */
+    const payload = typeof data === "string" ? { data } : { ...data };
+    /* Send critical fields as top-level */
     if (data && typeof data === "object") {
       if (data.brand_details !== undefined && data.brand_details !== null) payload.brand_details = data.brand_details;
       if (data.title !== undefined && data.title !== null) payload.title = data.title;
     }
-    console.log("[CB] callGPT payload title:", payload.title, "step:", step);
-    const res = await fetch(CB_WEBHOOK_URL, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -70,10 +88,10 @@ async function callDFS(keywords, locationCode = 2840, languageCode = "en") {
 async function callChat(context, chatHistory, question) {
   console.log("[CB] callChat question:", question.substring(0, 80));
   try {
-    const res = await fetch(CB_WEBHOOK_URL, {
+    const res = await fetch(CB_URL_CHAT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ step: "chat", data: JSON.stringify({ context, chat_history: chatHistory, question }) })
+      body: JSON.stringify({ context, chat_history: chatHistory, question })
     });
     if (!res.ok) throw new Error("Chat HTTP " + res.status);
     const raw = await res.text();
@@ -108,7 +126,7 @@ async function callChat(context, chatHistory, question) {
 async function callChatRouter(context, chatHistory, question) {
   console.log("[CB] callChatRouter:", question.substring(0, 80));
   try {
-    const res = await fetch(CB_CHAT_URL, {
+    const res = await fetch(CB_URL_CHAT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ context, chat_history: chatHistory, question })
@@ -191,7 +209,7 @@ async function callResearch(topic, keywords, pageType, market) {
 async function callKwChat(keywords, pageInfo, chatHistory, message, adjustRound) {
   console.log("[CB] callKwChat:", message.substring(0, 80));
   try {
-    const res = await fetch(CB_KW_CHAT_URL, {
+    const res = await fetch(CB_URL_KW_CHAT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1230,7 +1248,7 @@ const send=()=>{
           /* GPT gave new keywords — run through DFS */
           const newKw=result.keywords||[];
           if(newKw.length>0){
-            add("b",result.message||"Updating keywords...");
+            add("b",typeof result.message==="string"?result.message:"Updating keywords...");
             sTyp(true);
             const locCode=parseLocationCode(ans.mk||"");
             const dfsData=await callDFS(newKw.slice(0,5),locCode);
@@ -1259,17 +1277,17 @@ const send=()=>{
               <ExtrasBlock extra={newExtras}/>
             </div>);
           } else {
-            add("b",result.message||"I couldn't generate new keywords. Try describing what you want differently.");
+            add("b",typeof result.message==="string"?result.message:"I couldn't generate new keywords. Try describing what you want differently.");
           }
         } else if(result.action==="confirm"){
           /* User confirmed via text — trigger Build With These */
-          add("b",result.message||"Moving forward!");
+          add("b",typeof result.message==="string"?result.message:"Moving forward!");
           const selected=skw.length>0?skw:kwData.map(k=>k.keyword);
           sConfirmedKeywords(kwData.filter(k=>selected.includes(k.keyword)));
           kwD(kwData,dfsExtra);
         } else {
           /* answer — just show text */
-          add("b",result.message||"I'm not sure how to help with that.");
+          add("b",typeof result.message==="string"?result.message:"I'm not sure how to help with that.");
         }
       } catch(err) {
         console.error("[CB] KW chat error:", err);
@@ -1408,4 +1426,25 @@ return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexD
 </div>}
 </div>;}
 
-window.ContentBuilder = ContentBuilder;
+window._ContentBuilderInner = ContentBuilder;
+/* Error boundary to prevent white screen */
+class CBErrorBoundary extends React.Component {
+  constructor(props){super(props);this.state={hasError:false,error:null};}
+  static getDerivedStateFromError(error){return{hasError:true,error};}
+  componentDidCatch(error,info){console.error("[CB] React crash:",error,info);}
+  render(){
+    if(this.state.hasError){
+      return React.createElement("div",{style:{padding:40,textAlign:"center",fontFamily:"'DM Sans',sans-serif"}},
+        React.createElement("div",{style:{fontSize:18,fontWeight:700,color:"#151415",marginBottom:8}},"Something went wrong"),
+        React.createElement("div",{style:{fontSize:13,color:"#928E95",marginBottom:16}},"Please refresh the page to start over."),
+        React.createElement("button",{onClick:()=>window.location.reload(),style:{padding:"10px 24px",borderRadius:10,background:"#6E2BFF",color:"#fff",border:"none",fontSize:13,fontWeight:600,cursor:"pointer"}},"Refresh Page"),
+        React.createElement("div",{style:{fontSize:10,color:"#928E95",marginTop:12}},String(this.state.error))
+      );
+    }
+    return this.props.children;
+  }
+}
+function ContentBuilderSafe(props){
+  return React.createElement(CBErrorBoundary,null,React.createElement(window._ContentBuilderInner,props));
+}
+window.ContentBuilder = ContentBuilderSafe;
