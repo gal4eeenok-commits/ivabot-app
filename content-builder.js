@@ -1254,7 +1254,7 @@ const send=()=>{
             sKwData(enriched);sSkw(enriched.map(k=>k.keyword));
             sTyp(false);
             add("b",<div>
-              <div style={{marginBottom:6}}>Keywords updated! ({3-adjustRound-1} adjust{3-adjustRound-1!==1?"s":""} left)</div>
+              <div style={{marginBottom:6}}>Keywords updated! ({3-adjustRound} adjusts left)</div>
               <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);sConfirmedKeywords(enriched.filter(k=>s.includes(k.keyword)));kwD(enriched,newExtras);}} onAdj={()=>{if(adjustRound>=3){bot("No more adjusts available. Click Build With These.");return;}bot("What would you like to change? Type below and I'll update the keywords.");}}/>
               <ExtrasBlock extra={newExtras}/>
             </div>);
