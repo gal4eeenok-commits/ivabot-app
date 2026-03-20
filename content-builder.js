@@ -69,17 +69,33 @@ async function callDFS(keywords, locationCode = 2840, languageCode = "en") {
 async function callChat(context, chatHistory, question) {
   console.log("[CB] callChat question:", question.substring(0, 80));
   try {
-    const res = await fetch(CB_CHAT_URL, {
+    const res = await fetch(CB_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ context, chat_history: chatHistory, question })
+      body: JSON.stringify({ step: "chat", data: JSON.stringify({ context, chat_history: chatHistory, question }) })
     });
     if (!res.ok) throw new Error("Chat HTTP " + res.status);
     const raw = await res.text();
+    console.log("[CB] Chat raw:", raw.substring(0, 200));
     let answer = raw;
-    try { const j = JSON.parse(raw); answer = j.answer || j.result || j.text || raw; } catch(e) { answer = raw; }
-    if (answer.startsWith('"') && answer.endsWith('"')) answer = answer.slice(1, -1);
-    answer = answer.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\*\*/g, '').replace(/###\s?/g, '').replace(/^- /gm, '• ');
+    try {
+      const j = JSON.parse(raw);
+      /* Handle Make toString wrapper */
+      if (j.result) {
+        const inner = j.result;
+        if (typeof inner === "string") {
+          try { const parsed = JSON.parse(inner); answer = parsed.text || parsed.answer || inner; } catch(e) { answer = inner; }
+        } else { answer = inner.text || inner.answer || JSON.stringify(inner); }
+      } else {
+        answer = j.text || j.answer || raw;
+      }
+    } catch(e) { answer = raw; }
+    if (typeof answer === "string") {
+      if (answer.startsWith('"') && answer.endsWith('"')) answer = answer.slice(1, -1);
+      answer = answer.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\*\*/g, '').replace(/###\s?/g, '').replace(/^- /gm, '• ');
+      /* Never show raw JSON to user */
+      if (answer.startsWith("{")) { answer = "I can help with that. Could you rephrase your question?"; }
+    }
     return answer;
   } catch(e) {
     console.error("[CB] callChat error:", e);
@@ -542,18 +558,49 @@ else if(sid==="ptx"){
   }
 }
 else if(sid==="ok"){
-  /* Own keywords path: save keywords, ask market, then DFS */
+  /* Own keywords path: go straight to keyword generation */
   sAns(p=>({...p,ownKeywords:val}));
-  sStep("mk");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Ukraine"]}/></div>);
+  sStep("kl");
+  startLoading(LKW);
+  sTyp(true);
+  (async()=>{
+    try {
+      let rawKeywords=val.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean);
+      const locCode=parseLocationCode(ans.mk||"");
+      const dfsData=await callDFS(rawKeywords.slice(0,5),locCode);
+
+      let enrichedKw=[];
+      const metrics=dfsData?.keyword_metrics||[];
+      const allSugs=dfsData?.suggestions||[];
+      const lookup=new Map();
+      metrics.forEach(m=>{if(m?.keyword)lookup.set(m.keyword.toLowerCase(),m);});
+      allSugs.forEach(s=>{if(s?.keyword&&!lookup.has(s.keyword.toLowerCase()))lookup.set(s.keyword.toLowerCase(),s);});
+      const getVol=m=>(m?.search_volume??m?.volume??null);
+      const getKd=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);if(typeof v==="number")return v;return null;};
+      const allVols=[...lookup.values()].map(m=>getVol(m)||0);
+      const maxVol=Math.max(...allVols,1);
+      if(lookup.size>0){
+        enrichedKw=rawKeywords.map(kw=>{const match=lookup.get(kw.toLowerCase());return{keyword:kw,volume:getVol(match),kd:getKd(match),freq:assignFreq(getVol(match)||0,maxVol)};});
+      } else {
+        enrichedKw=rawKeywords.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
+      }
+      const normArr=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
+      const dfsExtraData={suggestions:dfsData?.suggestions||[],paa:normArr(dfsData?.people_also_ask,"question"),related:normArr(dfsData?.related_searches,"title"),autocomplete:normArr(dfsData?.autocomplete,"suggestion")};
+      sDfsExtra(dfsExtraData);dfsExtraRef.current=dfsExtraData;
+      sKwData(enrichedKw);const init=enrichedKw.map(k=>k.keyword);sSkw(init);
+      stopLoading();sTyp(false);sStep("kw");
+      add("b",<div>
+        <div style={{marginBottom:6}}>I found keywords with real Google search data. Pick the ones that match your page best.</div>
+        <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium, supporting keyword. LV = Low, extra keyword.</div></div></BotTip>
+        <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);sConfirmedKeywords(enrichedKw.filter(k=>s.includes(k.keyword)));kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
+        <ExtrasBlock extra={dfsExtraData}/>
+        <div style={{marginTop:6}}><Btn text="Ask AI for Help" onClick={()=>{bot("Ask me anything about these keywords — which ones to pick, what KD means, or what would work best for your page.");}}/></div>
+      </div>);
+    } catch(err) { console.error("[CB] ok keyword error:", err); stopLoading(); sTyp(false); bot("Something went wrong. Please try again."); }
+  })();
 }
 else if(sid==="pd"){
-  /* After page description → ask market BEFORE keywords */
-  sStep("mk");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Ukraine"]}/></div>);
-}
-else if(sid==="mk"){
-  /* After market → generate keywords with correct location */
+  /* After page description → go straight to keyword generation with default US */
   sStep("kl");
   startLoading(LKW);
   sTyp(true);
@@ -561,28 +608,19 @@ else if(sid==="mk"){
     try {
       let rawKeywords=[];
       let dfsData=null;
-
-      if(ans.ownKeywords){
-        /* Own keywords path */
-        rawKeywords=ans.ownKeywords.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean);
-      } else {
-        /* Find keywords path */
-        const gptRes=await callGPT("generate_keywords",{
-          page_type:ans.pt||"",
-          page_description:ans.pd||"",
-          page_type_details:ans.ptx||"",
-          market:val,
-          ...ans
-        });
-        if(gptRes){
-          rawKeywords=Array.isArray(gptRes.keywords)?gptRes.keywords:
-            Array.isArray(gptRes)?gptRes:
-            typeof gptRes.text==="string"?gptRes.text.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean):[];
-        }
-        if(rawKeywords.length===0) rawKeywords=[ans.pd||""];
+      const gptRes=await callGPT("generate_keywords",{
+        page_type:ans.pt||"",
+        page_description:val,
+        page_type_details:ans.ptx||"",
+        ...ans
+      });
+      if(gptRes){
+        rawKeywords=Array.isArray(gptRes.keywords)?gptRes.keywords:
+          Array.isArray(gptRes)?gptRes:
+          typeof gptRes.text==="string"?gptRes.text.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean):[];
       }
-
-      const locCode=parseLocationCode(val||"");
+      if(rawKeywords.length===0) rawKeywords=[val];
+      const locCode=parseLocationCode(ans.mk||"");
       dfsData=await callDFS(rawKeywords.slice(0,5),locCode);
 
       let enrichedKw=[];
@@ -595,57 +633,62 @@ else if(sid==="mk"){
       const getKd=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);if(typeof v==="number")return v;return null;};
       const allVols=[...lookup.values()].map(m=>getVol(m)||0);
       const maxVol=Math.max(...allVols,1);
-
       if(lookup.size>0){
-        enrichedKw=rawKeywords.map(kw=>{
-          const match=lookup.get(kw.toLowerCase());
-          const vol=getVol(match);
-          const kd=getKd(match);
-          return{keyword:kw,volume:vol,kd:kd,freq:assignFreq(vol,maxVol)};
-        });
+        enrichedKw=rawKeywords.map(kw=>{const match=lookup.get(kw.toLowerCase());const vol=getVol(match);const kd=getKd(match);return{keyword:kw,volume:vol,kd:kd,freq:assignFreq(vol,maxVol)};});
         if(allSugs.length>0){
           const existing=new Set(enrichedKw.map(k=>k.keyword.toLowerCase()));
-          allSugs.filter(s=>s.keyword&&!existing.has(s.keyword.toLowerCase())&&(getVol(s)||0)>0).slice(0,3).forEach(s=>{
-            enrichedKw.push({keyword:s.keyword,volume:getVol(s),kd:getKd(s),freq:assignFreq(getVol(s)||0,maxVol)});
-          });
+          allSugs.filter(s=>s.keyword&&!existing.has(s.keyword.toLowerCase())&&(getVol(s)||0)>0).slice(0,3).forEach(s=>{enrichedKw.push({keyword:s.keyword,volume:getVol(s),kd:getKd(s),freq:assignFreq(getVol(s)||0,maxVol)});});
         }
       } else {
         enrichedKw=rawKeywords.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
       }
-
       const normArr=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
-      const dfsExtraData={
-        suggestions:dfsData?.suggestions||[],
-        paa:normArr(dfsData?.people_also_ask,"question"),
-        related:normArr(dfsData?.related_searches,"title"),
-        autocomplete:normArr(dfsData?.autocomplete,"suggestion")
-      };
-      console.log("[CB] DFS extras:", JSON.stringify({paa:dfsExtraData.paa.length,related:dfsExtraData.related.length,autocomplete:dfsExtraData.autocomplete.length,raw_keys:Object.keys(dfsData||{})}));
-      sDfsExtra(dfsExtraData);
-      dfsExtraRef.current=dfsExtraData;
-
-      sKwData(enrichedKw);
-      const init=enrichedKw.map(k=>k.keyword);
-      sSkw(init);
-      stopLoading();
-      sTyp(false);
-      sStep("kw");
+      const dfsExtraData={suggestions:dfsData?.suggestions||[],paa:normArr(dfsData?.people_also_ask,"question"),related:normArr(dfsData?.related_searches,"title"),autocomplete:normArr(dfsData?.autocomplete,"suggestion")};
+      sDfsExtra(dfsExtraData);dfsExtraRef.current=dfsExtraData;
+      sKwData(enrichedKw);const init=enrichedKw.map(k=>k.keyword);sSkw(init);
+      stopLoading();sTyp(false);sStep("kw");
       add("b",<div>
         <div style={{marginBottom:6}}>{dfsData?"I found keywords with real Google search data. Pick the ones that match your page best.":"Here are keyword suggestions. Pick the ones that fit."}</div>
         <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium, supporting keyword. LV = Low, extra keyword.</div></div></BotTip>
-        <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);sConfirmedKeywords(kwData.filter(k=>s.includes(k.keyword)));kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{
-          sStep("ka");bot("What would you like to change?");
-        }}/>
+        <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);sConfirmedKeywords(enrichedKw.filter(k=>s.includes(k.keyword)));kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
         <ExtrasBlock extra={dfsExtraData}/>
         <div style={{marginTop:6}}><Btn text="Ask AI for Help" onClick={()=>{bot("Ask me anything about these keywords — which ones to pick, what KD means, or what would work best for your page.");}}/></div>
       </div>);
-    } catch(err) {
-      console.error("[CB] keyword flow error:", err);
-      stopLoading();
-      sTyp(false);
-      sPLoad(null);
-      bot("Something went wrong while generating keywords. Please try again.");
-    }
+    } catch(err) { console.error("[CB] pd keyword error:", err); stopLoading(); sTyp(false); sPLoad(null); bot("Something went wrong while generating keywords. Please try again."); }
+  })();
+}
+else if(sid==="mk"){
+  /* Market answered → now generate titles */
+  sStep("tl");
+  startLoading(["Generating titles...","Applying keyword rules..."]);
+  sTyp(true);
+  (async()=>{
+    try {
+      const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):skw.length>0?skw:kwData.map(k=>k.keyword);
+      const gptRes=await callGPT("generate_titles",{
+        keywords:selKw,
+        page_type:ans.pt||"",
+        page_type_details:ans.ptx||"",
+        page_description:ans.pd||"",
+        goal:ans.gl||"",
+        audience:ans.au||"",
+        tone:ans.tn||"",
+        market:val,
+        ...ans
+      });
+      let titles=[];
+      if(gptRes){
+        const raw=Array.isArray(gptRes.titles)?gptRes.titles:Array.isArray(gptRes)?gptRes:gptRes.titles?[gptRes.titles]:[];
+        titles=raw.map(t=>{
+          if(typeof t==="string") return{text:t,hl:selKw.filter(k=>t.toLowerCase().includes(k.toLowerCase()))};
+          return{text:t.text||t.title||String(t),hl:t.highlights||t.hl||selKw.filter(k=>(t.text||t.title||"").toLowerCase().includes(k.toLowerCase()))};
+        });
+      }
+      if(titles.length===0) titles=selKw.slice(0,5).map(k=>({text:k.charAt(0).toUpperCase()+k.slice(1),hl:[k]}));
+      sSavedTitles(titles);
+      stopLoading();sTyp(false);sStep("ti");
+      add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={titles} onSelect={t=>{hAns("ti",t);}}/></div>);
+    } catch(err) { console.error("[CB] title flow error:", err); stopLoading(); sTyp(false); bot("Something went wrong generating titles. Please try again."); }
   })();
 }
 else if(sid==="gl"){
@@ -657,50 +700,9 @@ else if(sid==="au"){
   bot(<div><div style={{fontWeight:600,marginBottom:6}}>How should the content sound?</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
 }
 else if(sid==="tn"){
-  /* mk already answered before keywords, go straight to titles */
-  sStep("tl");
-  startLoading(["Generating titles...","Applying keyword rules..."]);
-  sTyp(true);
-  (async()=>{
-    try {
-      const selKw=skw.length>0?skw:kwData.map(k=>k.keyword);
-      const gptRes=await callGPT("generate_titles",{
-        keywords:selKw,
-        page_type:ans.pt||"",
-        page_type_details:ans.ptx||"",
-        page_description:ans.pd||"",
-        goal:ans.gl||"",
-        audience:ans.au||"",
-        tone:ans.tn||"",
-        market:ans.mk||val,
-        ...ans
-      });
-      let titles=[];
-      if(gptRes){
-        const raw=Array.isArray(gptRes.titles)?gptRes.titles:
-          Array.isArray(gptRes)?gptRes:
-          gptRes.titles?[gptRes.titles]:[];
-        titles=raw.map(t=>{
-          if(typeof t==="string") return{text:t,hl:selKw.filter(k=>t.toLowerCase().includes(k.toLowerCase()))};
-          return{text:t.text||t.title||String(t),hl:t.highlights||t.hl||selKw.filter(k=>(t.text||t.title||"").toLowerCase().includes(k.toLowerCase()))};
-        });
-      }
-      if(titles.length===0){
-        titles=selKw.slice(0,5).map(k=>({text:k.charAt(0).toUpperCase()+k.slice(1)+" — Your Guide",hl:[k]}));
-      }
-      stopLoading();
-      sTyp(false);
-      sStep("ti");
-      sSavedTitles(titles);
-      add("b",<div><div style={{marginBottom:6}}>Here are title options for your page.</div><TSel titles={titles} onSelect={t=>{hAns("ti",t);}}/></div>);
-    } catch(err) {
-      console.error("[CB] title flow error:", err);
-      stopLoading();
-      sTyp(false);
-      sPLoad(null);
-      bot("Something went wrong while generating titles. Please try again.");
-    }
-  })();
+  /* After tone → ask market */
+  sStep("mk");
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Ukraine"]}/></div>);
 }
 else if(sid==="ti"){
   /* Title validation: call GPT clean_title, then show confirmation */
