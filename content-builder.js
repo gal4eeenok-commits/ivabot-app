@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v31 — ExtrasBlock inline with keywords, always visible */
+/* IvaBot Content Builder v32 — UI overhaul: ExBox, 3-step audience, KwS cleanup, Shift+Enter */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v31 loaded");
+console.log("[IvaBot] content-builder.js v32 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -285,7 +285,9 @@ function buildStepContext(step, ans, keywords, selectedTitle, briefData) {
     parts.push("Keywords: " + kwStr);
   }
   if (ans.gl) parts.push("Goal: " + ans.gl);
-  if (ans.au) parts.push("Audience/tone/market: " + ans.au);
+  if (ans.au) parts.push("Audience: " + ans.au);
+  if (ans.tn) parts.push("Tone: " + ans.tn);
+  if (ans.mk) parts.push("Market: " + ans.mk);
   if (selectedTitle) parts.push("Selected title: " + selectedTitle);
   if (ans.me) parts.push("Brand details: " + ans.me);
   if (briefData) parts.push("Structure generated: yes, length: " + (briefData.contentLength || "~800 words"));
@@ -334,6 +336,8 @@ const UB=({children,n})=><div style={{display:"flex",flexDirection:"column",alig
 const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 const HP=({text,onClick,disabled:d})=><span onClick={d?undefined:onClick} style={{padding:"5px 12px",borderRadius:8,background:d?"rgba(21,20,21,0.02)":"rgba(21,20,21,0.03)",color:d?"rgba(21,20,21,0.2)":"#B8B5BB",fontSize:11,cursor:d?"default":"pointer",border:"1px solid transparent",fontFamily:"'DM Sans',sans-serif",pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!d){e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}}} onMouseLeave={e=>{if(!d){e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}}>{text}</span>;
 const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif",cursor:"default",pointerEvents:"none"}}>{text}</span>;
+/* Example box — shows examples in a bordered frame, not clickable */
+const ExBox=({items})=><div style={{padding:"8px 12px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(21,20,21,0.02)",marginBottom:6}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>Examples:</div><div style={{fontSize:12,color:C.dark,lineHeight:1.6}}>{items.join(" · ")}</div></div>;
 const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
 
 /* ═══ EXTRAS BLOCK — shows related/paa/autocomplete inline with keywords ═══ */
@@ -357,7 +361,7 @@ const ExtrasBlock=({extra})=>{
 
 /* ═══ KEYWORD SELECTOR ═══ */
 const fmtKd=v=>{if(v==null)return"—";if(typeof v==="number")return String(v);const s=String(v);if(s==="LOW")return"Low";if(s==="HIGH")return"High";if(s==="MEDIUM")return"Med";return s;};
-const KwS=({keywords,init,onDone,onAdj})=>{const[s,ss]=useState(init);const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=7)return p;return[...p,k];});};return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 4px",fontSize:9,fontWeight:500,color:C.muted}}><span style={{width:16,flexShrink:0}}/><span style={{flex:1}}>Keyword</span><span style={{width:42,textAlign:"right"}}>Vol.</span><span style={{width:32,textAlign:"center"}}>KD</span><span style={{width:30,textAlign:"center"}}>Freq</span><span style={{width:14}}/></div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq]||FC.MV;return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{width:42,textAlign:"right",fontSize:10,color:C.muted,fontWeight:600}}>{fmtVol(k.volume)}</span><span style={{width:32,textAlign:"center",fontSize:10,color:C.muted}}>{fmtKd(k.kd)}</span><span style={{width:30,textAlign:"center"}}><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></span>{a?<span onClick={e=>{e.stopPropagation();t(k.keyword);}} style={{width:14,fontSize:14,color:C.muted,cursor:"pointer",lineHeight:1,textAlign:"center"}}>×</span>:<span style={{width:14}}/>}</div>;})}</div><div style={{fontSize:10,color:C.muted,marginBottom:8}}>Min 2, max 7. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={onAdj}/></div></div>;};
+const KwS=({keywords,init,onDone,onAdj})=>{const maxKw=7;const[s,ss]=useState(init.slice(0,maxKw));const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=maxKw)return p;return[...p,k];});};return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 4px",fontSize:9,fontWeight:500,color:C.muted}}><span style={{width:16,flexShrink:0}}/><span style={{flex:1}}>Keyword</span><span style={{width:42,textAlign:"right"}}>Vol.</span><span style={{width:32,textAlign:"center"}}>KD</span><span style={{width:30,textAlign:"center"}}>Freq</span></div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.slice(0,maxKw).map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq]||FC.MV;return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{width:42,textAlign:"right",fontSize:10,color:C.muted,fontWeight:600}}>{fmtVol(k.volume)}</span><span style={{width:32,textAlign:"center",fontSize:10,color:C.muted}}>{fmtKd(k.kd)}</span><span style={{width:30,textAlign:"center"}}><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></span></div>;})}</div><div style={{fontSize:12,color:C.dark,marginBottom:8}}>Select 2 to 7 keywords. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={onAdj}/></div></div>;};
 
 /* ═══ HIGHLIGHT HELPERS ═══ */
 const HlT=({text,hl})=>{if(!hl?.length)return<span>{text}</span>;const p=[];let r=text;hl.forEach(h=>{const i=r.toLowerCase().indexOf(h.toLowerCase());if(i>=0){if(i>0)p.push({t:r.slice(0,i),h:false});p.push({t:r.slice(i,i+h.length),h:true});r=r.slice(i+h.length);}});if(r)p.push({t:r,h:false});return<span>{p.map((x,i)=>x.h?<span key={i} style={{background:"rgba(110,43,255,0.1)",color:C.accent,padding:"1px 3px",borderRadius:3}}>{x.t}</span>:<span key={i}>{x.t}</span>)}</span>;};
@@ -455,7 +459,7 @@ const handleAiChat=useCallback(async(text)=>{
 useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1500);},[]);
 
 /* ═══ ENTRY CHOICE ═══ */
-const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){sKwFlowType("find");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.page_type.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("pt",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me choose the right structure. Or type your own.</div></div>).then(()=>sStep("pt"));},300);}else{sKwFlowType("own");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><div style={{color:C.muted,fontSize:12}}>e.g. coffee shop Berlin, best espresso near me</div></div>).then(()=>sStep("ok"));},300);}};
+const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){sKwFlowType("find");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>).then(()=>sStep("pt"));},300);}else{sKwFlowType("own");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><ExBox items={["coffee shop Berlin, best espresso near me","vegan sweets online, buy vegan candy","massage Kyiv, therapeutic massage"]}/></div>).then(()=>sStep("ok"));},300);}};
 
 /* ═══ ANSWER HANDLER (flow steps) — UNCHANGED from v21 ═══ */
 const hAns=(sid,val,skipAdd)=>{
@@ -465,19 +469,19 @@ if(sid==="pt"){
   const cfg=getPageConfig(val);
   if(cfg){
     sStep("ptx");
-    bot(<div><div style={{marginBottom:6}}>{cfg.extraQ}</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{cfg.hints.map((h,i)=><HE key={i} text={h}/>)}</div><div style={{color:C.muted,fontSize:12}}>This helps me write better content for your specific page.</div></div>);
+    bot(<div><div style={{marginBottom:6}}>{cfg.extraQ}</div><ExBox items={cfg.hints}/></div>);
   } else {
     sStep("pd");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn, cakes and cookies","Travel blog about Southeast Asia"]}/></div>);
   }
 }
 else if(sid==="ptx"){
   if(val.length>15){
     sStep("pd");
-    bot(<div><div style={{marginBottom:6}}>Got it! Anything else to describe about your page, or should I use what you shared to find keywords?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HP text="That's enough, find keywords" onClick={()=>{sAns(p=>({...p,pd:val}));hAns("pd",val);}}/></div><div style={{color:C.muted,fontSize:12}}>Or type more details below.</div></div>);
+    bot(<div><div style={{marginBottom:6}}>Got it! Anything else to add, or should I use this to find keywords?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><Btn text="Find Keywords" onClick={()=>{sAns(p=>({...p,pd:val}));hAns("pd",val);}}/></div></div>);
   } else {
     sStep("pd");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><div style={{color:C.muted,fontSize:12}}>I'll search real Google data to find what people actually type. e.g. Handmade wooden rings with resin</div></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn, cakes and cookies","Travel blog about Southeast Asia"]}/></div>);
   }
 }
 else if(sid==="pd"||sid==="ok"){
@@ -506,7 +510,7 @@ else if(sid==="pd"||sid==="ok"){
         if(rawKeywords.length===0) rawKeywords=[val];
       }
 
-      const locCode=parseLocationCode(ans.au||"");
+      const locCode=parseLocationCode(ans.mk||ans.au||"");
       dfsData=await callDFS(rawKeywords.slice(0,5),locCode);
 
       let enrichedKw=[];
@@ -574,9 +578,17 @@ else if(sid==="pd"||sid==="ok"){
 }
 else if(sid==="gl"){
   sStep("au");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your audience, where are they, and how should it sound?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.audience.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("au",h)}/>)}</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HP text="US market" onClick={()=>hAns("au","US market, English")}/><HP text="UK market" onClick={()=>hAns("au","UK market, English")}/><HP text="Global / English" onClick={()=>hAns("au","Global audience, English")}/></div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{color:C.muted,fontSize:12}}>Include your target country if specific. This affects keyword data.</div><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your target audience?</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids"]}/></div>);
 }
 else if(sid==="au"){
+  sStep("tn");
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What tone should the content have?</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
+}
+else if(sid==="tn"){
+  sStep("mk");
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Global / English","Australia"]}/></div>);
+}
+else if(sid==="mk"){
   sStep("tl");
   startLoading(["Generating titles...","Applying keyword rules..."]);
   sTyp(true);
@@ -589,7 +601,9 @@ else if(sid==="au"){
         page_type_details:ans.ptx||"",
         page_description:ans.pd||"",
         goal:ans.gl||"",
-        audience:ans.au||val,
+        audience:ans.au||"",
+        tone:ans.tn||"",
+        market:ans.mk||val,
         ...ans
       });
       let titles=[];
@@ -620,7 +634,7 @@ else if(sid==="au"){
 }
 else if(sid==="ti"){
   sStep("me");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust.</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><HE text="Founder story, brand name"/><HE text="Brand values, mission"/><HP text="Nothing special to add" onClick={()=>hAns("me","Nothing special to add")}/></div><div style={{color:C.muted,fontSize:12}}>Or type your own</div></div>);
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);
 }
 else if(sid==="me"){
   sStep("cf");
@@ -642,7 +656,7 @@ const kwD=(enrichedKwOverride,extrasOverride)=>{
     </div></BotTip>}
   </div>).then(()=>{
     sStep("gl");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>What should this page achieve?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{HINTS.goal.map((h,i)=><HP key={i} text={h} onClick={()=>hAns("gl",h)}/>)}</div><div style={{color:C.muted,fontSize:12}}>A sales page needs CTAs, an info page needs depth.</div></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>What should this page achieve?</div><ExBox items={HINTS.goal}/></div>);
   });
 };
 
@@ -666,6 +680,8 @@ const gStr=async()=>{
       page_description:ans.pd||"",
       goal:ans.gl||"",
       audience:ans.au||"",
+      tone:ans.tn||"",
+      market:ans.mk||"",
       brand_details:ans.me||"",
       target_length:defaultLen,
       related:dfsExtraRef.current.related||[],
@@ -748,6 +764,8 @@ const gCnt=async()=>{
       page_type:ans.pt||"",
       goal:ans.gl||"",
       audience:ans.au||"",
+      tone:ans.tn||"",
+      market:ans.mk||"",
       brand_details:ans.me||"",
       extra_instructions:ans.sr_extra||"",
       title:bd?.title||stit||""
@@ -837,7 +855,7 @@ const doKeywordAdjust=async(adjustText)=>{
       newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
     }
     if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
-    const locCode=parseLocationCode(ans.au||"");
+    const locCode=parseLocationCode(ans.mk||ans.au||"");
     const dfsData=await callDFS(newRaw.slice(0,5),locCode);
     let enriched=[];
     const metrics2=dfsData?.keyword_metrics||[];
@@ -908,9 +926,11 @@ const STEP_REMINDERS={
   ptx:"Can you share details about your page? It helps me write better content.",
   pd:"Describe your page briefly so I can find the right keywords.",
   gl:"What should this page achieve? (Sell, Explain, Build trust)",
-  au:"Who is your audience and what market? (e.g. Young people, US market)",
+  au:"Who is your target audience?",
+  tn:"What tone should the content have? (Professional, Friendly, Fun, Warm)",
+  mk:"What country or market are you targeting?",
   ti:"Which title do you want? Pick one above or type your own.",
-  me:"Any brand details to add, or click 'Nothing special to add' to continue."
+  me:"Any brand details to add, or type 'nothing' to continue."
 };
 
 /* ═══ RESET ═══ */
@@ -929,11 +949,23 @@ const send=()=>{
   /* === FLOW STEPS: direct regex handling (proven from v21) === */
 
   if(step==="ec") {
-    const tl=t.toLowerCase();
-    if(/\b(find|search|suggest|get)\b/i.test(tl)) { hEntry("Find Keywords"); return; }
+    const tl=t.toLowerCase().replace(/[!.,?]+$/,"").trim();
+    /* Greeting → reply + keep buttons */
+    const greetings=["hi","hey","hello","привет","хай","добрый день","доброе утро","good morning","sup","yo","hola"];
+    if(greetings.includes(tl)||tl.length<4){
+      add("u",t);
+      bot(<div><div style={{marginBottom:6}}>Hey! Ready to start?</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);
+      return;
+    }
+    /* Question → answer via chat, keep buttons */
+    if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
+    /* Intent detection */
+    if(/\b(find|search|suggest|get|help)\b/i.test(tl)) { hEntry("Find Keywords"); return; }
     if(/\b(my|own|have|paste|use)\b/i.test(tl)) { hEntry("Use My Keywords"); return; }
     if(t.includes(",")) { hEntry("Use My Keywords"); return; }
-    hEntry("Find Keywords");
+    /* Default: ask to choose, don't auto-select */
+    add("u",t);
+    bot(<div><div style={{marginBottom:6}}>Please choose one of the options below to get started.</div></div>);
     return;
   }
 
@@ -946,8 +978,8 @@ const send=()=>{
     return;
   }
 
-  /* Simple flow steps: pt, ptx, pd, gl, au, me — regex like v21 */
-  if(["pt","ptx","gl","au","me"].includes(step)){
+  /* Simple flow steps: pt, ptx, gl, au, tn, mk, me — regex like v21 */
+  if(["pt","ptx","gl","au","tn","mk","me"].includes(step)){
     if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
     if(isAcknowledgement(t)){
       add("u",t);
@@ -1088,12 +1120,12 @@ const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"
 return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexDirection:"column"}}>
 <div style={{padding:isMobile?"0 12px 6px":"0 24px 10px",display:"flex",alignItems:"center",gap:6,maxWidth:1224,margin:"0 auto",width:"100%"}}><button onClick={onHome} style={{background:"none",border:"none",cursor:"pointer",padding:2,color:C.muted,display:"flex"}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg></button><span style={{fontSize:13,fontWeight:500,color:C.muted}}>Content Builder</span>{rp==="br"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Structure Ready</span>}{rp==="ct"&&<span style={{fontSize:10,fontWeight:600,color:"#9B7AE6",background:"rgba(155,122,230,0.08)",padding:"3px 8px",borderRadius:10,marginLeft:4}}>Content Ready</span>}</div>
 {!isMobile&&<div style={{display:"flex",padding:"0 24px 24px",maxWidth:1224,margin:"0 auto",width:"100%",alignItems:"flex-start",gap:12}}>
-<div id="cb-chat" style={{width:"35%",maxWidth:420,position:"sticky",top:12,display:"flex",flexDirection:"column",flexShrink:0,minWidth:280,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,height:"calc(100vh - 130px)"}}><div ref={cr} className="iva-scroll-inner" style={{flex:1,padding:"16px 12px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>{chatMessages}</div><div style={{padding:"8px 12px 12px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:8}}><input ref={inpRef} defaultValue="" onKeyDown={e=>e.key==="Enter"&&send()} placeholder={step==="cr"?"Ask a question or request changes...":"Type your answer or ask a question..."} style={{flex:1,height:44,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 14px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div></div>
+<div id="cb-chat" style={{width:"35%",maxWidth:420,position:"sticky",top:12,display:"flex",flexDirection:"column",flexShrink:0,minWidth:280,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,height:"calc(100vh - 130px)"}}><div ref={cr} className="iva-scroll-inner" style={{flex:1,padding:"16px 12px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>{chatMessages}</div><div style={{padding:"8px 12px 12px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:8}}><input ref={inpRef} defaultValue="" onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey)send();}} placeholder={step==="cr"?"Ask a question or request changes...":"Type your answer..."} style={{flex:1,height:44,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 14px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div></div>
 <div style={{flex:1,borderRadius:12,border:`1px solid ${C.border}`,position:"relative",background:C.surface,minHeight:"calc(100vh - 130px)"}}>{panelContent}{rp!=="ph"&&<div style={{position:"sticky",bottom:0,left:0,right:0,height:48,background:"linear-gradient(transparent, #ffffff)",borderRadius:"0 0 12px 12px",pointerEvents:"none"}}/>}</div>
 </div>}
 {isMobile&&<div style={{display:"flex",flexDirection:"column",padding:"0 12px 16px",gap:12}}>
 <MobileTab active={mTab} onSwitch={sMTab} hasBrief={rp==="br"} hasContent={rp==="ct"}/>
-<div style={{display:mTab==="chat"?"flex":"none",flexDirection:"column",borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,maxHeight:"70vh"}}><div ref={mTab==="chat"?cr:null} className="iva-scroll-inner" style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>{chatMessages}</div><div style={{padding:"8px 10px 10px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:6}}><input ref={isMobile?inpRef:null} defaultValue="" onKeyDown={e=>e.key==="Enter"&&send()} placeholder={step==="cr"?"Ask a question or request changes...":"Type your answer or ask a question..."} style={{flex:1,height:42,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 12px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:42,height:42,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div></div>
+<div style={{display:mTab==="chat"?"flex":"none",flexDirection:"column",borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden",background:C.card,maxHeight:"70vh"}}><div ref={mTab==="chat"?cr:null} className="iva-scroll-inner" style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>{chatMessages}</div><div style={{padding:"8px 10px 10px",flexShrink:0,borderTop:`1px solid ${C.border}`}}><div style={{display:"flex",gap:6}}><input ref={isMobile?inpRef:null} defaultValue="" onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey)send();}} placeholder={step==="cr"?"Ask a question or request changes...":"Type your answer..."} style={{flex:1,height:42,borderRadius:10,border:`1px solid ${C.border}`,padding:"0 12px",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:C.dark,outline:"none",background:C.surface}} onFocus={e=>{e.target.style.borderColor=C.hoverBorder;e.target.style.boxShadow=C.hoverShadow;}} onBlur={e=>{e.target.style.borderColor=C.border;e.target.style.boxShadow="none";}}/><button onClick={send} style={{width:42,height:42,borderRadius:10,border:`1px solid ${C.borderMid}`,background:C.surface,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button></div></div></div>
 <div style={{display:mTab==="panel"?"block":"none",background:C.surface,borderRadius:12,border:`1px solid ${C.border}`}}>{panelContent}</div>
 </div>}
 {(rp==="br"||rp==="ct")&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:isMobile?"8px 12px 16px":"8px 24px 16px",maxWidth:isMobile?"100%":1224,margin:"0 auto",width:"100%",alignItems:"center"}}>
