@@ -224,7 +224,7 @@ function isQuestion(text) {
 function isAcknowledgement(text) {
   const t = text.trim().toLowerCase().replace(/[!.,]+$/,"");
   const acks = ["ok","okay","got it","sure","thanks","thank you","i see","yeah","yes","yep","alright","cool","nice","great","good","right","understood","i get it","i understand","fine","noted","aha","ah","oh"];
-  return acks.includes(t) || t.length < 3;
+  return acks.includes(t);
 }
 function isConfirmation(text) {
   const t = text.trim().toLowerCase().replace(/[!.,]+$/,"");
