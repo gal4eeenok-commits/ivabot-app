@@ -250,38 +250,38 @@ function isConfirmation(text) {
 /* Page type config: guided questions + content length limits */
 const PAGE_TYPE_CONFIG = {
   "homepage": {
-    extraQ: "What does your company do? Any key products, services, or value props?",
-    hints: ["Company name + what you do", "Key products or services", "Main value proposition", "Target customer"],
+    extraQ: "What does your company do? Tell me a bit about your business.",
+    hints: ["We make handmade candles from organic wax","Digital marketing agency for small businesses","Online store for vintage furniture","Dog grooming salon in Brooklyn"],
     defaultLen: "900-1200 words", maxLen: 5000
   },
   "about page": { 
-    extraQ: "What's your company/brand name? Any founder story or mission you'd like to include?",
-    hints: ["Company name + founder story", "Mission and values", "Team background", "History / timeline"],
+    extraQ: "What's your brand story? Who's behind it?",
+    hints: ["Founded by Maria in 2020, started from home kitchen","Family bakery since 1995, three generations","Two friends started a tech company after college","Solo designer with 10 years of experience"],
     defaultLen: "700-1000 words", maxLen: 4000
   },
   "product page": {
-    extraQ: "Tell me about the product: name, price range, key features, sizes or variants?",
-    hints: ["Product name + price", "Key features + materials", "Sizes / variants", "Shipping / availability"],
+    extraQ: "Tell me about the product — what is it, what's special about it?",
+    hints: ["Red silk dress, XS to XL, handmade in Italy","Organic face cream, 50ml, for sensitive skin","Wooden phone stand, walnut, fits all phones","Kids rain boots, sizes 5-12, waterproof"],
     defaultLen: "500-800 words", maxLen: 3000
   },
   "service page": {
-    extraQ: "What service do you offer? Any pricing model, service area, or process details?",
-    hints: ["Service name + pricing", "Service area / location", "Process / how it works", "Key benefits"],
+    extraQ: "What service do you offer? Where and how?",
+    hints: ["House cleaning in London, weekly or one-time","Wedding photography, Berlin area, from €800","Online English lessons for kids, group or private","Roof repair and installation, free estimate"],
     defaultLen: "500-800 words", maxLen: 4000
   },
   "blog post": {
-    extraQ: "What's the main topic or angle? Any specific points you want to cover?",
-    hints: ["Main topic / angle", "Key points to cover", "Target reader", "Unique perspective"],
+    extraQ: "What's the blog post about? What should it cover?",
+    hints: ["Budget travel to Japan during cherry blossom","How to start a small bakery from home","Best exercises for back pain, no equipment","Comparing iPhone vs Samsung for photography"],
     defaultLen: "1500-3000 words", maxLen: 11000
   },
   "landing page": {
-    extraQ: "What's the main offer or CTA? Any urgency, deadline, or special deal?",
-    hints: ["Main offer / CTA", "Urgency / deadline", "Key benefit", "Social proof"],
+    extraQ: "What's the offer? What should visitors do?",
+    hints: ["Free trial of our project management app","50% off first order, limited time","Download our free SEO checklist PDF","Book a free 30-min consultation call"],
     defaultLen: "900-1200 words", maxLen: 4000
   },
   "category page": {
-    extraQ: "How many products/items in this category? Any filters like price range or type?",
-    hints: ["Number of products", "Category structure", "Filters (price, type)", "Featured items"],
+    extraQ: "What products are in this category? How is it organized?",
+    hints: ["Women's summer dresses, 50 items, by style","Coffee beans by origin, 20 varieties","Running shoes, men's, sorted by price","Handmade earrings, silver and gold"],
     defaultLen: "500-800 words", maxLen: 2000
   }
 };
