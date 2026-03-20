@@ -1,10 +1,11 @@
-/* IvaBot Content Builder v38 — Spec v2: guided flow, confirmedTitle/Keywords, step numbers */
+/* IvaBot Content Builder v39 — Smart KW Chat (GPT+web_search decides actions) */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v38 loaded");
+console.log("[IvaBot] content-builder.js v39 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
 const CB_CHAT_URL = "https://hook.eu2.make.com/v14qvdq3l3mu2hjevrc7dps9j74a6lkf";
+const CB_KW_CHAT_URL = "https://hook.eu2.make.com/gbus7qu28olhuxni23hvq88bf17adv19";
 const CB_RESEARCH_URL = "https://hook.eu2.make.com/l2oskfgirlj3twospfbjt5ada9vstsf5";
 const DFS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/dataforseo-proxy";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
@@ -186,7 +187,51 @@ async function callResearch(topic, keywords, pageType, market) {
   }
 }
 
-/* Track usage: increment builder_used in Supabase usage table */
+/* ═══ KW CHAT — smart GPT with web search for keyword step ═══ */
+async function callKwChat(keywords, pageInfo, chatHistory, message, adjustRound) {
+  console.log("[CB] callKwChat:", message.substring(0, 80));
+  try {
+    const res = await fetch(CB_KW_CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        keywords: JSON.stringify(keywords),
+        page_type: pageInfo.pt || "",
+        page_description: pageInfo.pd || "",
+        page_details: pageInfo.ptx || "",
+        chat_history: chatHistory,
+        message,
+        adjust_round: adjustRound || 1
+      })
+    });
+    if (!res.ok) throw new Error("KwChat HTTP " + res.status);
+    const raw = await res.text();
+    console.log("[CB] KwChat raw:", raw.substring(0, 300));
+    let parsed = null;
+    try { parsed = JSON.parse(raw); } catch(e) {
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) try { parsed = JSON.parse(m[0]); } catch(e2) {}
+    }
+    /* Unwrap Make toString wrapper */
+    if (parsed && !parsed.action) {
+      const inner = parsed.result || parsed.text;
+      if (typeof inner === "string") {
+        try { parsed = JSON.parse(inner); } catch(e) {
+          const m2 = inner.match(/\{[\s\S]*\}/);
+          if (m2) try { parsed = JSON.parse(m2[0]); } catch(e3) {}
+        }
+      }
+    }
+    if (parsed && parsed.action) return parsed;
+    /* Fallback */
+    return { action: "answer", message: typeof raw === "string" && raw.length < 500 ? raw : "I can help with that. Could you rephrase?" };
+  } catch(e) {
+    console.error("[CB] callKwChat error:", e);
+    return { action: "answer", message: "Sorry, something went wrong. Try again or click Build With These." };
+  }
+}
+
+/* Track usage */: increment builder_used in Supabase usage table */
 async function trackBuilderUsage(memberId) {
   if (!memberId) { console.log("[CB] trackUsage: no memberId"); return; }
   try {
@@ -478,7 +523,7 @@ const[ls,sLs]=useState(-1);const[lst,sLst]=useState([]);const[lsWaiting,sLsWaiti
 const[dn,sDn]=useState({});
 const[tweakCount,sTweakCount]=useState(0);
 const[kwFlowType,sKwFlowType]=useState(null);
-const[adjustUsed,sAdjustUsed]=useState(false);
+const[adjustRound,sAdjustRound]=useState(0);
 const cr=useRef(null);const inpRef=useRef(null);
 const prevMsgCount=useRef(0);
 const loadingResolveRef=useRef(null);
@@ -1048,7 +1093,7 @@ const STEP_REMINDERS={
 
 /* ═══ RESET ═══ */
 const reset=()=>{
-  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);sStit(null);confirmedTitleRef.current=null;sConfirmedKeywords([]);sSavedTitles([]);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sLsWaiting(false);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustUsed(false);
+  sStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);sStit(null);confirmedTitleRef.current=null;sConfirmedKeywords([]);sSavedTitles([]);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sLsWaiting(false);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sKwFlowType(null);sAdjustRound(0);
   setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1000);},100);
 };
 
@@ -1107,7 +1152,71 @@ const send=()=>{
   /* === kw: keywords shown — CHAT OPEN until button === */
   if(step==="kw"){
     add("u",t);
-    handleAiChat(t);
+    sTyp(true);
+    (async()=>{
+      try {
+        const kwStr=kwData.map(k=>`${k.keyword} (Vol:${k.volume||"—"}, KD:${k.kd||"—"}, ${k.freq})`).join(", ");
+        const history=buildChatHistory(msgs);
+        const result=await callKwChat(kwData,{pt:ans.pt,pd:ans.pd,ptx:ans.ptx},history,t,adjustRound+1);
+        sTyp(false);
+        console.log("[CB] KwChat action:", result.action);
+
+        if(result.action==="adjust"||result.action==="research"){
+          if(adjustRound>=3){
+            add("b","You've used all 3 adjust rounds. Please select from the current list and click Build With These.");
+            return;
+          }
+          sAdjustRound(adjustRound+1);
+          /* GPT gave new keywords — run through DFS */
+          const newKw=result.keywords||[];
+          if(newKw.length>0){
+            add("b",result.message||"Updating keywords...");
+            sTyp(true);
+            const locCode=parseLocationCode(ans.mk||"");
+            const dfsData=await callDFS(newKw.slice(0,5),locCode);
+            let enriched=[];
+            const metrics=dfsData?.keyword_metrics||[];
+            const sug=dfsData?.suggestions||[];
+            const lookup=new Map();
+            metrics.forEach(m=>{if(m?.keyword)lookup.set(m.keyword.toLowerCase(),m);});
+            sug.forEach(s=>{if(s?.keyword&&!lookup.has(s.keyword.toLowerCase()))lookup.set(s.keyword.toLowerCase(),s);});
+            const gV=m=>(m?.search_volume??m?.volume??null);
+            const gK=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
+            const maxV=Math.max(...[...lookup.values()].map(m=>gV(m)||0),1);
+            if(lookup.size>0){
+              enriched=newKw.map(kw=>{const match=lookup.get(kw.toLowerCase());return{keyword:kw,volume:gV(match),kd:gK(match),freq:assignFreq(gV(match)||0,maxV)};});
+            } else {
+              enriched=newKw.map(kw=>({keyword:kw,volume:null,kd:null,freq:"MV"}));
+            }
+            const normArr=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
+            const newExtras={suggestions:dfsData?.suggestions||[],paa:normArr(dfsData?.people_also_ask,"question"),related:normArr(dfsData?.related_searches,"title"),autocomplete:normArr(dfsData?.autocomplete,"suggestion")};
+            sDfsExtra(newExtras);dfsExtraRef.current=newExtras;
+            sKwData(enriched);sSkw(enriched.map(k=>k.keyword));
+            sTyp(false);
+            add("b",<div>
+              <div style={{marginBottom:6}}>Keywords updated! ({3-adjustRound-1} adjust{3-adjustRound-1!==1?"s":""} left)</div>
+              <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);sConfirmedKeywords(enriched.filter(k=>s.includes(k.keyword)));kwD(enriched,newExtras);}} onAdj={()=>{if(adjustRound>=3){bot("No more adjusts available. Click Build With These.");return;}sStep("kw");bot("What would you like to change?");}}/>
+              <ExtrasBlock extra={newExtras}/>
+            </div>);
+          } else {
+            add("b",result.message||"I couldn't generate new keywords. Try describing what you want differently.");
+          }
+        } else if(result.action==="confirm"){
+          /* User confirmed via text — trigger Build With These */
+          add("b",result.message||"Moving forward!");
+          const selected=skw.length>0?skw:kwData.map(k=>k.keyword);
+          sConfirmedKeywords(kwData.filter(k=>selected.includes(k.keyword)));
+          kwD(kwData,dfsExtra);
+        } else {
+          /* answer — just show text */
+          add("b",result.message||"I'm not sure how to help with that.");
+        }
+      } catch(err) {
+        console.error("[CB] KW chat error:", err);
+        sTyp(false);
+        add("b","Something went wrong. Try again or click Build With These.");
+      }
+    })();
     return;
   }
 
