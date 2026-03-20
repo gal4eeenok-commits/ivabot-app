@@ -1,10 +1,11 @@
-/* IvaBot Content Builder v33 — market before keywords, ExBox 4 examples, full UI overhaul */
+/* IvaBot Content Builder v34 — deep research + all UI fixes */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v33 loaded");
+console.log("[IvaBot] content-builder.js v34 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
 const CB_CHAT_URL = "https://hook.eu2.make.com/v14qvdq3l3mu2hjevrc7dps9j74a6lkf";
+const CB_RESEARCH_URL = "https://hook.eu2.make.com/l2oskfgirlj3twospfbjt5ada9vstsf5";
 const DFS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/dataforseo-proxy";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
 
@@ -136,6 +137,36 @@ async function callChatRouter(context, chatHistory, question) {
   } catch(e) {
     console.error("[CB] callChatRouter error:", e);
     return { action: "answer", text: "Sorry, I couldn't process that. Try again." };
+  }
+}
+
+/* ═══ CONTENT RESEARCH — web search for real facts ═══ */
+async function callResearch(topic, keywords, pageType, market) {
+  if (!CB_RESEARCH_URL) { console.log("[CB] Research URL not set, skipping"); return null; }
+  console.log("[CB] callResearch topic:", topic);
+  try {
+    const res = await fetch(CB_RESEARCH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic, keywords: Array.isArray(keywords) ? keywords.join(", ") : keywords, page_type: pageType, market })
+    });
+    if (!res.ok) { console.log("[CB] Research HTTP", res.status); return null; }
+    const raw = await res.text();
+    console.log("[CB] Research raw:", raw.substring(0, 300));
+    let parsed = null;
+    try { parsed = JSON.parse(raw); } catch(e) {
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) try { parsed = JSON.parse(m[0]); } catch(e2) {}
+    }
+    if (parsed?.result) {
+      const inner = parsed.result;
+      if (typeof inner === "string") { try { parsed = JSON.parse(inner); } catch(e) { parsed = { research_text: inner }; } }
+      else { parsed = inner; }
+    }
+    return parsed;
+  } catch(e) {
+    console.error("[CB] callResearch error:", e);
+    return null;
   }
 }
 
@@ -396,7 +427,7 @@ const ContentPanel=({html,d,kwData:kwDataProp})=>{const[bo,sbo]=useState(false);
 /* ═══ LOADING STEP LABELS ═══ */
 const LKW=["Generating keyword ideas...","Searching Google data...","Analyzing search volume...","Ranking by difficulty..."];
 const LST=["Preparing meta data...","Building content structure...","Adding visual suggestions..."];
-const LCN=["Writing intro section...","Building product details...","Adding FAQ and reviews...","Polishing final copy..."];
+const LCN=["Researching real facts...","Writing intro section...","Building product details...","Adding FAQ and reviews...","Polishing final copy..."];
 
 const MobileTab=({active,onSwitch,hasBrief,hasContent})=>{if(!hasBrief&&!hasContent)return null;return<div style={{display:"flex",gap:0,background:"rgba(21,20,21,0.04)",borderRadius:10,padding:3,margin:"0 16px 8px"}}><button onClick={()=>onSwitch("chat")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="chat"?C.surface:"transparent",color:active==="chat"?C.dark:C.muted,boxShadow:active==="chat"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Chat</button><button onClick={()=>onSwitch("panel")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="panel"?C.surface:"transparent",color:active==="panel"?C.dark:C.muted,boxShadow:active==="panel"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>{hasContent?"Content":"Brief"}</button></div>;};
 
@@ -782,12 +813,22 @@ const gStr=async()=>{
 /* ═══ GENERATE CONTENT ═══ */
 const gCnt=async()=>{
   sStep("cl");
-  add("b",<div style={{color:C.muted,fontSize:12}}>Generating full page content...</div>);
+  add("b",<div style={{color:C.muted,fontSize:12}}>Researching and generating content...</div>);
   window.scrollTo({top:0,behavior:"smooth"});
   sPLoad("Writing your content...");
   startLoading(LCN);
   sTyp(true);
   try {
+    /* Step 1: Research real facts via web search */
+    const selKw=kwData.filter(k=>skw.includes(k.keyword)).map(k=>k.keyword);
+    const researchTopic=(bd?.title||ans.pd||ans.ptx||"").substring(0,200);
+    let researchData=null;
+    try {
+      researchData=await callResearch(researchTopic,selKw,ans.pt||"",ans.mk||"");
+      console.log("[CB] Research result:", researchData ? "got data" : "null");
+    } catch(e) { console.log("[CB] Research skipped:", e); }
+
+    /* Step 2: Generate content with research */
     const gptRes=await callGPT("generate_content",{
       structure:bd,
       keywords:kwData.filter(k=>skw.includes(k.keyword)),
@@ -798,7 +839,8 @@ const gCnt=async()=>{
       market:ans.mk||"",
       brand_details:ans.me||"",
       extra_instructions:ans.sr_extra||"",
-      title:bd?.title||stit||ans.ti||""
+      title:bd?.title||stit||ans.ti||"",
+      research:researchData||null
     });
 
     let html="";
