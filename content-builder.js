@@ -713,8 +713,8 @@ else if(sid==="pd"){
         ...ans
       });
       if(gptRes){
-        rawKeywords=Array.isArray(gptRes.keywords)?gptRes.keywords:
-          Array.isArray(gptRes)?gptRes:
+        rawKeywords=Array.isArray(gptRes.keywords)?gptRes.keywords.map(k=>typeof k==="string"?k:k.keyword||String(k)):
+          Array.isArray(gptRes)?gptRes.map(k=>typeof k==="string"?k:k.keyword||String(k)):
           typeof gptRes.text==="string"?gptRes.text.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean):[];
       }
       if(rawKeywords.length===0) rawKeywords=[val];
@@ -1087,7 +1087,7 @@ const doKeywordAdjust=async(adjustText)=>{
     });
     let newRaw=[];
     if(gptRes){
-      newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords:Array.isArray(gptRes)?gptRes:[];
+      newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords.map(k=>typeof k==="string"?k:k.keyword||String(k)):Array.isArray(gptRes)?gptRes.map(k=>typeof k==="string"?k:k.keyword||String(k)):[];
     }
     if(newRaw.length===0) newRaw=kwData.map(k=>k.keyword);
     const locCode=parseLocationCode(ans.mk||ans.au||"");
@@ -1246,7 +1246,9 @@ const send=()=>{
           }
           sAdjustRound(adjustRound+1);
           /* GPT gave new keywords — run through DFS */
-          const newKw=result.keywords||[];
+          const rawKw=result.keywords||[];
+          /* Normalize: GPT might return strings or objects */
+          const newKw=rawKw.map(k=>typeof k==="string"?k:k.keyword||k.text||String(k)).filter(Boolean);
           if(newKw.length>0){
             add("b",typeof result.message==="string"?result.message:"Updating keywords...");
             sTyp(true);
