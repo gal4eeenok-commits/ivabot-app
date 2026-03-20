@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v29 — sr extra info fix, no raw JSON shown */
+/* IvaBot Content Builder v31 — ExtrasBlock inline with keywords, always visible */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v29 loaded");
+console.log("[IvaBot] content-builder.js v31 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -336,6 +336,25 @@ const HP=({text,onClick,disabled:d})=><span onClick={d?undefined:onClick} style=
 const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif",cursor:"default",pointerEvents:"none"}}>{text}</span>;
 const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
 
+/* ═══ EXTRAS BLOCK — shows related/paa/autocomplete inline with keywords ═══ */
+const ExtrasBlock=({extra})=>{
+  const[o,so]=useState(false);
+  if(!extra)return null;
+  const has=extra.related?.length>0||extra.paa?.length>0||extra.autocomplete?.length>0;
+  if(!has)return null;
+  return<div style={{marginTop:8}}>
+    <button onClick={()=>so(!o)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"4px 0",display:"flex",alignItems:"center",gap:4}}>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>
+      Additional search data from Google
+    </button>
+    {o&&<div style={{marginTop:6,padding:12,borderRadius:10,background:"rgba(110,43,255,0.02)",border:`1px solid ${C.cardBorder}`,fontSize:11}}>
+      {extra.related?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.accent,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>RELATED SEARCHES</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>{extra.related.map((s,i)=><span key={i} style={{padding:"3px 8px",borderRadius:6,background:"rgba(110,43,255,0.05)",border:"1px solid rgba(110,43,255,0.1)",color:C.dark,fontSize:11}}>{typeof s==="string"?s:s.keyword||s}</span>)}</div></>}
+      {extra.paa?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.accent,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>PEOPLE ALSO ASK</div><div style={{lineHeight:1.7,marginBottom:10,fontSize:11}}>{extra.paa.map((q,i)=><div key={i}>• {typeof q==="string"?q:q.question||q}</div>)}</div></>}
+      {extra.autocomplete?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.accent,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>AUTOCOMPLETE</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{extra.autocomplete.map((s,i)=><span key={i} style={{padding:"3px 8px",borderRadius:6,background:"rgba(110,43,255,0.05)",border:"1px solid rgba(110,43,255,0.1)",color:C.dark,fontSize:11}}>{typeof s==="string"?s:s.keyword||s}</span>)}</div></>}
+    </div>}
+  </div>;
+};
+
 /* ═══ KEYWORD SELECTOR ═══ */
 const fmtKd=v=>{if(v==null)return"—";if(typeof v==="number")return String(v);const s=String(v);if(s==="LOW")return"Low";if(s==="HIGH")return"High";if(s==="MEDIUM")return"Med";return s;};
 const KwS=({keywords,init,onDone,onAdj})=>{const[s,ss]=useState(init);const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=7)return p;return[...p,k];});};return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 4px",fontSize:9,fontWeight:500,color:C.muted}}><span style={{width:16,flexShrink:0}}/><span style={{flex:1}}>Keyword</span><span style={{width:42,textAlign:"right"}}>Vol.</span><span style={{width:32,textAlign:"center"}}>KD</span><span style={{width:30,textAlign:"center"}}>Freq</span><span style={{width:14}}/></div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq]||FC.MV;return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{width:42,textAlign:"right",fontSize:10,color:C.muted,fontWeight:600}}>{fmtVol(k.volume)}</span><span style={{width:32,textAlign:"center",fontSize:10,color:C.muted}}>{fmtKd(k.kd)}</span><span style={{width:30,textAlign:"center"}}><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></span>{a?<span onClick={e=>{e.stopPropagation();t(k.keyword);}} style={{width:14,fontSize:14,color:C.muted,cursor:"pointer",lineHeight:1,textAlign:"center"}}>×</span>:<span style={{width:14}}/>}</div>;})}</div><div style={{fontSize:10,color:C.muted,marginBottom:8}}>Min 2, max 7. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={onAdj}/></div></div>;};
@@ -542,6 +561,7 @@ else if(sid==="pd"||sid==="ok"){
         <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{
           sStep("ka");bot("What would you like to change? Describe what keywords to add or remove.");
         }}/>
+        <ExtrasBlock extra={dfsExtraData}/>
       </div>);
     } catch(err) {
       console.error("[CB] keyword flow error:", err);
@@ -729,6 +749,7 @@ const gCnt=async()=>{
       goal:ans.gl||"",
       audience:ans.au||"",
       brand_details:ans.me||"",
+      extra_instructions:ans.sr_extra||"",
       title:bd?.title||stit||""
     });
 
@@ -835,7 +856,14 @@ const doKeywordAdjust=async(adjustText)=>{
     let adjustExtras=dfsExtraRef.current;
     if(dfsData){
       const normArr2=(arr,field)=>(arr||[]).map(x=>typeof x==="string"?x:x?.[field]||x?.keyword||String(x)).filter(Boolean);
-      adjustExtras={suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")};
+      const newExtras={suggestions:dfsData.suggestions||[],paa:normArr2(dfsData.people_also_ask,"question"),related:normArr2(dfsData.related_searches,"title"),autocomplete:normArr2(dfsData.autocomplete,"suggestion")};
+      /* Merge: keep old extras if new ones are empty */
+      adjustExtras={
+        suggestions:[...new Set([...(newExtras.suggestions||[]),...(adjustExtras.suggestions||[])])],
+        paa:[...new Set([...(newExtras.paa||[]),...(adjustExtras.paa||[])])],
+        related:[...new Set([...(newExtras.related||[]),...(adjustExtras.related||[])])],
+        autocomplete:[...new Set([...(newExtras.autocomplete||[]),...(adjustExtras.autocomplete||[])])]
+      };
       sDfsExtra(adjustExtras);
       dfsExtraRef.current=adjustExtras;
     }
@@ -843,6 +871,7 @@ const doKeywordAdjust=async(adjustText)=>{
     add("b",<div>
       <div style={{marginBottom:6}}>Keywords updated! Here's the new list.</div>
       <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);kwD(enriched,adjustExtras);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
+      <ExtrasBlock extra={adjustExtras}/>
     </div>);
   } catch(err) {
     console.error("[CB] keyword adjust error:", err);
@@ -996,10 +1025,23 @@ const send=()=>{
         if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
         /* adjust_keywords on sr = user adding extra info for content (address, details) */
         if(action==="adjust_keywords"){
-          /* Save the extra info into brand_details / page context for content generation */
           const extra=r.adjustment||t;
-          sAns(p=>({...p,me:(p.me||"")+"\n"+extra}));
+          sAns(p=>({...p,sr_extra:(p.sr_extra||"")+"\n"+extra}));
           bot("Got it! I'll include this in your content when you generate it. Click 'Generate Content' when ready.");
+          return;
+        }
+        /* answer on sr = user adding info or asking question */
+        if(action==="answer"){
+          const ansText=r.text||"";
+          /* If GPT's answer suggests it understood extra info, save it */
+          if(ansText.toLowerCase().includes("got it") || ansText.toLowerCase().includes("include") || ansText.toLowerCase().includes("записала") || ansText.toLowerCase().includes("добавлю")){
+            sAns(p=>({...p,sr_extra:(p.sr_extra||"")+"\n"+t}));
+          }
+          if(ansText && ansText.length>5 && !ansText.startsWith("{")){
+            add("b",ansText);
+          } else {
+            handleAiChat(t);
+          }
           return;
         }
         /* Otherwise chat — use GPT answer text, but never show raw JSON */
