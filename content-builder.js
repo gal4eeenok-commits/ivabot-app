@@ -231,7 +231,7 @@ async function callKwChat(keywords, pageInfo, chatHistory, message, adjustRound)
   }
 }
 
-/* Track usage */: increment builder_used in Supabase usage table */
+/* Track usage: increment builder_used in Supabase usage table */
 async function trackBuilderUsage(memberId) {
   if (!memberId) { console.log("[CB] trackUsage: no memberId"); return; }
   try {
@@ -1252,19 +1252,64 @@ const send=()=>{
     return;
   }
 
-  /* === sr: structure ready — text = extra info for content === */
+  /* === sr: structure ready — text = tweak structure === */
   if(step==="sr"){
     add("u",t);
     /* Check for word count */
     const lenMatch=t.match(/(\d{3,5})\s*(words?|слов)?/i);
     if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
-    /* Save as extra info for content generation */
-    sAns(p=>({...p,sr_extra:(p.sr_extra||"")+"\n"+t}));
-    bot("Got it! I'll include this when generating content. Click 'Generate Content' when ready.");
+    /* Question → chat */
+    if(t.trim().endsWith("?")){ handleAiChat(t); return; }
+    /* Everything else → tweak structure via GPT */
+    sTyp(true);
+    (async()=>{
+      try {
+        const chosenTitle=confirmedTitleRef.current||stit||ans.ti||"";
+        const kwWithData=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skw.includes(k.keyword));
+        const gptRes=await callGPT("generate_structure",{
+          title:chosenTitle,
+          keywords:kwWithData,
+          page_type:ans.pt||"",
+          page_type_details:ans.ptx||"",
+          page_description:ans.pd||"",
+          goal:ans.gl||"",
+          audience:ans.au||"",
+          tone:ans.tn||"",
+          brand_details:ans.me||"",
+          target_length:bd?.contentLength||"500-800 words",
+          related:dfsExtraRef.current.related||[],
+          paa:dfsExtraRef.current.paa||[],
+          autocomplete:dfsExtraRef.current.autocomplete||[],
+          tweak_request:t,
+          current_structure:JSON.stringify(bd?.sections||[])
+        });
+        sTyp(false);
+        if(gptRes&&(gptRes.title||gptRes.sections)){
+          const titleText=(gptRes.title||chosenTitle||"").toLowerCase();
+          const titleKw=kwWithData.filter(k=>titleText.includes(k.keyword.toLowerCase())).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+          const descText=(gptRes.description||gptRes.meta_description||"").toLowerCase();
+          const descKw=kwWithData.filter(k=>descText.includes(k.keyword.toLowerCase())).slice(0,3).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+          const updatedBd={...bd,
+            title:gptRes.title||chosenTitle,titleKw,
+            description:gptRes.description||gptRes.meta_description||bd?.description||"",descKw,
+            sections:Array.isArray(gptRes.sections)?gptRes.sections.map(s=>({level:s.level||"H2",title:s.title||"",desc:s.desc||s.description||"",kwNote:s.kwNote||null,visuals:s.visuals||[]})):bd?.sections||[],
+            contentLength:gptRes.content_length||bd?.contentLength||"500-800 words"
+          };
+          sBd(updatedBd);
+          bot("Done! Structure updated. Check the right panel.");
+        } else {
+          bot("I couldn't update the structure. Try describing the change differently.");
+        }
+      } catch(err) {
+        console.error("[CB] sr tweak error:", err);
+        sTyp(false);
+        bot("Something went wrong. Try again.");
+      }
+    })();
     return;
   }
 
-  /* === cr: content ready — text = tweak, ? = chat === */
+  /* === cr: content ready — text = tweak content, ? = chat === */
   if(step==="cr"){
     add("u",t);
     /* Word count change */
@@ -1272,7 +1317,7 @@ const send=()=>{
     if(lenMatch){ handleLengthChange(parseInt(lenMatch[1])); return; }
     /* Question → chat */
     if(t.trim().endsWith("?")){ handleAiChat(t); return; }
-    /* Everything else → tweak */
+    /* Everything else → tweak content */
     handleTweak(t);
     return;
   }
