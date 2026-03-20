@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v32 — UI overhaul: ExBox, 3-step audience, KwS cleanup, Shift+Enter */
+/* IvaBot Content Builder v33 — market before keywords, ExBox 4 examples, full UI overhaul */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v32 loaded");
+console.log("[IvaBot] content-builder.js v33 loaded");
 
 /* ═══ CONFIG ═══ */
 const CB_WEBHOOK_URL = "https://hook.eu2.make.com/gqqiiji1qrcqp7o23x45bmdjb6on6tzt";
@@ -11,7 +11,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 /* ═══ COLORS ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2),0 8px 32px rgba(110,43,255,0.1)"};
 const FC={HV:{bg:"rgba(110,43,255,0.12)",color:"#6E2BFF"},MV:{bg:"rgba(155,122,230,0.1)",color:"#9B7AE6"},LV:{bg:"rgba(184,156,240,0.12)",color:"#B89CF0"}};
-const HINTS={page_type:["Product page","Service page","Blog post","About page","Landing page","Category page"],goal:["Sell a product","Explain a service","Build trust"],audience:["Professional, for B2B","Friendly, for young people","Warm, for families"]};
+const HINTS={page_type:["Product page","Service page","Blog post","About page"],goal:["Sell a product","Explain a service","Build trust","Get leads"],audience:["Professional, for B2B","Friendly, for young people","Warm, for families"]};
 
 /* ═══ API HELPERS ═══ */
 async function callGPT(step, data) {
@@ -245,13 +245,28 @@ function getPageConfig(pt) {
 const LOCATION_CODES = {
   "us": 2840, "usa": 2840, "united states": 2840,
   "uk": 2826, "united kingdom": 2826, "england": 2826,
-  "germany": 2276, "de": 2276,
+  "germany": 2276, "de": 2276, "deutschland": 2276,
   "france": 2250, "fr": 2250,
   "canada": 2124, "ca": 2124,
   "australia": 2036, "au": 2036,
   "netherlands": 2528, "nl": 2528,
   "spain": 2724, "es": 2724,
   "italy": 2380, "it": 2380,
+  "ukraine": 2804, "ua": 2804, "україна": 2804, "украина": 2804,
+  "poland": 2616, "pl": 2616, "polska": 2616,
+  "romania": 2642, "ro": 2642,
+  "czech": 2203, "czechia": 2203,
+  "portugal": 2620, "pt": 2620,
+  "sweden": 2752, "se": 2752,
+  "norway": 2578, "no": 2578,
+  "denmark": 2208, "dk": 2208,
+  "finland": 2246, "fi": 2246,
+  "ireland": 2372, "ie": 2372,
+  "japan": 2392, "jp": 2392,
+  "india": 2356, "in": 2356,
+  "brazil": 2076, "br": 2076,
+  "mexico": 2484, "mx": 2484,
+  "israel": 2376, "il": 2376,
   "global": 2840
 };
 function parseLocationCode(text) {
@@ -336,8 +351,8 @@ const UB=({children,n})=><div style={{display:"flex",flexDirection:"column",alig
 const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 const HP=({text,onClick,disabled:d})=><span onClick={d?undefined:onClick} style={{padding:"5px 12px",borderRadius:8,background:d?"rgba(21,20,21,0.02)":"rgba(21,20,21,0.03)",color:d?"rgba(21,20,21,0.2)":"#B8B5BB",fontSize:11,cursor:d?"default":"pointer",border:"1px solid transparent",fontFamily:"'DM Sans',sans-serif",pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!d){e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}}} onMouseLeave={e=>{if(!d){e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}}>{text}</span>;
 const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif",cursor:"default",pointerEvents:"none"}}>{text}</span>;
-/* Example box — shows examples in a bordered frame, not clickable */
-const ExBox=({items})=><div style={{padding:"8px 12px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(21,20,21,0.02)",marginBottom:6}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>Examples:</div><div style={{fontSize:12,color:C.dark,lineHeight:1.6}}>{items.join(" · ")}</div></div>;
+/* Example box — shows examples in vertical list, grey, clearly not clickable */
+const ExBox=({items})=><div style={{padding:"8px 12px",borderRadius:8,border:`1px dashed ${C.border}`,background:"transparent",marginBottom:6}}><div style={{fontSize:10,fontWeight:500,color:C.muted,marginBottom:4}}>Examples:</div><div style={{fontSize:11,color:C.muted,lineHeight:1.8}}>{items.map((item,i)=><div key={i}>• {item}</div>)}</div><div style={{fontSize:10,color:"#B8B5BB",marginTop:4,fontStyle:"italic"}}>or type your own</div></div>;
 const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
 
 /* ═══ EXTRAS BLOCK — shows related/paa/autocomplete inline with keywords ═══ */
@@ -459,7 +474,7 @@ const handleAiChat=useCallback(async(text)=>{
 useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build the right content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);sStep("ec");},1500);},[]);
 
 /* ═══ ENTRY CHOICE ═══ */
-const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){sKwFlowType("find");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>).then(()=>sStep("pt"));},300);}else{sKwFlowType("own");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><ExBox items={["coffee shop Berlin, best espresso near me","vegan sweets online, buy vegan candy","massage Kyiv, therapeutic massage"]}/></div>).then(()=>sStep("ok"));},300);}};
+const hEntry=ch=>{mk("e");add("u",ch);if(ch==="Find Keywords"){sKwFlowType("find");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>To find the best keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>).then(()=>sStep("pt"));},300);}else{sKwFlowType("own");setTimeout(()=>{bot(<div><div style={{marginBottom:6}}>Paste your target keywords below, separated by commas.</div><ExBox items={["coffee shop Berlin, best espresso near me","vegan sweets online, buy vegan candy","massage Kyiv, therapeutic massage","handmade jewelry, silver rings for women"]}/></div>).then(()=>sStep("ok"));},300);}};
 
 /* ═══ ANSWER HANDLER (flow steps) — UNCHANGED from v21 ═══ */
 const hAns=(sid,val,skipAdd)=>{
@@ -472,7 +487,7 @@ if(sid==="pt"){
     bot(<div><div style={{marginBottom:6}}>{cfg.extraQ}</div><ExBox items={cfg.hints}/></div>);
   } else {
     sStep("pd");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn, cakes and cookies","Travel blog about Southeast Asia"]}/></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn, cakes and cookies","Travel blog about Southeast Asia","Yoga studio in London, classes and retreats"]}/></div>);
   }
 }
 else if(sid==="ptx"){
@@ -481,10 +496,22 @@ else if(sid==="ptx"){
     bot(<div><div style={{marginBottom:6}}>Got it! Anything else to add, or should I use this to find keywords?</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}><Btn text="Find Keywords" onClick={()=>{sAns(p=>({...p,pd:val}));hAns("pd",val);}}/></div></div>);
   } else {
     sStep("pd");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn, cakes and cookies","Travel blog about Southeast Asia"]}/></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn, cakes and cookies","Travel blog about Southeast Asia","Yoga studio in London, classes and retreats"]}/></div>);
   }
 }
-else if(sid==="pd"||sid==="ok"){
+else if(sid==="ok"){
+  /* Own keywords path: save keywords, ask market, then DFS */
+  sAns(p=>({...p,ownKeywords:val}));
+  sStep("mk");
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Ukraine"]}/></div>);
+}
+else if(sid==="pd"){
+  /* After page description → ask market BEFORE keywords */
+  sStep("mk");
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Ukraine"]}/></div>);
+}
+else if(sid==="mk"){
+  /* After market → generate keywords with correct location */
   sStep("kl");
   startLoading(LKW);
   sTyp(true);
@@ -493,13 +520,16 @@ else if(sid==="pd"||sid==="ok"){
       let rawKeywords=[];
       let dfsData=null;
 
-      if(sid==="ok"){
-        rawKeywords=val.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean);
+      if(ans.ownKeywords){
+        /* Own keywords path */
+        rawKeywords=ans.ownKeywords.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean);
       } else {
+        /* Find keywords path */
         const gptRes=await callGPT("generate_keywords",{
           page_type:ans.pt||"",
-          page_description:val,
+          page_description:ans.pd||"",
           page_type_details:ans.ptx||"",
+          market:val,
           ...ans
         });
         if(gptRes){
@@ -507,10 +537,10 @@ else if(sid==="pd"||sid==="ok"){
             Array.isArray(gptRes)?gptRes:
             typeof gptRes.text==="string"?gptRes.text.split(/[,\n]+/).map(k=>k.trim()).filter(Boolean):[];
         }
-        if(rawKeywords.length===0) rawKeywords=[val];
+        if(rawKeywords.length===0) rawKeywords=[ans.pd||""];
       }
 
-      const locCode=parseLocationCode(ans.mk||ans.au||"");
+      const locCode=parseLocationCode(val||"");
       dfsData=await callDFS(rawKeywords.slice(0,5),locCode);
 
       let enrichedKw=[];
@@ -585,10 +615,7 @@ else if(sid==="au"){
   bot(<div><div style={{fontWeight:600,marginBottom:6}}>What tone should the content have?</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);
 }
 else if(sid==="tn"){
-  sStep("mk");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Global / English","Australia"]}/></div>);
-}
-else if(sid==="mk"){
+  /* mk already answered before keywords, go straight to titles */
   sStep("tl");
   startLoading(["Generating titles...","Applying keyword rules..."]);
   sTyp(true);
@@ -634,7 +661,7 @@ else if(sid==="mk"){
 }
 else if(sid==="ti"){
   sStep("me");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Unique details build trust and make your page stand out.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","Nothing special to add")}/></div></div>);
 }
 else if(sid==="me"){
   sStep("cf");
