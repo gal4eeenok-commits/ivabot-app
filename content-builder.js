@@ -1,4 +1,4 @@
-/* IvaBot Content Builder v40 — Bug fixes: textarea, acknowledgements, expand, prompts v19 */
+/* IvaBot Content Builder v41 — All bug fixes: highlights, no TC, textarea, acks, prompts v19 */
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] content-builder.js v40 loaded");
 
@@ -761,9 +761,18 @@ else if(sid==="mk"){
       let titles=[];
       if(gptRes){
         const raw=Array.isArray(gptRes.titles)?gptRes.titles:Array.isArray(gptRes)?gptRes:gptRes.titles?[gptRes.titles]:[];
+        /* Build unique keyword words for highlighting */
+        const kwWords=[...new Set(selKw.flatMap(k=>k.toLowerCase().split(/\s+/)).filter(w=>w.length>3))];
         titles=raw.map(t=>{
-          if(typeof t==="string") return{text:t,hl:selKw.filter(k=>t.toLowerCase().includes(k.toLowerCase()))};
-          return{text:t.text||t.title||String(t),hl:t.highlights||t.hl||selKw.filter(k=>(t.text||t.title||"").toLowerCase().includes(k.toLowerCase()))};
+          const text=typeof t==="string"?t:(t.text||t.title||String(t));
+          const textLow=text.toLowerCase();
+          /* Match full phrases first, then individual words */
+          const hl=selKw.filter(k=>textLow.includes(k.toLowerCase()));
+          if(hl.length===0){
+            /* Fallback: match significant words from keywords */
+            kwWords.forEach(w=>{if(textLow.includes(w)&&!hl.includes(w)) hl.push(w);});
+          }
+          return{text,hl};
         });
       }
       if(titles.length===0) titles=selKw.slice(0,5).map(k=>({text:k.charAt(0).toUpperCase()+k.slice(1),hl:[k]}));
@@ -803,13 +812,14 @@ else if(sid==="ti"){
         bot(<div><div style={{color:"#c0392b",marginBottom:6}}>{gptRes.error||"This doesn't look like a page title. Please pick one from the list or type your own."}</div></div>);
         sStep("ti");
       } else {
-        /* Valid — show confirmation */
+        /* Valid — confirm immediately and move to ME */
         const cleanTitle=gptRes?.title||val;
         sStit(cleanTitle);
         confirmedTitleRef.current=cleanTitle;
         sAns(p=>({...p,ti:cleanTitle}));
-        sStep("tc");
-        bot(<div><div style={{fontWeight:600,marginBottom:6}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:`1px solid rgba(110,43,255,0.2)`,background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark,marginBottom:8}}>{cleanTitle}</div><div style={{display:"flex",gap:8}}><Btn text="Confirm ✓" onClick={()=>{confirmedTitleRef.current=cleanTitle;sStep("me");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);}} primary/><Btn text="Choose Another" onClick={()=>{sStep("ti");sStit(null);confirmedTitleRef.current=null;bot(<div><div style={{marginBottom:6}}>No problem! Pick a different title or type your own.</div>{savedTitles.length>0&&<TSel titles={savedTitles} onSelect={t=>{hAns("ti",t);}}/>}</div>);}}/></div></div>);
+        bot(<div><div style={{fontSize:12,color:C.muted,marginBottom:4}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:`1px solid rgba(110,43,255,0.2)`,background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark,marginBottom:8}}>{cleanTitle}</div></div>);
+        sStep("me");
+        setTimeout(()=>{bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);},800);
       }
     } catch(e){
       console.error("[CB] clean_title error:", e);
@@ -874,9 +884,18 @@ const gStr=async()=>{
     let briefData;
     if(gptRes&&(gptRes.title||gptRes.sections)){
       const titleText=(gptRes.title||stit||"").toLowerCase();
-      const titleKw=kwWithData.filter(k=>titleText.includes(k.keyword.toLowerCase())).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+      /* Match keyword words in title (individual words >3 chars) */
+      const titleKw=[];
+      kwWithData.forEach(k=>{
+        if(titleText.includes(k.keyword.toLowerCase())){titleKw.push({text:k.keyword,freq:k.freq||"MV"});}
+        else{k.keyword.toLowerCase().split(/\s+/).filter(w=>w.length>3&&titleText.includes(w)).forEach(w=>{if(!titleKw.find(x=>x.text===w))titleKw.push({text:w,freq:k.freq||"MV"});});}
+      });
       const descText=(gptRes.description||gptRes.meta_description||"").toLowerCase();
-      const descKw=kwWithData.filter(k=>descText.includes(k.keyword.toLowerCase())).slice(0,3).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+      const descKw=[];
+      kwWithData.forEach(k=>{
+        if(descText.includes(k.keyword.toLowerCase())){descKw.push({text:k.keyword,freq:k.freq||"MV"});}
+        else{k.keyword.toLowerCase().split(/\s+/).filter(w=>w.length>3&&descText.includes(w)).forEach(w=>{if(!descKw.find(x=>x.text===w))descKw.push({text:w,freq:k.freq||"MV"});});}
+      });
       briefData={
         title:gptRes.title||chosenTitle||"Untitled",
         titleKw,
@@ -1269,23 +1288,6 @@ const send=()=>{
     return;
   }
 
-  /* === tc: title confirmation — CHAT OPEN until button === */
-  if(step==="tc"){
-    const tl=t.toLowerCase().replace(/[!.,?]+$/,"").trim();
-    if(/^(yes|ok|confirm|sure|go|да|ок|ладно)$/i.test(tl)){
-      add("u",t);
-      /* confirmedTitleRef already set when title was validated */
-      sStep("me");
-      bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);
-      return;
-    }
-    /* Chat open — questions, comments, new title attempts */
-    if(isQuestion(t)){ add("u",t); handleAiChat(t); return; }
-    /* Anything else = try as new title */
-    hAns("ti",t);
-    return;
-  }
-
   /* === cf: confirm before structure === */
   if(step==="cf"){
     if(isConfirmation(t)){ add("u",t); gStr(); return; }
@@ -1330,9 +1332,17 @@ const send=()=>{
         sTyp(false);
         if(gptRes&&(gptRes.title||gptRes.sections)){
           const titleText=(gptRes.title||chosenTitle||"").toLowerCase();
-          const titleKw=kwWithData.filter(k=>titleText.includes(k.keyword.toLowerCase())).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+          const titleKw=[];
+          kwWithData.forEach(k=>{
+            if(titleText.includes(k.keyword.toLowerCase())){titleKw.push({text:k.keyword,freq:k.freq||"MV"});}
+            else{k.keyword.toLowerCase().split(/\s+/).filter(w=>w.length>3&&titleText.includes(w)).forEach(w=>{if(!titleKw.find(x=>x.text===w))titleKw.push({text:w,freq:k.freq||"MV"});});}
+          });
           const descText=(gptRes.description||gptRes.meta_description||"").toLowerCase();
-          const descKw=kwWithData.filter(k=>descText.includes(k.keyword.toLowerCase())).slice(0,3).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
+          const descKw=[];
+          kwWithData.forEach(k=>{
+            if(descText.includes(k.keyword.toLowerCase())){descKw.push({text:k.keyword,freq:k.freq||"MV"});}
+            else{k.keyword.toLowerCase().split(/\s+/).filter(w=>w.length>3&&descText.includes(w)).forEach(w=>{if(!descKw.find(x=>x.text===w))descKw.push({text:w,freq:k.freq||"MV"});});}
+          });
           const updatedBd={...bd,
             title:gptRes.title||chosenTitle,titleKw,
             description:gptRes.description||gptRes.meta_description||bd?.description||"",descKw,
