@@ -333,8 +333,15 @@ const PAGE_TYPE_CONFIG = {
 function getPageConfig(pt) {
   if (!pt) return null;
   const t = pt.toLowerCase().trim();
-  /* article = blog post alias */
-  const normalized = t.replace("article","blog post");
+  /* aliases */
+  let normalized = t
+    .replace(/\b(article|post|blog)\b/g,"blog post")
+    .replace(/\b(main page|front page|home page|home|main|front|главная|домашняя)\b/g,"homepage")
+    .replace(/\b(item|goods|shop item|product card)\b/g,"product page")
+    .replace(/\b(services|what we do|our service)\b/g,"service page")
+    .replace(/\b(about us|who we are|our story|our team)\b/g,"about page")
+    .replace(/\b(landing|lead page|promo|offer page|sales page)\b/g,"landing page")
+    .replace(/\b(catalog|collection|listings|category)\b/g,"category page");
   for (const [key, cfg] of Object.entries(PAGE_TYPE_CONFIG)) {
     if (normalized.includes(key) || key.includes(normalized.replace(" page",""))) return cfg;
   }
@@ -380,7 +387,34 @@ function parseLocationCode(text) {
 
 /* Build chat history string from messages array */
 function buildChatHistory(msgs) {
-  return msgs.filter(m => typeof m.c === "string").slice(-10).map(m => `${m.f === "b" ? "IvaBot" : "User"}: ${m.c}`).join("\n");
+  /* Full chat history for GPT context. Truncate individual messages, keep last 40. */
+  return msgs.slice(-40).map(m => {
+    const who = m.f === "b" ? "IvaBot" : "User";
+    let text = "";
+    if (typeof m.c === "string") {
+      text = m.c;
+    } else if (m.c && typeof m.c === "object") {
+      /* Try to extract text from React element props */
+      try {
+        const extract = (el) => {
+          if (typeof el === "string") return el;
+          if (!el) return "";
+          if (el.props) {
+            const children = el.props.children;
+            if (typeof children === "string") return children;
+            if (Array.isArray(children)) return children.map(extract).join(" ");
+            if (children && typeof children === "object") return extract(children);
+          }
+          return "";
+        };
+        text = extract(m.c).replace(/\s+/g, " ").trim();
+      } catch(e) { text = "[UI element]"; }
+    }
+    if (!text || text.length < 2) return null;
+    /* Truncate very long messages */
+    if (text.length > 300) text = text.substring(0, 300) + "...";
+    return `${who}: ${text}`;
+  }).filter(Boolean).join("\n");
 }
 
 /* Build context summary for current step */
@@ -639,7 +673,7 @@ else if(sid==="ok"){
         <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium, supporting keyword. LV = Low, extra keyword.</div></div></BotTip>
         <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);sConfirmedKeywords(enrichedKw.filter(k=>s.includes(k.keyword)));kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
         <ExtrasBlock extra={dfsExtraData}/>
-        <div style={{marginTop:6}}><Btn text="Ask AI for Help" onClick={()=>{bot("Ask me anything about these keywords — which ones to pick, what KD means, or what would work best for your page.");}}/></div>
+        <div style={{marginTop:6,fontSize:11,color:C.muted}}>Not sure? Just type your question below.</div>
       </div>);
     } catch(err) { console.error("[CB] ok keyword error:", err); stopLoading(); sTyp(false); bot("Something went wrong. Please try again."); }
   })();
@@ -657,6 +691,7 @@ else if(sid==="pd"){
         page_type:ans.pt||"",
         page_description:val,
         page_type_details:ans.ptx||"",
+        chat_history:buildChatHistory(msgs),
         ...ans
       });
       if(gptRes){
@@ -697,7 +732,7 @@ else if(sid==="pd"){
         <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium, supporting keyword. LV = Low, extra keyword.</div></div></BotTip>
         <KwS keywords={enrichedKw} init={init} onDone={s=>{sSkw(s);sConfirmedKeywords(enrichedKw.filter(k=>s.includes(k.keyword)));kwD(enrichedKw,dfsExtraData);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
         <ExtrasBlock extra={dfsExtraData}/>
-        <div style={{marginTop:6}}><Btn text="Ask AI for Help" onClick={()=>{bot("Ask me anything about these keywords — which ones to pick, what KD means, or what would work best for your page.");}}/></div>
+        <div style={{marginTop:6,fontSize:11,color:C.muted}}>Not sure? Just type your question below.</div>
       </div>);
     } catch(err) { console.error("[CB] pd keyword error:", err); stopLoading(); sTyp(false); sPLoad(null); bot("Something went wrong while generating keywords. Please try again."); }
   })();
@@ -710,6 +745,7 @@ else if(sid==="mk"){
   (async()=>{
     try {
       const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):skw.length>0?skw:kwData.map(k=>k.keyword);
+      console.log("[CB] generate_titles keywords:", selKw);
       const gptRes=await callGPT("generate_titles",{
         keywords:selKw,
         page_type:ans.pt||"",
@@ -719,6 +755,7 @@ else if(sid==="mk"){
         audience:ans.au||"",
         tone:ans.tn||"",
         market:val,
+        chat_history:buildChatHistory(msgs),
         ...ans
       });
       let titles=[];
@@ -738,7 +775,7 @@ else if(sid==="mk"){
 }
 else if(sid==="gl"){
   sStep("au");
-  bot(<div><div style={{fontWeight:600,marginBottom:6}}>STEP 3 — Who is your target audience?</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids"]}/></div>);
+  bot(<div><div style={{fontWeight:600,marginBottom:6}}>Who is your target audience?</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids"]}/></div>);
 }
 else if(sid==="au"){
   sStep("tn");
@@ -772,7 +809,7 @@ else if(sid==="ti"){
         confirmedTitleRef.current=cleanTitle;
         sAns(p=>({...p,ti:cleanTitle}));
         sStep("tc");
-        bot(<div><div style={{fontWeight:600,marginBottom:6}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:`1px solid rgba(110,43,255,0.2)`,background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark,marginBottom:8}}>{cleanTitle}</div><div style={{display:"flex",gap:8}}><Btn text="Confirm ✓" onClick={()=>{confirmedTitleRef.current=cleanTitle;sStep("me");bot(<div><div style={{fontWeight:600,marginBottom:6}}>STEP 4 — Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);}} primary/><Btn text="Choose Another" onClick={()=>{sStep("ti");sStit(null);confirmedTitleRef.current=null;bot(<div><div style={{marginBottom:6}}>No problem! Pick a different title or type your own.</div>{savedTitles.length>0&&<TSel titles={savedTitles} onSelect={t=>{hAns("ti",t);}}/>}</div>);}}/></div></div>);
+        bot(<div><div style={{fontWeight:600,marginBottom:6}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:`1px solid rgba(110,43,255,0.2)`,background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark,marginBottom:8}}>{cleanTitle}</div><div style={{display:"flex",gap:8}}><Btn text="Confirm ✓" onClick={()=>{confirmedTitleRef.current=cleanTitle;sStep("me");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);}} primary/><Btn text="Choose Another" onClick={()=>{sStep("ti");sStit(null);confirmedTitleRef.current=null;bot(<div><div style={{marginBottom:6}}>No problem! Pick a different title or type your own.</div>{savedTitles.length>0&&<TSel titles={savedTitles} onSelect={t=>{hAns("ti",t);}}/>}</div>);}}/></div></div>);
       }
     } catch(e){
       console.error("[CB] clean_title error:", e);
@@ -798,7 +835,7 @@ const kwD=(enrichedKwOverride,extrasOverride)=>{
   console.log("[CB] confirmedKeywords:", confirmed.map(k=>k.keyword));
   bot(<div><div style={{marginBottom:6}}>Keywords confirmed! Let's set up your content.</div></div>).then(()=>{
     sStep("gl");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>STEP 2 — What should this page achieve?</div><ExBox items={HINTS.goal}/></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>What should this page achieve?</div><ExBox items={HINTS.goal}/></div>);
   });
 };
 
@@ -830,7 +867,8 @@ const gStr=async()=>{
       target_length:defaultLen,
       related:dfsExtraRef.current.related||[],
       paa:dfsExtraRef.current.paa||[],
-      autocomplete:dfsExtraRef.current.autocomplete||[]
+      autocomplete:dfsExtraRef.current.autocomplete||[],
+      chat_history:buildChatHistory(msgs)
     });
 
     let briefData;
@@ -925,7 +963,8 @@ const gCnt=async()=>{
       brand_details:ans.me||"",
       extra_instructions:ans.sr_extra||"",
       title:contentTitle,
-      research:researchData||null
+      research:researchData||null,
+      chat_history:buildChatHistory(msgs)
     });
 
     let html="";
@@ -967,7 +1006,8 @@ const handleTweak=async(text)=>{
       current_content:contentHtml,
       request:text,
       keywords:confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skw.includes(k.keyword)),
-      structure:bd
+      structure:bd,
+      chat_history:buildChatHistory(msgs)
     });
 
     sTyp(false);
@@ -1005,7 +1045,8 @@ const doKeywordAdjust=async(adjustText)=>{
       page_description:ans.pd||"",
       page_type_details:ans.ptx||"",
       adjustment:adjustText,
-      previous_keywords:kwData.map(k=>k.keyword)
+      previous_keywords:kwData.map(k=>k.keyword),
+      chat_history:buildChatHistory(msgs)
     });
     let newRaw=[];
     if(gptRes){
@@ -1047,7 +1088,7 @@ const doKeywordAdjust=async(adjustText)=>{
       <div style={{marginBottom:6}}>Keywords updated! Here's the new list.</div>
       <KwS keywords={enriched} init={enriched.map(k=>k.keyword)} onDone={s=>{sSkw(s);sConfirmedKeywords(enriched.filter(k=>s.includes(k.keyword)));kwD(enriched,adjustExtras);}} onAdj={()=>{sStep("ka");bot("What would you like to change?");}}/>
       <ExtrasBlock extra={adjustExtras}/>
-      <div style={{marginTop:6}}><Btn text="Ask AI for Help" onClick={()=>{bot("Ask me anything about these keywords.");}}/></div>
+      <div style={{marginTop:6,fontSize:11,color:C.muted}}>Not sure? Just type your question below.</div>
     </div>);
   } catch(err) {
     console.error("[CB] keyword adjust error:", err);
@@ -1235,7 +1276,7 @@ const send=()=>{
       add("u",t);
       /* confirmedTitleRef already set when title was validated */
       sStep("me");
-      bot(<div><div style={{fontWeight:600,marginBottom:6}}>STEP 4 — Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);
+      bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing Special to Add" onClick={()=>hAns("me","")}/></div></div>);
       return;
     }
     /* Chat open — questions, comments, new title attempts */
@@ -1281,7 +1322,8 @@ const send=()=>{
           paa:dfsExtraRef.current.paa||[],
           autocomplete:dfsExtraRef.current.autocomplete||[],
           tweak_request:t,
-          current_structure:JSON.stringify(bd?.sections||[])
+          current_structure:JSON.stringify(bd?.sections||[]),
+          chat_history:buildChatHistory(msgs)
         });
         sTyp(false);
         if(gptRes&&(gptRes.title||gptRes.sections)){
