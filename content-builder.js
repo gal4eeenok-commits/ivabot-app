@@ -21,8 +21,9 @@ async function callGPT(step, data) {
     /* Send critical fields as top-level so GPT sees them clearly via {{1.field}} */
     if (data && typeof data === "object") {
       if (data.brand_details) payload.brand_details = data.brand_details;
-      if (data.title) payload.title = data.title;
+      if (data.title !== undefined && data.title !== null) payload.title = data.title;
     }
+    console.log("[CB] callGPT payload title:", payload.title, "step:", step);
     const res = await fetch(CB_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -699,8 +700,10 @@ const gStr=async()=>{
     const kwWithData=kwData.filter(k=>selKw.includes(k.keyword));
     const pageCfg=getPageConfig(ans.pt||"");
     const defaultLen=pageCfg?.defaultLen||"500-800 words";
+    const chosenTitle=stit||ans.ti||"";
+    console.log("[CB] gStr title:", chosenTitle);
     const gptRes=await callGPT("generate_structure",{
-      title:stit||"",
+      title:chosenTitle,
       keywords:kwWithData,
       page_type:ans.pt||"",
       page_type_details:ans.ptx||"",
@@ -723,7 +726,7 @@ const gStr=async()=>{
       const descText=(gptRes.description||gptRes.meta_description||"").toLowerCase();
       const descKw=kwWithData.filter(k=>descText.includes(k.keyword.toLowerCase())).slice(0,3).map(k=>({text:k.keyword,freq:k.freq||"MV"}));
       briefData={
-        title:gptRes.title||stit||"Untitled",
+        title:gptRes.title||chosenTitle||"Untitled",
         titleKw,
         description:gptRes.description||gptRes.meta_description||"",
         descKw,
@@ -748,13 +751,13 @@ const gStr=async()=>{
       };
     } else {
       briefData={
-        title:stit||"Untitled Page",
+        title:chosenTitle||"Untitled Page",
         titleKw:[],
         description:"Generated SEO content for your page.",
         descKw:[],
         keywords:kwWithData,
         recs:[{key:"Length",value:defaultLen},{key:"Tone",value:ans.au||"Professional"},{key:"Goal",value:ans.gl||"Inform"}],
-        sections:[{level:"H1",title:stit||"Main Heading",desc:"Introduction paragraph",kwNote:null,visuals:[]}],
+        sections:[{level:"H1",title:chosenTitle||"Main Heading",desc:"Introduction paragraph",kwNote:null,visuals:[]}],
         related:dfsExtraRef.current.related?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
         paa:dfsExtraRef.current.paa?.map(q=>typeof q==="string"?q:q.question||String(q))||[],
         autocomplete:dfsExtraRef.current.autocomplete?.map(s=>typeof s==="string"?s:s.keyword||String(s))||[],
@@ -795,7 +798,7 @@ const gCnt=async()=>{
       market:ans.mk||"",
       brand_details:ans.me||"",
       extra_instructions:ans.sr_extra||"",
-      title:bd?.title||stit||""
+      title:bd?.title||stit||ans.ti||""
     });
 
     let html="";
