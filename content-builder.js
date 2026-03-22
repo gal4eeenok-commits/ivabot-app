@@ -502,7 +502,21 @@ const enrichWithDFS=async(rawKeywords,locCode)=>{
     enriched=rawKeywords.map(kw=>{const match=lookup.get(kw.toLowerCase());return{keyword:kw,volume:gV(match),kd:gK(match),freq:assignFreq(gV(match)||0,maxV)};});
     /* Add high-volume DFS suggestions not already in list */
     const existing=new Set(enriched.map(k=>k.keyword.toLowerCase()));
-    (sug||[]).filter(s=>s.keyword&&!existing.has(s.keyword.toLowerCase())&&(gV(s)||0)>0).slice(0,3).forEach(s=>{
+    (sug||[]).filter(s=>{
+      if(!s.keyword||existing.has(s.keyword.toLowerCase())||(gV(s)||0)<=0)return false;
+      const kw=s.keyword.toLowerCase();
+      /* Filter junk: keyword with duplicate words like "keyword keyword research" */
+      const words=kw.split(/\s+/);
+      const uniqueWords=new Set(words);
+      if(uniqueWords.size<words.length)return false;
+      /* Filter near-duplicates of existing keywords (same words, different spacing/order) */
+      const kwNorm=words.sort().join(" ");
+      for(const e of existing){
+        const eNorm=e.split(/\s+/).sort().join(" ");
+        if(kwNorm===eNorm)return false;
+      }
+      return true;
+    }).slice(0,3).forEach(s=>{
       enriched.push({keyword:s.keyword,volume:gV(s),kd:gK(s),freq:assignFreq(gV(s)||0,maxV)});
     });
   } else {
