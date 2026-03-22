@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v46 — Edge Function + strict Typebot UX + credits */
+/* IvaBot Content Builder v47 — merged kw adjust, title buttons, credits */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v46 loaded");
+console.log("[IvaBot] content-builder.js v47 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -469,6 +469,7 @@ const enrichWithDFS=async(rawKeywords,locCode)=>{
 /* ═══ SHOW KEYWORDS (shared UI builder) ═══ */
 const showKeywords=(enriched,extras,adjustsLeft)=>{
   sDfsExtra(extras);dfsExtraRef.current=extras;
+  console.log("[CB] showKeywords extras:", JSON.stringify({paa:extras?.paa?.length||0,related:extras?.related?.length||0,autocomplete:extras?.autocomplete?.length||0}));
   sKwData(enriched);const init=enriched.map(k=>k.keyword);sSkw(init);
   stopLoading();sTyp(false);setStep("kw");
   add("b",<div>
@@ -489,10 +490,8 @@ const kwDone=()=>{
   mk("kw");
   const confirmed=kwData.filter(k=>skw.includes(k.keyword));
   sConfirmedKeywords(confirmed);
-  bot(<div><div style={{marginBottom:6}}>Great keywords! Now I'll ask 4 quick questions to shape your content:</div><div style={{color:C.muted,fontSize:12,lineHeight:1.6}}>1. Page goal — what should this page achieve?<br/>2. Target audience — who will read this?<br/>3. Tone of voice — how should it sound?<br/>4. Target market — what country?</div></div>).then(()=>{
-    setStep("gl");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 1 of 4 — What should this page achieve?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This shapes the content strategy and call-to-action.</div><ExBox items={["Sell a product","Explain a service","Build trust","Get leads"]}/></div>);
-  });
+  setStep("gl");
+  bot(<div><div style={{marginBottom:8}}>Great keywords! Now let's shape your content.</div><div style={{fontWeight:600,marginBottom:6}}>Step 1 of 4 — What should this page achieve?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This shapes the content strategy and call-to-action.</div><ExBox items={["Sell a product","Explain a service","Build trust","Get leads"]}/></div>);
 };
 
 /* ═══ KEYWORD ADJUST (up to 5 rounds) ═══ */
@@ -500,6 +499,9 @@ const doAdjust=async(text)=>{
   sAdjustRound(r=>r+1);
   setStep("kl");sTyp(true);startLoading(LKW);
   try {
+    /* Remember which keywords user had CHECKED before adjust */
+    const prevChecked=kwData.filter(k=>skw.includes(k.keyword));
+    const prevUnchecked=kwData.filter(k=>!skw.includes(k.keyword)).map(k=>k.keyword.toLowerCase());
     const gptRes=await callGPT("generate_keywords",{
       page_type:ans.pt||"",page_description:ans.pd||"",page_type_details:ans.ptx||"",
       adjustment:text,previous_keywords:kwData.map(k=>k.keyword),
@@ -509,7 +511,12 @@ const doAdjust=async(text)=>{
     if(gptRes){newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords.map(k=>typeof k==="string"?k:k.keyword||String(k)):[];}
     if(newRaw.length===0)newRaw=kwData.map(k=>k.keyword);
     const locCode=parseLocationCode(ans.mk||"");
-    const{enriched,extras}=await enrichWithDFS(newRaw,locCode);
+    const{enriched:newEnriched,extras}=await enrichWithDFS(newRaw,locCode);
+    /* MERGE: old checked keywords + new keywords (skip duplicates and previously unchecked) */
+    const newKwSet=new Set(newEnriched.map(k=>k.keyword.toLowerCase()));
+    const mergedKw=[...prevChecked.filter(k=>!newKwSet.has(k.keyword.toLowerCase())),...newEnriched].slice(0,10);
+    /* Pre-select: old checked stay checked, new ones also checked */
+    const preSelected=mergedKw.map(k=>k.keyword);
     /* Merge extras with previous */
     const merged={
       suggestions:[...new Set([...(extras.suggestions||[]),...(dfsExtraRef.current.suggestions||[])])],
@@ -517,7 +524,21 @@ const doAdjust=async(text)=>{
       related:[...new Set([...(extras.related||[]),...(dfsExtraRef.current.related||[])])],
       autocomplete:[...new Set([...(extras.autocomplete||[]),...(dfsExtraRef.current.autocomplete||[])])]
     };
-    showKeywords(enriched,merged,5-adjustRound-1);
+    /* Show merged list with all pre-selected */
+    sDfsExtra(merged);dfsExtraRef.current=merged;
+    sKwData(mergedKw);sSkw(preSelected);
+    stopLoading();sTyp(false);setStep("kw");
+    const adjustsLeft=5-adjustRound-1;
+    add("b",<div>
+      {<div style={{marginBottom:6}}>Keywords updated! Your previous selections + new suggestions. ({adjustsLeft} adjusts left)</div>}
+      <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium. LV = Low.</div></div></BotTip>
+      <KwS keywords={mergedKw} init={preSelected} onDone={s=>{sSkw(s);sConfirmedKeywords(mergedKw.filter(k=>s.includes(k.keyword)));kwDone();}} onAdj={()=>{
+        if(stepRef.current!=="kw"){console.log("[CB] onAdj blocked: step=",stepRef.current);return;}
+        if(adjustRound>=5){bot("You've used all adjustments. Please select from the current list.");return;}
+        setStep("ka");bot("Just tell me what to change — add, remove, or refine keywords.");
+      }}/>
+      <ExtrasBlock extra={merged}/>
+    </div>);
   } catch(err){
     console.error("[CB] adjust error:",err);stopLoading();sTyp(false);
     bot("Something went wrong. Try again.");setStep("kw");
@@ -554,7 +575,7 @@ const genTitles=async(market)=>{
       <div style={{marginBottom:6}}>Here are title options for your page.</div>
       <TSel titles={titles} onSelect={t=>{add("u",t);confirmTitle(t);}}/>
       <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-        <Btn text="Suggest Different Titles" onClick={()=>genTitles(ans.mk)}/>
+        <Btn text="Generate New Titles" onClick={()=>genTitles(ans.mk)}/>
         <Btn text="Write My Own Title" onClick={()=>{setStep("ti_custom");bot("Type your custom title below:");}}/>
       </div>
     </div>);
@@ -635,7 +656,8 @@ const gStr=async()=>{
 /* ═══ GENERATE CONTENT ═══ */
 const gCnt=async()=>{
   /* Check credits first */
-  const memberId=window.__memberId||window._msData?.id;
+  const memberId=window.__memberId||window._msData?.id||null;
+  console.log("[CB] gCnt memberId:", memberId, "__memberId:", window.__memberId, "_msData?.id:", window._msData?.id);
   const creditCheck=await checkBuilderCredits(memberId);
   if(!creditCheck.ok){
     bot(<div><div style={{marginBottom:6}}>You've used all your Content Builder credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue building content.</div></div>);
@@ -854,6 +876,7 @@ return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexD
 {rp==="br"&&<button onClick={gCnt} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Generate Content</button>}
 {rp==="ct"&&<button onClick={reset} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Start New Page</button>}
 <button style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF</button>
+<button onClick={onHome} style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Try Another Tool</button>
 </div>}
 </div>;}
 
