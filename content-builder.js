@@ -1,16 +1,9 @@
-/* IvaBot Content Builder v43 — Clean MVP: strict linear Phase 1, chat Phase 2 only */
+/* IvaBot Content Builder v44 — Edge Function: no Make, direct OpenAI */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v43 loaded");
+console.log("[IvaBot] content-builder.js v44 loaded");
 
-/* ═══ CONFIG — separate scenarios for each step ═══ */
-const CB_URL_KEYWORDS = "https://hook.eu2.make.com/wno4ptvdy64dlcb8pqdoyrec7ozajxax";
-const CB_URL_TITLES = "https://hook.eu2.make.com/tc1xmog521hrcxbfbct6t0lgxgnilist";
-const CB_URL_CLEAN_TITLE = "https://hook.eu2.make.com/im5rzxyhlqcchpkfga7dpcb2vhau19t1";
-const CB_URL_STRUCTURE = "https://hook.eu2.make.com/voty3fnm51j1wvb3p74fpijmsqiwjmgf";
-const CB_URL_CONTENT = "https://hook.eu2.make.com/c4n1pqmfuou8g2b0rulykph8dwixcavw";
-const CB_URL_TWEAK = "https://hook.eu2.make.com/vpnsgekil97sn2xdl8pwz2odav1djakb";
-const CB_URL_CHAT = "https://hook.eu2.make.com/unwt94sj3bdytb0yfz6iu581mcqq14mo";
-const CB_RESEARCH_URL = "https://hook.eu2.make.com/l2oskfgirlj3twospfbjt5ada9vstsf5";
+/* ═══ CONFIG — single Edge Function endpoint ═══ */
+const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
 const DFS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/dataforseo-proxy";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
 
@@ -19,47 +12,24 @@ const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",d
 const FC={HV:{bg:"rgba(110,43,255,0.12)",color:"#6E2BFF"},MV:{bg:"rgba(155,122,230,0.1)",color:"#9B7AE6"},LV:{bg:"rgba(184,156,240,0.12)",color:"#B89CF0"}};
 const HINTS={page_type:["Product page","Service page","Blog post","About page"],goal:["Sell a product","Explain a service","Build trust","Get leads"],audience:["Professional, for B2B","Friendly, for young people","Warm, for families"]};
 
-/* ═══ API HELPERS ═══ */
-function getUrlForStep(step) {
-  const map = {
-    "generate_keywords": CB_URL_KEYWORDS,
-    "generate_titles": CB_URL_TITLES,
-    "clean_title": CB_URL_CLEAN_TITLE,
-    "generate_structure": CB_URL_STRUCTURE,
-    "generate_content": CB_URL_CONTENT,
-    "tweak": CB_URL_TWEAK,
-    "chat": CB_URL_CHAT
-  };
-  return map[step] || CB_URL_CHAT;
-}
-
+/* ═══ API HELPERS — v44: direct Edge Function, no Make ═══ */
 async function callGPT(step, data) {
-  const url = getUrlForStep(step);
-  console.log("[CB] callGPT step:", step, "url:", url.substring(url.lastIndexOf("/")+1, url.lastIndexOf("/")+10));
+  console.log("[CB] callGPT step:", step);
   try {
-    const payload = typeof data === "string" ? { data } : { ...data };
-    /* Send critical fields as top-level */
-    if (data && typeof data === "object") {
-      if (data.brand_details !== undefined && data.brand_details !== null) payload.brand_details = data.brand_details;
-      if (data.title !== undefined && data.title !== null) payload.title = data.title;
-    }
-    const res = await fetch(url, {
+    const payload = { step, ...(typeof data === "string" ? { data } : data) };
+    const res = await fetch(CB_GPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error("GPT HTTP " + res.status);
-    const raw = await res.text();
-    console.log("[CB] GPT raw (" + step + "):", raw.substring(0, 300));
-    let parsed = null;
-    try { parsed = JSON.parse(raw); } catch(e) {
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (m) try { parsed = JSON.parse(m[0]); } catch(e2) {}
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("[CB] GPT HTTP", res.status, errText.substring(0, 200));
+      throw new Error("GPT HTTP " + res.status);
     }
-    if (parsed?.gpt_raw) { const gr = parsed.gpt_raw; parsed = typeof gr === "string" ? JSON.parse(gr) : gr; }
-    if (parsed?.gpt) { const gr = parsed.gpt; parsed = typeof gr === "string" ? JSON.parse(gr) : gr; }
-    if (parsed?.result) { const gr = parsed.result; if (typeof gr === "string") { try { parsed = JSON.parse(gr); } catch(e) { parsed = { text: gr }; } } else { parsed = gr; } }
-    return parsed || { text: raw };
+    const parsed = await res.json();
+    console.log("[CB] GPT response (" + step + "):", JSON.stringify(parsed).substring(0, 200));
+    return parsed || { text: "empty response" };
   } catch(e) {
     console.error("[CB] callGPT error:", e);
     return null;
@@ -87,31 +57,17 @@ async function callDFS(keywords, locationCode = 2840, languageCode = "en") {
 async function callChat(context, chatHistory, question) {
   console.log("[CB] callChat question:", question.substring(0, 80));
   try {
-    const res = await fetch(CB_URL_CHAT, {
+    const res = await fetch(CB_GPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ context, chat_history: chatHistory, question })
+      body: JSON.stringify({ step: "chat", context, chat_history: chatHistory, question })
     });
     if (!res.ok) throw new Error("Chat HTTP " + res.status);
-    const raw = await res.text();
-    console.log("[CB] Chat raw:", raw.substring(0, 200));
-    let answer = raw;
-    try {
-      const j = JSON.parse(raw);
-      /* Handle Make toString wrapper */
-      if (j.result) {
-        const inner = j.result;
-        if (typeof inner === "string") {
-          try { const parsed = JSON.parse(inner); answer = parsed.text || parsed.answer || inner; } catch(e) { answer = inner; }
-        } else { answer = inner.text || inner.answer || JSON.stringify(inner); }
-      } else {
-        answer = j.text || j.answer || raw;
-      }
-    } catch(e) { answer = raw; }
+    const parsed = await res.json();
+    let answer = parsed?.text || parsed?.answer || JSON.stringify(parsed);
     if (typeof answer === "string") {
       if (answer.startsWith('"') && answer.endsWith('"')) answer = answer.slice(1, -1);
       answer = answer.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\*\*/g, '').replace(/###\s?/g, '').replace(/^- /gm, '• ');
-      /* Never show raw JSON to user */
       if (answer.startsWith("{")) { answer = "I can help with that. Could you rephrase your question?"; }
     }
     return answer;
@@ -669,7 +625,7 @@ const gCnt=async()=>{
   try {
     const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):kwData.filter(k=>skw.includes(k.keyword)).map(k=>k.keyword);
     let researchData=null;
-    try{researchData=await callResearch((bd?.title||ans.pd||"").substring(0,200),selKw,ans.pt||"",ans.mk||"");}catch(e){}
+    /* Research via web search — will be added in next iteration */
     const gptRes=await callGPT("generate_content",{
       structure:bd,keywords:confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skw.includes(k.keyword)),
       page_type:ans.pt||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
