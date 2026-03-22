@@ -498,25 +498,42 @@ const enrichWithDFS=async(rawKeywords,locCode)=>{
   const gV=m=>(m?.search_volume??m?.volume??null);
   const gK=m=>{const v=(m?.competition_index??m?.keyword_difficulty??m?.competition??null);return typeof v==="number"?v:null;};
   const maxV=Math.max(...[...lookup.values()].map(m=>gV(m)||0),1);
+  /* Normalize keyword for dedup: lowercase, remove dashes/extra spaces, sort words */
+  const normKw=(k)=>k.toLowerCase().replace(/[-_]/g," ").replace(/\s+/g," ").trim();
+  const normSorted=(k)=>normKw(k).split(" ").sort().join(" ");
+  /* Even stricter: collapse spaces to detect "key word" vs "keyword" */
+  const normCollapsed=(k)=>normKw(k).replace(/\s+/g,"");
   if(lookup.size>0){
     enriched=rawKeywords.map(kw=>{const match=lookup.get(kw.toLowerCase());return{keyword:kw,volume:gV(match),kd:gK(match),freq:assignFreq(gV(match)||0,maxV)};});
+    /* Dedup GPT keywords themselves: if "key word research" and "keyword research" both exist, keep the one with higher volume */
+    const seen=new Map();
+    enriched=enriched.filter(k=>{
+      const collapsed=normCollapsed(k.keyword);
+      if(seen.has(collapsed)){
+        const prev=seen.get(collapsed);
+        if((k.volume||0)>(prev.volume||0)){enriched[enriched.indexOf(prev)]=null;seen.set(collapsed,k);return true;}
+        return false;
+      }
+      seen.set(collapsed,k);return true;
+    }).filter(Boolean);
     /* Add high-volume DFS suggestions not already in list */
-    const existing=new Set(enriched.map(k=>k.keyword.toLowerCase()));
+    const existingNorm=new Set(enriched.map(k=>normCollapsed(k.keyword)));
+    const existingSorted=new Set(enriched.map(k=>normSorted(k.keyword)));
     (sug||[]).filter(s=>{
-      if(!s.keyword||existing.has(s.keyword.toLowerCase())||(gV(s)||0)<=0)return false;
+      if(!s.keyword||(gV(s)||0)<=0)return false;
       const kw=s.keyword.toLowerCase();
+      /* Filter exact duplicates */
+      if(existingNorm.has(normCollapsed(kw)))return false;
+      /* Filter same-words-different-order duplicates */
+      if(existingSorted.has(normSorted(kw)))return false;
       /* Filter junk: keyword with duplicate words like "keyword keyword research" */
-      const words=kw.split(/\s+/);
+      const words=normKw(kw).split(" ");
       const uniqueWords=new Set(words);
       if(uniqueWords.size<words.length)return false;
-      /* Filter near-duplicates of existing keywords (same words, different spacing/order) */
-      const kwNorm=words.sort().join(" ");
-      for(const e of existing){
-        const eNorm=e.split(/\s+/).sort().join(" ");
-        if(kwNorm===eNorm)return false;
-      }
       return true;
     }).slice(0,3).forEach(s=>{
+      existingNorm.add(normCollapsed(s.keyword));
+      existingSorted.add(normSorted(s.keyword));
       enriched.push({keyword:s.keyword,volume:gV(s),kd:gK(s),freq:assignFreq(gV(s)||0,maxV)});
     });
   } else {
