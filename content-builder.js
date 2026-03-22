@@ -1,6 +1,6 @@
 /* IvaBot Content Builder v47 — merged kw adjust, title buttons, credits */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v47 loaded");
+console.log("[IvaBot] content-builder.js v48 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -77,7 +77,6 @@ async function callChat(context, chatHistory, question) {
   }
 }
 
-/* Track usage: increment builder_used in Supabase usage table */
 /* Track usage: atomic increment via Supabase RPC */
 async function trackBuilderUsage(memberId) {
   if (!memberId) { console.log("[CB] trackUsage: no memberId"); return { success: false }; }
@@ -373,7 +372,7 @@ const ExtrasBlock=({extra})=>{
 
 /* ═══ KEYWORD SELECTOR ═══ */
 const fmtKd=v=>{if(v==null)return"—";if(typeof v==="number")return String(v);const s=String(v);if(s==="LOW")return"Low";if(s==="HIGH")return"High";if(s==="MEDIUM")return"Med";return s;};
-const KwS=({keywords,init,onDone,onAdj})=>{const maxKw=7;const[s,ss]=useState(init.slice(0,maxKw));const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=maxKw)return p;return[...p,k];});};return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 4px",fontSize:9,fontWeight:500,color:C.muted}}><span style={{width:16,flexShrink:0}}/><span style={{flex:1}}>Keyword</span><span style={{width:42,textAlign:"right"}}>Vol.</span><span style={{width:32,textAlign:"center"}}>KD</span><span style={{width:30,textAlign:"center"}}>Freq</span></div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.slice(0,maxKw).map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq]||FC.MV;return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{width:42,textAlign:"right",fontSize:10,color:C.muted,fontWeight:600}}>{fmtVol(k.volume)}</span><span style={{width:32,textAlign:"center",fontSize:10,color:C.muted}}>{fmtKd(k.kd)}</span><span style={{width:30,textAlign:"center"}}><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></span></div>;})}</div><div style={{fontSize:12,color:C.dark,marginBottom:8}}>Select 2 to 7 keywords. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={onAdj}/></div></div>;};
+const KwS=({keywords,init,onDone,onAdj})=>{const maxKw=7;const[s,ss]=useState(init.slice(0,maxKw));const t=k=>{ss(p=>{if(p.includes(k)){if(p.length<=2)return p;return p.filter(x=>x!==k);}if(p.length>=maxKw)return p;return[...p,k];});};return<div><div style={{fontWeight:600,marginBottom:6,fontSize:13}}>Your keywords — tap to select/deselect:</div><div style={{display:"flex",alignItems:"center",gap:6,padding:"0 10px 4px",fontSize:9,fontWeight:500,color:C.muted}}><span style={{width:16,flexShrink:0}}/><span style={{flex:1}}>Keyword</span><span style={{width:42,textAlign:"right"}}>Vol.</span><span style={{width:32,textAlign:"center"}}>KD</span><span style={{width:30,textAlign:"center"}}>Freq</span></div><div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>{keywords.slice(0,maxKw).map((k,i)=>{const a=s.includes(k.keyword);const fc=FC[k.freq]||FC.MV;return<div key={i} onClick={()=>t(k.keyword)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:8,border:`1px solid ${a?"rgba(110,43,255,0.2)":"rgba(21,20,21,0.06)"}`,background:a?"rgba(110,43,255,0.04)":"transparent",cursor:"pointer"}}><div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${a?C.accent:"rgba(21,20,21,0.15)"}`,background:a?C.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{a&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}</div><span style={{flex:1,fontSize:12,fontWeight:500,color:a?C.dark:C.muted}}>{k.keyword}</span><span style={{width:42,textAlign:"right",fontSize:10,color:C.muted,fontWeight:600}}>{fmtVol(k.volume)}</span><span style={{width:32,textAlign:"center",fontSize:10,color:C.muted}}>{fmtKd(k.kd)}</span><span style={{width:30,textAlign:"center"}}><span style={{fontSize:9,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></span></div>;})}</div><div style={{fontSize:12,color:C.dark,marginBottom:8}}>Select 2 to 7 keywords. {s.length} selected.</div><div style={{display:"flex",gap:8}}><Btn text="Build With These" onClick={()=>onDone(s)} primary/><Btn text="Adjust" onClick={()=>onAdj(s)}/></div></div>;};
 
 /* ═══ HIGHLIGHT HELPERS ═══ */
 const HlT=({text,hl})=>{if(!hl?.length)return<span>{text}</span>;const p=[];let r=text;hl.forEach(h=>{const i=r.toLowerCase().indexOf(h.toLowerCase());if(i>=0){if(i>0)p.push({t:r.slice(0,i),h:false});p.push({t:r.slice(i,i+h.length),h:true});r=r.slice(i+h.length);}});if(r)p.push({t:r,h:false});return<span>{p.map((x,i)=>x.h?<span key={i} style={{background:"rgba(110,43,255,0.1)",color:C.accent,padding:"1px 3px",borderRadius:3}}>{x.t}</span>:<span key={i}>{x.t}</span>)}</span>;};
@@ -387,17 +386,17 @@ const Placeholder=()=><div style={{minHeight:"calc(100vh - 180px)",display:"flex
 /* ═══ BRIEF & CONTENT PANELS ═══ */
 const BriefInner=({d,kwData:kwDataProp})=>{const[kwE,skE]=useState(false);return<div><RevealBlock><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>SEO TITLE</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:13.5,fontWeight:500,color:C.dark}}>{hlF(d.title,d.titleKw)}</span><CB t={d.title}/></div></div></RevealBlock><RevealBlock delay={0.06}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>META DESCRIPTION</div><div style={{padding:"11px 14px",borderRadius:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}><span style={{fontSize:12.5,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</span><CB t={d.description}/></div></div></RevealBlock><RevealBlock delay={0.12}><div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>FOCUS KEYWORDS</div><div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:"visible"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}><thead><tr style={{borderBottom:"1px solid rgba(21,20,21,0.06)"}}><th style={{textAlign:"left",padding:"8px 12px",color:C.muted,fontWeight:500,fontSize:10}}>Keyword</th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:55,whiteSpace:"nowrap"}}>Vol.<QM text="Monthly search volume — how many people search this per month."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:40,whiteSpace:"nowrap"}}>KD<QM text="Keyword difficulty (0–100). Lower is easier to rank for."/></th><th style={{textAlign:"center",padding:"8px 6px",color:C.muted,fontWeight:500,fontSize:10,width:45,whiteSpace:"nowrap"}}>Freq<QM text="Keyword priority. HV = High Volume, main keyword. MV = Medium, supporting. LV = Low, extra."/></th></tr></thead><tbody>{d.keywords.map((k,i)=>{const fc=FC[k.freq]||FC.MV;return<tr key={i} style={{borderBottom:i<d.keywords.length-1?"1px solid rgba(21,20,21,0.04)":"none"}}><td style={{padding:"7px 12px",color:C.dark,fontWeight:500,fontSize:12}}>{k.keyword}</td><td style={{textAlign:"center",padding:"7px",color:C.dark,fontWeight:600}}>{fmtVol(k.volume)}</td><td style={{textAlign:"center",padding:"7px",color:C.muted}}>{k.kd!=null?(typeof k.kd==="number"?k.kd:String(k.kd)):"—"}</td><td style={{textAlign:"center",padding:"7px"}}><span style={{fontSize:10,fontWeight:600,color:fc.color,background:fc.bg,padding:"2px 6px",borderRadius:4}}>{k.freq}</span></td></tr>;})}</tbody></table></div>{d.keywords.some(k=>k.volume==null)&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>— = Google doesn't have enough search data for this keyword in the selected market.</div>}{(d.related?.length>0||d.paa?.length>0||d.autocomplete?.length>0)&&<button onClick={()=>skE(!kwE)} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.accent,fontWeight:500,padding:"6px 0",display:"flex",alignItems:"center",gap:4,marginTop:4}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="2" strokeLinecap="round" style={{transform:kwE?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}><polyline points="6 9 12 15 18 9"/></svg>Additional search phrases from Google</button>}{kwE&&<div style={{marginTop:6,padding:14,borderRadius:10,background:"rgba(110,43,255,0.02)",border:`1px solid ${C.cardBorder}`,fontSize:11}}>{d.related?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.accent,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>RELATED SEARCHES</div><div style={{fontSize:10.5,color:C.muted,marginBottom:6,lineHeight:1.4}}>Other searches Google considers relevant to your topic — great for subtopics and H2 ideas.</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:12}}>{d.related.map((s,i)=><span key={i} style={{padding:"4px 10px",borderRadius:6,background:"rgba(110,43,255,0.05)",border:"1px solid rgba(110,43,255,0.1)",color:C.dark,fontSize:11}}>{s}</span>)}</div></>}{d.paa?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.accent,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>PEOPLE ALSO ASK</div><div style={{fontSize:10.5,color:C.muted,marginBottom:6,lineHeight:1.4}}>Real questions people ask Google about your topic — perfect for FAQ sections.</div><div style={{fontSize:11,color:C.dark,lineHeight:1.7,marginBottom:12}}>{d.paa.map((q,i)=><div key={i} style={{padding:"4px 0",borderBottom:i<d.paa.length-1?`1px solid ${C.border}`:"none"}}>• {q}</div>)}</div></>}{d.autocomplete?.length>0&&<><div style={{fontSize:9,fontWeight:600,color:C.accent,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>AUTOCOMPLETE</div><div style={{fontSize:10.5,color:C.muted,marginBottom:6,lineHeight:1.4}}>What Google suggests as people type — shows real search patterns.</div><div style={{display:"flex",flexWrap:"wrap",gap:4}}>{d.autocomplete.map((s,i)=><span key={i} style={{padding:"4px 10px",borderRadius:6,background:"rgba(110,43,255,0.05)",border:"1px solid rgba(110,43,255,0.1)",color:C.dark,fontSize:11}}>{s}</span>)}</div></>}</div>}</div></RevealBlock><RevealBlock delay={0.18}>{d.recs?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>RECOMMENDATIONS</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>{d.recs.map((r,i)=><div key={i} style={{padding:"8px 10px",borderRadius:8,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)"}}><div style={{fontSize:9,color:C.muted,textTransform:"capitalize"}}>{r.key}</div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{r.value}</div></div>)}</div></div>}</RevealBlock><RevealBlock delay={0.24}>{d.sections?.length>0&&<div style={{marginBottom:16}}><div style={{fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>PAGE STRUCTURE</div>{d.sections.map((sec,i)=><div key={i} style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{fontSize:9,fontWeight:600,color:sec.level==="H1"?"#6E2BFF":"#9B7AE6",background:sec.level==="H1"?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>{sec.level}</span><span style={{fontSize:sec.level==="H1"?13:12.5,fontWeight:600,color:C.dark}}>{sec.title}</span></div><div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,marginTop:4}}>{sec.desc}</div>{sec.kwNote&&<div style={{fontSize:10,color:C.muted,marginTop:4,fontStyle:"italic"}}>{sec.kwNote}</div>}{sec.visuals?.length>0&&<div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>{sec.visuals.map((v,j)=><span key={j} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:C.muted,padding:"3px 8px",borderRadius:6,background:"rgba(21,20,21,0.03)"}}><VI type={v.icon}/>{v.text}</span>)}</div>}</div>)}</div>}</RevealBlock><RevealBlock delay={0.3}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your page to <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></RevealBlock></div>;};
 const BriefPanel=({d,kwData:kwDataProp})=><div style={{padding:"28px 24px"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.recs?.find(r=>r.key==="Goal")?.value||"Content"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>structure ready</span></div><BriefInner d={d} kwData={kwDataProp}/></div>;
-const ContentPanel=({html,d,kwData:kwDataProp})=>{const[bo,sbo]=useState(false);const render=()=>{if(!html)return null;const secs=html.split(/(?=<h[12]>)/);return secs.map((sec,i)=>{const hm=sec.match(/<h([12])>(.*?)<\/h\1>/);const lv=hm?parseInt(hm[1]):null;const hd=hm?hm[2]:null;const body=sec.replace(/<h[12]>.*?<\/h[12]>/,"").trim();return<RevealBlock key={i} delay={i*0.08}><div style={{marginBottom:24}}>{hd&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><span style={{fontSize:9,fontWeight:600,color:lv===1?"#6E2BFF":"#9B7AE6",background:lv===1?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>H{lv}</span><span style={{fontSize:lv===1?18:15,fontWeight:700,color:C.dark}}>{hd}</span></div>}<div style={{fontSize:13,color:C.dark,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:body.replace(/<mark data-freq="HV">(.*?)<\/mark>/g,'<span style="background:rgba(110,43,255,0.12);color:#6E2BFF;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="MV">(.*?)<\/mark>/g,'<span style="background:rgba(155,122,230,0.1);color:#9B7AE6;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="LV">(.*?)<\/mark>/g,'<span style="background:rgba(184,156,240,0.12);color:#B89CF0;padding:1px 4px;border-radius:3px">$1</span>').replace(/<strong>(.*?)<\/strong>/g,'<strong style="font-weight:600">$1</strong>').replace(/<ul>/g,'<ul style="padding-left:20px;margin:8px 0">').replace(/<li>/g,'<li style="margin-bottom:4px">').replace(/<blockquote>(.*?)<\/blockquote>/g,'<div style="border-left:3px solid rgba(110,43,255,0.2);padding:10px 14px;background:rgba(110,43,255,0.03);border-radius:0 8px 8px 0;margin:8px 0;font-style:italic">$1</div>').replace(/<table>/g,'<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px">').replace(/<th>/g,'<th style="text-align:left;padding:6px 10px;background:rgba(110,43,255,0.06);border:1px solid rgba(21,20,21,0.06);font-weight:600">').replace(/<td>/g,'<td style="padding:6px 10px;border:1px solid rgba(21,20,21,0.06)">').replace(/<details><summary>(.*?)<\/summary>/g,'<div style="border:1px solid rgba(21,20,21,0.08);border-radius:8px;margin:4px 0"><div style="padding:8px 12px;font-weight:600;font-size:12px;background:rgba(21,20,21,0.02)">$1</div><div style="padding:8px 12px;font-size:12px">').replace(/<\/details>/g,'</div></div>').replace(/\[visual:([^\]]*)\]/g,'<div style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:rgba(21,20,21,0.03);color:#928E95;font-size:11px;margin:4px 0">$1</div>')}}/></div></RevealBlock>;});};return<div style={{padding:"28px 24px"}}><RevealBlock><div style={{marginBottom:20,borderRadius:12,border:`1px solid ${C.cardBorder}`,overflow:"hidden"}}><button onClick={()=>sbo(!bo)} style={{width:"100%",padding:"14px 16px",background:C.card,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><BL s={16}/><span style={{fontSize:14,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 8px",borderRadius:8,fontWeight:500}}>view</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:bo?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s"}}><polyline points="6 9 12 15 18 9"/></svg></button>{bo&&<div style={{padding:16,borderTop:`1px solid ${C.cardBorder}`}}><BriefInner d={d} kwData={kwDataProp}/></div>}</div></RevealBlock><RevealBlock delay={0.06}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>Full Content</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.contentLength||"~800 words"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>ready to use</span></div></RevealBlock><RevealBlock delay={0.12}><div style={{padding:"14px 16px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)",marginBottom:20}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>SEO TITLE</div><div style={{fontSize:13,fontWeight:600,color:C.dark,marginBottom:8}}>{hlF(d.title,d.titleKw)}</div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>META DESCRIPTION</div><div style={{fontSize:12,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</div></div></RevealBlock>{render()}<RevealBlock delay={0.1}><div style={{marginTop:16}}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your URL in <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></div></RevealBlock></div>;};
+const ContentPanel=({html,d,kwData:kwDataProp})=>{const[bo,sbo]=useState(false);const render=()=>{if(!html)return null;const secs=html.split(/(?=<h[12]>)/);return secs.map((sec,i)=>{const hm=sec.match(/<h([12])>(.*?)<\/h\1>/);const lv=hm?parseInt(hm[1]):null;const hd=hm?hm[2]:null;const body=sec.replace(/<h[12]>.*?<\/h[12]>/,"").trim();return<RevealBlock key={i} delay={i*0.08}><div style={{marginBottom:24}}>{hd&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><span style={{fontSize:9,fontWeight:600,color:lv===1?"#6E2BFF":"#9B7AE6",background:lv===1?"rgba(110,43,255,0.08)":"rgba(155,122,230,0.08)",padding:"2px 6px",borderRadius:3}}>H{lv}</span><span style={{fontSize:lv===1?18:15,fontWeight:700,color:C.dark}}>{hd}</span></div>}<div style={{fontSize:13,color:C.dark,lineHeight:1.7}} dangerouslySetInnerHTML={{__html:body.replace(/<mark data-freq="HV">(.*?)<\/mark>/g,'<span style="background:rgba(110,43,255,0.12);color:#6E2BFF;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="MV">(.*?)<\/mark>/g,'<span style="background:rgba(155,122,230,0.1);color:#9B7AE6;padding:1px 4px;border-radius:3px">$1</span>').replace(/<mark data-freq="LV">(.*?)<\/mark>/g,'<span style="background:rgba(184,156,240,0.12);color:#B89CF0;padding:1px 4px;border-radius:3px">$1</span>').replace(/<h3>(.*?)<\/h3>/g,'<p style="font-weight:600;font-size:13px;margin:12px 0 4px">$1</p>').replace(/<strong>(.*?)<\/strong>/g,'<strong style="font-weight:600">$1</strong>').replace(/<ul>/g,'<ul style="padding-left:20px;margin:8px 0">').replace(/<li>/g,'<li style="margin-bottom:4px">').replace(/<blockquote>(.*?)<\/blockquote>/g,'<div style="border-left:3px solid rgba(110,43,255,0.2);padding:10px 14px;background:rgba(110,43,255,0.03);border-radius:0 8px 8px 0;margin:8px 0;font-style:italic">$1</div>').replace(/<table>/g,'<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px">').replace(/<th>/g,'<th style="text-align:left;padding:6px 10px;background:rgba(110,43,255,0.06);border:1px solid rgba(21,20,21,0.06);font-weight:600">').replace(/<td>/g,'<td style="padding:6px 10px;border:1px solid rgba(21,20,21,0.06)">').replace(/<details><summary>(.*?)<\/summary>/g,'<div style="border:1px solid rgba(21,20,21,0.08);border-radius:8px;margin:4px 0"><div style="padding:8px 12px;font-weight:600;font-size:12px;background:rgba(21,20,21,0.02)">$1</div><div style="padding:8px 12px;font-size:12px">').replace(/<\/details>/g,'</div></div>').replace(/\[visual:([^\]]*)\]/g,'<div style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:rgba(21,20,21,0.03);color:#928E95;font-size:11px;margin:4px 0">$1</div>')}}/></div></RevealBlock>;});};return<div style={{padding:"28px 24px"}}><RevealBlock><div style={{marginBottom:20,borderRadius:12,border:`1px solid ${C.cardBorder}`,overflow:"hidden"}}><button onClick={()=>sbo(!bo)} style={{width:"100%",padding:"14px 16px",background:C.card,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><BL s={16}/><span style={{fontSize:14,fontWeight:700,color:C.dark}}>SEO Brief</span><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 8px",borderRadius:8,fontWeight:500}}>view</span></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:bo?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s"}}><polyline points="6 9 12 15 18 9"/></svg></button>{bo&&<div style={{padding:16,borderTop:`1px solid ${C.cardBorder}`}}><BriefInner d={d} kwData={kwDataProp}/></div>}</div></RevealBlock><RevealBlock delay={0.06}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:17,fontWeight:700,color:C.dark}}>Full Content</span><span style={{fontSize:10,fontWeight:500,color:C.muted,background:"rgba(21,20,21,0.04)",padding:"3px 10px",borderRadius:10}}>{d.contentLength||"~800 words"}</span></div><span style={{fontSize:10,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"3px 10px",borderRadius:10,fontWeight:500}}>ready to use</span></div></RevealBlock><RevealBlock delay={0.12}><div style={{padding:"14px 16px",borderRadius:10,background:"rgba(110,43,255,0.03)",border:"1px solid rgba(110,43,255,0.06)",marginBottom:20}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>SEO TITLE</div><div style={{fontSize:13,fontWeight:600,color:C.dark,marginBottom:8}}>{hlF(d.title,d.titleKw)}</div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4}}>META DESCRIPTION</div><div style={{fontSize:12,color:C.dark,lineHeight:1.5}}>{hlF(d.description,d.descKw)}</div></div></RevealBlock>{render()}<RevealBlock delay={0.1}><div style={{marginTop:16}}><BN text="Add internal links to related pages on your site."/><div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",marginBottom:8}}><BL s={16}/><span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>After publishing, submit your URL in <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none"}}>Google Search Console</a>.</span></div></div></RevealBlock></div>;};
 
 /* ═══ LOADING STEP LABELS ═══ */
 const LKW=["Generating keyword ideas...","Searching Google data...","Analyzing search volume...","Ranking by difficulty..."];
 const LST=["Preparing your meta data...","Building your SEO content structure...","Adding visual and layout suggestions..."];
-const LCN=["Transforming structure into conversion-ready content...","Organically integrating all confirmed keywords...","Expanding semantics with SERP-based signals...","Aligning CTAs with tone, audience, and page goals...","Polishing final copy..."];
+const LCN=["Researching top Google results...","Extracting real-world data from SERP...","Transforming structure into conversion-ready content...","Organically integrating all confirmed keywords...","Aligning CTAs with tone, audience, and page goals...","Polishing final copy..."];
 
 const MobileTab=({active,onSwitch,hasBrief,hasContent})=>{if(!hasBrief&&!hasContent)return null;return<div style={{display:"flex",gap:0,background:"rgba(21,20,21,0.04)",borderRadius:10,padding:3,margin:"0 16px 8px"}}><button onClick={()=>onSwitch("chat")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="chat"?C.surface:"transparent",color:active==="chat"?C.dark:C.muted,boxShadow:active==="chat"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Chat</button><button onClick={()=>onSwitch("panel")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="panel"?C.surface:"transparent",color:active==="panel"?C.dark:C.muted,boxShadow:active==="panel"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>{hasContent?"Content":"Brief"}</button></div>;};
 
 /* ═══════════════════════════════════════════════════════════
-   MAIN COMPONENT — v43: Strict linear flow, chat only after structure
+   MAIN COMPONENT — v48: Fixed keyword selection tracking + title generation
    Phase 1: input = answer to current step. No chat, no questions.
    Phase 2 (sr/cr): input = tweak or question (if ends with ?)
    ═══════════════════════════════════════════════════════════ */
@@ -410,9 +409,29 @@ const[dfsExtra,sDfsExtra]=useState({});
 const dfsExtraRef=useRef({});
 useEffect(()=>{dfsExtraRef.current=dfsExtra;},[dfsExtra]);
 const[skw,sSkw]=useState([]);
+const skwRef=useRef([]);
+useEffect(()=>{skwRef.current=skw;},[skw]);
 const[stit,sStit]=useState(null);
 const confirmedTitleRef=useRef(null);
 const[confirmedKeywords,sConfirmedKeywords]=useState([]);
+const[brandName,sBrandName]=useState(null);
+const[cleanedBrand,sCleanedBrand]=useState("");
+
+/* Classify keywords into primary/secondary/supporting based on volume + KD */
+function classifyKeywords(kwList) {
+  if (!kwList || kwList.length === 0) return { primary: null, secondary: [], supporting: [] };
+  /* Sort: highest volume first, then lowest KD */
+  const sorted = [...kwList].sort((a, b) => {
+    const va = a.volume || 0, vb = b.volume || 0;
+    if (vb !== va) return vb - va;
+    return (a.kd || 100) - (b.kd || 100);
+  });
+  const primary = sorted[0];
+  const secondary = sorted.slice(1, 3);
+  const supporting = sorted.slice(3);
+  console.log("[CB] classifyKeywords: primary=", primary?.keyword, "secondary=", secondary.map(k=>k.keyword), "supporting=", supporting.map(k=>k.keyword));
+  return { primary, secondary, supporting };
+}
 const[savedTitles,sSavedTitles]=useState([]);
 const[bd,sBd]=useState(null);
 const[contentHtml,sContentHtml]=useState(null);
@@ -498,15 +517,17 @@ const enrichWithDFS=async(rawKeywords,locCode)=>{
 const showKeywords=(enriched,extras,adjustsLeft)=>{
   sDfsExtra(extras);dfsExtraRef.current=extras;
   console.log("[CB] showKeywords extras:", JSON.stringify({paa:extras?.paa?.length||0,related:extras?.related?.length||0,autocomplete:extras?.autocomplete?.length||0}));
-  sKwData(enriched);const init=enriched.map(k=>k.keyword);sSkw(init);
+  sKwData(enriched);const init=enriched.map(k=>k.keyword);sSkw(init);skwRef.current=init;
   stopLoading();sTyp(false);setStep("kw");
   add("b",<div>
     {adjustsLeft<5&&<div style={{marginBottom:6}}>Keywords updated! ({adjustsLeft} adjusts left)</div>}
     {adjustsLeft>=5&&<div style={{marginBottom:6}}>Here are keyword suggestions based on real Google search data. Pick the ones that fit your page.</div>}
     <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium. LV = Low.</div></div></BotTip>
-    <KwS keywords={enriched} init={init} onDone={s=>{sSkw(s);sConfirmedKeywords(enriched.filter(k=>s.includes(k.keyword)));kwDone();}} onAdj={()=>{
+    <KwS keywords={enriched} init={init} onDone={s=>{sSkw(s);skwRef.current=s;sConfirmedKeywords(enriched.filter(k=>s.includes(k.keyword)));kwDone();}} onAdj={(currentSelection)=>{
       if(stepRef.current!=="kw"){console.log("[CB] onAdj blocked: step=",stepRef.current);return;}
       if(adjustRound>=5){bot("You've used all adjustments. Please select from the current list.");return;}
+      /* Save current checkbox state before going to adjust */
+      sSkw(currentSelection);skwRef.current=currentSelection;
       setStep("ka");bot("Just tell me what to change — add, remove, or refine keywords.");
     }}/>
     <ExtrasBlock extra={extras}/>
@@ -516,33 +537,40 @@ const showKeywords=(enriched,extras,adjustsLeft)=>{
 /* ═══ KEYWORD DONE → Phase 1 continues ═══ */
 const kwDone=()=>{
   mk("kw");
-  const confirmed=kwData.filter(k=>skw.includes(k.keyword));
-  sConfirmedKeywords(confirmed);
   setStep("gl");
   bot(<div><div style={{marginBottom:8}}>Great keywords! Now let's shape your content.</div><div style={{fontWeight:600,marginBottom:6}}>Step 1 of 4 — What should this page achieve?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This shapes the content strategy and call-to-action.</div><ExBox items={["Sell a product","Explain a service","Build trust","Get leads","Inform visitors"]}/></div>);
 };
 
 /* ═══ KEYWORD ADJUST (up to 5 rounds) ═══ */
 const doAdjust=async(text)=>{
-  sAdjustRound(r=>r+1);
+  const currentRound=adjustRound+1;
+  sAdjustRound(currentRound);
   setStep("kl");sTyp(true);startLoading(LKW);
   try {
-    /* Remember which keywords user had CHECKED before adjust */
-    const prevChecked=kwData.filter(k=>skw.includes(k.keyword));
-    const prevUnchecked=kwData.filter(k=>!skw.includes(k.keyword)).map(k=>k.keyword.toLowerCase());
+    /* Use skwRef for the ACTUAL current checkbox state */
+    const currentChecked=skwRef.current;
+    const prevCheckedKw=kwData.filter(k=>currentChecked.includes(k.keyword));
     const gptRes=await callGPT("generate_keywords",{
       page_type:ans.pt||"",page_description:ans.pd||"",page_type_details:ans.ptx||"",
       adjustment:text,previous_keywords:kwData.map(k=>k.keyword),
       chat_history:buildChatHistory(msgs)
     });
     let newRaw=[];
-    if(gptRes){newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords.map(k=>typeof k==="string"?k:k.keyword||String(k)):[];}
+    if(gptRes){
+      newRaw=Array.isArray(gptRes.keywords)?gptRes.keywords.map(k=>typeof k==="string"?k:k.keyword||String(k)):[];
+      /* Update page context if GPT returned it */
+      if(gptRes.updated_page_context){
+        sAns(p=>({...p,pd:gptRes.updated_page_context}));
+        console.log("[CB] page context updated:", gptRes.updated_page_context);
+      }
+    }
     if(newRaw.length===0)newRaw=kwData.map(k=>k.keyword);
     const locCode=parseLocationCode(ans.mk||"");
     const{enriched:newEnriched,extras}=await enrichWithDFS(newRaw,locCode);
-    /* MERGE: old checked keywords + new keywords (skip duplicates and previously unchecked) */
+    /* MERGE: old CHECKED keywords stay at the top + new keywords (skip dupes) */
     const newKwSet=new Set(newEnriched.map(k=>k.keyword.toLowerCase()));
-    const mergedKw=[...prevChecked.filter(k=>!newKwSet.has(k.keyword.toLowerCase())),...newEnriched].slice(0,10);
+    const checkedNotInNew=prevCheckedKw.filter(k=>!newKwSet.has(k.keyword.toLowerCase()));
+    const mergedKw=[...checkedNotInNew,...newEnriched].slice(0,10);
     /* Pre-select: old checked stay checked, new ones also checked */
     const preSelected=mergedKw.map(k=>k.keyword);
     /* Merge extras with previous */
@@ -554,15 +582,16 @@ const doAdjust=async(text)=>{
     };
     /* Show merged list with all pre-selected */
     sDfsExtra(merged);dfsExtraRef.current=merged;
-    sKwData(mergedKw);sSkw(preSelected);
+    sKwData(mergedKw);sSkw(preSelected);skwRef.current=preSelected;
     stopLoading();sTyp(false);setStep("kw");
-    const adjustsLeft=5-adjustRound-1;
+    const adjustsLeft=5-currentRound;
     add("b",<div>
-      {<div style={{marginBottom:6}}>Keywords updated! Your previous selections + new suggestions. ({adjustsLeft} adjusts left)</div>}
+      {<div style={{marginBottom:6}}>Keywords updated! Your previous selections are kept. ({adjustsLeft} adjusts left)</div>}
       <BotTip short="Each keyword has search volume, competition, and priority."><div><div style={{marginBottom:6}}>Vol. — how many people search this per month.</div><div style={{marginBottom:6}}>KD — competition (0–100). Lower = easier to rank.</div><div>HV = High Volume, main keyword. MV = Medium. LV = Low.</div></div></BotTip>
-      <KwS keywords={mergedKw} init={preSelected} onDone={s=>{sSkw(s);sConfirmedKeywords(mergedKw.filter(k=>s.includes(k.keyword)));kwDone();}} onAdj={()=>{
+      <KwS keywords={mergedKw} init={preSelected} onDone={s=>{sSkw(s);skwRef.current=s;sConfirmedKeywords(mergedKw.filter(k=>s.includes(k.keyword)));kwDone();}} onAdj={(currentSelection)=>{
         if(stepRef.current!=="kw"){console.log("[CB] onAdj blocked: step=",stepRef.current);return;}
-        if(adjustRound>=5){bot("You've used all adjustments. Please select from the current list.");return;}
+        if(currentRound>=5){bot("You've used all adjustments. Please select from the current list.");return;}
+        sSkw(currentSelection);skwRef.current=currentSelection;
         setStep("ka");bot("Just tell me what to change — add, remove, or refine keywords.");
       }}/>
       <ExtrasBlock extra={merged}/>
@@ -577,11 +606,18 @@ const doAdjust=async(text)=>{
 const genTitles=async(market)=>{
   setStep("tl");startLoading(["Generating titles...","Applying SEO rules..."]);sTyp(true);
   try {
-    const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):skw.length>0?skw:kwData.map(k=>k.keyword);
+    /* Use ONLY confirmed keywords (user-selected), never all kwData */
+    const selKwData=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skwRef.current.includes(k.keyword));
+    const selKw=selKwData.map(k=>k.keyword);
+    const classified=classifyKeywords(selKwData);
+    console.log("[CB] genTitles using keywords:", selKw, "primary:", classified.primary?.keyword);
     const gptRes=await callGPT("generate_titles",{
-      keywords:selKw,page_type:ans.pt||"",page_type_details:ans.ptx||"",
+      primary_keyword:classified.primary?.keyword||selKw[0],
+      secondary_keywords:classified.secondary.map(k=>k.keyword),
+      supporting_keywords:classified.supporting.map(k=>k.keyword),
+      page_type:ans.pt||"",page_type_details:ans.ptx||"",
       page_description:ans.pd||"",goal:ans.gl||"",audience:ans.au||"",
-      tone:ans.tn||"",market:market||ans.mk||"",brand_details:ans.me||"",
+      tone:ans.tn||"",market:market||ans.mk||"",brand_name:brandName||null,
       chat_history:buildChatHistory(msgs)
     });
     let titles=[];
@@ -614,7 +650,7 @@ const genTitles=async(market)=>{
 const confirmTitle=async(val)=>{
   sTyp(true);
   try {
-    const gptRes=await callGPT("clean_title",{user_title:val,keywords:skw.length>0?skw:kwData.map(k=>k.keyword),page_type:ans.pt||""});
+    const gptRes=await callGPT("clean_title",{user_title:val,keywords:confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):skwRef.current,page_type:ans.pt||""});
     sTyp(false);
     if(gptRes&&gptRes.valid===false){
       bot(gptRes.error||"That doesn't look like a page title. Pick one or type your own.");
@@ -644,15 +680,20 @@ const gStr=async()=>{
   window.scrollTo({top:0,behavior:"smooth"});
   sPLoad("Building SEO structure...");startLoading(LST);sTyp(true);
   try {
-    const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):skw.length>0?skw:kwData.map(k=>k.keyword);
+    const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):skwRef.current.length>0?skwRef.current:kwData.map(k=>k.keyword);
     const kwWithData=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>selKw.includes(k.keyword));
+    const classified=classifyKeywords(kwWithData);
     const pageCfg=getPageConfig(ans.pt||"");
     const defaultLen=pageCfg?.defaultLen||"500-800 words";
     const chosenTitle=confirmedTitleRef.current||stit||ans.ti||"";
     const gptRes=await callGPT("generate_structure",{
-      title:chosenTitle,keywords:kwWithData,page_type:ans.pt||"",page_type_details:ans.ptx||"",
+      title:chosenTitle,
+      primary_keyword:classified.primary?.keyword||selKw[0],
+      secondary_keywords:classified.secondary.map(k=>k.keyword),
+      supporting_keywords:classified.supporting.map(k=>k.keyword),
+      keywords:kwWithData,page_type:ans.pt||"",page_type_details:ans.ptx||"",
       page_description:ans.pd||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
-      market:ans.mk||"",brand_details:ans.me||"",target_length:defaultLen,
+      market:ans.mk||"",brand_details:ans.me||"",brand_name:brandName||null,target_length:defaultLen,
       related:dfsExtraRef.current.related||[],paa:dfsExtraRef.current.paa||[],
       autocomplete:dfsExtraRef.current.autocomplete||[],chat_history:buildChatHistory(msgs)
     });
@@ -694,13 +735,37 @@ const gCnt=async()=>{
   setStep("cl");add("b",<div style={{color:C.muted,fontSize:12}}>Researching and writing content...</div>);
   window.scrollTo({top:0,behavior:"smooth"});sPLoad("Writing your content...");startLoading(LCN);sTyp(true);
   try {
-    const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):kwData.filter(k=>skw.includes(k.keyword)).map(k=>k.keyword);
+    const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):kwData.filter(k=>skwRef.current.includes(k.keyword)).map(k=>k.keyword);
     let researchData=null;
-    /* Research via web search — will be added in next iteration */
+    /* Deep Research: fetch SERP organic results and analyze with GPT */
+    try {
+      console.log("[CB] deep research: fetching SERP for:", selKw[0]);
+      const locCode=parseLocationCode(ans.mk||"");
+      const dfsRes=await callDFS(selKw.slice(0,3),locCode);
+      const serpOrganic=dfsRes?.serp_organic||[];
+      console.log("[CB] deep research: got", serpOrganic.length, "organic results");
+      if(serpOrganic.length>0){
+        const resGpt=await callGPT("deep_research",{
+          keyword:selKw[0],serp_results:serpOrganic,page_type:ans.pt||"",
+          page_description:ans.pd||"",market:ans.mk||""
+        });
+        if(resGpt&&(resGpt.research_brief||resGpt.suggested_mentions)){
+          researchData=resGpt;
+          console.log("[CB] deep research: brief ready, names:", resGpt.real_names?.length||0);
+        }
+      }
+    } catch(e){console.log("[CB] deep research skipped:",e);}
+    const kwForContent=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skwRef.current.includes(k.keyword));
+    const classifiedContent=classifyKeywords(kwForContent);
     const gptRes=await callGPT("generate_content",{
-      structure:bd,keywords:confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skw.includes(k.keyword)),
+      structure:bd,
+      primary_keyword:classifiedContent.primary?.keyword||"",
+      secondary_keywords:classifiedContent.secondary.map(k=>k.keyword),
+      supporting_keywords:classifiedContent.supporting.map(k=>k.keyword),
+      keywords:kwForContent,
       page_type:ans.pt||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
-      market:ans.mk||"",brand_details:ans.me||"",title:confirmedTitleRef.current||bd?.title||"",
+      market:ans.mk||"",brand_details:ans.me||"",brand_name:brandName||null,
+      title:confirmedTitleRef.current||bd?.title||"",
       research:researchData,chat_history:buildChatHistory(msgs)
     });
     let html="";
@@ -729,7 +794,7 @@ const handleStructureTweak=async(text)=>{
   sTyp(true);
   try {
     const chosenTitle=confirmedTitleRef.current||stit||ans.ti||"";
-    const kwWithData=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skw.includes(k.keyword));
+    const kwWithData=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skwRef.current.includes(k.keyword));
     const gptRes=await callGPT("generate_structure",{
       title:chosenTitle,keywords:kwWithData,page_type:ans.pt||"",page_description:ans.pd||"",
       goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",brand_details:ans.me||"",
@@ -755,7 +820,7 @@ const handleContentTweak=async(text)=>{
   try {
     const gptRes=await callGPT("tweak",{
       current_content:contentHtml,request:text,
-      keywords:confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skw.includes(k.keyword)),
+      keywords:confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skwRef.current.includes(k.keyword)),
       structure:bd,chat_history:buildChatHistory(msgs)
     });
     sTyp(false);
@@ -769,12 +834,12 @@ const handleContentTweak=async(text)=>{
 
 /* ═══ RESET ═══ */
 const reset=()=>{
-  setStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);sStit(null);confirmedTitleRef.current=null;sConfirmedKeywords([]);sSavedTitles([]);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sAdjustRound(0);
+  setStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);skwRef.current=[];sStit(null);confirmedTitleRef.current=null;sConfirmedKeywords([]);sBrandName(null);sCleanedBrand("");sSavedTitles([]);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sAdjustRound(0);
   setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} Let's build content for your page.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);setStep("ec");},1000);},100);
 };
 
 /* ═══════════════════════════════════════════════════════════
-   SEND — v43: Phase 1 = strict (no chat). Phase 2 = tweak + questions.
+   SEND — v48: Phase 1 = strict (no chat). Phase 2 = tweak + questions.
    ═══════════════════════════════════════════════════════════ */
 const send=()=>{
   const el=inpRef.current;if(!el||!el.value.trim())return;
@@ -833,7 +898,23 @@ const send=()=>{
 
   if(step==="ti"){confirmTitle(t);return;}
 
-  if(step==="me"){sAns(p=>({...p,me:t}));mk("me");askConfirm();return;}
+  if(step==="me"){
+    sAns(p=>({...p,me:t}));mk("me");
+    /* Clean brand details via GPT */
+    (async()=>{
+      try {
+        const res=await callGPT("clean_brand_details",{raw_input:t});
+        if(res&&res.brand_details){
+          sCleanedBrand(res.brand_details);
+          if(res.brand_name)sBrandName(res.brand_name);
+          sAns(p=>({...p,me:res.brand_details}));
+          console.log("[CB] brand cleaned:", res.brand_details, "name:", res.brand_name);
+        }
+      } catch(e){console.log("[CB] brand clean skipped:",e);}
+      askConfirm();
+    })();
+    return;
+  }
 
   if(step==="cf"){gStr();return;}
 
