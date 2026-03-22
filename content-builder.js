@@ -128,7 +128,31 @@ async function checkBuilderCredits(memberId) {
   }
 }
 
-/* Simple question check — only used in Phase 2 (after structure ready) */
+/* Get member ID from any available source */
+function getMemberId() {
+  /* Try direct globals first */
+  if (window.__memberId) return window.__memberId;
+  if (window._msData?.id) return window._msData.id;
+  /* Try Memberstack DOM data attribute */
+  const msEl = document.querySelector('[data-ms-member-id]');
+  if (msEl) return msEl.getAttribute('data-ms-member-id');
+  /* Try localStorage where Memberstack stores session */
+  try {
+    const msKeys = Object.keys(localStorage).filter(k => k.startsWith('_ms'));
+    for (const k of msKeys) {
+      try {
+        const v = JSON.parse(localStorage.getItem(k));
+        if (v?.id && v.id.startsWith('mem_')) return v.id;
+      } catch(e) {}
+    }
+  } catch(e) {}
+  /* Try window.$memberstackDom */
+  try {
+    const msdom = window.$memberstackDom;
+    if (msdom && msdom._currentMember?.id) return msdom._currentMember.id;
+  } catch(e) {}
+  return null;
+}
 function isQuestion(text) { return text.trim().endsWith("?"); }
 
 /* Page type config: guided questions + content length limits */
@@ -437,7 +461,11 @@ const handleAiChat=useCallback(async(text)=>{
 },[step,ans,kwData,stit,bd,msgs,add]);
 
 /* ═══ INIT ═══ */
-useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} I'll guide you step by step to build SEO content for your page.</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>First we'll find the right keywords, then build a structure and full content. After the structure is ready, you can edit and adjust everything freely.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);setStep("ec");},1500);},[]);
+useEffect(()=>{
+  const mid=getMemberId();
+  console.log("[CB] INIT memberId:", mid);
+  sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey ${mn}!`:"Hey!"} I'll guide you step by step to build SEO content for your page.</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>First we'll find the right keywords, then build a structure and full content. After the structure is ready, you can edit and adjust everything freely.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);setStep("ec");},1500);
+},[]);
 
 /* ═══ DFS ENRICHMENT (shared helper) ═══ */
 const enrichWithDFS=async(rawKeywords,locCode)=>{
@@ -656,8 +684,8 @@ const gStr=async()=>{
 /* ═══ GENERATE CONTENT ═══ */
 const gCnt=async()=>{
   /* Check credits first */
-  const memberId=window.__memberId||window._msData?.id||null;
-  console.log("[CB] gCnt memberId:", memberId, "__memberId:", window.__memberId, "_msData?.id:", window._msData?.id);
+  const memberId=getMemberId();
+  console.log("[CB] gCnt memberId:", memberId);
   const creditCheck=await checkBuilderCredits(memberId);
   if(!creditCheck.ok){
     bot(<div><div style={{marginBottom:6}}>You've used all your Content Builder credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue building content.</div></div>);
