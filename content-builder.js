@@ -709,6 +709,16 @@ const gCnt=async()=>{
     sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);setStep("cr");
     /* Deduct 1 credit after successful generation */
     try{const r=await trackBuilderUsage(memberId);if(r&&r.success)console.log("[CB] credit deducted:",r.used+"/"+r.limit);}catch(e){}
+    /* Record run in runs table for Launch History */
+    try{
+      const title=confirmedTitleRef.current||bd?.title||"Content Builder";
+      await fetch("https://empuzslozakbicmenxfo.supabase.co/rest/v1/rpc/insert_cb_run",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},
+        body:JSON.stringify({p_member_id:memberId,p_title:title})
+      });
+      console.log("[CB] run recorded");
+    }catch(e){console.error("[CB] run record error:",e);}
     if(isMobile)sMTab("panel");
     bot(<div><div style={{marginBottom:6}}>Your full content is ready!</div><div style={{color:C.muted,fontSize:12}}>Want changes? Just describe what to fix.</div></div>);
   } catch(err){console.error("[CB] gCnt error:",err);stopLoading();sTyp(false);sPLoad(null);bot("Something went wrong. Please try again.");}
