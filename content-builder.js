@@ -379,7 +379,7 @@ const MobileTab=({active,onSwitch,hasBrief,hasContent})=>{if(!hasBrief&&!hasCont
    ═══════════════════════════════════════════════════════════ */
 function ContentBuilder({onHome,memberName:mn}){
 const isMobile=useIsMobile();const[mTab,sMTab]=useState("chat");const[pLoad,sPLoad]=useState(null);
-const[step,sStep]=useState("init");const stepRef=useRef("init");const setStep=useCallback((v)=>{setStep(v);stepRef.current=v;},[]);const[msgs,sMsgs]=useState([]);const[typ,sTyp]=useState(false);
+const[step,sStep]=useState("init");const stepRef=useRef("init");const setStep=useCallback((v)=>{sStep(v);stepRef.current=v;},[]);const[msgs,sMsgs]=useState([]);const[typ,sTyp]=useState(false);
 const[ans,sAns]=useState({});
 const[kwData,sKwData]=useState([]);
 const[dfsExtra,sDfsExtra]=useState({});
