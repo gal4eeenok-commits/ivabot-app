@@ -10,7 +10,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 /* ═══ COLORS ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2),0 8px 32px rgba(110,43,255,0.1)"};
 const FC={HV:{bg:"rgba(110,43,255,0.12)",color:"#6E2BFF"},MV:{bg:"rgba(155,122,230,0.1)",color:"#9B7AE6"},LV:{bg:"rgba(184,156,240,0.12)",color:"#B89CF0"}};
-const HINTS={page_type:["Product page","Service page","Blog post","About page"],goal:["Sell a product","Explain a service","Build trust","Get leads"],audience:["Professional, for B2B","Friendly, for young people","Warm, for families"]};
+const HINTS={page_type:["Product page","Service page","Blog post","About page","Landing page"],goal:["Sell a product","Explain a service","Build trust","Get leads","Inform visitors"],audience:["Women 25-40","Young travelers","Small business owners","Parents with kids","Tech professionals"]};
 
 /* ═══ API HELPERS — v45: direct Edge Function, no Make ═══ */
 async function callGPT(step, data) {
@@ -135,37 +135,37 @@ function isQuestion(text) { return text.trim().endsWith("?"); }
 const PAGE_TYPE_CONFIG = {
   "homepage": {
     extraQ: "What does your company do? Tell me a bit about your business.",
-    hints: ["We make handmade candles from organic wax","Digital marketing agency for small businesses","Online store for vintage furniture","Dog grooming salon in Brooklyn"],
+    hints: ["We make handmade candles from organic wax","Digital marketing agency for small businesses","Online store for vintage furniture","Dog grooming salon in Brooklyn","Fitness coaching for women over 40"],
     defaultLen: "900-1200 words", maxLen: 5000
   },
   "about page": { 
     extraQ: "What's your brand story? Who's behind it?",
-    hints: ["Founded by Maria in 2020, started from home kitchen","Family bakery since 1995, three generations","Two friends started a tech company after college","Solo designer with 10 years of experience"],
+    hints: ["Founded by Maria in 2020, started from home kitchen","Family bakery since 1995, three generations","Two friends started a tech company after college","Solo designer with 10 years of experience","Started as a hobby, now a full-time business"],
     defaultLen: "700-1000 words", maxLen: 4000
   },
   "product page": {
     extraQ: "Tell me about the product — what is it, what's special about it?",
-    hints: ["Red silk dress, XS to XL, handmade in Italy","Organic face cream, 50ml, for sensitive skin","Wooden phone stand, walnut, fits all phones","Kids rain boots, sizes 5-12, waterproof"],
+    hints: ["Red silk dress, XS to XL, handmade in Italy","Organic face cream, 50ml, for sensitive skin","Wooden phone stand, walnut, fits all phones","Kids rain boots, sizes 5-12, waterproof","Handmade leather wallet, minimalist design"],
     defaultLen: "500-800 words", maxLen: 3000
   },
   "service page": {
     extraQ: "What service do you offer? Where and how?",
-    hints: ["House cleaning in London, weekly or one-time","Wedding photography, Berlin area, from €800","Online English lessons for kids, group or private","Roof repair and installation, free estimate"],
+    hints: ["House cleaning in London, weekly or one-time","Wedding photography, Berlin area, from €800","Online English lessons for kids, group or private","Roof repair and installation, free estimate","Mobile car detailing, same-day service"],
     defaultLen: "500-800 words", maxLen: 4000
   },
   "blog post": {
     extraQ: "What's the blog post about? What should it cover?",
-    hints: ["Budget travel to Japan during cherry blossom","How to start a small bakery from home","Best exercises for back pain, no equipment","Comparing iPhone vs Samsung for photography"],
+    hints: ["Budget travel to Japan during cherry blossom","How to start a small bakery from home","Best exercises for back pain, no equipment","Comparing iPhone vs Samsung for photography","Guide to sourdough bread for beginners"],
     defaultLen: "1500-3000 words", maxLen: 11000
   },
   "landing page": {
     extraQ: "What's the offer? What should visitors do?",
-    hints: ["Free trial of our project management app","50% off first order, limited time","Download our free SEO checklist PDF","Book a free 30-min consultation call"],
+    hints: ["Free trial of our project management app","50% off first order, limited time","Download our free SEO checklist PDF","Book a free 30-min consultation call","Sign up for our weekly newsletter"],
     defaultLen: "900-1200 words", maxLen: 4000
   },
   "category page": {
     extraQ: "What products are in this category? How is it organized?",
-    hints: ["Women's summer dresses, 50 items, by style","Coffee beans by origin, 20 varieties","Running shoes, men's, sorted by price","Handmade earrings, silver and gold"],
+    hints: ["Women's summer dresses, 50 items, by style","Coffee beans by origin, 20 varieties","Running shoes, men's, sorted by price","Handmade earrings, silver and gold","Organic skincare products by ingredient"],
     defaultLen: "500-800 words", maxLen: 2000
   }
 };
@@ -491,7 +491,7 @@ const kwDone=()=>{
   const confirmed=kwData.filter(k=>skw.includes(k.keyword));
   sConfirmedKeywords(confirmed);
   setStep("gl");
-  bot(<div><div style={{marginBottom:8}}>Great keywords! Now let's shape your content.</div><div style={{fontWeight:600,marginBottom:6}}>Step 1 of 4 — What should this page achieve?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This shapes the content strategy and call-to-action.</div><ExBox items={["Sell a product","Explain a service","Build trust","Get leads"]}/></div>);
+  bot(<div><div style={{marginBottom:8}}>Great keywords! Now let's shape your content.</div><div style={{fontWeight:600,marginBottom:6}}>Step 1 of 4 — What should this page achieve?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This shapes the content strategy and call-to-action.</div><ExBox items={["Sell a product","Explain a service","Build trust","Get leads","Inform visitors"]}/></div>);
 };
 
 /* ═══ KEYWORD ADJUST (up to 5 rounds) ═══ */
@@ -596,11 +596,11 @@ const confirmTitle=async(val)=>{
     sStit(clean);confirmedTitleRef.current=clean;sAns(p=>({...p,ti:clean}));
     bot(<div><div style={{fontSize:12,color:C.muted,marginBottom:4}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:"1px solid rgba(110,43,255,0.2)",background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark}}>{clean}</div></div>);
     setStep("me");
-    setTimeout(()=>{bot(<div><div style={{fontWeight:600,marginBottom:6}}>Last question — Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality and makes your content unique.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing to Add" onClick={()=>{add("u","Nothing special");sAns(p=>({...p,me:""}));mk("me");askConfirm();}}/></div></div>);},800);
+    setTimeout(()=>{bot(<div><div style={{fontWeight:600,marginBottom:6}}>Last question — Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality and makes your content unique.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients","Two friends started from a garage"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing to Add" onClick={()=>{add("u","Nothing special");sAns(p=>({...p,me:""}));mk("me");askConfirm();}}/></div></div>);},800);
   } catch(e){
     sTyp(false);sStit(val);confirmedTitleRef.current=val;sAns(p=>({...p,ti:val}));
     setStep("me");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing to Add" onClick={()=>{add("u","Nothing special");sAns(p=>({...p,me:""}));mk("me");askConfirm();}}/></div></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients","Two friends started from a garage"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing to Add" onClick={()=>{add("u","Nothing special");sAns(p=>({...p,me:""}));mk("me");askConfirm();}}/></div></div>);
   }
 };
 
@@ -747,7 +747,7 @@ const send=()=>{
 
   if(step==="ec"){
     const tl=t.toLowerCase().trim();
-    if(/\b(find|search|suggest|help|generate)\b/i.test(tl)){mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page. 3 quick questions.</div><div style={{fontWeight:600,marginBottom:6}}>Question 1 — What page are you working on?</div><ExBox items={HINTS.page_type}/></div>);return;}
+    if(/\b(find|search|suggest|help|generate)\b/i.test(tl)){mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>);return;}
     if(/\b(my|own|have|paste|use)\b/i.test(tl)||t.includes(",")){mk("e");setStep("ok");bot(<div>Paste your target keywords below, separated by commas.</div>);return;}
     bot(<div>Please choose: do you want me to find keywords, or do you have your own?</div>);return;
   }
@@ -766,8 +766,8 @@ const send=()=>{
   if(step==="pt"){
     sAns(p=>({...p,pt:t}));mk("pt");
     const cfg=getPageConfig(t);
-    if(cfg){setStep("ptx");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Question 2 — {cfg.extraQ}</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This helps me find keywords people actually search for in Google.</div><ExBox items={cfg.hints}/></div>);}
-    else{setStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Question 3 — Describe your page briefly:</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>A short description helps me find the most relevant keywords.</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn","Travel blog about Southeast Asia"]}/></div>);}
+    if(cfg){setStep("ptx");bot(<div><div style={{fontWeight:600,marginBottom:6}}>{cfg.extraQ}</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This helps me find keywords people actually search for in Google.</div><ExBox items={cfg.hints}/></div>);}
+    else{setStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Tell me more about your page:</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>A short description helps me find the most relevant keywords.</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn","Travel blog about Southeast Asia","Online yoga classes for beginners","Pet grooming salon in London"]}/></div>);}
     return;
   }
 
@@ -776,7 +776,7 @@ const send=()=>{
     if(t.length>15){
       setStep("pd");bot(<div>Got it! Anything else to add, or should I find keywords?<div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Find Keywords" onClick={()=>{sAns(p=>({...p,pd:t}));startKwGeneration(t);}}/></div></div>);
     } else {
-      setStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn"]}/></div>);
+      setStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn","Travel blog about Southeast Asia","Online yoga classes for beginners","Pet grooming salon in London"]}/></div>);
     }
     return;
   }
@@ -785,11 +785,11 @@ const send=()=>{
 
   if(step==="ka"){doAdjust(t);return;}
 
-  if(step==="gl"){sAns(p=>({...p,gl:t}));mk("gl");setStep("au");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 2 of 4 — Who is your target audience?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects tone, word choice, and how the content speaks to visitors.</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids"]}/></div>);return;}
+  if(step==="gl"){sAns(p=>({...p,gl:t}));mk("gl");setStep("au");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 2 of 4 — Who is your target audience?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects tone, word choice, and how the content speaks to visitors.</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids","Tech professionals"]}/></div>);return;}
 
-  if(step==="au"){sAns(p=>({...p,au:t}));mk("au");setStep("tn");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 3 of 4 — How should the content sound?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>The right tone makes your page feel authentic to your audience.</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);return;}
+  if(step==="au"){sAns(p=>({...p,au:t}));mk("au");setStep("tn");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 3 of 4 — How should the content sound?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>The right tone makes your page feel authentic to your audience.</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal","Bold and confident"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);return;}
 
-  if(step==="tn"){sAns(p=>({...p,tn:t}));mk("tn");setStep("mk");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 4 of 4 — What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Ukraine"]}/></div>);return;}
+  if(step==="tn"){sAns(p=>({...p,tn:t}));mk("tn");setStep("mk");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 4 of 4 — What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","France","Global"]}/></div>);return;}
 
   if(step==="mk"){sAns(p=>({...p,mk:t}));mk("mk");genTitles(t);return;}
 
@@ -854,7 +854,7 @@ const startKwGeneration=async(pageDesc)=>{
 /* ═══ RENDER ═══ */
 const lastBotIdx=msgs.reduce((acc,m,i)=>m.f==="b"?i:acc,-1);
 const phase2=step==="sr"||step==="cr";
-const chatMessages=<React.Fragment><style>{`.cb-past-msg{opacity:0.75}.cb-past-msg button:not(.bot-tip-expand){pointer-events:none!important;cursor:default!important;opacity:0.5}.cb-past-msg [onclick]{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand,.cb-past-msg details>summary{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>{add("u","Find Keywords");mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page. 3 quick questions.</div><div style={{fontWeight:600,marginBottom:6}}>Question 1 — What page are you working on?</div><ExBox items={HINTS.page_type}/></div>);}}/><Btn text="Use My Keywords" onClick={()=>{add("u","Use My Keywords");mk("e");setStep("ok");bot(<div>Paste your target keywords below, separated by commas.</div>);}}/></div>}</React.Fragment>;
+const chatMessages=<React.Fragment><style>{`.cb-past-msg{opacity:0.75}.cb-past-msg button:not(.bot-tip-expand){pointer-events:none!important;cursor:default!important;opacity:0.5}.cb-past-msg [onclick]{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand,.cb-past-msg details>summary{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>{add("u","Find Keywords");mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>);}}/><Btn text="Use My Keywords" onClick={()=>{add("u","Use My Keywords");mk("e");setStep("ok");bot(<div>Paste your target keywords below, separated by commas.</div>);}}/></div>}</React.Fragment>;
 
 const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd} kwData={kwData}/></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={contentHtml} d={bd} kwData={kwData}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
 
