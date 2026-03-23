@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v61 — show 7 select max 3, keyword placement, h3 postprocess, hl full phrases */
+/* IvaBot Content Builder v62 — readable kw log, show 7 select 3, keyword placement, h3 postprocess */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v61 loaded");
+console.log("[IvaBot] content-builder.js v62 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -829,6 +829,12 @@ const gCnt=async()=>{
       kwPlacement.push({keywords:classifiedContent.supporting.map(k=>k.keyword),role:"supporting",placement:"Do NOT insert as exact phrases. Use only individual words from these keywords naturally throughout the text."});
     }
     console.log("[CB] kwPlacement:",JSON.stringify(kwPlacement));
+    console.log("[CB] === KEYWORDS SENT TO GPT ===");
+    kwPlacement.forEach((kw,i)=>{
+      if(kw.role==="supporting"){console.log(`  [supporting] words from: ${kw.keywords?.join(", ")||"none"}`);}
+      else{console.log(`  [${kw.role}] "${kw.keyword}" → ${kw.placement}`);}
+    });
+    console.log("[CB] ==============================");
     const gptRes=await callGPT("generate_content",{
       structure:bd,
       primary_keyword:classifiedContent.primary?.keyword||"",
