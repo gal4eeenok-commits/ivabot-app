@@ -664,6 +664,7 @@ const genTitles=async(market)=>{
       page_type:ans.pt||"",page_type_details:ans.ptx||"",
       page_description:ans.pd||"",goal:ans.gl||"",audience:ans.au||"",
       tone:ans.tn||"",market:market||ans.mk||"",brand_name:brandName||null,
+      previous_titles:savedTitles.length>0?savedTitles.map(t=>t.text):[],
       chat_history:buildChatHistory(msgs)
     });
     let titles=[];
@@ -803,12 +804,20 @@ const gCnt=async()=>{
     } catch(e){console.log("[CB] deep research skipped:",e);}
     const kwForContent=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skwRef.current.includes(k.keyword));
     const classifiedContent=classifyKeywords(kwForContent);
+    /* v49: Send only primary+secondary as exact keywords (max 3, like Typebot). Supporting → individual words. Market → supporting words. */
+    const exactKeywords=[classifiedContent.primary,...classifiedContent.secondary].filter(Boolean);
+    const supportingWords=[...new Set([
+      ...classifiedContent.supporting.flatMap(k=>(k.keyword||"").split(/\s+/).filter(w=>w.length>2)),
+      ...((ans.mk||"").split(/[\s,]+/).filter(w=>w.length>2))
+    ])];
+    console.log("[CB] content keywords: exact=",exactKeywords.map(k=>k.keyword),"supporting_words=",supportingWords);
     const gptRes=await callGPT("generate_content",{
       structure:bd,
       primary_keyword:classifiedContent.primary?.keyword||"",
       secondary_keywords:classifiedContent.secondary.map(k=>k.keyword),
       supporting_keywords:classifiedContent.supporting.map(k=>k.keyword),
-      keywords:kwForContent,
+      keywords:exactKeywords,
+      supporting_words:supportingWords,
       page_type:ans.pt||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
       market:ans.mk||"",brand_details:ans.me||"",brand_name:brandName||null,
       title:confirmedTitleRef.current||bd?.title||"",
