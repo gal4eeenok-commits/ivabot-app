@@ -1,6 +1,6 @@
-/* IvaBot Content Builder v58 — h3 postprocess, min_words, hl full phrases only, headings note */
+/* IvaBot Content Builder v59 — keyword placement, h3 postprocess, hl full phrases only, headings note */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v58 loaded");
+console.log("[IvaBot] content-builder.js v59 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -809,9 +809,26 @@ const gCnt=async()=>{
       ...((ans.mk||"").split(/[\s,]+/).filter(w=>w.length>2))
     ])];
     console.log("[CB] content keywords: exact=",exactKeywords.map(k=>k.keyword),"supporting_words=",supportingWords);
-    /* v50: Extract min_words from structure contentLength recommendation */
+    /* v58: Extract min_words from structure contentLength recommendation */
     const clMatch=(bd?.contentLength||"").match(/(\d+)/);
     const minWords=clMatch?parseInt(clMatch[1]):500;
+    /* v58: Build keyword placement instructions for GPT */
+    const kwPlacement=[];
+    if(classifiedContent.primary){
+      const pk=classifiedContent.primary.keyword;
+      if(minWords>=1200){
+        kwPlacement.push({keyword:pk,role:"primary",placement:"Insert 1 time in the intro paragraph and 1 time in the second half of the body."});
+      } else {
+        kwPlacement.push({keyword:pk,role:"primary",placement:"Insert 1 time in the intro paragraph."});
+      }
+    }
+    classifiedContent.secondary.forEach((k,i)=>{
+      kwPlacement.push({keyword:k.keyword,role:"secondary",placement:"Insert 1 time in any body paragraph in the "+(i===0?"first":"second")+" half of the content."});
+    });
+    if(classifiedContent.supporting.length>0){
+      kwPlacement.push({keywords:classifiedContent.supporting.map(k=>k.keyword),role:"supporting",placement:"Do NOT insert as exact phrases. Use only individual words from these keywords naturally throughout the text."});
+    }
+    console.log("[CB] kwPlacement:",JSON.stringify(kwPlacement));
     const gptRes=await callGPT("generate_content",{
       structure:bd,
       primary_keyword:classifiedContent.primary?.keyword||"",
@@ -819,6 +836,7 @@ const gCnt=async()=>{
       supporting_keywords:classifiedContent.supporting.map(k=>k.keyword),
       keywords:exactKeywords,
       supporting_words:supportingWords,
+      keyword_placement:kwPlacement,
       min_words:minWords,
       page_type:ans.pt||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
       market:ans.mk||"",brand_details:ans.me||"",brand_name:brandName||null,
