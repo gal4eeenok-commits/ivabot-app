@@ -831,6 +831,16 @@ const gCnt=async()=>{
     let html="";
     if(gptRes){html=gptRes.html||gptRes.content||gptRes.text||"";if(typeof html!=="string")html=JSON.stringify(html);}
     if(!html||html.length<50)html="<h1>"+(bd?.title||"Content")+"</h1><p>Content generation in progress. Please try again.</p>";
+    /* v50: H3 post-processing — convert bold paragraphs back to <h3> for known H3 headings from structure */
+    if(bd?.sections?.length>0){
+      const h3titles=bd.sections.filter(s=>s.level==="H3"||s.level==="h3").map(s=>s.title).filter(Boolean);
+      h3titles.forEach(h3=>{
+        const esc=h3.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        /* Match: <p><strong>heading</strong></p> or <p><b>heading</b></p> */
+        const re=new RegExp(`<p>\\s*<(strong|b)>\\s*${esc}\\s*</(strong|b)>\\s*</p>`,'gi');
+        html=html.replace(re,`<h3>${h3}</h3>`);
+      });
+    }
     /* v49: Keyword spam postprocessor — count exact phrases, auto-fix if overspammed */
     if(html.length>50){
       try{
