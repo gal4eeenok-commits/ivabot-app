@@ -396,8 +396,13 @@ let out=rawHtml;
 kwList.forEach(k=>{const kw=k.keyword;const freq=k.freq||"MV";
 /* Only match in text content, skip inside HTML tags and existing <mark> */
 const esc=kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-const re=new RegExp(`(?<![<\\w])(?<!<[^>]*)\\b(${esc})\\b(?![^<]*>)(?![^<]*<\\/mark)`, 'gi');
-out=out.replace(re,`<mark data-freq="${freq}">$1</mark>`);
+const re=new RegExp(`\\b(${esc})\\b`, 'gi');
+/* Split HTML into tags and text, only highlight in text parts */
+const parts=out.split(/(<[^>]*>)/);
+out=parts.map(part=>{
+if(part.startsWith('<'))return part;
+return part.replace(re,`<mark data-freq="${freq}">$1</mark>`);
+}).join('');
 });return out;};
 const kwsForHl=kwDataProp||d?.keywords||[];
 const highlightedHtml=hlHtml(html,kwsForHl);
