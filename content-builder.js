@@ -817,6 +817,63 @@ const gCnt=async()=>{
     let html="";
     if(gptRes){html=gptRes.html||gptRes.content||gptRes.text||"";if(typeof html!=="string")html=JSON.stringify(html);}
     if(!html||html.length<50)html="<h1>"+(bd?.title||"Content")+"</h1><p>Content generation in progress. Please try again.</p>";
+    /* v49: Keyword spam postprocessor — count exact phrases, auto-fix if overspammed */
+    if(html.length>50){
+      try{
+        const stripHtml=html.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').toLowerCase();
+        const kwForCheck=kwForContent||[];
+        const pageType=(ans.pt||"").toLowerCase();
+        /* Limits by page type */
+        const maxPrimary=pageType.includes("about")?1:pageType.includes("article")||pageType.includes("blog")?2:pageType.includes("homepage")||pageType.includes("service")?2:1;
+        const maxSecondary=pageType.includes("about")?0:pageType.includes("article")||pageType.includes("blog")?2:1;
+        const spamIssues=[];
+        kwForCheck.forEach(k=>{
+          if(!k.keyword)return;
+          const kw=k.keyword.toLowerCase();
+          const re=new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')}\\b`,'gi');
+          const matches=stripHtml.match(re);
+          const count=matches?matches.length:0;
+          const maxAllowed=k.freq==="HV"?maxPrimary:k.freq==="MV"?maxSecondary:0;
+          if(count>Math.max(maxAllowed,1)){
+            spamIssues.push({keyword:k.keyword,count,max:maxAllowed});
+          }
+        });
+        /* Also check individual word spam (any word > 6 times) */
+        const wordCount={};
+        const stopWords=new Set(["the","a","an","and","or","is","are","was","were","be","been","being","in","on","at","to","for","of","with","by","from","as","into","that","this","it","its","our","your","we","you","they","them","their","has","have","had","not","but","if","can","will","all","each","how","what","when","who","which","do","does","did"]);
+        stripHtml.split(/\s+/).forEach(w=>{const clean=w.replace(/[^a-z]/g,'');if(clean.length>2&&!stopWords.has(clean)){wordCount[clean]=(wordCount[clean]||0)+1;}});
+        const wordSpam=Object.entries(wordCount).filter(([w,c])=>c>6).sort((a,b)=>b[1]-a[1]);
+        if(spamIssues.length>0||wordSpam.length>0){
+          console.log("[CB] spam detected:",JSON.stringify({phrases:spamIssues,words:wordSpam.slice(0,5)}));
+          /* Build specific tweak instruction */
+          let fixInstructions=[];
+          spamIssues.forEach(s=>{
+            const reduce=s.count-s.max;
+            fixInstructions.push(`Reduce exact phrase "${s.keyword}" from ${s.count} to maximum ${s.max} occurrences. Replace ${reduce} of them with synonyms, pronouns, or remove them.`);
+          });
+          wordSpam.slice(0,3).forEach(([w,c])=>{
+            fixInstructions.push(`The word "${w}" appears ${c} times — reduce to 4-5 by using synonyms or removing.`);
+          });
+          if(fixInstructions.length>0){
+            console.log("[CB] auto-fixing spam with tweak...");
+            const fixRes=await callGPT("tweak",{
+              current_content:html,
+              request:"AUTOMATIC KEYWORD SPAM FIX. Make these changes WITHOUT altering the structure, tone, or meaning:\\n"+fixInstructions.join("\\n"),
+              keywords:kwForCheck,structure:bd
+            });
+            if(fixRes){
+              const fixedHtml=fixRes.html||fixRes.content||fixRes.text||"";
+              if(typeof fixedHtml==="string"&&fixedHtml.length>50){
+                console.log("[CB] spam fix applied, old="+html.length+" new="+fixedHtml.length);
+                html=fixedHtml;
+              }
+            }
+          }
+        } else {
+          console.log("[CB] keyword density OK, no spam detected");
+        }
+      }catch(spamErr){console.log("[CB] spam check error (non-blocking):",spamErr);}
+    }
     sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);setStep("cr");
     /* Deduct 1 credit after successful generation */
     try{const r=await trackBuilderUsage(memberId);if(r&&r.success)console.log("[CB] credit deducted:",r.used+"/"+r.limit);}catch(e){}
