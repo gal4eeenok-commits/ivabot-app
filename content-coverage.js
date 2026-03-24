@@ -1,4 +1,4 @@
-/* IvaBot Content Coverage v5.4 — IIFE wrapped, unified style */
+/* IvaBot Content Coverage v5.5 — IIFE wrapped, unified style, score card, HL badges */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] content-coverage.js v5.3 loaded");
@@ -15,7 +15,7 @@ const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
 
 /* ═══ PRIMITIVES (1:1 from seo-tools.js) ═══ */
-const Tip=({text,children})=>{const[s,setS]=useState(false);const ref=useRef(null);const[pos,setPos]=useState({above:true,alignRight:false});return(<span ref={ref} style={{position:"relative",display:"inline-flex",alignItems:"center"}} onMouseEnter={()=>{if(ref.current){const rect=ref.current.getBoundingClientRect();setPos({above:rect.top>160,alignRight:rect.left>window.innerWidth/2});}setS(true);}} onMouseLeave={()=>setS(false)}>{children}{s&&<span style={{position:"absolute",...(pos.above?{bottom:"calc(100% + 8px)"}:{top:"calc(100% + 8px)"}), ...(pos.alignRight?{right:0}:{left:0}),background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:260,maxWidth:"85vw",zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal",wordBreak:"break-word",textAlign:"left"}}>{text}</span>}</span>);};
+const Tip=({text,children})=>{const[s,setS]=useState(false);const ref=useRef(null);const[pos,setPos]=useState({top:0,left:0});return(<span ref={ref} style={{position:"relative",display:"inline-flex",alignItems:"center"}} onMouseEnter={()=>{if(ref.current){const rect=ref.current.getBoundingClientRect();const above=rect.top>160;const left=Math.min(rect.left,window.innerWidth-270);setPos({top:above?rect.top-8:rect.bottom+8,left:Math.max(8,left),above});}setS(true);}} onMouseLeave={()=>setS(false)}>{children}{s&&<span style={{position:"fixed",top:pos.above?undefined:pos.top,bottom:pos.above?`calc(100vh - ${pos.top}px)`:undefined,left:pos.left,background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:260,maxWidth:"85vw",zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal",wordBreak:"break-word",textAlign:"left"}}>{text}</span>}</span>);};
 const QM=({text})=>(<Tip text={text}><span style={{width:16,height:16,borderRadius:"50%",border:`1px solid ${C.borderMid}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,cursor:"help",marginLeft:4,flexShrink:0,verticalAlign:"top",position:"relative",top:-1}}>?</span></Tip>);
 const CopyBtn=({text})=>{const[c,setC]=useState(false);return(<button onClick={()=>{navigator.clipboard?.writeText(text);setC(true);setTimeout(()=>setC(false),1500);}} style={{fontSize:10,fontWeight:600,color:c?"#9B7AE6":C.accent,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"2px 6px"}}>{c?"Copied!":"Copy"}</button>);};
 const HoverCard=({children,style={}})=>(<div style={{borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,transition:"box-shadow 0.3s, border-color 0.3s",cursor:"default",...style}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.hoverBorder;e.currentTarget.style.boxShadow=C.hoverShadow;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}>{children}</div>);
@@ -377,6 +377,50 @@ function filterSemanticMissing(autocomplete, related, paa, visibleText) {
   };
 }
 
+/* ═══ HEADING LIST (from Core Audit — colored badges) ═══ */
+const hColors = { H1: { color: "#6E2BFF", bg: "rgba(110,43,255,0.08)" }, H2: { color: "#9B7AE6", bg: "rgba(155,122,230,0.08)" }, H3: { color: "#B89CF0", bg: "rgba(184,156,240,0.12)" } };
+const HL = ({ tags, lv }) => (<div style={{ display: "flex", flexDirection: "column", gap: 3 }}>{tags.map((h, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 500, color: C.dark }}><span style={{ fontSize: 9, fontWeight: 600, color: hColors[lv].color, background: hColors[lv].bg, padding: "2px 5px", borderRadius: 3, minWidth: 22, textAlign: "center" }}>{lv}</span>{typeof h === "string" ? h : h.text}</div>))}</div>);
+
+/* ═══ COVERAGE SCORE CARD ═══ */
+const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad }) => {
+  const contentTotal = contentGood.length + contentBad.length;
+  const trustTotal = trustGood.length + trustBad.length;
+  const totalIssues = contentBad.length + trustBad.length;
+  const contentPct = contentTotal > 0 ? Math.round((contentGood.length / contentTotal) * 100) : 0;
+  const trustPct = trustTotal > 0 ? Math.round((trustGood.length / trustTotal) * 100) : 0;
+  return (<div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+    <div style={{ width: 92, height: 92, flexShrink: 0, borderRadius: 14, background: C.card, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: `1px solid ${C.cardBorder}` }}>
+      <span style={{ fontSize: 28, fontWeight: 700, color: C.dark }}>{totalIssues}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>Issues</span>
+    </div>
+    <div style={{ flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>Coverage Score</span>
+        <QM text="Your coverage score shows how many content and trust checks your page passes. Content & Keywords counts how well your target keywords appear in title, description, headings, and body text. Trust & Conversion checks for social proof, CTA, FAQ, contacts, and testimonials." />
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Content & Keywords</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6" }}>{contentGood.length} / {contentTotal}</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${contentPct}%`, background: "#9B7AE6", borderRadius: 100, transition: "width 0.8s ease" }} />
+        </div>
+      </div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Trust & Conversion</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#D4A0E8" }}>{trustGood.length} / {trustTotal}</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${trustPct}%`, background: "#D4A0E8", borderRadius: 100, transition: "width 0.8s ease" }} />
+        </div>
+      </div>
+    </div>
+  </div>);
+};
+
 /* ═══ BUILD RESULTS (same structure as v4 but with real data) ═══ */
 function buildCoverageResults(d) {
   const NB = C.cardBorder;
@@ -400,7 +444,7 @@ function buildCoverageResults(d) {
         if (ta.duplicates.length) whyParts.push("Duplicate words found: " + ta.duplicates.map(([w,c]) => `"${w}" (${c}×)`).join(", ") + ". Rephrase to avoid repetition.");
         if (ta.overused) whyParts.push("Keywords are overused in the title — keep each phrase to 1 mention.");
       }
-      contentBad.push({ title: "Meta Title Needs Work", serpSnippet: { url: d.url, title: d.title || "(no title)", desc: d.desc, hideDesc: true }, currentLabel: "Keyword presence in title", current: ta.occurrences, why: whyParts.join(" "), suggestions: ["Add your primary keyword phrase once near the beginning of the title", "Keep title between 30–60 characters"], showCopy: false });
+      contentBad.push({ title: "Meta Title Needs Work", serpSnippet: { url: d.url, title: d.title || "(no title)", desc: d.desc, hideDesc: true }, currentLabel: "Keyword presence in title", current: ta.occurrences, why: whyParts.join(" "), suggestions: d.gptSuggestions?.suggested_titles?.length > 0 ? d.gptSuggestions.suggested_titles : ["Add your primary keyword phrase once near the beginning of the title", "Keep title between 30–60 characters"], showCopy: !!(d.gptSuggestions?.suggested_titles?.length > 0) });
     }
     d.titleStatus = titleOk ? "good" : "bad";
   } else {
@@ -421,7 +465,7 @@ function buildCoverageResults(d) {
         if (da.tooLong) whyParts.push(`Description is ${da.length} characters — too long, Google may truncate it.`);
         if (!da.hasKeywords && !da.missing) whyParts.push("None of your target keywords appear in the description. Including them improves click-through rate.");
       }
-      contentBad.push({ title: "Description Needs Work", serpSnippet: { url: d.url, title: d.title, desc: d.desc || "(no description)" }, why: whyParts.join(" ") || "Description needs improvement.", suggestions: ["Write 140–160 characters including your primary keyword", "Make it compelling — this is what users see in search results"], showCopy: false });
+      contentBad.push({ title: "Description Needs Work", serpSnippet: { url: d.url, title: d.title, desc: d.desc || "(no description)" }, why: whyParts.join(" ") || "Description needs improvement.", suggestions: d.gptSuggestions?.suggested_descriptions?.length > 0 ? d.gptSuggestions.suggested_descriptions : ["Write 140–160 characters including your primary keyword", "Make it compelling — this is what users see in search results"], showCopy: !!(d.gptSuggestions?.suggested_descriptions?.length > 0) });
     }
     d.descStatus = (da.good && da.hasKeywords) ? "good" : "bad";
   } else {
@@ -438,15 +482,16 @@ function buildCoverageResults(d) {
     const h2h3Ok = h2h3a.h2Count > 0 && h2h3a.hasKeywords;
     if (h1Ok && h2h3Ok) {
       const h1 = d.h1, h2 = d.h2, h3 = d.h3;
-      contentGood.push({ title: "Heading Structure", content: (<><InfoBlock label={`H1 — ${h1.length} found`} value={h1.map(h => `H1: ${h}`).join("\n")} borderColor={NB} /><InfoBlock label={`H2 — ${h2.length} found`} value={h2.map(h => `H2: ${h}`).join("\n")} borderColor={NB} />{h3.length > 0 && <InfoBlock label={`H3 — ${h3.length} found`} value={h3.map(h => `H3: ${h}`).join("\n")} borderColor={NB} />}<InfoBlock label="Keyword presence" value={h1a.occurrences} borderColor={NB} /><BotNote inline text="Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page." /></>) });
+      contentGood.push({ title: "Heading Structure", content: (<><InfoBlock label={`H1 — ${h1.length} found`} value={<HL tags={h1} lv="H1" />} borderColor={NB} /><InfoBlock label={`H2 — ${h2.length} found`} value={<HL tags={h2} lv="H2" />} borderColor={NB} />{h3.length > 0 && <InfoBlock label={`H3 — ${h3.length} found`} value={<HL tags={h3} lv="H3" />} borderColor={NB} />}<InfoBlock label="Keyword presence" value={h1a.occurrences} borderColor={NB} /><BotNote inline text="Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page." /></>) });
     } else {
-      const whyParts = [];
-      if (h1a.missing) whyParts.push("H1 is missing — this is your page's main heading.");
-      else if (h1a.matchesTitle) whyParts.push("H1 is identical to the title — rewrite it to expand on the title while keeping your primary keyword.");
-      if (!h1a.strong && !h1a.missing) whyParts.push("Your target keywords are not in the H1 heading.");
-      if (h2h3a.h2Count === 0) whyParts.push("No H2 headings found — add subheadings to break content into sections.");
-      else if (!h2h3a.hasKeywords) whyParts.push("Keywords are missing from H2/H3 headings. Include secondary keywords in subheadings.");
-      contentBad.push({ title: "Heading Structure Needs Work", currentLabel: "Current Headings", current: [...d.h1.map(t => `H1: ${t}`), ...d.h2.map(t => `H2: ${t}`), ...d.h3.slice(0, 4).map(t => `H3: ${t}`)].join("\n") || "No headings found", why: whyParts.join(" "), suggestions: ["Add a unique H1 with your primary keyword", "Use H2/H3 for content sections with secondary keywords"], showCopy: false });
+      if (h1a.missing || h1a.matchesTitle || !h1a.strong) {
+        const h1Why = h1a.missing ? "H1 is missing — this is your page's main heading. Google uses it to understand what the page is about." : h1a.matchesTitle ? "H1 is identical to the title — rewrite it to expand on the title while keeping your primary keyword." : "Your target keywords are not in the H1 heading.";
+        contentBad.push({ title: "H1 Needs Work", currentLabel: "Current H1", current: d.h1.length > 0 ? <HL tags={d.h1} lv="H1" /> : "No H1 found", why: h1Why, suggestions: d.gptSuggestions?.suggested_h1?.length > 0 ? d.gptSuggestions.suggested_h1 : ["Add a unique H1 with your primary keyword", "Make it different from the title — expand on the topic"], showCopy: !!(d.gptSuggestions?.suggested_h1?.length > 0) });
+      }
+      if (h2h3a.h2Count === 0 || !h2h3a.hasKeywords) {
+        const h2Why = h2h3a.h2Count === 0 ? "No H2 headings found — add subheadings to break content into sections." : "Keywords are missing from H2/H3 headings. Include secondary keywords in subheadings.";
+        contentBad.push({ title: "H2/H3 Structure Needs Work", currentLabel: "Current Subheadings", current: (d.h2.length > 0 || d.h3.length > 0) ? <div>{d.h2.length > 0 && <HL tags={d.h2} lv="H2" />}{d.h3.length > 0 && <div style={{marginTop:4}}><HL tags={d.h3.slice(0, 4)} lv="H3" /></div>}</div> : "No subheadings found", why: h2Why, suggestions: d.gptSuggestions?.suggested_h2?.length > 0 ? d.gptSuggestions.suggested_h2 : ["Use H2 for main content sections with secondary keywords", "Add H3 for subsections within each H2"], showCopy: !!(d.gptSuggestions?.suggested_h2?.length > 0) });
+      }
     }
     d.h1Status = (h1Ok) ? "good" : "bad";
     d.h2h3Status = (h2h3Ok) ? "good" : "bad";
@@ -538,11 +583,14 @@ const CoverageReport = ({ data }) => {
   return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
     <BotNote text="Here's your full content coverage audit. I'll walk you through each part — what's working, what needs fixing, and exactly how to fix it." />
 
+    {/* Coverage Score Card */}
+    <CoverageScoreCard url={data.url} contentGood={contentGood} contentBad={contentBad} trustGood={trustGood} trustBad={trustBad} />
+
     {/* Page Summary */}
-    <BotNote text="This summary reflects how search engines are likely to interpret your page based on visible content, structure, and text signals." />
+    <BotNote text="This is how search engines interpret your page based on visible content and structure." />
     <div className="reveal reveal-delay-1" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Page Context Summary</span><QM text="If something looks off here, it means Google may misunderstand your page's purpose." /></div>
-      <div className="iva-ctx-grid">{[{ l: "Page URL", v: data.url }, { l: "Page Title", v: data.title || "(no title)" }, { l: "Topic", v: data.ctx?.topic || "Unknown" }, { l: "Owner / Creator", v: data.ctx?.owner || data.hostname }, { l: "Goal", v: data.ctx?.goal || "Inform" }, { l: "Industry", v: data.ctx?.industry || "General" }, { l: "Region", v: data.ctx?.region || "Global" }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div></div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{data.ctx?.message || ""}</div></div></div>
+      <div className="iva-ctx-grid">{[{ l: "Page URL", v: data.url }, { l: "Page Title", v: data.title || "(no title)" }, { l: "Topic", v: data.ctx?.topic || "Unknown" }, { l: "Content Type", v: data.ctx?.content_type || "Page" }, { l: "Goal", v: data.ctx?.goal || "Inform" }, { l: "Industry", v: data.ctx?.industry || "General" }, { l: "Region", v: data.ctx?.region || "Global" }, { l: "Word Count", v: data.wordCount ? data.wordCount.toLocaleString() : "—" }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div></div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{data.ctx?.message || ""}</div></div></div>
     </div>
 
     {/* Keywords */}
@@ -560,7 +608,7 @@ const CoverageReport = ({ data }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>What you want to rank for</span><QM text="These are the keywords you provided." /></div>
         <span style={{ fontSize: 10, color: C.accent, background: "rgba(110,43,255,0.06)", padding: "3px 10px", borderRadius: 10, fontWeight: 500 }}>your target</span>
       </div>
-      <RankingsTable rows={ukw.map(k => ({ keyword: k, position: null, volume: null, difficulty: null }))} emptyMsg="No target keywords provided." />
+      <RankingsTable rows={data.userKeywordMetrics || ukw.map(k => ({ keyword: k, position: null, volume: null, difficulty: null }))} emptyMsg="No target keywords provided." />
     </div>}
 
     {/* Content Working */}
@@ -691,16 +739,17 @@ function ContentCoverage({ onHome, memberName: mn }) {
         const dfsRes = await fetch(DFS_PROXY, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
-          body: JSON.stringify({ mode: "content_builder", keywords: finalKeywords.slice(0, 3) })
+          body: JSON.stringify({ mode: "content_builder", keywords: finalKeywords.slice(0, 3), page_url: url })
         });
         if (dfsRes.ok) dfsData = await dfsRes.json();
-        console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length}` : "failed");
+        console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length}` : "failed");
       } catch (e) { console.log("[CC] DFS error:", e); }
 
       // Build keyword metrics for table
       const keywordMetrics = finalKeywords.map(kw => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
-        return { keyword: kw, position: null, volume: m?.search_volume || null, difficulty: null };
+        const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
+        return { keyword: kw, position: r?.position || null, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
       });
 
       // If DFS returned no SERP suggestions, fallback to GPT
@@ -732,19 +781,44 @@ function ContentCoverage({ onHome, memberName: mn }) {
       const semanticMissing = filterSemanticMissing(serpAutocomplete, serpRelated, serpPaa, parsed.visible_text);
       const titleAnalysis = analyzeTitleDescHeadings(parsed, finalKeywords);
 
-      // Step 6: Build report
+      // Step 6: GPT suggestions for title/desc/headings
       setStepNum(6);
+      let gptSuggestions = null;
+      try {
+        const sugRes = await fetch(COVERAGE_GPT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ step: "generate_suggestions", title: parsed.title, description: parsed.description, h1: parsed.h1, h2: parsed.h2, h3: parsed.h3, keywords: finalKeywords, page_context: gptData?.page_context })
+        });
+        if (sugRes.ok) gptSuggestions = await sugRes.json();
+        console.log("[CC] GPT suggestions:", gptSuggestions ? "ok" : "failed");
+      } catch (e) { console.log("[CC] suggestions error:", e); }
+
+      // Word count (basic — count words in visible text)
+      const wordCount = parsed.visible_text ? parsed.visible_text.trim().split(/\s+/).filter(Boolean).length : null;
+
+      // Enrich user keywords with DFS data (same as extracted)
+      const userKeywordMetrics = keywords.map(kw => {
+        const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
+        const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
+        return { keyword: kw, position: r?.position || null, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
+      });
+
+      // Step 7: Build report
       const reportData = {
         ...parsed,
         ctx: gptData?.page_context || { topic: "Unknown", owner: parsed.hostname, goal: "Inform", industry: "General", region: "Global", message: "" },
         extractedKeywords,
         userKeywords: keywords,
         keywordMetrics,
+        userKeywordMetrics,
         bodyEval,
         trust,
         semanticMissing,
         pageType,
         titleAnalysis,
+        gptSuggestions,
+        wordCount,
       };
 
       setLS(-1);
