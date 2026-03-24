@@ -123,7 +123,7 @@ function parseCoverage(rawHtml, pageUrl) {
   // Summary for GPT
   const cleanKw = (v) => v && v.length > 2 && !/^\{.*\}$/.test(v) && !/^[^a-zA-Z]*$/.test(v) ? v : null;
   r.primary_keyword = cleanKw(r.h1?.[0]) || cleanKw(r.title) || "";
-  r.summary = `URL: ${r.url}\nTitle: ${r.title}\nDescription: ${r.desc}\nH1: ${r.h1.join(", ")||"missing"}\nH2: ${r.h2.slice(0,8).join(", ")||"none"}\nH3: ${r.h3.slice(0,6).join(", ")||"none"}\nHas CTA: ${r.has_cta}\nSocial: ${r.social.join(", ")||"none"}\nBody chars: ${r.char_count}`;
+  r.summary = `URL: ${r.url}\nTitle: ${r.title}\nDescription: ${r.desc}\nH1: ${r.h1.join(", ")||"missing"}\nH2: ${r.h2.slice(0,10).join(", ")||"none"}\nH3: ${r.h3.slice(0,8).join(", ")||"none"}\nInternal links: ${(allHrefs.filter(h => { try { return new URL(h, r.url).hostname === hostname; } catch(e) { return /^\//.test(h); } }).length)}\nHas CTA: ${r.has_cta}${r.cta_text ? " ("+r.cta_text+")" : ""}\nSocial: ${r.social.join(", ")||"none"}\nHas contacts: ${r.has_contacts}\nHas FAQ: ${r.has_faq}\nHas testimonials: ${r.has_testimonials}\nBody chars: ${r.char_count}`;
 
   return r;
 }
