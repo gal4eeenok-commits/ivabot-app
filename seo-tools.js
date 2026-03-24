@@ -1,5 +1,7 @@
+/* IvaBot seo-tools v77 — IIFE wrapped, unified chat style */
+(function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v76 loaded");
+console.log("[IvaBot] seo-tools.js v77 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -838,12 +840,12 @@ function IvaBotV6() {
     setTyping(true);
     setTimeout(() => {
       setTyping(false);
-      setMsgs([{ from: "bot", content: memberName ? `Hey, ${memberName}! Welcome to Core Audit.` : "Hey! Welcome to Core Audit.", id: Date.now() }]);
+      setMsgs([{ from: "bot", content: memberName ? `Hey, ${memberName}!` : "Hey!", id: Date.now() }]);
       setTyping(true);
     }, 1500);
     setTimeout(() => {
       setTyping(false);
-      setMsgs(p => [...p, { from: "bot", content: "I'll check your page for technical SEO, content structure, speed, mobile readiness, and more. You'll get clear, actionable recommendations.\n\nJust paste your URL below and I'll get started.", id: Date.now() + 1 }]);
+      setMsgs(p => [...p, { from: "bot", content: React.createElement("div", null, React.createElement("div", {style:{color:"#928E95",fontSize:12,marginBottom:8}}, "I'll check your page for technical SEO, content structure, speed, mobile readiness, and more. You'll get clear, actionable recommendations."), React.createElement("div", {style:{fontWeight:600}}, "Just paste your URL below and I'll get started.")), id: Date.now() + 1 }]);
     }, 4000);
   };
   const home = () => { setView("select"); setTool(null); setMsgs([]); setSR(false); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); };
@@ -962,15 +964,15 @@ function IvaBotV6() {
       setTimeout(() => {
         setTyping(false);
         addMsg("bot", <div>
-          <div style={{ marginBottom: 8 }}>Done! Your page scored <strong>{d.score}/100</strong>.</div>
-          <div style={{ marginBottom: 8 }}>{summary}</div>
-          {bad.length > 0 && <div style={{ marginBottom: 8 }}>If you fix the issues I found, your score could reach around <strong>{potential}/100</strong>.</div>}
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Done! Your page scored <strong>{d.score}/100</strong>.</div>
+          <div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>{summary}</div>
+          {bad.length > 0 && <div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>If you fix the issues I found, your score could reach around <strong style={{ color: C.dark }}>{potential}/100</strong>.</div>}
           <div style={{ color: C.muted, fontSize: 12 }}>{isMobile ? "Switch to the Report tab to see details." : "Check the report on the right for details."} Come back and re-audit once you've made changes — I'll track your progress.</div>
         </div>);
         setTimeout(() => { setTyping(true); }, 5000);
         setTimeout(() => {
           setTyping(false);
-          addMsg("bot", "If you have any questions, I'm ready to explain all the SEO details and help fix some of the issues on your page. Just ask!");
+          addMsg("bot", <div style={{ color: C.muted, fontSize: 12 }}>If you have any questions, I'm ready to explain all the SEO details and help fix some of the issues on your page. Just ask!</div>);
         }, 7000);
       }, 4500);
 
@@ -1196,3 +1198,4 @@ if (root) {
     ReactDOM.render(React.createElement(IvaBotV6), root);
   }
 }
+})();
