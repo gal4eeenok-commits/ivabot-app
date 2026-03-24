@@ -1,6 +1,6 @@
 /* IvaBot Content Coverage v2 — full audit with mock data, all fixes */
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v2 loaded");
+console.log("[IvaBot] content-coverage.js v4 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=true;
@@ -41,6 +41,9 @@ const MobileTab=({active,onSwitch,hasReport})=>{if(!hasReport)return null;return
 /* ═══ RANKINGS TABLE — 1:1 from Core Audit with QM tooltips ═══ */
 const fmtVol=(v)=>{if(!v)return"—";if(v>=1000000)return(v/1000000).toFixed(1).replace(/\.0$/,"")+"M";if(v>=1000)return(v/1000).toFixed(1).replace(/\.0$/,"")+"K";return v.toLocaleString();};
 const RankingsTable=({rows,emptyMsg})=>(<div className="iva-scroll-inner" style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6}}>—</span>}</td><td style={{textAlign:"right",padding:"10px 4px",color:C.dark,fontSize:12,whiteSpace:"nowrap"}}>{fmtVol(r.volume)}</td><td style={{textAlign:"right",padding:"10px 0",color:C.muted,fontSize:12,whiteSpace:"nowrap"}}>{r.difficulty!=null?r.difficulty:"—"}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
+
+/* Btn — same as Content Builder */
+const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 
 function valUrl(raw){let s=raw.trim();if(!s)return{ok:false,e:"Paste a URL to start."};const m=s.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/i);if(m)s=m[0];else{const d=s.match(/[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}[^\s]*/);if(d)s="https://"+d[0];else return{ok:false,e:"Need a URL like https://example.com"};}s=s.replace(/\s+/g,"");if(!s.startsWith("http"))s="https://"+s;try{const u=new URL(s);if(!u.hostname.includes("."))return{ok:false,e:"Not valid."};return{ok:true,url:u.href};}catch{return{ok:false,e:"Not valid."};}}
 
@@ -171,34 +174,13 @@ function buildRankingGaps(d){
 }
 
 /* ═══ REPORT ═══ */
-const CoverageReport=({data,niRef})=>{
+const CoverageReport=({data})=>{
   const{contentGood,contentBad,trustGood,trustBad}=buildCoverageResults(data);
-  const gaps=buildRankingGaps(data);
   const allBad=[...contentBad,...trustBad];
   const ukw=data.userKeywords||[];
 
-  const scrollToNI=()=>{if(niRef?.current)niRef.current.scrollIntoView({behavior:"smooth",block:"start"});};
-
   return(<div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px 16px"}}>
-    {/* Ranking Gaps */}
-    <div className="reveal" style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:16}}>
-      <div style={{flexShrink:0,marginTop:2}}><BL s={20}/></div>
-      <div style={{fontSize:13,color:C.dark,lineHeight:1.6}}>I found a few issues on your page. Not all of them are critical, but some may need your attention. Below you'll find detailed analysis and instructions on how to improve.<span style={{display:"block",marginTop:6,color:C.muted,fontSize:12}}>You can always ask me for help in the chat.</span></div>
-    </div>
-
-    {gaps.length>0&&<div className="reveal" style={{marginBottom:18,borderRadius:12,overflow:"hidden",border:`1px solid ${C.border}`,cursor:"pointer"}} onClick={scrollToNI}>
-      <div style={{padding:"14px 16px",background:C.accent,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14,fontWeight:700,color:"#fff"}}>Ranking Gaps</span><span style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.7)",background:"rgba(255,255,255,0.2)",padding:"2px 8px",borderRadius:10}}>{gaps.length}</span></div>
-        <QM text="These are the key issues that may be holding your page back from ranking higher. Click to scroll to detailed analysis below."/>
-      </div>
-      <div style={{padding:"12px 16px 16px",background:C.surface,display:"flex",flexDirection:"column",gap:6}}>
-        {gaps.map((g,i)=>(<div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.border}`}}>
-          <span style={{width:7,height:7,borderRadius:"50%",background:g.critical?C.accent:"#B89CF0",flexShrink:0,marginTop:5}}/>
-          <span style={{fontSize:12.5,color:C.dark,lineHeight:1.4}}>{g.text}</span>
-        </div>))}
-        <div style={{marginTop:4,fontSize:11,color:C.muted,textAlign:"center"}}>Click to scroll to details ↓</div>
-      </div>
-    </div>}
+    <BotNote text="Here's your full content coverage audit. I'll walk you through each part — what's working, what needs fixing, and exactly how to fix it."/>
 
     {/* Page Summary */}
     <BotNote text="This summary reflects how search engines are likely to interpret your page based on visible content, structure, and text signals."/>
@@ -235,7 +217,7 @@ const CoverageReport=({data,niRef})=>{
 
     {/* Content & Structure Needs Improvement */}
     <BotNote text={contentBad.length>0?`I found ${contentBad.length} content areas that need attention. Each card has a clear fix — tap to see what to do.`:"Your content structure looks great!"}/>
-    {contentBad.length>0&&<div ref={niRef} className="reveal" style={{marginBottom:20}}><Fold title="Content & Structure — Needs Improvement" count={contentBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff" open={true}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>{contentBad.map((p,i)=><ProblemCard key={i} {...p}/>)}</div></Fold></div>}
+    {contentBad.length>0&&<div className="reveal" style={{marginBottom:20}}><Fold title="Content & Structure — Needs Improvement" count={contentBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff" open={true}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>{contentBad.map((p,i)=><ProblemCard key={i} {...p}/>)}</div></Fold></div>}
 
     {/* Trust Working Well */}
     <BotNote text={trustGood.length>0?`${trustGood.length} trust signals are already in place — that's a solid foundation.`:"Let's check your trust and conversion signals."}/>
@@ -300,7 +282,6 @@ function ContentCoverage({onHome,memberName:mn}){
   const chatRef=useRef(null);
   const inputRef=useRef(null);
   const prevMsgCount=useRef(0);
-  const niRef=useRef(null);
 
   const scrollChat=useCallback(()=>{if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight;},[]);
   useEffect(()=>{if(msgs.length>prevMsgCount.current)setTimeout(scrollChat,50);prevMsgCount.current=msgs.length;},[msgs.length]);
@@ -310,11 +291,19 @@ function ContentCoverage({onHome,memberName:mn}){
   const add=(f,c)=>sMsgs(p=>[...p,{f,c,id:Date.now()+Math.random()}]);
   const bot=(c)=>add("b",c);
 
-  useEffect(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div>
-    <div style={{marginBottom:6}}>{mn?`Hey, ${mn}!`:"Hey!"} Welcome to Content Coverage Audit.</div>
-    <div style={{color:C.muted,fontSize:12,marginBottom:8}}>I'll check how well your page covers target keywords, how deep and structured your content is, and whether your trust signals are strong enough to convince both Google and visitors. By fixing the gaps I find, you'll improve this page's visibility in Google.</div>
-    <div style={{fontWeight:600}}>Paste the URL of the page you'd like to audit:</div>
-  </div>);setStep("url");},1500);},[]);
+  useEffect(()=>{
+    sTyp(true);
+    setTimeout(()=>{
+      sTyp(false);
+      add("b",mn?`Hey, ${mn}! Welcome to Content Coverage Audit.`:"Hey! Welcome to Content Coverage Audit.");
+      sTyp(true);
+    },1500);
+    setTimeout(()=>{
+      sTyp(false);
+      add("b","I'll check how well your page covers target keywords, how deep and structured your content is, and whether your trust signals are strong enough. By fixing the gaps I find, you'll improve this page's visibility in Google.\n\nJust paste your URL below and I'll get started.");
+      setStep("url");
+    },4000);
+  },[]);
 
   const runAudit=(url,keywords)=>{
     setSR(false);setAuditData(null);sPLoad("Analyzing your page...");setLS(0);
@@ -323,11 +312,8 @@ function ContentCoverage({onHome,memberName:mn}){
       const d={...MOCK,url,userKeywords:keywords};setAuditData(d);
       if(isMobile)sMTab("report");
       sTyp(true);setTimeout(()=>{sTyp(false);const gaps=buildRankingGaps(d);
-        bot(<div>
-          <div style={{marginBottom:8}}>Done! I found <strong>{gaps.length} issues</strong> on your page.</div>
-          <div style={{marginBottom:8}}>Not all of them are critical, but some may require your attention. Check the report {isMobile?"in the Report tab":"on the right"} for details.</div>
-          <div style={{color:C.muted,fontSize:12}}>Ask me anything if you need help understanding or fixing an issue.</div>
-        </div>);setStep("done");
+        bot("Done! I found "+gaps.length+" issues on your page. Not all of them are critical, but some may require your attention. Check the report "+(isMobile?"in the Report tab":"on the right")+" for details.\n\nAsk me anything if you need help understanding or fixing an issue.");
+        setStep("done");
       },1000);
     },STEPS.length*1200+800);
   };
@@ -343,13 +329,9 @@ function ContentCoverage({onHome,memberName:mn}){
         const kw=MOCK.keywords.map(k=>k.keyword||k);setExtractedKw(kw);
         bot(<div>
           <div style={{marginBottom:8}}>This summary reflects how search engines are likely to interpret your page based on visible content, structure, and text signals.</div>
-          <div style={{marginBottom:6,fontWeight:600}}>Primary search queries people might use to find your page:</div>
+          <div style={{marginBottom:6}}>Primary search queries people might use to find your page:</div>
           <div style={{marginBottom:10}}>{kw.map((k,i)=><div key={i} style={{fontSize:13,color:C.dark,padding:"2px 0"}}>• {k}</div>)}</div>
-          <div style={{marginBottom:6}}>If you want this page to rank highly for these keyword phrases, please confirm that they are relevant.</div>
-          <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-            <button onClick={()=>{add("u","Use these keywords");setUserKw(kw);setStep("running");runAudit(v.url,kw);}} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.borderMid}`,background:C.surface,color:C.dark,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}>Use These Keywords</button>
-            <button onClick={()=>{setStep("own_keywords");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Type your target keywords below:</div><div style={{color:C.muted,fontSize:12}}>Max 3 phrases, 2–3 words each, separated by commas.</div></div>);}} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.borderMid}`,background:C.surface,color:C.dark,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}>Write My Own</button>
-          </div>
+          <div>If you want this page to rank highly for these keyword phrases, please confirm that they are relevant.</div>
         </div>);
         setStep("keywords");
       },2500);
@@ -376,9 +358,10 @@ function ContentCoverage({onHome,memberName:mn}){
     {msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}
     {loadStep>=0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LBar step={loadStep} total={STEPS.length} text={STEPS[loadStep]}/></div>}
     {typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}
+    {step==="keywords"&&extractedKw&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Use These Keywords" onClick={()=>{add("u","Use these keywords");setUserKw(extractedKw);setStep("running");runAudit(pageUrl,extractedKw);}}/><Btn text="Write My Own" onClick={()=>{setStep("own_keywords");bot("Type your target keywords below. Max 3 phrases, 2–3 words each, separated by commas.");}}/></div>}
   </React.Fragment>;
 
-  const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:showR&&auditData?<div style={{animation:"fadeIn 0.5s ease",minHeight:"calc(100vh - 130px)"}}><CoverageReport data={auditData} niRef={niRef}/></div>:<CoveragePlaceholder/>}</React.Fragment>;
+  const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:showR&&auditData?<div style={{animation:"fadeIn 0.5s ease",minHeight:"calc(100vh - 130px)"}}><CoverageReport data={auditData}/></div>:<CoveragePlaceholder/>}</React.Fragment>;
   const placeholder=step==="url"?"Paste your URL here...":step==="own_keywords"?"Type your keywords separated by commas...":"Ask me anything about your coverage...";
   const inputDisabled=step==="keywords"||step==="parsing"||step==="running";
 
@@ -417,7 +400,7 @@ function ContentCoverage({onHome,memberName:mn}){
     </div>}
 
     {showR&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:isMobile?"8px 12px 16px":"8px 24px 16px",maxWidth:isMobile?"100%":1224,margin:"0 auto",width:"100%",alignItems:"center"}}>
-      <button onClick={()=>{setSR(false);sMsgs([]);setLS(-1);setAuditData(null);sPLoad(null);sMTab("chat");setStep("init");setExtractedKw(null);setUserKw(null);setPageUrl(null);sTyp(true);setTimeout(()=>{sTyp(false);add("b",<div><div style={{marginBottom:6}}>{mn?`Hey, ${mn}!`:"Hey!"} Let's audit another page.</div><div style={{fontWeight:600}}>Paste your URL below:</div></div>);setStep("url");},1000);}} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>New Audit</button>
+      <button onClick={()=>{setSR(false);sMsgs([]);setLS(-1);setAuditData(null);sPLoad(null);sMTab("chat");setStep("init");setExtractedKw(null);setUserKw(null);setPageUrl(null);sTyp(true);setTimeout(()=>{sTyp(false);add("b",mn?`Hey, ${mn}! Let's audit another page.\n\nPaste your URL below.`:"Hey! Let's audit another page.\n\nPaste your URL below.");setStep("url");},1000);}} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>New Audit</button>
       {!isMobile&&<button onClick={onHome} style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}>Try Other Tools</button>}
     </div>}
   </div>);
