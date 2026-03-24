@@ -607,6 +607,7 @@ const CoverageReport = ({ data }) => {
       const exKw = (data.extractedKeywords || []).map(k => (typeof k === "string" ? k : k.keyword || "").toLowerCase().trim());
       const usKw = ukw.map(k => k.toLowerCase().trim());
       const kwMatch = usKw.length > 0 && exKw.length === usKw.length && exKw.every(k => usKw.includes(k));
+      console.log("[CC] table merge:", { exKw, usKw, kwMatch });
 
       if (kwMatch) {
         return (<>
