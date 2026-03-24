@@ -644,8 +644,8 @@ function ContentCoverage({ onHome, memberName: mn }) {
 
   useEffect(() => {
     sTyp(true);
-    setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}! Welcome to Content Coverage Audit.` : "Hey! Welcome to Content Coverage Audit."); sTyp(true); }, 1500);
-    setTimeout(() => { sTyp(false); add("b", "I'll check how well your page covers target keywords, how deep and structured your content is, and whether your trust signals are strong enough. By fixing the gaps I find, you'll improve this page's visibility in Google.\n\nJust paste your URL below and I'll get started."); setStep("url"); }, 4000);
+    setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); }, 1500);
+    setTimeout(() => { sTyp(false); add("b", <div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>I'll check how well your page covers target keywords, how deep and structured your content is, and whether your trust signals are strong enough. By fixing the gaps I find, you'll improve this page's visibility in Google.</div><div style={{fontWeight:600}}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 4000);
   }, []);
 
   /* ═══ REAL AUDIT PIPELINE ═══ */
@@ -758,7 +758,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       sTyp(true);
       setTimeout(() => {
         sTyp(false);
-        bot("Done! I found " + gaps.length + " issues on your page. Not all of them are critical, but some may require your attention. Check the report " + (isMobile ? "in the Report tab" : "on the right") + " for details.\n\nAsk me anything if you need help understanding or fixing an issue.");
+        bot(<div><div style={{fontWeight:600,marginBottom:8}}>{"Done! I found " + gaps.length + " areas that need attention."}</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Each card has a clear fix — tap to see what to do. {isMobile ? "Switch to the Report tab" : "Check the report on the right"} for the full breakdown.</div><div style={{fontWeight:600}}>Ask me anything — I can explain any issue or help you fix it.</div></div>);
         setStep("done");
       }, 1000);
 
@@ -825,10 +825,11 @@ function ContentCoverage({ onHome, memberName: mn }) {
           setPageTopic(topic);
           sTyp(false);
           bot(<div>
-            <div style={{ marginBottom: 8 }}>This summary reflects how search engines are likely to interpret your page based on visible content, structure, and text signals.</div>
-            <div style={{ marginBottom: 6 }}>Primary search queries people might use to find your page:</div>
+            <div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content to understand what Google currently associates with it.</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div>
             <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div>
-            <div>If you want this page to rank highly for these keyword phrases, please confirm that they are relevant.</div>
+            <div style={{ color: C.muted, fontSize: 12, marginBottom: 6 }}>I'll use these keywords to deeply analyze your page — checking how well your content covers them, where they appear in your structure, and what's missing.</div>
+            <div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div>
           </div>);
           setStep("keywords");
         } catch (e) {
@@ -855,9 +856,9 @@ function ContentCoverage({ onHome, memberName: mn }) {
           setPendingKw(cleaned);
           sTyp(false);
           bot(<div>
-            <div style={{ marginBottom: 6 }}>Here are your keywords after cleanup:</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Here are your keywords after cleanup:</div>
             <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div>
-            <div>These are the exact phrases I'll search for on your page. Confirm or adjust.</div>
+            <div style={{ color: C.muted, fontSize: 12 }}>These are the exact phrases I'll search for on your page. Confirm or adjust.</div>
           </div>);
           setStep("confirm_own");
         } catch (e) {
@@ -865,9 +866,9 @@ function ContentCoverage({ onHome, memberName: mn }) {
           const fallback = text.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3);
           setPendingKw(fallback);
           bot(<div>
-            <div style={{ marginBottom: 6 }}>I'll use these keywords:</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>I'll use these keywords:</div>
             <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{fallback.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div>
-            <div>Confirm or adjust.</div>
+            <div style={{ color: C.muted, fontSize: 12 }}>Confirm or adjust.</div>
           </div>);
           setStep("confirm_own");
         }
@@ -890,9 +891,9 @@ function ContentCoverage({ onHome, memberName: mn }) {
           setPendingKw(cleaned);
           sTyp(false);
           bot(<div>
-            <div style={{ marginBottom: 6 }}>Updated keywords:</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Updated keywords:</div>
             <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div>
-            <div>Confirm or adjust again.</div>
+            <div style={{ color: C.muted, fontSize: 12 }}>Confirm or adjust again.</div>
           </div>);
           setStep("confirm_own");
         } catch (e) {
@@ -958,7 +959,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     </div>}
 
     {showR && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: isMobile ? "8px 12px 16px" : "8px 24px 16px", maxWidth: isMobile ? "100%" : 1224, margin: "0 auto", width: "100%", alignItems: "center" }}>
-      <button onClick={() => { setSR(false); sMsgs([]); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); setStep("init"); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setPageUrl(null); sTyp(true); setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}! Let's audit another page.\n\nPaste your URL below.` : "Hey! Let's audit another page.\n\nPaste your URL below."); setStep("url"); }, 1000); }} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Audit</button>
+      <button onClick={() => { setSR(false); sMsgs([]); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); setStep("init"); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setPageUrl(null); sTyp(true); setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); setTimeout(() => { sTyp(false); add("b", <div><div style={{fontWeight:600}}>Paste your URL below and I'll audit another page.</div></div>); setStep("url"); }, 1500); }, 1000); }} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Audit</button>
       <button id="export-coverage-pdf-btn" style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface} onClick={() => { const btn = document.getElementById("export-coverage-pdf-btn"); if (btn) { btn.innerHTML = "Coming soon..."; btn.style.color = C.muted; setTimeout(() => { btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF'; btn.style.color = C.dark; }, 2000); } }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
       {!isMobile && <button onClick={onHome} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>Try Other Tools</button>}
     </div>}
