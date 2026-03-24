@@ -827,7 +827,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           bot(<div>
             <div style={{ marginBottom: 8 }}>This summary reflects how search engines are likely to interpret your page based on visible content, structure, and text signals.</div>
             <div style={{ marginBottom: 6 }}>Primary search queries people might use to find your page:</div>
-            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.card, border: `1px solid ${C.cardBorder}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 13, fontWeight: 500, color: C.dark, padding: "3px 0" }}>• {k}</div>)}</div>
+            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div>
             <div>If you want this page to rank highly for these keyword phrases, please confirm that they are relevant.</div>
           </div>);
           setStep("keywords");
@@ -856,7 +856,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           sTyp(false);
           bot(<div>
             <div style={{ marginBottom: 6 }}>Here are your keywords after cleanup:</div>
-            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.card, border: `1px solid ${C.cardBorder}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 13, fontWeight: 500, color: C.dark, padding: "3px 0" }}>• {k}</div>)}</div>
+            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div>
             <div>These are the exact phrases I'll search for on your page. Confirm or adjust.</div>
           </div>);
           setStep("confirm_own");
@@ -866,7 +866,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           setPendingKw(fallback);
           bot(<div>
             <div style={{ marginBottom: 6 }}>I'll use these keywords:</div>
-            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.card, border: `1px solid ${C.cardBorder}` }}>{fallback.map((k, i) => <div key={i} style={{ fontSize: 13, fontWeight: 500, color: C.dark, padding: "3px 0" }}>• {k}</div>)}</div>
+            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{fallback.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div>
             <div>Confirm or adjust.</div>
           </div>);
           setStep("confirm_own");
@@ -891,7 +891,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           sTyp(false);
           bot(<div>
             <div style={{ marginBottom: 6 }}>Updated keywords:</div>
-            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.card, border: `1px solid ${C.cardBorder}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 13, fontWeight: 500, color: C.dark, padding: "3px 0" }}>• {k}</div>)}</div>
+            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div>
             <div>Confirm or adjust again.</div>
           </div>);
           setStep("confirm_own");
@@ -915,8 +915,8 @@ function ContentCoverage({ onHome, memberName: mn }) {
     {msgs.map((m, i) => m.f === "b" ? <div key={m.id} className={i < lastBotIdx ? "cb-past-msg" : undefined}><BB>{typeof m.c === "string" ? m.c.split("\n").map((line, j) => <span key={j}>{j > 0 && <br />}{line}</span>) : m.c}</BB></div> : <UB key={m.id} n={mn}>{m.c}</UB>)}
     {loadStep >= 0 && <div style={{ maxWidth: "95%", alignSelf: "flex-start" }}><LBar step={loadStep} total={STEPS.length} text={STEPS[loadStep]} /></div>}
     {typ && <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}><div style={{ marginBottom: 3, marginLeft: 2 }}><BL s={16} /></div><div style={{ padding: "10px 14px", borderRadius: "4px 12px 12px 12px", background: C.surface, border: `1px solid ${C.border}` }}><div className="typing-dots"><span /><span /><span /></div></div></div>}
-    {step === "keywords" && extractedKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Use These Keywords" primary onClick={() => { add("u", "Use these keywords"); setUserKw(extractedKw); setStep("running"); runAudit(pageUrl, extractedKw); }} /><Btn text="Write My Own" onClick={() => { setStep("own_keywords"); bot("Type your target keyword phrases below, separated by a comma.\n\nExample: coffee shop Berlin, espresso Berlin, best coffee place nearby"); }} /></div>}
-    {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" primary onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change — replace a keyword, add something, or describe what you're looking for."); }} /></div>}
+    {step === "keywords" && extractedKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Use These Keywords" onClick={() => { add("u", "Use these keywords"); setUserKw(extractedKw); setStep("running"); runAudit(pageUrl, extractedKw); }} /><Btn text="Write My Own" onClick={() => { setStep("own_keywords"); bot("Type your target keyword phrases below, separated by a comma.\n\nExample: coffee shop Berlin, espresso Berlin, best coffee place nearby"); }} /></div>}
+    {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change — replace a keyword, add something, or describe what you're looking for."); }} /></div>}
   </React.Fragment>;
 
   const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><CoverageReport data={auditData} /></div> : <CoveragePlaceholder />}</React.Fragment>;
