@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v5.5 — IIFE wrapped, unified style, score card, HL badges */
+/* IvaBot Content Coverage v5.6 — IIFE wrapped, unified style, score card, HL badges */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v5.5 loaded");
+console.log("[IvaBot] content-coverage.js v5.6 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -15,7 +15,7 @@ const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
 
 /* ═══ PRIMITIVES (1:1 from seo-tools.js) ═══ */
-const QM=({text})=>{const[s,ss]=useState(false);const r=useRef(null);return<span ref={r} style={{position:"relative",display:"inline-flex",alignItems:"center",verticalAlign:"middle"}} onMouseEnter={()=>ss(true)} onMouseLeave={()=>ss(false)} onClick={()=>ss(!s)}><span style={{width:16,height:16,borderRadius:"50%",border:`1px solid ${C.borderMid}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,cursor:"help",marginLeft:4,verticalAlign:"middle"}}>?</span>{s&&<span style={{position:"fixed",top:r.current?r.current.getBoundingClientRect().bottom+8:0,left:r.current?Math.min(r.current.getBoundingClientRect().left,window.innerWidth-270):8,background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:240,zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal"}}>{text}</span>}</span>;};
+const QM=({text})=>{const[s,ss]=useState(false);const r=useRef(null);return<span ref={r} style={{position:"relative",display:"inline-flex",alignItems:"center",verticalAlign:"middle"}} onMouseEnter={()=>ss(true)} onMouseLeave={()=>ss(false)}><span onClick={e=>{e.stopPropagation();ss(p=>!p);}} style={{width:16,height:16,borderRadius:"50%",border:`1px solid ${C.borderMid}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,cursor:"help",marginLeft:4,verticalAlign:"middle"}}>?</span>{s&&<span style={{position:"fixed",top:r.current?r.current.getBoundingClientRect().bottom+8:0,left:r.current?Math.min(r.current.getBoundingClientRect().left,window.innerWidth-270):8,background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:240,zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal"}}>{text}</span>}</span>;};
 const CopyBtn=({text})=>{const[c,setC]=useState(false);return(<button onClick={()=>{navigator.clipboard?.writeText(text);setC(true);setTimeout(()=>setC(false),1500);}} style={{fontSize:10,fontWeight:600,color:c?"#9B7AE6":C.accent,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"2px 6px"}}>{c?"Copied!":"Copy"}</button>);};
 const HoverCard=({children,style={}})=>(<div style={{borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,transition:"box-shadow 0.3s, border-color 0.3s",cursor:"default",...style}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.hoverBorder;e.currentTarget.style.boxShadow=C.hoverShadow;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}>{children}</div>);
 const SOCIAL_URLS={Facebook:"https://facebook.com",Instagram:"https://instagram.com",LinkedIn:"https://linkedin.com","X (Twitter)":"https://x.com",YouTube:"https://youtube.com",TikTok:"https://tiktok.com",Pinterest:"https://pinterest.com",Threads:"https://threads.net"};
@@ -48,7 +48,7 @@ const MobileTab=({active,onSwitch,hasReport})=>{if(!hasReport)return null;return
 const fmtVol=(v)=>{if(!v)return"—";if(v>=1000000)return(v/1000000).toFixed(1).replace(/\.0$/,"")+"M";if(v>=1000)return(v/1000).toFixed(1).replace(/\.0$/,"")+"K";return v.toLocaleString();};
 const NicheBadge=()=><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>&lt; 10</span>;
 const LowBadge=()=><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>low</span>;
-const RankingsTable=({rows,emptyMsg})=>(<div className="iva-scroll-inner" style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6}}>—</span>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}>{r.difficulty!=null?<span style={{color:C.muted,fontSize:12}}>{r.difficulty}</span>:<LowBadge/>}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
+const RankingsTable=({rows,emptyMsg})=>(<div className="iva-scroll-inner" style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflowX:"auto",WebkitOverflowScrolling:"touch"}}><table style={{width:"100%",minWidth:380,borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6}}>—</span>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}>{r.difficulty!=null?<span style={{color:C.muted,fontSize:12}}>{r.difficulty}</span>:<LowBadge/>}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
 
 const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 
@@ -602,12 +602,10 @@ const CoverageReport = ({ data }) => {
       <div className="iva-ctx-grid">{[{ l: "Page URL", v: data.url }, { l: "Page Title", v: data.title || "(no title)" }, { l: "Topic", v: data.ctx?.topic || "Unknown" }, { l: "Content Type", v: data.ctx?.content_type || "Page" }, { l: "Goal", v: data.ctx?.goal || "Inform" }, { l: "Industry", v: data.ctx?.industry || "General" }, { l: "Region", v: data.ctx?.region || "Global" }, { l: "Word Count", v: data.wordCount ? data.wordCount.toLocaleString() : "—" }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div></div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{data.ctx?.message || ""}</div></div></div>
     </div>
 
-    {/* Keywords — smart merge: one table if same, two if different */}
+    {/* Keywords — smart merge: one table if user accepted extracted, two if different */}
     {(() => {
-      const exKw = (data.extractedKeywords || []).map(k => (typeof k === "string" ? k : k.keyword || "").toLowerCase().trim());
-      const usKw = ukw.map(k => k.toLowerCase().trim());
-      const kwMatch = usKw.length > 0 && exKw.length === usKw.length && exKw.every(k => usKw.includes(k));
-      console.log("[CC] table merge:", { exKw, usKw, kwMatch });
+      const kwMatch = !!data.usedExtracted;
+      console.log("[CC] table merge:", { usedExtracted: data.usedExtracted, kwMatch });
 
       if (kwMatch) {
         return (<>
@@ -734,7 +732,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
   }, []);
 
   /* ═══ REAL AUDIT PIPELINE ═══ */
-  const runAudit = async (url, keywords) => {
+  const runAudit = async (url, keywords, usedExtracted = false) => {
     setSR(false); setAuditData(null); sPLoad("Analyzing your page..."); setLS(0);
     const setStepNum = (n) => setLS(prev => Math.max(prev, n));
 
@@ -856,6 +854,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         titleAnalysis,
         gptSuggestions,
         wordCount,
+        usedExtracted,
       };
 
       setLS(-1);
@@ -1028,7 +1027,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     {msgs.map((m, i) => m.f === "b" ? <div key={m.id} className={i < lastBotIdx ? "cb-past-msg" : undefined}><BB>{typeof m.c === "string" ? m.c.split("\n").map((line, j) => <span key={j}>{j > 0 && <br />}{line}</span>) : m.c}</BB></div> : <UB key={m.id} n={mn}>{m.c}</UB>)}
     {loadStep >= 0 && <div style={{ maxWidth: "95%", alignSelf: "flex-start" }}><LBar step={loadStep} total={STEPS.length} text={STEPS[loadStep]} /></div>}
     {typ && <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}><div style={{ marginBottom: 3, marginLeft: 2 }}><BL s={16} /></div><div style={{ padding: "10px 14px", borderRadius: "4px 12px 12px 12px", background: C.surface, border: `1px solid ${C.border}` }}><div className="typing-dots"><span /><span /><span /></div></div></div>}
-    {step === "keywords" && extractedKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Use These Keywords" onClick={() => { add("u", "Use these keywords"); setUserKw(extractedKw); setStep("running"); runAudit(pageUrl, extractedKw); }} /><Btn text="Write My Own" onClick={() => { setStep("own_keywords"); bot("Type your target keyword phrases below, separated by a comma.\n\nExample: coffee shop Berlin, espresso Berlin, best coffee place nearby"); }} /></div>}
+    {step === "keywords" && extractedKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Use These Keywords" onClick={() => { add("u", "Use these keywords"); setUserKw(extractedKw); setStep("running"); runAudit(pageUrl, extractedKw, true); }} /><Btn text="Write My Own" onClick={() => { setStep("own_keywords"); bot("Type your target keyword phrases below, separated by a comma.\n\nExample: coffee shop Berlin, espresso Berlin, best coffee place nearby"); }} /></div>}
     {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change — replace a keyword, add something, or describe what you're looking for."); }} /></div>}
   </React.Fragment>;
 
@@ -1067,7 +1066,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           </div>
         </div>
       </div>
-      <div style={{ display: mTab === "report" ? "block" : "none", background: C.surface, borderRadius: 12, border: `1px solid ${C.border}` }}>{panelContent}</div>
+      <div style={{ display: mTab === "report" ? "block" : "none", background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflowX: "hidden" }}>{panelContent}</div>
     </div>}
 
     {showR && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: isMobile ? "8px 12px 16px" : "8px 24px 16px", maxWidth: isMobile ? "100%" : 1224, margin: "0 auto", width: "100%", alignItems: "center" }}>
