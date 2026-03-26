@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v5.7 — IIFE wrapped, unified style, score card, HL badges */
+/* IvaBot Content Coverage v5.8 — IIFE wrapped, unified style, score card, HL badges */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v5.7 loaded");
+console.log("[IvaBot] content-coverage.js v5.8 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
