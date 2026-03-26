@@ -611,8 +611,8 @@ const CoverageReport = ({ data }) => {
 
     {/* Keywords — smart merge: one table if keywords match, two if different */}
     {(() => {
-      const exKw = (data.keywordMetrics || []).map(k => (k.keyword || "").toLowerCase().trim()).filter(Boolean);
-      const usKw = (data.userKeywordMetrics || []).map(k => (k.keyword || "").toLowerCase().trim()).filter(Boolean);
+      const exKw = (data.extractedKeywords || []).map(k => (typeof k === "string" ? k : k.keyword || "").toLowerCase().trim()).filter(Boolean);
+      const usKw = ukw.map(k => k.toLowerCase().trim()).filter(Boolean);
       const kwMatch = !!data.usedExtracted || (usKw.length > 0 && exKw.length > 0 && usKw.length === exKw.length && usKw.every(k => exKw.includes(k)));
       console.log("[CC] table merge:", { usedExtracted: data.usedExtracted, kwMatch, exKw, usKw });
 
@@ -772,6 +772,10 @@ function ContentCoverage({ onHome, memberName: mn }) {
       const extractedKeywords = gptData?.keywords || [parsed.primary_keyword].filter(Boolean);
       const finalKeywords = keywords.length > 0 ? keywords : extractedKeywords;
 
+      // Combine all unique keywords for a single DFS call
+      const allKwSet = new Set([...extractedKeywords, ...finalKeywords].map(k => k.toLowerCase().trim()));
+      const allKwUnique = [...allKwSet];
+
       // Step 3: Body keyword density
       setStepNum(3);
       const bodyEval = analyzeBodyDensity(parsed.body_text, finalKeywords);
@@ -783,14 +787,14 @@ function ContentCoverage({ onHome, memberName: mn }) {
         const dfsRes = await fetch(DFS_PROXY, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
-          body: JSON.stringify({ mode: "content_builder", keywords: finalKeywords.slice(0, 3), page_url: url })
+          body: JSON.stringify({ mode: "content_builder", keywords: allKwUnique.slice(0, 6), page_url: url })
         });
         if (dfsRes.ok) dfsData = await dfsRes.json();
         console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length}` : "failed");
       } catch (e) { console.log("[CC] DFS error:", e); }
 
-      // Build keyword metrics for table
-      const keywordMetrics = finalKeywords.map(kw => {
+      // Build keyword metrics — extracted keywords table
+      const keywordMetrics = extractedKeywords.map(kw => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
         return { keyword: kw, position: r?.position || null, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
