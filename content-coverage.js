@@ -15,7 +15,7 @@ const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
 
 /* ═══ PRIMITIVES (1:1 from seo-tools.js) ═══ */
-const Tip=({text,children})=>{const[s,setS]=useState(false);const ref=useRef(null);const[pos,setPos]=useState({above:true,alignRight:false});return(<span ref={ref} style={{position:"relative",display:"inline-flex",alignItems:"center"}} onMouseEnter={()=>{if(ref.current){const rect=ref.current.getBoundingClientRect();setPos({above:rect.top>160,alignRight:rect.left>window.innerWidth/2});}setS(true);}} onMouseLeave={()=>setS(false)}>{children}{s&&<span style={{position:"absolute",...(pos.above?{bottom:"calc(100% + 8px)"}:{top:"calc(100% + 8px)"}),...(pos.alignRight?{right:0}:{left:0}),background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:260,maxWidth:"85vw",zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal",wordBreak:"break-word",textAlign:"left"}}>{text}</span>}</span>);};
+const Tip=({text,children})=>{const[s,setS]=useState(false);const ref=useRef(null);const[pos,setPos]=useState({top:0,left:0,above:true});return(<span ref={ref} style={{position:"relative",display:"inline-flex",alignItems:"center"}} onMouseEnter={()=>{if(ref.current){const rect=ref.current.getBoundingClientRect();const above=rect.top>180;const left=Math.min(rect.left,window.innerWidth-270);setPos({top:above?rect.top-8:rect.bottom+8,left:Math.max(8,left),above});}setS(true);}} onMouseLeave={()=>setS(false)}>{children}{s&&<span style={{position:"fixed",top:pos.above?"auto":pos.top,bottom:pos.above?(window.innerHeight-pos.top):"auto",left:pos.left,background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:260,maxWidth:"85vw",zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal",wordBreak:"break-word",textAlign:"left"}}>{text}</span>}</span>);};
 const QM=({text})=>(<Tip text={text}><span style={{width:16,height:16,borderRadius:"50%",border:`1px solid ${C.borderMid}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,cursor:"help",marginLeft:4,flexShrink:0,verticalAlign:"top",position:"relative",top:-1}}>?</span></Tip>);
 const CopyBtn=({text})=>{const[c,setC]=useState(false);return(<button onClick={()=>{navigator.clipboard?.writeText(text);setC(true);setTimeout(()=>setC(false),1500);}} style={{fontSize:10,fontWeight:600,color:c?"#9B7AE6":C.accent,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"2px 6px"}}>{c?"Copied!":"Copy"}</button>);};
 const HoverCard=({children,style={}})=>(<div style={{borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,transition:"box-shadow 0.3s, border-color 0.3s",cursor:"default",...style}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.hoverBorder;e.currentTarget.style.boxShadow=C.hoverShadow;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}>{children}</div>);
@@ -312,6 +312,7 @@ function analyzeTitleDescHeadings(parsed, keywords) {
   result.h1 = {
     list: h1List, kwResults: h1KwResults,
     missing: h1List.length === 0,
+    tooLong: h1List.length > 0 && h1List[0].length > 80,
     matchesTitle: h1MatchesTitle,
     strong: h1HasExact,
     occurrences: h1KwResults.map(r => `• "${r.keyword}" — ${r.label === "exact" ? `found in H1` : r.label === "all_words" ? "all words present" : r.label === "some_words" ? "some words" : "not in H1"}`).join("\n"),
@@ -484,14 +485,19 @@ function buildCoverageResults(d) {
   const h1a = ha?.h1;
   const h2h3a = ha?.h2h3;
   if (h1a && h2h3a) {
-    const h1Ok = !h1a.missing && !h1a.matchesTitle && h1a.strong;
+    const h1Ok = !h1a.missing && !h1a.matchesTitle && !h1a.tooLong && h1a.strong;
     const h2h3Ok = h2h3a.h2Count > 0 && h2h3a.hasKeywords;
     if (h1Ok && h2h3Ok) {
       const h1 = d.h1, h2 = d.h2, h3 = d.h3;
       contentGood.push({ title: "Heading Structure", content: (<><InfoBlock label={`H1 — ${h1.length} found`} value={<HL tags={h1} lv="H1" />} borderColor={NB} /><InfoBlock label={`H2 — ${h2.length} found`} value={<HL tags={h2} lv="H2" />} borderColor={NB} />{h3.length > 0 && <InfoBlock label={`H3 — ${h3.length} found`} value={<HL tags={h3} lv="H3" />} borderColor={NB} />}<InfoBlock label="Keyword presence" value={h1a.occurrences} borderColor={NB} /><BotNote inline text="Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page." /></>) });
     } else {
-      if (h1a.missing || h1a.matchesTitle || !h1a.strong) {
-        const h1Why = h1a.missing ? "H1 is missing — this is your page's main heading. Google uses it to understand what the page is about." : h1a.matchesTitle ? "H1 is identical to the title — rewrite it to expand on the title while keeping your primary keyword." : "Your target keywords are not in the H1 heading.";
+      if (h1a.missing || h1a.matchesTitle || h1a.tooLong || !h1a.strong) {
+        const h1WhyParts = [];
+        if (h1a.missing) h1WhyParts.push("H1 is missing — this is your page's main heading. Google uses it to understand what the page is about.");
+        if (h1a.tooLong) h1WhyParts.push(`H1 is ${h1a.list[0]?.length || 0} characters — way too long. Keep H1 under 60–80 characters for best impact.`);
+        if (h1a.matchesTitle) h1WhyParts.push("H1 is identical to the title — rewrite it to expand on the title while keeping your primary keyword.");
+        if (!h1a.strong && !h1a.missing) h1WhyParts.push("Your target keywords are not in the H1 heading.");
+        const h1Why = h1WhyParts.join(" ");
         contentBad.push({ title: "H1 Needs Work", priority: "critical", currentLabel: "Current H1", current: d.h1.length > 0 ? <HL tags={d.h1} lv="H1" /> : "No H1 found", why: h1Why, suggestions: d.gptSuggestions?.suggested_h1?.length > 0 ? d.gptSuggestions.suggested_h1 : ["Add a unique H1 with your primary keyword", "Make it different from the title — expand on the topic"], showCopy: !!(d.gptSuggestions?.suggested_h1?.length > 0) });
       }
       if (h2h3a.h2Count === 0 || !h2h3a.hasKeywords) {
@@ -721,7 +727,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
   const scrollChat = useCallback(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, []);
   useEffect(() => { if (msgs.length > prevMsgCount.current) setTimeout(scrollChat, 50); prevMsgCount.current = msgs.length; }, [msgs.length]);
   useEffect(() => { if (typ) setTimeout(scrollChat, 50); }, [typ]);
-  useEffect(() => { if (!showR) return; const timer = setTimeout(() => { document.querySelectorAll(".reveal:not(.visible)").forEach((el, i) => { setTimeout(() => el.classList.add("visible"), i * 60); }); }, 150); return () => clearTimeout(timer); }, [showR, auditData, mTab]);
+  useEffect(() => { if (!showR) return; const timer = setTimeout(() => { document.querySelectorAll(".reveal:not(.visible)").forEach((el, i) => { setTimeout(() => el.classList.add("visible"), i * 60); }); }, 150); return () => clearTimeout(timer); }, [showR, auditData, mTab, isMobile]);
 
   const add = (f, c) => sMsgs(p => [...p, { f, c, id: Date.now() + Math.random() }]);
   const bot = (c) => add("b", c);
@@ -865,11 +871,12 @@ function ContentCoverage({ onHome, memberName: mn }) {
       if (isMobile) sMTab("report");
 
       // Summary chat message
-      const gaps = buildRankingGaps(reportData);
+      const { contentBad: cBad, trustBad: tBad } = buildCoverageResults(reportData);
+      const totalIssues = cBad.length + tBad.length;
       sTyp(true);
       setTimeout(() => {
         sTyp(false);
-        bot(<div><div style={{fontWeight:600,marginBottom:8}}>{"Done! I found " + gaps.length + " areas that need attention."}</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Each card has a clear fix — tap to see what to do. {isMobile ? "Switch to the Report tab" : "Check the report on the right"} for the full breakdown.</div><div style={{fontWeight:600}}>Ask me anything — I can explain any issue or help you fix it.</div></div>);
+        bot(<div><div style={{fontWeight:600,marginBottom:8}}>{"Done! I found " + totalIssues + " areas that need attention."}</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Each card has a clear fix — tap to see what to do. {isMobile ? "Switch to the Report tab" : "Check the report on the right"} for the full breakdown.</div><div style={{fontWeight:600}}>Ask me anything — I can explain any issue or help you fix it.</div></div>);
         setStep("done");
       }, 1000);
 
