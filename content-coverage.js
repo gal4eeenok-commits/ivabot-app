@@ -978,7 +978,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
             body: JSON.stringify({ step: "confirm_keywords", initial_keywords: extractedKw || [], user_feedback: cleanedInput, page_topic: pageTopic || "" })
           });
           const data = await res.json();
-          const cleaned = (data.keywords || cleanedInput.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3)).map(k => k.split(/\s+/).slice(0, 4).join(" "));
+          const cleaned = data.keywords || cleanedInput.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3);
           setPendingKw(cleaned);
           sTyp(false);
           bot(<div>
@@ -990,7 +990,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           setStep("confirm_own");
         } catch (e) {
           sTyp(false);
-          const fallback = cleanedInput.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3).map(k => k.split(/\s+/).slice(0, 4).join(" "));
+          const fallback = cleanedInput.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3);
           setPendingKw(fallback);
           bot(<div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>I'll use these keywords:</div>
