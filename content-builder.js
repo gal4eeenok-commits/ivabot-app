@@ -1,7 +1,7 @@
-/* IvaBot Content Builder v65 — QM tooltip fix + RevealBlock resize fix */
+/* IvaBot Content Builder v66 — keyword density fix + brand examples + v38 prompts */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v65 loaded");
+console.log("[IvaBot] content-builder.js v66 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
