@@ -710,11 +710,11 @@ const confirmTitle=async(val)=>{
     sStit(clean);confirmedTitleRef.current=clean;sAns(p=>({...p,ti:clean}));
     bot(<div><div style={{fontSize:12,color:C.muted,marginBottom:4}}>Your title:</div><div style={{padding:"10px 14px",borderRadius:8,border:"1px solid rgba(110,43,255,0.2)",background:"rgba(110,43,255,0.04)",fontSize:13,fontWeight:500,color:C.dark}}>{clean}</div></div>);
     setStep("me");
-    setTimeout(()=>{bot(<div><div style={{fontWeight:600,marginBottom:6}}>Last question — Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality and makes your content unique.</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients","Two friends started from a garage"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing to Add" onClick={()=>{add("u","Nothing special");sAns(p=>({...p,me:""}));mk("me");askConfirm();}}/></div></div>);},800);
+    setTimeout(()=>{bot(<div><div style={{fontWeight:600,marginBottom:6}}>Last question — Any personal details, stories, or brand values?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Names, background, mission — anything that adds personality and makes your content unique.</div><ExBox items={["Maria's Coffee — roasting beans in Portland since 2018","International kindergarten in Bucharest, nurturing kids since 2010","I'm Alex Rivera, designing for startups for 8 years"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing to Add" onClick={()=>{add("u","Nothing special");sAns(p=>({...p,me:""}));mk("me");askConfirm();}}/></div></div>);},800);
   } catch(e){
     sTyp(false);sStit(val);confirmedTitleRef.current=val;sAns(p=>({...p,ti:val}));
     setStep("me");
-    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><ExBox items={["Founded in 2020 by Maria","Family-owned bakery since 1995","10 years of experience in web design","We source only organic ingredients","Two friends started from a garage"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing to Add" onClick={()=>{add("u","Nothing special");sAns(p=>({...p,me:""}));mk("me");askConfirm();}}/></div></div>);
+    bot(<div><div style={{fontWeight:600,marginBottom:6}}>Any personal details, stories, or brand values?</div><ExBox items={["Maria's Coffee — roasting beans in Portland since 2018","International kindergarten in Bucharest, nurturing kids since 2010","I'm Alex Rivera, designing for startups for 8 years"]}/><div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Nothing to Add" onClick={()=>{add("u","Nothing special");sAns(p=>({...p,me:""}));mk("me");askConfirm();}}/></div></div>);
   }
 };
 
@@ -819,16 +819,15 @@ const gCnt=async()=>{
     const minWords=clMatch?parseInt(clMatch[1]):500;
     /* v58: Build keyword placement instructions for GPT */
     const kwPlacement=[];
+    /* Keyword density based on Typebot formula (chars→words): <140w=1x, 140-350w=2x, 350-700w=3x, 700-1000w=4x, 1200+=5x */
+    const priCount=minWords>=1200?5:minWords>=700?4:minWords>=350?3:2;
+    const secCount=minWords>=1200?3:minWords>=700?2:1;
     if(classifiedContent.primary){
       const pk=classifiedContent.primary.keyword;
-      if(minWords>=1200){
-        kwPlacement.push({keyword:pk,role:"primary",placement:"Insert 1 time in the intro paragraph and 1 time in the second half of the body."});
-      } else {
-        kwPlacement.push({keyword:pk,role:"primary",placement:"Insert 1 time in the intro paragraph."});
-      }
+      kwPlacement.push({keyword:pk,role:"primary",placement:`Insert this exact phrase ${priCount} times total: 1 time in the intro paragraph before H1, and ${priCount-1} more time(s) spread evenly across body paragraphs. Do NOT cluster them — space them out.`});
     }
     classifiedContent.secondary.forEach((k,i)=>{
-      kwPlacement.push({keyword:k.keyword,role:"secondary",placement:"Insert 1 time in any body paragraph in the "+(i===0?"first":"second")+" half of the content."});
+      kwPlacement.push({keyword:k.keyword,role:"secondary",placement:`Insert this exact phrase ${secCount} time(s) in body paragraphs in the ${i===0?"first":"second"} half of the content.`});
     });
     if(classifiedContent.supporting.length>0){
       kwPlacement.push({keywords:classifiedContent.supporting.map(k=>k.keyword),role:"supporting",placement:"Do NOT insert as exact phrases. Use only individual words from these keywords naturally throughout the text."});
