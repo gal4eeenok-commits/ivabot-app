@@ -164,7 +164,7 @@ const PAGE_TYPE_CONFIG = {
   },
   "about page": { 
     extraQ: "What's your brand story? Who's behind it?",
-    hints: ["Founded by Maria in 2020, started from home kitchen","Family bakery since 1995, three generations","Two friends started a tech company after college","Solo designer with 10 years of experience","Started as a hobby, now a full-time business"],
+    hints: ["Family bakery in Brooklyn, baking sourdough bread since 1995","I'm a wedding photographer based in London, 6 years of experience","We run a coworking space in Lisbon for digital nomads"],
     defaultLen: "700-1000 words", maxLen: 4000
   },
   "product page": {
