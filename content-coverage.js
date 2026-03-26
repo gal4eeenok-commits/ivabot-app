@@ -769,7 +769,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         console.log("[CC] GPT context:", gptData ? Object.keys(gptData) : "failed");
       } catch (e) { console.log("[CC] GPT error:", e); }
 
-      const extractedKeywords = gptData?.keywords || [parsed.primary_keyword].filter(Boolean);
+      const extractedKeywords = extractedKw || gptData?.keywords || [parsed.primary_keyword].filter(Boolean);
       const finalKeywords = keywords.length > 0 ? keywords : extractedKeywords;
 
       // Combine all unique keywords for a single DFS call
@@ -967,17 +967,18 @@ function ContentCoverage({ onHome, memberName: mn }) {
     }
 
     if (step === "own_keywords") {
-      // User typed their own keywords — send to GPT for cleaning
+      // User typed their own keywords — clean separators, send to GPT for cleaning
+      const cleanedInput = text.replace(/[•·\-–—|\/\\]/g, ",").replace(/,{2,}/g, ",");
       sTyp(true);
       (async () => {
         try {
           const res = await fetch(COVERAGE_GPT, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ step: "confirm_keywords", initial_keywords: extractedKw || [], user_feedback: text, page_topic: pageTopic || "" })
+            body: JSON.stringify({ step: "confirm_keywords", initial_keywords: extractedKw || [], user_feedback: cleanedInput, page_topic: pageTopic || "" })
           });
           const data = await res.json();
-          const cleaned = data.keywords || text.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3);
+          const cleaned = (data.keywords || cleanedInput.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3)).map(k => k.split(/\s+/).slice(0, 4).join(" "));
           setPendingKw(cleaned);
           sTyp(false);
           bot(<div>
@@ -989,7 +990,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           setStep("confirm_own");
         } catch (e) {
           sTyp(false);
-          const fallback = text.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3);
+          const fallback = cleanedInput.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3).map(k => k.split(/\s+/).slice(0, 4).join(" "));
           setPendingKw(fallback);
           bot(<div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>I'll use these keywords:</div>
