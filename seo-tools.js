@@ -863,6 +863,15 @@ function IvaBotV6() {
   const home = () => { setView("select"); setTool(null); setMsgs([]); setSR(false); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); };
 
   const runAudit = async (url) => {
+    /* Check credits before starting */
+    const coreCredits = await fetchCredits(memberId);
+    if (coreCredits.core <= 0) {
+      addMsg("bot", React.createElement("div", null,
+        React.createElement("div", {style:{marginBottom:6}}, "You've used all your Core Audit credits."),
+        React.createElement("div", {style:{color:"#928E95",fontSize:12}}, React.createElement("a", {href:"/dashboard#buy-credits", style:{color:"#6E2BFF",fontWeight:600,textDecoration:"underline"}}, "Buy more credits"), " to continue.")
+      ));
+      return;
+    }
     setSR(false); setAuditData(null); sPLoad("Analyzing your page...");
     setLS(0);
     const setStep = (s) => setLS(prev => Math.max(prev, s));
