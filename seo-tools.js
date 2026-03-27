@@ -368,10 +368,10 @@ const PACKS_AUDIT = [
   { n: "Audit Large", p: "67", desc: "For intensive SEO work and agencies.", items: [{ name: "Core Audit", num: 35 }, { name: "Content Coverage Audit", num: 45 }], link: STRIPE.large },
 ];
 const PACKS_COPY = [
-  { n: "Copywriter Mini", p: "7", desc: "Quick top-up for small tasks and testing.", items: [{ name: "Content Builder", num: 5 }, { name: "Content Coverage", num: 2 }], link: STRIPE.mini },
-  { n: "Copywriter Starter", p: "15", desc: "For regular content creation.", items: [{ name: "Content Builder", num: 10 }, { name: "Content Coverage", num: 5 }], link: STRIPE.starter },
-  { n: "Copywriter Medium", p: "32", desc: "For active content work and scaling.", items: [{ name: "Content Builder", num: 30 }, { name: "Content Coverage", num: 15 }], link: STRIPE.medium, primary: true },
-  { n: "Copywriter Large", p: "90", desc: "For intensive use and teams.", items: [{ name: "Content Builder", num: 100 }, { name: "Content Coverage", num: 50 }], link: STRIPE.large },
+  { n: "Copywriter Mini", p: "7", desc: "Quick top-up for small tasks and testing.", items: [{ name: "Content Builder", num: 5 }, { name: "Content Coverage Audit", num: 2 }], link: STRIPE.mini },
+  { n: "Copywriter Starter", p: "15", desc: "For regular content creation.", items: [{ name: "Content Builder", num: 10 }, { name: "Content Coverage Audit", num: 5 }], link: STRIPE.starter },
+  { n: "Copywriter Medium", p: "32", desc: "For active content work and scaling.", items: [{ name: "Content Builder", num: 30 }, { name: "Content Coverage Audit", num: 15 }], link: STRIPE.medium, primary: true },
+  { n: "Copywriter Large", p: "90", desc: "For intensive use and teams.", items: [{ name: "Content Builder", num: 100 }, { name: "Content Coverage Audit", num: 50 }], link: STRIPE.large },
 ];
 const BuyM = ({ onClose }) => { const [tab, setTab] = useState("audit"); const packs = tab === "audit" ? PACKS_AUDIT : PACKS_COPY; return (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }} onClick={onClose}><div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 18, padding: "28px 24px", maxWidth: 620, width: "95%", boxShadow: "0 24px 48px rgba(0,0,0,0.15)", maxHeight: "90vh", overflowY: "auto" }}>
   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>Buy Credits</span><button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 18 }}>✕</button></div>
@@ -773,19 +773,21 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
   </div>
   <BotNote text="Here's a summary of what to focus on. Fix these and your rankings will improve." />
   <div className="reveal" style={{ marginBottom: 8, padding: 20, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 12 }}>Final Recommendations</div><div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-    {bad.map((item, i) => (
+    {bad.map((item, i) => {
+      const pr=PRIO[item.priority]||PRIO.important;
+      return (
       <div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-          <span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: pr.color, flexShrink: 0, marginTop: 6 }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>{item.title}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{item.title}</span><span style={{fontSize:9,fontWeight:600,color:pr.color,background:pr.bg,padding:"3px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:"0.5px",flexShrink:0}}>{pr.label}</span></div>
             {item.why && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions?.[0] ? 6 : 0 }}>{item.why}</div>}
             {item.suggestions?.[0] && <div style={{ padding: "6px 10px", borderRadius: 6, background: C.bg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: item.links?.[0] ? 4 : 0 }}><div><div style={{ fontSize: 10, color: C.muted }}>Suggested:</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark }}>{item.suggestions[0]}</div></div>{item.showCopy !== false && <CopyBtn text={item.suggestions[0]} />}</div>}
             {item.links?.[0] && <a href={item.links[0].url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.accent, textDecoration: "none" }}>{item.links[0].label} →</a>}
           </div>
         </div>
       </div>
-    ))}
+    );})}
     <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${(data.backlinksCount == null || data.backlinksCount < 10) ? "rgba(110,43,255,0.25)" : C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>{data.backlinksCount != null && data.backlinksCount >= 10 ? "Keep building backlinks" : "Build quality backlinks — this is critical"}</div><div style={{ fontSize: 11.5, color: C.muted }}>{data.backlinksCount != null && data.backlinksCount < 10 ? `You currently have ${data.backlinksCount === 0 ? "no" : "only " + data.backlinksCount} backlink${data.backlinksCount !== 1 ? "s" : ""}. Backlinks are one of Google's top 3 ranking factors — without them, even perfect on-page SEO won't be enough. ` : ""}Reach out to industry blogs, directories, and publications. Offer guest posts, case studies, or resource mentions. Check the PR & Backlinks section above for specific opportunities.</div></div></div></div>
     <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Create useful content</div><div style={{ fontSize: 11.5, color: C.muted }}>Content that solves real problems for your users is the foundation of lasting SEO success.</div></div></div></div>
     <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Monitor with Google tools</div><div style={{ fontSize: 11.5, color: C.muted }}>Use <a href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer" style={{ color: C.accent, textDecoration: "none" }}>Search Console</a> and <a href="https://pagespeed.web.dev/" target="_blank" rel="noopener noreferrer" style={{ color: C.accent, textDecoration: "none" }}>PageSpeed Insights</a> to track improvements.</div></div></div></div>
@@ -1125,7 +1127,7 @@ function IvaBotV6() {
         <div style={{ flex: 1, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px", gap: 36, maxWidth: 780, width: "100%" }}>
             <div style={{ textAlign: "center" }}><div className="iva-seo-title" style={{ fontWeight: 400, color: C.dark, letterSpacing: "-0.2px", lineHeight: 1, marginBottom: 16, background: "linear-gradient(116deg, rgba(21,20,21,0.25) 8%, #151415 35%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>SEO Tools</div><p style={{ fontSize: 20, color: "rgba(21,20,21,0.5)", maxWidth: 460, margin: "0 auto", lineHeight: 1.1, letterSpacing: "-0.2px", fontWeight: 400 }}>Analyze pages, build content, and find gaps — powered by AI with real Google data.</p></div>
-            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} /><TCard title="Content Builder" desc="Keywords, SEO structure, and full page content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} /><TCard title="Coverage Audit" desc="Keyword gaps, topical depth, and trust signals. Chat with AI to explore improvements." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} /></div>
+            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} /><TCard title="Content Builder" desc="Keywords, SEO structure, and full page content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} /><TCard title="Content Coverage Audit" desc="Keyword gaps, topical depth, and trust signals. Chat with AI to explore improvements." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} /></div>
           </div>
         </div>
       ) : tool === "builder" && window.ContentBuilder ? (
