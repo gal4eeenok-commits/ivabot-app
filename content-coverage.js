@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v5.8 — IIFE wrapped, unified style, score card, HL badges */
+/* IvaBot Content Coverage v5.9 — IIFE wrapped, unified style, score card, HL badges, credit deduction */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v5.8 loaded");
+console.log("[IvaBot] content-coverage.js v5.9 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -10,6 +10,12 @@ const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const CORS_PROXY=SUPABASE_URL+"/functions/v1/fetch-page";
 const DFS_PROXY=SUPABASE_URL+"/functions/v1/dataforseo-proxy";
 const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
+
+/* ═══ MEMBER ID + CREDITS ═══ */
+function getMemberId(){if(window.__memberId)return window.__memberId;if(window._msData?.id)return window._msData.id;const el=document.querySelector('[data-ms-member-id]');if(el)return el.getAttribute('data-ms-member-id');try{const msKeys=Object.keys(localStorage).filter(k=>k.startsWith('_ms'));for(const k of msKeys){try{const v=JSON.parse(localStorage.getItem(k));if(v?.id&&v.id.startsWith('mem_'))return v.id;}catch(e){}}}catch(e){}try{if(window.$memberstackDom?._currentMember?.id)return window.$memberstackDom._currentMember.id;}catch(e){}return null;}
+async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{const res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});if(res.ok){const rows=await res.json();if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}return{ok:true};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
+async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify({p_member_id:memberId})});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
+async function recordCoverageRun(memberId,url){try{await fetch(`${SUPABASE_URL}/rest/v1/runs`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY,"Prefer":"return=minimal"},body:JSON.stringify({member_id:memberId,flow_type:"coverage",source_url:url,status:"success"})});console.log("[CC] run recorded");}catch(e){console.error("[CC] run record error:",e);}}
 
 /* ═══ COLORS (identical to Core Audit + CB) ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
@@ -742,6 +748,13 @@ function ContentCoverage({ onHome, memberName: mn }) {
 
   /* ═══ REAL AUDIT PIPELINE ═══ */
   const runAudit = async (url, keywords, usedExtracted = false) => {
+    /* Check credits before starting */
+    const mid = getMemberId();
+    const creditCheck = await checkCoverageCredits(mid);
+    if (!creditCheck.ok) {
+      bot(<div><div style={{marginBottom:6}}>You've used all your Content Coverage Audit credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
+      return;
+    }
     setSR(false); setAuditData(null); sPLoad("Analyzing your page..."); setLS(0);
     const setStepNum = (n) => setLS(prev => Math.max(prev, n));
 
@@ -876,6 +889,10 @@ function ContentCoverage({ onHome, memberName: mn }) {
       setAuditData(reportData);
       if (isMobile) sMTab("report");
 
+      /* Deduct 1 credit + record run */
+      try{const r=await trackCoverageUsage(mid);if(r&&r.success)console.log("[CC] credit deducted:",r.used+"/"+r.limit);}catch(e){}
+      try{await recordCoverageRun(mid,url);}catch(e){}
+
       // Summary chat message
       const { contentBad: cBad, trustBad: tBad } = buildCoverageResults(reportData);
       const totalIssues = cBad.length + tBad.length;
@@ -898,6 +915,9 @@ function ContentCoverage({ onHome, memberName: mn }) {
     sTyp(true);
     try {
       const d = auditData;
+      const chatMid = getMemberId();
+      const chatCredits = await checkCoverageCredits(chatMid);
+      const creditsLeft = chatCredits.ok ? (chatCredits.limit != null ? Math.max(0, (chatCredits.limit||0) - (chatCredits.used||0)) : null) : 0;
       const history = msgs.filter(m => typeof m.c === "string").slice(-10).map(m => `${m.f === "b" ? "IvaBot" : "User"}: ${m.c}`).join("\n");
       const res = await fetch(COVERAGE_GPT, {
         method: "POST",
@@ -907,7 +927,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           audit_context: `Page: ${d?.url}\nTitle: "${d?.title}"\nKeywords: ${(d?.extractedKeywords || []).join(", ")}\nBody status: ${d?.bodyEval?.status || "unknown"}\nTrust: contacts=${d?.trust?.contacts?.found}, socials=${d?.trust?.socials?.found}, faq=${d?.trust?.faq?.found}, cta=${d?.trust?.cta?.found}`,
           chat_history: history,
           question: text,
-          credits_left: credits?.coverage ?? null,
+          credits_left: creditsLeft,
         })
       });
       const raw = await res.json();
