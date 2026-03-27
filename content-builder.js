@@ -160,22 +160,22 @@ function isQuestion(text) { return text.trim().endsWith("?"); }
 const PAGE_TYPE_CONFIG = {
   "homepage": {
     extraQ: "What does your company do? Tell me a bit about your business.",
-    hints: ["We make handmade candles from organic wax","Digital marketing agency for small businesses","Online store for vintage furniture","Dog grooming salon in Brooklyn","Fitness coaching for women over 40"],
+    hints: ["We make handmade candles from organic wax \u2014 12 scents, gift sets, and subscription boxes. Selling online and at local markets in Austin since 2021","Digital marketing agency for small businesses \u2014 SEO, Google Ads, and social media management. Based in London, working with clients across Europe","Online store for vintage furniture \u2014 mid-century chairs, tables, and lighting. We restore and ship across the US"],
     defaultLen: "900-1200 words", maxLen: 5000
   },
   "about page": { 
     extraQ: "What's your brand story? Who's behind it?",
-    hints: ["Family bakery in Brooklyn, baking sourdough bread since 1995","I'm a wedding photographer based in London, 6 years of experience","We run a coworking space in Lisbon for digital nomads"],
+    hints: ["Family bakery in Brooklyn, baking sourdough bread since 1995. Three generations, all-natural ingredients, supplying 20+ local restaurants","I'm a wedding photographer based in London \u2014 6 years, 200+ weddings, editorial style with natural light. Shooting across the UK and Europe","We run a coworking space in Lisbon for digital nomads \u2014 80 desks, meeting rooms, rooftop terrace. Open since 2019, community of 300+ members"],
     defaultLen: "700-1000 words", maxLen: 4000
   },
   "product page": {
     extraQ: "Tell me about the product — what is it, what's special about it?",
-    hints: ["Red silk dress, XS to XL, handmade in Italy","Organic face cream, 50ml, for sensitive skin","Wooden phone stand, walnut, fits all phones","Kids rain boots, sizes 5-12, waterproof","Handmade leather wallet, minimalist design"],
+    hints: ["Organic face cream, 50ml, for sensitive skin \u2014 no parabens, no fragrance, dermatologist-tested. Made in small batches in our Berlin lab","Handmade leather wallet, minimalist design \u2014 6 card slots, RFID blocking, full-grain Italian leather. Comes in 4 colors with a gift box","Kids rain boots, sizes 5\u201312, waterproof \u2014 fun animal prints, non-slip sole, easy pull-on handles. Ships free across the US"],
     defaultLen: "500-800 words", maxLen: 3000
   },
   "service page": {
     extraQ: "What service do you offer? Where and how?",
-    hints: ["House cleaning in London, weekly or one-time","Wedding photography, Berlin area, from €800","Online English lessons for kids, group or private","Roof repair and installation, free estimate","Mobile car detailing, same-day service"],
+    hints: ["House cleaning in London \u2014 weekly, bi-weekly, or one-time deep clean. Eco-friendly products, insured team, same-day booking available","Wedding photography in Berlin area \u2014 packages from \u20AC800, 8 hours coverage, 300+ edited photos, second shooter included","Online English lessons for kids aged 5\u201312 \u2014 group or private, native speakers, interactive games, progress reports for parents"],
     defaultLen: "500-800 words", maxLen: 4000
   },
   "blog post": {
@@ -185,12 +185,12 @@ const PAGE_TYPE_CONFIG = {
   },
   "landing page": {
     extraQ: "What's the offer? What should visitors do?",
-    hints: ["Free trial of our project management app","50% off first order, limited time","Download our free SEO checklist PDF","Book a free 30-min consultation call","Sign up for our weekly newsletter"],
+    hints: ["Free 14-day trial of our project management app \u2014 no credit card required, unlimited projects, integrates with Slack and Google Drive","50% off first order of our organic meal kits \u2014 3 recipes per week, fresh ingredients delivered, takes 30 min to cook","Download our free SEO checklist \u2014 47-point audit, step-by-step guide, works for any website. Just enter your email"],
     defaultLen: "900-1200 words", maxLen: 4000
   },
   "category page": {
     extraQ: "What products are in this category? How is it organized?",
-    hints: ["Women's summer dresses, 50 items, by style","Coffee beans by origin, 20 varieties","Running shoes, men's, sorted by price","Handmade earrings, silver and gold","Organic skincare products by ingredient"],
+    hints: ["Women's summer dresses \u2014 50+ styles from casual to cocktail, sizes XS\u20133XL, sorted by occasion, price range $25\u2013$120","Coffee beans by origin \u2014 20 single-origin varieties from Ethiopia, Colombia, and Guatemala. Whole bean or ground, roasted weekly","Organic skincare products \u2014 cleansers, serums, and moisturizers sorted by skin type. All cruelty-free, no parabens, prices from $15"],
     defaultLen: "500-800 words", maxLen: 2000
   }
 };
@@ -1028,7 +1028,7 @@ const send=()=>{
     sAns(p=>({...p,pt:t}));mk("pt");
     const cfg=getPageConfig(t);
     if(cfg){setStep("ptx");bot(<div><div style={{fontWeight:600,marginBottom:6}}>{cfg.extraQ}</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This helps me find keywords people actually search for in Google.</div><ExBox items={cfg.hints}/></div>);}
-    else{setStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Tell me more about your page:</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>A short description helps me find the most relevant keywords.</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn","Travel blog about Southeast Asia","Online yoga classes for beginners","Pet grooming salon in London"]}/></div>);}
+    else{setStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Tell me more about your page:</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>A short description helps me find the most relevant keywords.</div><ExBox items={["Handmade wooden rings with resin inlays \u2014 made from walnut and epoxy, custom engraving available, selling on Etsy and at craft fairs","Vegan bakery in Brooklyn \u2014 cakes, cookies, and pastries, all plant-based, gluten-free options, open since 2020","Online yoga classes for beginners \u2014 live and recorded, 20\u201345 min sessions, focus on flexibility and stress relief"]}/></div>);}
     return;
   }
 
@@ -1037,7 +1037,7 @@ const send=()=>{
     if(t.length>15){
       setStep("pd");bot(<div>Got it! Anything else to add, or should I find keywords?<div style={{display:"flex",gap:8,marginTop:6}}><Btn text="Find Keywords" onClick={()=>{sAns(p=>({...p,pd:t}));startKwGeneration(t);}}/></div></div>);
     } else {
-      setStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays","Vegan bakery in Brooklyn","Travel blog about Southeast Asia","Online yoga classes for beginners","Pet grooming salon in London"]}/></div>);
+      setStep("pd");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Describe your page briefly:</div><ExBox items={["Handmade wooden rings with resin inlays \u2014 made from walnut and epoxy, custom engraving available, selling on Etsy and at craft fairs","Vegan bakery in Brooklyn \u2014 cakes, cookies, and pastries, all plant-based, gluten-free options, open since 2020","Online yoga classes for beginners \u2014 live and recorded, 20\u201345 min sessions, focus on flexibility and stress relief"]}/></div>);
     }
     return;
   }
