@@ -832,7 +832,7 @@ function IvaBotV6() {
       });
     }, 150);
     return () => clearTimeout(timer);
-  }, [showR, auditData]);
+  }, [showR, auditData, mTab, isMobile]);
 
   /* Sticky fix — CSS override instead of JS DOM manipulation to prevent layout jumping */
   /* The actual override is in the <style> tag below: .iva-root gets overflow:visible!important when in chat view */
