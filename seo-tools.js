@@ -311,10 +311,17 @@ function buildReportData(parsed, gpt, dfs) {
     competitors: (() => {
       const gptComps = gpt?.competitors || [];
       if (serpCompetitors.length > 0) {
-        return serpCompetitors.map((sc, i) => {
+        const merged = serpCompetitors.map((sc, i) => {
           const gptMatch = gptComps.find(gc => sc.name.includes(gc.name) || gc.name.includes(sc.name.replace(/^www\./, "")));
           return { ...sc, tactics: gptMatch?.tactics || gptComps[i]?.tactics || "" };
         });
+        /* If DFS returned fewer than 3, fill remaining from GPT */
+        if (merged.length < 3) {
+          const existingNames = new Set(merged.map(c => (c.name || "").toLowerCase().replace(/^www\./, "")));
+          const remaining = gptComps.filter(gc => !existingNames.has((gc.name || "").toLowerCase().replace(/^www\./, "")));
+          remaining.slice(0, 3 - merged.length).forEach(gc => merged.push(gc));
+        }
+        return merged;
       }
       return gptComps.length > 0 ? gptComps : [{ name: "competitor1.com", tactics: "Strong content strategy" }, { name: "competitor2.com", tactics: "Good backlink profile" }, { name: "competitor3.com", tactics: "Fast page speed" }];
     })(),
