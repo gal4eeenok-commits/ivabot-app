@@ -732,6 +732,13 @@ const askConfirm=()=>{
 
 /* ═══ GENERATE STRUCTURE ═══ */
 const gStr=async()=>{
+  /* Check credits before generating structure */
+  const memberId=getMemberId();
+  const creditCheck=await checkBuilderCredits(memberId);
+  if(!creditCheck.ok){
+    bot(<div><div style={{marginBottom:6}}>You've used all your Content Builder credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue building content. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
+    return;
+  }
   mk("cf");setStep("sl");
   window.scrollTo({top:0,behavior:"smooth"});
   sPLoad("Building SEO structure...");startLoading(LST);sTyp(true);
@@ -774,20 +781,24 @@ const gStr=async()=>{
     }
     sBd(briefData);sRp("br");sPLoad(null);stopLoading();sTyp(false);setStep("sr");
     if(isMobile)sMTab("panel");
+    /* Deduct 1 credit after successful structure generation */
+    try{const r=await trackBuilderUsage(memberId);if(r&&r.success)console.log("[CB] credit deducted:",r.used+"/"+r.limit);}catch(e){}
+    try{
+      const title=confirmedTitleRef.current||briefData?.title||"Content Builder";
+      await fetch("https://empuzslozakbicmenxfo.supabase.co/rest/v1/rpc/insert_cb_run",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},
+        body:JSON.stringify({p_member_id:memberId,p_title:title})
+      });
+      console.log("[CB] run recorded");
+    }catch(e){console.error("[CB] run record error:",e);}
     bot(<div><div style={{marginBottom:6}}>Your SEO structure is ready! {isMobile?"Switch to the Brief tab.":"Check the brief on the right."}</div><div style={{marginBottom:6}}>I recommend <strong>{briefData.contentLength}</strong> for this page.</div><div style={{color:C.muted,fontSize:12}}>You can ask me to edit the structure, or click "Generate Content" when ready.</div></div>);
   } catch(err){console.error("[CB] gStr error:",err);stopLoading();sTyp(false);sPLoad(null);bot("Something went wrong. Please try again.");}
 };
 
 /* ═══ GENERATE CONTENT ═══ */
 const gCnt=async()=>{
-  /* Check credits first */
   const memberId=getMemberId();
-  console.log("[CB] gCnt memberId:", memberId);
-  const creditCheck=await checkBuilderCredits(memberId);
-  if(!creditCheck.ok){
-    bot(<div><div style={{marginBottom:6}}>You've used all your Content Builder credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue building content.</div></div>);
-    return;
-  }
   setStep("cl");add("b",<div style={{color:C.muted,fontSize:12}}>Researching and writing content...</div>);
   window.scrollTo({top:0,behavior:"smooth"});sPLoad("Writing your content...");startLoading(LCN);sTyp(true);
   try {
@@ -930,18 +941,6 @@ const gCnt=async()=>{
       }catch(spamErr){console.log("[CB] spam check error (non-blocking):",spamErr);}
     }
     sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);setStep("cr");
-    /* Deduct 1 credit after successful generation */
-    try{const r=await trackBuilderUsage(memberId);if(r&&r.success)console.log("[CB] credit deducted:",r.used+"/"+r.limit);}catch(e){}
-    /* Record run in runs table for Launch History */
-    try{
-      const title=confirmedTitleRef.current||bd?.title||"Content Builder";
-      await fetch("https://empuzslozakbicmenxfo.supabase.co/rest/v1/rpc/insert_cb_run",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},
-        body:JSON.stringify({p_member_id:memberId,p_title:title})
-      });
-      console.log("[CB] run recorded");
-    }catch(e){console.error("[CB] run record error:",e);}
     if(isMobile)sMTab("panel");
     bot(<div><div style={{marginBottom:6}}>Your full content is ready!</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>I slightly adjusted some headings to distribute your keywords evenly across the page — this helps with SEO.</div><div style={{color:C.muted,fontSize:12}}>Want changes? Just describe what to fix.</div></div>);
   } catch(err){console.error("[CB] gCnt error:",err);stopLoading();sTyp(false);sPLoad(null);bot("Something went wrong. Please try again.");}
