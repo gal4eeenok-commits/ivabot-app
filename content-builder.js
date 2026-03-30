@@ -108,49 +108,46 @@ async function trackBuilderUsage(memberId) {
 
 /* Check if user has credits before starting */
 async function checkBuilderCredits(memberId) {
-  if (!memberId) return { ok: true }; /* allow if no member ID */
+  if (!memberId) return { ok: true };
   try {
-    const res = await fetch(`https://empuzslozakbicmenxfo.supabase.co/rest/v1/usage?member_id=eq.${memberId}&select=builder_used,builder_limit`, {
+    /* Try user_id first (Supabase Auth UUID), then member_id */
+    let res = await fetch(`https://empuzslozakbicmenxfo.supabase.co/rest/v1/usage?user_id=eq.${memberId}&select=builder_used,builder_limit`, {
       headers: { "Authorization": "Bearer " + SUPABASE_KEY, "apikey": SUPABASE_KEY }
     });
-    if (res.ok) {
-      const rows = await res.json();
-      if (rows.length === 0) return { ok: true }; /* new user */
-      const { builder_used, builder_limit } = rows[0];
-      if (builder_limit && builder_limit > 0 && builder_used >= builder_limit) {
-        return { ok: false, used: builder_used, limit: builder_limit };
-      }
-      return { ok: true, used: builder_used, limit: builder_limit };
+    let rows = res.ok ? await res.json() : [];
+    if (rows.length === 0) {
+      res = await fetch(`https://empuzslozakbicmenxfo.supabase.co/rest/v1/usage?member_id=eq.${memberId}&select=builder_used,builder_limit`, {
+        headers: { "Authorization": "Bearer " + SUPABASE_KEY, "apikey": SUPABASE_KEY }
+      });
+      rows = res.ok ? await res.json() : [];
     }
-    return { ok: true };
+    if (rows.length === 0) return { ok: true };
+    const { builder_used, builder_limit } = rows[0];
+    if (builder_limit && builder_limit > 0 && builder_used >= builder_limit) {
+      return { ok: false, used: builder_used, limit: builder_limit };
+    }
+    return { ok: true, used: builder_used, limit: builder_limit };
   } catch(e) {
     console.error("[CB] checkCredits error:", e);
-    return { ok: true }; /* allow on error */
+    return { ok: true };
   }
 }
 
-/* Get member ID from any available source */
+/* Get user ID from any available source — Supabase Auth */
 function getMemberId() {
-  /* Try direct globals first */
+  /* Try direct globals first (set by Dashboard or seo-tools.js) */
   if (window.__memberId) return window.__memberId;
-  if (window._msData?.id) return window._msData.id;
-  /* Try Memberstack DOM data attribute */
-  const msEl = document.querySelector('[data-ms-member-id]');
-  if (msEl) return msEl.getAttribute('data-ms-member-id');
-  /* Try localStorage where Memberstack stores session */
+  if (window.__userId) return window.__userId;
+  /* Try Supabase Auth session (sync check) */
   try {
-    const msKeys = Object.keys(localStorage).filter(k => k.startsWith('_ms'));
-    for (const k of msKeys) {
-      try {
-        const v = JSON.parse(localStorage.getItem(k));
-        if (v?.id && v.id.startsWith('mem_')) return v.id;
-      } catch(e) {}
+    const sb = window.__supabase;
+    if (sb) {
+      const key = Object.keys(localStorage).find(k => k.includes('auth-token'));
+      if (key) {
+        const data = JSON.parse(localStorage.getItem(key));
+        if (data?.user?.id) return data.user.id;
+      }
     }
-  } catch(e) {}
-  /* Try window.$memberstackDom */
-  try {
-    const msdom = window.$memberstackDom;
-    if (msdom && msdom._currentMember?.id) return msdom._currentMember.id;
   } catch(e) {}
   return null;
 }
