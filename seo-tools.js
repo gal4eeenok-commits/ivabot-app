@@ -129,16 +129,35 @@ const CORS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/fetch-
 const SUPABASE_URL = "https://empuzslozakbicmenxfo.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
 
-/* Get Memberstack member — waits for Memberstack to load */
+/* Get user info — Supabase Auth (with fallback to window globals set by Dashboard) */
 function getMemberInfo() {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
+    /* Try window globals first (set by Dashboard Dash 12) */
+    if (window.__memberId) {
+      resolve({ id: window.__memberId, name: window.__memberFirst || null });
+      return;
+    }
+    /* Try Supabase Auth session */
+    try {
+      const SURL = "https://empuzslozakbicmenxfo.supabase.co";
+      const SKEY = SUPABASE_KEY;
+      if (window.__supabase) {
+        const { data: { session } } = await window.__supabase.auth.getSession();
+        if (session?.user) {
+          const u = session.user;
+          window.__memberId = u.id;
+          window.__userId = u.id;
+          resolve({ id: u.id, name: u.user_metadata?.first_name || null });
+          return;
+        }
+      }
+    } catch(e) {}
+    /* Wait for globals to appear (Dashboard may still be loading) */
     let attempts = 0;
     function check() {
       attempts++;
-      if (window.$memberstackDom) {
-        window.$memberstackDom.getCurrentMember().then(({ data }) => {
-          resolve({ id: data?.id || null, name: data?.customFields?.["first-name"] || data?.customFields?.name || null });
-        }).catch(() => resolve({ id: null, name: null }));
+      if (window.__memberId) {
+        resolve({ id: window.__memberId, name: window.__memberFirst || null });
       } else if (attempts < 30) {
         setTimeout(check, 200);
       } else {
@@ -149,23 +168,29 @@ function getMemberInfo() {
   });
 }
 
-/* Fetch credits from Supabase */
-async function fetchCredits(memberId) {
-  if (!memberId) return { core: 0, builder: 0, coverage: 0 };
+/* Fetch credits from Supabase — lookup by user_id first, then member_id */
+async function fetchCredits(userId) {
+  if (!userId) return { core: 0, builder: 0, coverage: 0 };
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=*`, {
+    /* Try user_id (UUID from Supabase Auth) */
+    let res = await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${userId}&select=*`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
     });
-    if (res.ok) {
-      const rows = await res.json();
-      if (rows.length > 0) {
-        const u = rows[0];
-        return {
-          core: Math.max(0, (u.core_limit || 0) - (u.core_used || 0)),
-          builder: Math.max(0, (u.builder_limit || 0) - (u.builder_used || 0)),
-          coverage: Math.max(0, (u.coverage_limit || 0) - (u.coverage_used || 0))
-        };
-      }
+    let rows = res.ok ? await res.json() : [];
+    /* Fallback to member_id for backward compat */
+    if (rows.length === 0) {
+      res = await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${userId}&select=*`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+      rows = res.ok ? await res.json() : [];
+    }
+    if (rows.length > 0) {
+      const u = rows[0];
+      return {
+        core: Math.max(0, (u.core_limit || 0) - (u.core_used || 0)),
+        builder: Math.max(0, (u.builder_limit || 0) - (u.builder_used || 0)),
+        coverage: Math.max(0, (u.coverage_limit || 0) - (u.coverage_used || 0))
+      };
     }
   } catch(e) { console.log("Credits fetch error:", e); }
   return { core: 0, builder: 0, coverage: 0 };
@@ -394,8 +419,8 @@ const PaymentToast = () => {
     }
   }, []);
   if (!show) return null;
-  return (<div style={{ position: "fixed", top: 24, left: "50%", transform: "translateX(-50%)", zIndex: 300, width: "95%", maxWidth: 440, animation: "fadeIn 0.3s ease", fontFamily: "'DM Sans',sans-serif" }}>
-    <div style={{ background: C.surface, border: "1px solid rgba(110,43,255,0.15)", borderRadius: 12, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 8px 24px rgba(110,43,255,0.08)" }}>
+  return (<div style={{ position: "fixed", top: 24, left: 0, right: 0, zIndex: 300, display: "flex", justifyContent: "center", pointerEvents: "none", fontFamily: "'DM Sans',sans-serif" }}>
+    <div style={{ width: "95%", maxWidth: 440, animation: "fadeIn 0.3s ease", pointerEvents: "auto", background: C.surface, border: "1px solid rgba(110,43,255,0.15)", borderRadius: 12, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 8px 24px rgba(110,43,255,0.08)" }}>
       <div style={{ width: 36, height: 36, borderRadius: 10, background: C.card, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
@@ -704,11 +729,11 @@ async function generatePDF(data) {
 
   try {
     const pdfBlob = doc.output("blob");
-    let memberId = window.__memberId;
-    if (!memberId && window.$memberstackDom) {
+    let memberId = window.__memberId || window.__userId;
+    if (!memberId && window.__supabase) {
       try {
-        const msRes = await window.$memberstackDom.getCurrentMember();
-        memberId = msRes?.data?.id;
+        const { data: { session } } = await window.__supabase.auth.getSession();
+        memberId = session?.user?.id;
       } catch(me) {}
     }
     if (memberId && pdfBlob) {
@@ -1164,7 +1189,7 @@ function IvaBotV6() {
       <nav className="iva-nav" style={{ display: "flex", justifyContent: "center", background: "transparent", flexShrink: 0, zIndex: 100, height: 84, paddingTop: 24 }}>
         <div style={{ width: "100%", maxWidth: 1224, padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <a href="https://ivabot.xyz" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textDecoration: "none" }}><svg width="33" height="29" viewBox="0 0 66 58" fill="none"><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill={C.accent} /><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill={C.accent} /></svg><span style={{ fontSize: 17, fontWeight: 700, color: C.dark, letterSpacing: "-0.02em" }}>IvaBot</span></a>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}><a href="https://ivabot.xyz/dashboard" style={{ fontSize: 14, fontWeight: 500, color: C.dark, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Dashboard</a><button onClick={() => setSB(true)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: C.dark, background: "rgba(255,255,255,0.43)", border: "1px solid rgba(21,20,21,0.16)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "-0.3px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#fff"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.43)"}>Buy Credits</button><a href="https://ivabot.xyz/" data-ms-action="logout" style={{ fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log out</a></div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}><a href="https://ivabot.xyz/dashboard" style={{ fontSize: 14, fontWeight: 500, color: C.dark, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Dashboard</a><button onClick={() => setSB(true)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: C.dark, background: "rgba(255,255,255,0.43)", border: "1px solid rgba(21,20,21,0.16)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "-0.3px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#fff"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.43)"}>Buy Credits</button><a href="/login" onClick={async (e) => { e.preventDefault(); if (window.__supabase) await window.__supabase.auth.signOut(); window.location.href = "/login"; }} style={{ fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log out</a></div>
         </div>
       </nav>
 
