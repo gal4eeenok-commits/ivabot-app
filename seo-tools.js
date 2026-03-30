@@ -137,10 +137,19 @@ function getMemberInfo() {
       resolve({ id: window.__memberId, name: window.__memberFirst || null });
       return;
     }
-    /* Try Supabase Auth session */
+    /* Load Supabase SDK if not present and check auth session */
     try {
-      const SURL = "https://empuzslozakbicmenxfo.supabase.co";
-      const SKEY = SUPABASE_KEY;
+      if (!window.supabase) {
+        await new Promise((res, rej) => {
+          const s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+      if (!window.__supabase && window.supabase) {
+        window.__supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      }
       if (window.__supabase) {
         const { data: { session } } = await window.__supabase.auth.getSession();
         if (session?.user) {
@@ -151,7 +160,7 @@ function getMemberInfo() {
           return;
         }
       }
-    } catch(e) {}
+    } catch(e) { console.log("[IvaBot] Auth check error:", e); }
     /* Wait for globals to appear (Dashboard may still be loading) */
     let attempts = 0;
     function check() {
