@@ -12,8 +12,8 @@ const DFS_PROXY=SUPABASE_URL+"/functions/v1/dataforseo-proxy";
 const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 
 /* ═══ MEMBER ID + CREDITS ═══ */
-function getMemberId(){if(window.__memberId)return window.__memberId;if(window._msData?.id)return window._msData.id;const el=document.querySelector('[data-ms-member-id]');if(el)return el.getAttribute('data-ms-member-id');try{const msKeys=Object.keys(localStorage).filter(k=>k.startsWith('_ms'));for(const k of msKeys){try{const v=JSON.parse(localStorage.getItem(k));if(v?.id&&v.id.startsWith('mem_'))return v.id;}catch(e){}}}catch(e){}try{if(window.$memberstackDom?._currentMember?.id)return window.$memberstackDom._currentMember.id;}catch(e){}return null;}
-async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{const res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});if(res.ok){const rows=await res.json();if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}return{ok:true};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
+function getMemberId(){if(window.__memberId)return window.__memberId;if(window.__userId)return window.__userId;try{const sb=window.__supabase;if(sb){const key=Object.keys(localStorage).find(k=>k.includes('auth-token'));if(key){const data=JSON.parse(localStorage.getItem(key));if(data?.user?.id)return data.user.id;}}}catch(e){}return null;}
+async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{let res=await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});let rows=res.ok?await res.json():[];if(rows.length===0){res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});rows=res.ok?await res.json():[];}if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
 async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify({p_member_id:memberId})});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
 async function recordCoverageRun(memberId,url){try{await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify({p_member_id:memberId,p_source_url:url||null})});console.log("[CC] run recorded");}catch(e){console.error("[CC] run record error:",e);}}
 
@@ -1057,13 +1057,18 @@ function ContentCoverage({ onHome, memberName: mn }) {
       if (v.ok) {
         (async () => {
           try {
-            const info = await window.$memberstackDom?.getCurrentMember();
-            const mid = info?.data?.id;
+            const mid = getMemberId();
             if (!mid) { bot("Could not verify your account. Please refresh and try again."); return; }
-            const uRes = await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${mid}&select=*`, {
+            let uRes = await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${mid}&select=*`, {
               headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
             });
-            const rows = uRes.ok ? await uRes.json() : [];
+            let rows = uRes.ok ? await uRes.json() : [];
+            if (rows.length === 0) {
+              uRes = await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${mid}&select=*`, {
+                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+              });
+              rows = uRes.ok ? await uRes.json() : [];
+            }
             const u = rows[0] || {};
             const left = Math.max(0, (u.coverage_limit || 0) - (u.coverage_used || 0));
             if (left <= 0) {
