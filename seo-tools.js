@@ -1,4 +1,4 @@
-/* IvaBot seo-tools v79 — payment toast after Stripe redirect */
+/* IvaBot seo-tools v80 — universal checkout, URL routing, 3-tab pricing */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] seo-tools.js v79 loaded");
@@ -10,7 +10,36 @@ const C = {
   card: "#F0EAFF", cardBorder: "rgba(110,43,255,0.08)", numBg: "#6E2BFF",
   hoverBorder: "rgba(110,43,255,0.2)", hoverShadow: "0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)",
 };
-const STRIPE = { mini: "https://buy.stripe.com/test_mini", starter: "https://buy.stripe.com/test_starter", medium: "https://buy.stripe.com/test_medium", large: "https://buy.stripe.com/test_large" };
+const CHECKOUT_HOOK = "https://hook.eu2.make.com/3uenlk2qk3upaze45gdvwu9duhc39pq6";
+const PRICES = {
+  core_mini: "price_1TGicCCSobSUMDpsDODIPCiW", core_starter: "price_1TGieNCSobSUMDpsPHwKB9BH",
+  core_medium: "price_1TGieoCSobSUMDpshmKzy8ua", core_large: "price_1TGif3CSobSUMDpsG0XxviO5",
+  builder_mini: "price_1TGihoCSobSUMDpsVUIm8J0h", builder_starter: "price_1TGii3CSobSUMDps7iPabRNr",
+  builder_medium: "price_1TGiiGCSobSUMDpsAw0aQaJZ", builder_large: "price_1TGiiUCSobSUMDps54NiYv2k",
+  coverage_mini: "price_1TGik4CSobSUMDpsf3wSGnIF", coverage_starter: "price_1TGikLCSobSUMDpszHtKNaPu",
+  coverage_medium: "price_1TGikYCSobSUMDpsJI7pyw0q", coverage_large: "price_1TGikjCSobSUMDpsBgp9Pn9M"
+};
+const SESSIONS_MAP = { mini: 5, starter: 15, medium: 30, large: 60 };
+const PACKS_NEW = [
+  { instrument: "core", label: "Core Audit", packs: [
+    { n: "Mini", p: "5", sessions: 5, tier: "mini" },
+    { n: "Starter", p: "12", sessions: 15, tier: "starter", popular: true, save: "20%" },
+    { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
+    { n: "Large", p: "34", sessions: 60, tier: "large", save: "43%" }
+  ]},
+  { instrument: "builder", label: "Content Builder", packs: [
+    { n: "Mini", p: "5", sessions: 5, tier: "mini" },
+    { n: "Starter", p: "12", sessions: 15, tier: "starter", popular: true, save: "20%" },
+    { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
+    { n: "Large", p: "34", sessions: 60, tier: "large", save: "43%" }
+  ]},
+  { instrument: "coverage", label: "Content Coverage", packs: [
+    { n: "Mini", p: "5", sessions: 5, tier: "mini" },
+    { n: "Starter", p: "12", sessions: 15, tier: "starter", popular: true, save: "20%" },
+    { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
+    { n: "Large", p: "34", sessions: 60, tier: "large", save: "43%" }
+  ]}
+];
 
 /* ═══ PRIMITIVES ═══ */
 const ScoreRing = ({ score, size = 92 }) => { const r = (size - 10) / 2, circ = 2 * Math.PI * r, off = circ - (score / 100) * circ, co = score >= 80 ? "#9B7AE6" : score >= 50 ? "#D4A0E8" : "#E2D4F5", lb = score >= 80 ? "Strong" : score >= 50 ? "Moderate" : "Weak"; return (<div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}><svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}><circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(21,20,21,0.05)" strokeWidth="6" /><circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={co} strokeWidth="6" strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round" style={{ transition: "stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1)" }} /></svg><div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 22, fontWeight: 700, color: C.dark }}>{score}</span><span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>{lb}</span></div></div>); };
@@ -400,20 +429,8 @@ function buildResults(d) {
 }
 const STEPS = ["Fetching page data...", "Parsing HTML structure...", "Analyzing meta & headings...", "Checking links & social...", "Speed & technical checks...", "Generating recommendations..."];
 
-const TCard = ({ title, desc, tag, credits, onClick }) => (<button onClick={credits > 0 ? onClick : undefined} style={{ padding: 22, borderRadius: 12, border: `1px solid ${credits > 0 ? C.border : C.borderMid}`, background: C.surface, cursor: credits > 0 ? "pointer" : "default", textAlign: "left", fontFamily: "'DM Sans',sans-serif", transition: "box-shadow 0.3s, border-color 0.3s", flex: 1, minWidth: 0, opacity: 1, overflow: "hidden", position: "relative" }} onMouseEnter={e => { if (credits > 0) { e.currentTarget.style.borderColor = C.hoverBorder; e.currentTarget.style.boxShadow = C.hoverShadow; } }} onMouseLeave={e => { e.currentTarget.style.borderColor = credits > 0 ? C.border : C.borderMid; e.currentTarget.style.boxShadow = "none"; }}><div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}><span style={{ fontSize: 10, fontWeight: 600, color: C.accent, background: C.accentLight, padding: "4px 10px", borderRadius: 6 }}>{tag}</span></div><div style={{ fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: 6, letterSpacing: "-0.02em" }}>{title}</div><div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 14 }}>{desc}</div><div style={{ height: 1, background: C.border, marginBottom: 8 }} /><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, fontWeight: 500 }}><span style={{ color: C.muted }}>Credits Left</span><span style={{ fontWeight: 700, color: credits > 0 ? C.accent : C.muted }}>{credits}</span></div>{credits <= 0 && <a href="/dashboard#buy-credits" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, padding: "10px 0", borderRadius: 8, border: `1px solid ${C.borderMid}`, background: C.surface, color: C.dark, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", textDecoration: "none", transition: "all 0.2s", cursor: "pointer" }} onMouseEnter={e => { e.currentTarget.style.background = C.accentLight; e.currentTarget.style.borderColor = "rgba(110,43,255,0.2)"; e.currentTarget.style.color = C.accent; }} onMouseLeave={e => { e.currentTarget.style.background = C.surface; e.currentTarget.style.borderColor = C.borderMid; e.currentTarget.style.color = C.dark; }}>Buy Credits</a>}</button>);
+const TCard = ({ title, desc, tag, credits, onClick, onBuy }) => (<button onClick={credits > 0 ? onClick : undefined} style={{ padding: 22, borderRadius: 12, border: `1px solid ${credits > 0 ? C.border : C.borderMid}`, background: C.surface, cursor: credits > 0 ? "pointer" : "default", textAlign: "left", fontFamily: "'DM Sans',sans-serif", transition: "box-shadow 0.3s, border-color 0.3s", flex: 1, minWidth: 0, opacity: 1, overflow: "hidden", position: "relative" }} onMouseEnter={e => { if (credits > 0) { e.currentTarget.style.borderColor = C.hoverBorder; e.currentTarget.style.boxShadow = C.hoverShadow; } }} onMouseLeave={e => { e.currentTarget.style.borderColor = credits > 0 ? C.border : C.borderMid; e.currentTarget.style.boxShadow = "none"; }}><div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}><span style={{ fontSize: 10, fontWeight: 600, color: C.accent, background: C.accentLight, padding: "4px 10px", borderRadius: 6 }}>{tag}</span></div><div style={{ fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: 6, letterSpacing: "-0.02em" }}>{title}</div><div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 14 }}>{desc}</div><div style={{ height: 1, background: C.border, marginBottom: 8 }} /><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, fontWeight: 500 }}><span style={{ color: C.muted }}>Credits Left</span><span style={{ fontWeight: 700, color: credits > 0 ? C.accent : C.muted }}>{credits}</span></div>{credits <= 0 && <button onClick={(e) => { e.stopPropagation(); if (onBuy) onBuy(); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, padding: "10px 0", borderRadius: 8, border: `1px solid ${C.borderMid}`, background: C.surface, color: C.dark, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", width: "100%", transition: "all 0.2s", cursor: "pointer" }} onMouseEnter={e => { e.currentTarget.style.background = C.accentLight; e.currentTarget.style.borderColor = "rgba(110,43,255,0.2)"; e.currentTarget.style.color = C.accent; }} onMouseLeave={e => { e.currentTarget.style.background = C.surface; e.currentTarget.style.borderColor = C.borderMid; e.currentTarget.style.color = C.dark; }}>Buy Credits</button>}</button>);
 
-const PACKS_AUDIT = [
-  { n: "Audit Mini", p: "7", desc: "For quick page checks and fast insights.", items: [{ name: "Core Audit", num: 2 }, { name: "Content Coverage Audit", num: 4 }], link: STRIPE.mini },
-  { n: "Audit Starter", p: "17", desc: "For small SEO projects and teams.", items: [{ name: "Core Audit", num: 6 }, { name: "Content Coverage Audit", num: 9 }], link: STRIPE.starter },
-  { n: "Audit Medium", p: "37", desc: "For regular audit workflow at scale.", items: [{ name: "Core Audit", num: 15 }, { name: "Content Coverage Audit", num: 20 }], link: STRIPE.medium, primary: true },
-  { n: "Audit Large", p: "67", desc: "For intensive SEO work and agencies.", items: [{ name: "Core Audit", num: 35 }, { name: "Content Coverage Audit", num: 45 }], link: STRIPE.large },
-];
-const PACKS_COPY = [
-  { n: "Copywriter Mini", p: "7", desc: "Quick top-up for small tasks and testing.", items: [{ name: "Content Builder", num: 5 }, { name: "Content Coverage Audit", num: 2 }], link: STRIPE.mini },
-  { n: "Copywriter Starter", p: "15", desc: "For regular content creation.", items: [{ name: "Content Builder", num: 10 }, { name: "Content Coverage Audit", num: 5 }], link: STRIPE.starter },
-  { n: "Copywriter Medium", p: "32", desc: "For active content work and scaling.", items: [{ name: "Content Builder", num: 30 }, { name: "Content Coverage Audit", num: 15 }], link: STRIPE.medium, primary: true },
-  { n: "Copywriter Large", p: "90", desc: "For intensive use and teams.", items: [{ name: "Content Builder", num: 100 }, { name: "Content Coverage Audit", num: 50 }], link: STRIPE.large },
-];
 /* ═══ PAYMENT TOAST ═══ */
 const PaymentToast = () => {
   const [show, setShow] = useState(false);
@@ -442,48 +459,47 @@ const PaymentToast = () => {
   </div>);
 };
 
-const BuyM = ({ onClose }) => { const [tab, setTab] = useState("audit"); const packs = tab === "audit" ? PACKS_AUDIT : PACKS_COPY; return (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }} onClick={onClose}><div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 18, padding: "28px 24px", maxWidth: 620, width: "95%", boxShadow: "0 24px 48px rgba(0,0,0,0.15)", maxHeight: "90vh", overflowY: "auto" }}>
+const BuyM = ({ onClose, memberId }) => {
+  const [tab, setTab] = useState(0);
+  const [buying, setBuying] = useState(null);
+  const group = PACKS_NEW[tab];
+  const tabs = PACKS_NEW.map(g => g.label);
+  const buyPack = async (pk) => {
+    setBuying(pk.tier);
+    try {
+      const r = await fetch(CHECKOUT_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ member_id: memberId, price_id: PRICES[group.instrument + "_" + pk.tier], instrument: group.instrument, tier: pk.tier, sessions_add: pk.sessions }) });
+      const t = await r.text(); let d = {}; try { d = JSON.parse(t); } catch(e) {}
+      if (d?.checkout_url) { window.location.href = d.checkout_url; } else { alert("Payment link error. Please try again."); setBuying(null); }
+    } catch(e) { alert("Payment link error. Please try again."); setBuying(null); }
+  };
+  return (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }} onClick={onClose}><div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 18, padding: "28px 24px", maxWidth: 620, width: "95%", boxShadow: "0 24px 48px rgba(0,0,0,0.15)", maxHeight: "90vh", overflowY: "auto" }}>
   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>Buy Credits</span><button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 18 }}>✕</button></div>
-  <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>One-time payments. Credits never expire.</p>
-  <div style={{ display: "inline-grid", gridTemplateColumns: "1fr 1fr", position: "relative", border: `1px solid rgba(21,20,21,0.12)`, borderRadius: 10, padding: 4, marginBottom: 16, background: "#fff" }}>
-    <div style={{ position: "absolute", top: 4, left: tab === "audit" ? 4 : "calc(50%)", width: "calc(50% - 4px)", height: "calc(100% - 8px)", borderRadius: 7, background: "#151415", transition: "left 0.28s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
-    <button onClick={() => setTab("audit")} style={{ position: "relative", zIndex: 1, padding: "8px 20px", border: "none", background: "transparent", borderRadius: 7, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 500, color: tab === "audit" ? "#fff" : "#928E95", cursor: "pointer", transition: "color 0.25s", whiteSpace: "nowrap", textAlign: "center" }}>Audit Pack</button>
-    <button onClick={() => setTab("copy")} style={{ position: "relative", zIndex: 1, padding: "8px 20px", border: "none", background: "transparent", borderRadius: 7, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 500, color: tab === "copy" ? "#fff" : "#928E95", cursor: "pointer", transition: "color 0.25s", whiteSpace: "nowrap", textAlign: "center" }}>Copywriter Pack</button>
+  <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>One-time payments. Use at your own pace.</p>
+  <div style={{ display: "inline-grid", gridTemplateColumns: `repeat(${tabs.length}, 1fr)`, position: "relative", border: "1px solid rgba(21,20,21,0.12)", borderRadius: 10, padding: 4, marginBottom: 16, background: "#fff" }}>
+    <div style={{ position: "absolute", top: 4, left: `calc(${tab * (100/tabs.length)}% + 4px)`, width: `calc(${100/tabs.length}% - 8px)`, height: "calc(100% - 8px)", borderRadius: 7, background: "#151415", transition: "left 0.28s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
+    {tabs.map((t, i) => (<button key={i} onClick={() => setTab(i)} style={{ position: "relative", zIndex: 1, padding: "8px 16px", border: "none", background: "transparent", borderRadius: 7, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 500, color: tab === i ? "#fff" : "#928E95", cursor: "pointer", transition: "color 0.25s", whiteSpace: "nowrap", textAlign: "center" }}>{t}</button>))}
   </div>
   <div className="iva-buy-grid">
-    {packs.map((pk, i) => (
-      <div key={tab + i} style={{ borderRadius: 12, border: `1px solid ${C.border}`, background: C.surface, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ padding: "16px 16px 12px" }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 4 }}>{pk.n}</div>
-          <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, marginBottom: 12 }}>{pk.desc}</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginBottom: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>$</span>
-            <span style={{ fontSize: 28, fontWeight: 700, color: C.dark, letterSpacing: "-0.02em" }}>{pk.p}</span>
-            <span style={{ fontSize: 11, color: C.muted, marginLeft: 4 }}>one-time</span>
-          </div>
-          <a href={pk.link} target="_blank" rel="noopener noreferrer" style={{ display: "block", width: "100%", padding: "10px 0", borderRadius: 8, background: pk.primary ? C.dark : C.surface, color: pk.primary ? "#fff" : C.dark, border: `1px solid ${pk.primary ? C.dark : C.borderMid}`, fontSize: 13, fontWeight: 600, textAlign: "center", textDecoration: "none", fontFamily: "'DM Sans',sans-serif", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => { if (pk.primary) e.currentTarget.style.background = "#333"; else e.currentTarget.style.background = C.accentLight; }} onMouseLeave={e => { e.currentTarget.style.background = pk.primary ? C.dark : C.surface; }}>Buy Credits</a>
+    {group.packs.map((pk, i) => (
+      <div key={group.instrument + i} style={{ borderRadius: 12, border: pk.popular ? "2px solid #6E2BFF" : `1px solid ${C.border}`, background: C.surface, display: "flex", flexDirection: "column", overflow: "visible", position: "relative", padding: "20px 16px" }}>
+        {pk.popular && <div style={{ position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", background: "#F0EAFF", color: "#6E2BFF", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 16, border: "1px solid rgba(110,43,255,0.12)", whiteSpace: "nowrap" }}>Most Popular</div>}
+        <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 8 }}>{pk.n}</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginBottom: 4 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>$</span>
+          <span style={{ fontSize: 28, fontWeight: 800, color: C.dark, letterSpacing: "-0.02em" }}>{pk.p}</span>
+          <span style={{ fontSize: 11, color: C.muted, marginLeft: 4 }}>one-time</span>
         </div>
-        <div style={{ padding: "12px 16px 16px", borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, marginBottom: 8 }}>Included:</div>
-          {pk.items.map((item, j) => (
-            <div key={j} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", fontSize: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
-                <span style={{ color: C.dark }}>{item.name}</span>
-              </div>
-              <span style={{ fontWeight: 700, color: C.dark }}>{item.num}</span>
-            </div>
-          ))}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0", fontSize: 12 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
-            <span style={{ color: C.dark }}>AI Chat included</span>
-          </div>
-        </div>
+        <div style={{ height: 1, background: "#F6F6F6", margin: "10px 0" }} />
+        <div style={{ fontSize: 24, fontWeight: 800, color: C.dark, textAlign: "center" }}>{pk.sessions}</div>
+        <div style={{ fontSize: 12, color: C.muted, textAlign: "center", marginBottom: 4 }}>sessions</div>
+        {pk.save && <div style={{ fontSize: 11, color: C.accent, fontWeight: 600, textAlign: "center" }}>Save {pk.save}</div>}
+        {!pk.save && <div style={{ minHeight: 15 }} />}
+        <button onClick={() => buyPack(pk)} disabled={buying === pk.tier} style={{ display: "block", width: "100%", padding: "10px 0", borderRadius: 8, background: pk.popular ? C.dark : C.surface, color: pk.popular ? "#fff" : C.dark, border: `1px solid ${pk.popular ? C.dark : C.borderMid}`, fontSize: 13, fontWeight: 600, textAlign: "center", fontFamily: "'DM Sans',sans-serif", cursor: buying === pk.tier ? "wait" : "pointer", transition: "background 0.2s", marginTop: 12, opacity: buying === pk.tier ? 0.6 : 1 }} onMouseEnter={e => { if (!buying) { if (pk.popular) e.currentTarget.style.background = "#333"; else e.currentTarget.style.background = C.accentLight; }}} onMouseLeave={e => { if (!buying) e.currentTarget.style.background = pk.popular ? C.dark : C.surface; }}>{buying === pk.tier ? "Loading..." : "Buy Credits"}</button>
       </div>
     ))}
   </div>
   <div className="iva-buy-footer">
-    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>Credits never expire</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>Pay once, use at your pace</div>
     <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>No subscriptions</div>
     <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>Buy more anytime</div>
   </div>
@@ -871,7 +887,14 @@ function IvaBotV6() {
   const [pLoad, sPLoad] = useState(null);
   const [view, setView] = useState("select"), [tool, setTool] = useState(null), [msgs, setMsgs] = useState([]), [loadStep, setLS] = useState(-1), [showR, setSR] = useState(false), [showBuy, setSB] = useState(false), [typing, setTyping] = useState(false), [credits, setCredits] = useState({ core: 0, builder: 0, coverage: 0 }), [memberId, setMemberId] = useState(null), [memberName, setMemberName] = useState(null), [loading, setLoading] = useState(true);
   const inputRef = useRef(null);
-  useEffect(() => { (async () => { const info = await getMemberInfo(); setMemberId(info.id); setMemberName(info.name); const cr = await fetchCredits(info.id); setCredits(cr); setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { const info = await getMemberInfo(); setMemberId(info.id); setMemberName(info.name); const cr = await fetchCredits(info.id); setCredits(cr); setLoading(false);
+    /* URL routing: ?tool=core|builder|coverage */
+    const p = new URLSearchParams(window.location.search);
+    const t = p.get("tool");
+    if (t && ["core","builder","coverage"].includes(t) && ((t === "core" && cr.core > 0) || (t === "builder" && cr.builder > 0) || (t === "coverage" && cr.coverage > 0))) {
+      setTimeout(() => start(t), 100);
+    }
+  })(); }, []);
   const chatRef = useRef(null);
   const prevMsgCount = useRef(0);
   const scrollChat = useCallback(() => {
@@ -930,7 +953,7 @@ function IvaBotV6() {
     if (coreCredits.core <= 0) {
       addMsg("bot", React.createElement("div", null,
         React.createElement("div", {style:{marginBottom:6}}, "You've used all your Core Audit credits."),
-        React.createElement("div", {style:{color:"#928E95",fontSize:12}}, React.createElement("a", {href:"/dashboard#buy-credits", style:{color:"#6E2BFF",fontWeight:600,textDecoration:"underline"}}, "Buy more credits"), " to continue.")
+        React.createElement("div", {style:{color:"#928E95",fontSize:12}}, React.createElement("button", {onClick:() => setSB(true), style:{color:"#6E2BFF",fontWeight:600,textDecoration:"underline",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"inherit"}}, "Buy more credits"), " to continue.")
       ));
       return;
     }
@@ -1193,7 +1216,7 @@ function IvaBotV6() {
     <div className="iva-root" style={{ fontFamily: "'DM Sans',sans-serif", background: "#f8f7f9", display: "flex", flexDirection: "column", padding: "8px 12px", minHeight: "100vh" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #ffffff 0%, #F8F5FF 15%, #F0EAFF 40%, #E4D8FC 70%, #D9CCFA 100%)", borderRadius: 12, minHeight: 0 }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}@keyframes foldOpen{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}.reveal.visible{opacity:1;transform:translateY(0)}.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}.fold-content{animation:foldOpen 0.4s cubic-bezier(0.4,0,0.2,1) forwards;overflow:hidden}.iva-tools{display:flex;gap:14px;width:100%}.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}.iva-seo-title{font-size:64px}.iva-nav{height:84px;padding:24px 0 0}.iva-root{height:auto!important;min-height:100vh!important;overflow:visible!important}#ivabot-root{overflow:visible!important;height:auto!important;min-height:100vh!important}.w-embed,.w-container,.w-layout-cell,.w-layout-layout{overflow:visible!important}.iva-scroll-inner{overflow:auto!important}@media(max-width:768px){.iva-tools{flex-direction:column}.iva-buy-grid{grid-template-columns:1fr}.iva-ctx-grid{grid-template-columns:1fr}.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}.iva-seo-title{font-size:32px}.iva-nav{padding:0 12px}}@media(max-width:520px){.iva-seo-title{font-size:26px}.iva-nav{height:48px;padding:0 10px}}`}</style>
-      {showBuy && <BuyM onClose={() => setSB(false)} />}
+      {showBuy && <BuyM onClose={() => setSB(false)} memberId={memberId} />}
       <PaymentToast />
       <nav className="iva-nav" style={{ display: "flex", justifyContent: "center", background: "transparent", flexShrink: 0, zIndex: 100, height: 84, paddingTop: 24 }}>
         <div style={{ width: "100%", maxWidth: 1224, padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1206,7 +1229,7 @@ function IvaBotV6() {
         <div style={{ flex: 1, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px", gap: 36, maxWidth: 780, width: "100%" }}>
             <div style={{ textAlign: "center" }}><div className="iva-seo-title" style={{ fontWeight: 400, color: C.dark, letterSpacing: "-0.2px", lineHeight: 1, marginBottom: 16, background: "linear-gradient(116deg, rgba(21,20,21,0.25) 8%, #151415 35%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>SEO Tools</div><p style={{ fontSize: 20, color: "rgba(21,20,21,0.5)", maxWidth: 460, margin: "0 auto", lineHeight: 1.1, letterSpacing: "-0.2px", fontWeight: 400 }}>Analyze pages, build content, and find gaps — powered by AI with real Google data.</p></div>
-            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} /><TCard title="Content Builder" desc="Keywords, SEO structure, and full page content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} /><TCard title="Content Coverage Audit" desc="Keyword gaps, topical depth, and trust signals. Chat with AI to explore improvements." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} /></div>
+            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} onBuy={() => setSB(true)} /><TCard title="Content Builder" desc="Keywords, SEO structure, and full page content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} onBuy={() => setSB(true)} /><TCard title="Content Coverage Audit" desc="Keyword gaps, topical depth, and trust signals. Chat with AI to explore improvements." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} onBuy={() => setSB(true)} /></div>
           </div>
         </div>
       ) : tool === "builder" && window.ContentBuilder ? (
