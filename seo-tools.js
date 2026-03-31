@@ -1,7 +1,7 @@
 /* IvaBot seo-tools v80 — universal checkout, URL routing, 3-tab pricing */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v79 loaded");
+console.log("[IvaBot] seo-tools.js v80 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
