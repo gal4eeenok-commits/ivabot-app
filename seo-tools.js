@@ -934,6 +934,10 @@ function IvaBotV6() {
     setAuditData(null);
     sPLoad(null);
     sMTab("chat");
+    /* Update URL to /app?tool=xxx */
+    const url = new URL(window.location);
+    url.searchParams.set("tool", t);
+    window.history.replaceState({}, "", url);
     setTyping(true);
     setTimeout(() => {
       setTyping(false);
@@ -945,7 +949,13 @@ function IvaBotV6() {
       setMsgs(p => [...p, { from: "bot", content: React.createElement("div", null, React.createElement("div", {style:{color:"#928E95",fontSize:12,marginBottom:8}}, "I'll check your page for technical SEO, content structure, speed, mobile readiness, and more. You'll get clear, actionable recommendations."), React.createElement("div", {style:{fontWeight:600}}, "Just paste your URL below and I'll get started.")), id: Date.now() + 1 }]);
     }, 4000);
   };
-  const home = async () => { setView("select"); setTool(null); setMsgs([]); setSR(false); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); const cr = await fetchCredits(memberId); setCredits(cr); };
+  const home = async () => { setView("select"); setTool(null); setMsgs([]); setSR(false); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); const cr = await fetchCredits(memberId); setCredits(cr);
+    /* Reset URL to /app */
+    const url = new URL(window.location);
+    url.searchParams.delete("tool");
+    url.searchParams.delete("paid");
+    window.history.replaceState({}, "", url);
+  };
 
   const runAudit = async (url) => {
     /* Check credits before starting */
