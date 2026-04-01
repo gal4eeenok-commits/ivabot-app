@@ -603,29 +603,28 @@ async function generatePDF(data) {
   const ensureSpace = (n) => { if (y + n > H - 60) { doc.addPage(); y = 44; } };
   const gap = (n) => { y += (n || 10); };
   const divider = () => { doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); };
-  const secTitle = (t) => { ensureSpace(52); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk); const lines = doc.splitTextToSize(t, CW); doc.text(lines, M, y); y += lines.length * 36 + 16; };
-  const note = (t, maxW) => { gap(6); doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * 16 + 4); doc.text(L, M, y); y += L.length * 16 + 8; };
+  const secTitle = (t) => { ensureSpace(44); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk); const lines = doc.splitTextToSize(t, CW); doc.text(lines, M, y); y += lines.length * 36 + 8; };
+  const note = (t, maxW) => { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * 16 + 4); doc.text(L, M, y); y += L.length * 16 + 4; };
   const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
   const fKD = (d) => d != null ? String(d) : "low";
   const urlS = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
 
   /* ══════════════════════════════════════════════
-     HEADER — logo + "IvaBot" inline, subtitle + date/url aligned
+     HEADER — logo + "IvaBot" top, subtitle + date/url aligned below
      ══════════════════════════════════════════════ */
   doc.addImage(logoImg, "PNG", M, 24, 22, 19);
   doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
   doc.text("IvaBot", M + 28, 38);
-  /* Left: subtitle, Right: date — same line */
-  doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-  doc.text("Core Audit Report", M, 58);
-  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 58, { align: "right" });
-  /* Left: empty, Right: URL — second line */
-  doc.setFontSize(12);
-  doc.text(urlS, W - M, 72, { align: "right" });
+  /* Row 1: "Core Audit Report" left, Date right */
+  doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+  doc.text("Core Audit Report", M, 56);
+  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 56, { align: "right" });
+  /* Row 2: URL right only */
+  doc.text(urlS, W - M, 68, { align: "right" });
   /* Thin divider */
-  y = 82;
+  y = 76;
   doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
-  y = 96;
+  y = 88;
 
   /* ══════════════════════════════════════════════
      SEO SCORE — 140px circle + text right
@@ -651,7 +650,7 @@ async function generatePDF(data) {
   doc.setFontSize(14); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
   doc.text(data.score >= 80 ? "Your page has a strong SEO foundation." : data.score >= 50 ? "There's room for improvement." : "Your page needs significant SEO work.", textX, cy + 14);
   y = cy + circR + 24;
-  gap(48);
+  gap(28);
 
   /* ══════════════════════════════════════════════
      PAGE CONTEXT SUMMARY
@@ -668,7 +667,7 @@ async function generatePDF(data) {
     doc.text(valLines, M + 130, y);
     y += Math.max(valLines.length * 16, 12) + 4;
   });
-  gap(48);
+  gap(28);
 
   /* ══════════════════════════════════════════════
      KEYWORD TABLES
@@ -697,11 +696,11 @@ async function generatePDF(data) {
         }
       }
     });
-    y = doc.lastAutoTable.finalY + 10;
+    y = doc.lastAutoTable.finalY + 4;
     note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
-    gap(8);
+    gap(2);
     note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
-    gap(48);
+    gap(28);
   }
 
   secTitle("What Your Page Is Built For");
@@ -721,12 +720,12 @@ async function generatePDF(data) {
         }
       }
     });
-    y = doc.lastAutoTable.finalY + 10;
+    y = doc.lastAutoTable.finalY + 4;
     note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
-    gap(8);
+    gap(2);
     note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
   }
-  gap(48);
+  gap(28);
 
   /* ══════════════════════════════════════════════
      WHAT'S WORKING — card-style with dividers
@@ -767,7 +766,7 @@ async function generatePDF(data) {
   if (gItems.length > 0) {
     secTitle("What\u2019s Working (" + gItems.length + ")");
     note("Good news \u2014 " + gItems.length + " things are already working well on your page.");
-    gap(12);
+    gap(6);
     gItems.forEach((item, idx) => {
       ensureSpace(90);
       /* Title — 15px for better hierarchy */
@@ -795,26 +794,31 @@ async function generatePDF(data) {
           const descLines = doc.splitTextToSize(sp.desc, CW - 24);
           doc.text(descLines[0] || "", M + 12, boxY + 46);
         }
-        y = boxY + (sp.desc ? 56 : 38) + 10;
+        y = boxY + (sp.desc ? 56 : 38) + 6;
         /* Status line */
         if (item.detail) {
           doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
           doc.text(item.detail, M, y); y += 16;
         }
       }
-      /* Links — horizontal two-column table */
+      /* Links — horizontal two-column layout */
       else if (item.linksInternal != null) {
-        ensureSpace(50);
-        /* Simple two-column layout */
+        ensureSpace(60);
         const colW = CW / 2;
-        doc.setFontSize(28); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+        /* Column 1: Internal */
+        doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
         doc.text(String(item.linksInternal), M, y);
+        const intNumW = doc.getTextWidth(String(item.linksInternal));
+        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+        doc.text("Internal links", M + intNumW + 8, y);
+        /* Column 2: External */
+        doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
         doc.text(String(item.linksExternal), M + colW, y);
-        y += 8;
-        doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-        doc.text("Internal links", M, y);
-        doc.text("External links", M + colW, y);
-        y += 6;
+        const extNumW = doc.getTextWidth(String(item.linksExternal));
+        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+        doc.text("External links", M + colW + extNumW + 8, y);
+        y += 16;
+        /* Descriptions under each */
         doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
         doc.text(item.intDesc || "", M, y);
         doc.text(item.extDesc || "", M + colW, y);
@@ -880,9 +884,9 @@ async function generatePDF(data) {
         doc.text(eLines, M, y); y += eLines.length * 15 + 6;
       }
       /* Divider between items */
-      if (idx < gItems.length - 1) { y += 10; divider(); y += 16; }
+      if (idx < gItems.length - 1) { y += 6; divider(); y += 10; }
     });
-    gap(48);
+    gap(28);
   }
 
   /* ══════════════════════════════════════════════
@@ -905,11 +909,11 @@ async function generatePDF(data) {
 
   if (pB.length > 0) {
     /* Section title in accent color for attention */
-    ensureSpace(52); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...accent);
+    ensureSpace(44); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...accent);
     const niTitle = "Needs Improvement (" + pB.length + ")";
-    doc.text(niTitle, M, y); y += 52;
+    doc.text(niTitle, M, y); y += 44;
     note("I found " + pB.length + " areas that need attention. Each card has a clear fix.");
-    gap(12);
+    gap(6);
     pB.forEach((item) => {
       const pr = PRIO_PDF[item.p] || PRIO_PDF.important;
       const curLines = item.cur ? doc.splitTextToSize(String(item.cur), CW - 24) : [];
@@ -954,7 +958,7 @@ async function generatePDF(data) {
 
       y = cardY + totalH + 8;
     });
-    gap(48);
+    gap(28);
   }
 
   /* ══════════════════════════════════════════════
@@ -980,9 +984,9 @@ async function generatePDF(data) {
       }),
       columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 160 }, 2: { cellWidth: "auto" } }
     });
-    y = doc.lastAutoTable.finalY + 10;
+    y = doc.lastAutoTable.finalY + 4;
     note("Study their titles, descriptions, and content structure. What are they doing that you\u2019re not? Use their strengths as inspiration to improve your own page.");
-    gap(48);
+    gap(28);
   }
 
   /* ══════════════════════════════════════════════
@@ -1014,7 +1018,7 @@ async function generatePDF(data) {
     });
     y = doc.lastAutoTable.finalY + 12;
   }
-  gap(48);
+  gap(28);
 
   /* ══════════════════════════════════════════════
      FINAL RECOMMENDATIONS — cards with border
