@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v80 — universal checkout, URL routing, 3-tab pricing */
+/* IvaBot seo-tools v81 — PDF redesign, NicheBadge/LowBadge in RankingsTable */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v80 loaded");
+console.log("[IvaBot] seo-tools.js v81 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -532,6 +532,8 @@ const SerpSnippet = ({ url, title, desc, hideDesc }) => {
 
 /* ═══ RANKINGS TABLE ═══ */
 const fmtVol = (v) => { if (!v) return "—"; if (v >= 1000000) return (v/1000000).toFixed(1).replace(/\.0$/,"") + "M"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"") + "K"; return v.toLocaleString(); };
+const NicheBadge = () => <span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>&lt; 10</span>;
+const LowBadge = () => <span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>low</span>;
 const RankingsTable = ({ rows, emptyMsg }) => (
   <div className="iva-scroll-inner" style={{ background: C.surface, borderRadius: 10, padding: "4px 14px", border: `1px solid ${C.cardBorder}`, overflowX: "auto" }}>
   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
@@ -547,8 +549,8 @@ const RankingsTable = ({ rows, emptyMsg }) => (
         <td style={{ textAlign: "center", padding: "10px 4px" }}>{r.position != null ? (
           <span style={{ background: r.position <= 3 ? "rgba(110,43,255,0.08)" : "rgba(21,20,21,0.04)", color: r.position <= 3 ? C.accent : C.muted, fontWeight: 600, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{r.position}</span>
         ) : <span style={{ color: C.muted, fontSize: 10, background: "rgba(21,20,21,0.03)", padding: "3px 8px", borderRadius: 6 }}>100+</span>}</td>
-        <td style={{ textAlign: "right", padding: "10px 4px", color: C.dark, fontSize: 12, whiteSpace: "nowrap" }}>{fmtVol(r.volume)}</td>
-        <td style={{ textAlign: "right", padding: "10px 0", color: C.muted, fontSize: 12, whiteSpace: "nowrap" }}>{r.difficulty != null ? r.difficulty : "—"}</td>
+        <td style={{ textAlign: "right", padding: "10px 4px", whiteSpace: "nowrap" }}>{r.volume != null && r.volume > 0 ? <span style={{ color: C.dark, fontSize: 12 }}>{fmtVol(r.volume)}</span> : <NicheBadge />}</td>
+        <td style={{ textAlign: "right", padding: "10px 0", whiteSpace: "nowrap" }}>{r.difficulty != null ? <span style={{ color: C.muted, fontSize: 12 }}>{r.difficulty}</span> : <LowBadge />}</td>
       </tr>
     )) : <tr><td colSpan={4} style={{ padding: "14px 0", color: C.muted, fontSize: 12, textAlign: "center" }}>{emptyMsg || "No data available yet."}</td></tr>}</tbody>
   </table>
@@ -570,9 +572,9 @@ async function generatePDF(data) {
   await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.2/jspdf.plugin.autotable.min.js");
   const makeLogo = () => new Promise(resolve => {
     const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
-    const ctx = cvs.getContext("2d"); ctx.fillStyle = "white"; ctx.scale(2, 2);
+    const ctx = cvs.getContext("2d"); ctx.fillStyle = "#6E2BFF"; ctx.scale(2, 2);
     ctx.fill(new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z"));
-    ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1z"));
+    ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z"));
     ctx.globalCompositeOperation = "destination-out";
     ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
@@ -584,173 +586,427 @@ async function generatePDF(data) {
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   const M = 40, CW = W - M * 2;
   let y = 0;
-  const purple = [110,43,255], tc = [90,85,100], dk = [60,56,65], mt = [146,142,149], wh = [255,255,255];
-  const lavH = [184,156,240], lavBg = [248,245,255];
-  const ensureSpace = (n) => { if (y + n > H - 60) { doc.addPage(); y = 44; } };
-  const gap = (n) => { y += (n||10); };
-  const ln = () => { doc.setDrawColor(229,224,238); doc.setLineWidth(0.5); doc.line(M, y, W-M, y); };
-  const sec = (t) => { ensureSpace(40); doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...tc); doc.text(t, M, y); y += 20; };
-  const note = (t) => { doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), CW); ensureSpace(L.length*12+4); doc.text(L, M, y); y += L.length*12+4; };
-  const fV = (v) => { if (!v) return "\u2014"; if (v>=1e6) return (v/1e6).toFixed(1).replace(/\.0$/,"")+"M"; if (v>=1e3) return (v/1e3).toFixed(1).replace(/\.0$/,"")+"K"; return String(v); };
-  const lH = { fillColor: lavH, textColor: wh, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
-  const pH = { fillColor: purple, textColor: wh, fontSize: 8, fontStyle: "bold", cellPadding: 7 };
-  const tB = { fontSize: 9, textColor: dk, cellPadding: 6, fillColor: lavBg };
-  const tA = { fillColor: lavBg };
 
-  const g1=[184,156,240], g2=[212,190,247];
-  for (let i=0;i<40;i++){const t=i/40; doc.setFillColor(Math.round(g1[0]+(g2[0]-g1[0])*t),Math.round(g1[1]+(g2[1]-g1[1])*t),Math.round(g1[2]+(g2[2]-g1[2])*t)); doc.rect(0,(78/40)*i,W,78/40+.5,"F");}
-  doc.addImage(logoImg,"PNG",M,22,22,19);
-  doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...wh); doc.text("IvaBot",M+28,36);
-  doc.setFontSize(9.5); doc.setFont("helvetica","normal"); doc.text("Core Audit Report",M+28,48);
-  doc.setFontSize(9);
-  doc.text(new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}),W-M,30,{align:"right"});
-  const urlS = (data.url||"").length>56 ? data.url.slice(0,53)+"..." : (data.url||"");
-  doc.text(urlS,W-M,44,{align:"right"});
-  y = 96;
-
-  const sL = data.score>=80?"Strong":data.score>=50?"Moderate":"Weak";
-  const sC = data.score>=80?[155,122,230]:data.score>=50?[212,160,232]:[226,212,245];
-  const cx=M+28, cy=y+22;
-  doc.setDrawColor(229,224,238); doc.setLineWidth(3.5); doc.circle(cx,cy,22);
-  doc.setDrawColor(...sC); doc.setLineWidth(3.5);
-  for(let a=-90;a<-90+(data.score/100)*360;a+=2){const a1=(a*Math.PI)/180,a2=((Math.min(a+2,-90+(data.score/100)*360))*Math.PI)/180;doc.line(cx+22*Math.cos(a1),cy+22*Math.sin(a1),cx+22*Math.cos(a2),cy+22*Math.sin(a2));}
-  doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...tc); doc.text(String(data.score),cx,cy+3,{align:"center"});
-  doc.setFontSize(7); doc.setTextColor(...sC); doc.text(sL,cx,cy+13,{align:"center"});
-  doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.setTextColor(...tc); doc.text("SEO Score",M+62,y+10);
-  doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(...dk); doc.text(urlS,M+62,y+24);
-  doc.setFontSize(9); doc.setTextColor(...mt); doc.text(data.score>=80?"Your page has a strong foundation.":"There's room for improvement.",M+62,y+38);
-  y+=60; ln(); gap(16);
-
-  sec("Page context summary");
-  [["PAGE URL",data.ctx?.url],["PAGE TITLE",data.ctx?.title],["TOPIC",data.ctx?.topic],["OWNER",data.ctx?.owner],["GOAL",data.ctx?.goal],["INDUSTRY",data.ctx?.industry],["REGION",data.ctx?.region],["COMPETITION",data.ctx?.competition],["CORE MESSAGE",data.ctx?.message]].forEach(([l,v])=>{
-    if(!v)return; ensureSpace(16);
-    doc.setFontSize(7.5); doc.setFont("helvetica","bold"); doc.setTextColor(...mt); doc.text(l,M,y);
-    doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(...dk); doc.text(String(v).slice(0,72),M+90,y); y+=14;
-  });
-  gap(10); ln(); gap(16);
-
-  const kwT = (title, rows) => {
-    if(!rows?.length) return; sec(title);
-    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
-      columnStyles:{0:{cellWidth:260,halign:"left"},1:{halign:"center",cellWidth:45},2:{halign:"center",cellWidth:60},3:{halign:"center",cellWidth:45}},
-      head:[["Keyword","Pos.","Volume","KD"]],
-      body:rows.map(r=>[r.keyword,r.position!=null?String(r.position):"100+",fV(r.volume),r.difficulty!=null?String(r.difficulty):"\u2014"])
-    });
-    y=doc.lastAutoTable.finalY+8; note("Positions 1\u20133 = strong visibility. 4\u201310 = page one below fold. 11+ = page two or deeper."); gap(4); ln(); gap(16);
+  /* ── Color palette ── */
+  const dk = [21,20,21], mt = [146,142,149], accent = [110,43,255], wh = [255,255,255];
+  const divClr = [230,227,233];
+  const tblHdrBg = [240,237,243];
+  const lavCardBg = [252,250,255];
+  const lavCardBdr = [220,210,240];
+  const PRIO_PDF = {
+    critical: { label: "Critical", color: [110,43,255], bg: [237,228,255] },
+    important: { label: "Important", color: [155,122,230], bg: [241,235,252] },
+    nice: { label: "Nice to have", color: [184,156,240], bg: [245,240,253] }
   };
-  kwT("How your page ranks in Google", data.rankedKeywords);
-  kwT("What your page is built for", data.keywordMetrics);
 
-  const gR=[];
-  if(data.titleStatus==="good") gR.push(["Meta Title","\""+(data.title.length>50?data.title.slice(0,47)+"...":data.title)+"\" ("+data.title.length+" chars)"]);
-  if(data.descStatus==="good") gR.push(["Meta Description","\""+(data.desc.length>60?data.desc.slice(0,57)+"...":data.desc)+"\" ("+data.desc.length+" chars)"]);
-  if(data.headingsStatus==="good"){const h1=data.headings.filter(h=>h.level==="H1"),h2=data.headings.filter(h=>h.level==="H2"),h3=data.headings.filter(h=>h.level==="H3"); gR.push(["Heading Structure","H1: "+h1.map(h=>h.text).join(", ")+" | H2: "+h2.length+" | H3: "+h3.length]);}
-  if(data.linksStatus==="good"){const sn=data.links.social.map(s=>typeof s==="string"?s:s.name); gR.push(["Links & Social","Internal: "+data.links.internal+" | External: "+data.links.external+(sn.length?"\nSocial: "+sn.join(" \u00B7 "):"")]);}
-  if(data.ux?.cta?.found) gR.push(["Call to Action","CTA: \""+data.ux.cta.text+"\""]);
-  if(data.ux?.mobile) gR.push(["Mobile","Viewport meta present. Mobile-friendly."]);
-  if(!data.ux?.altMissing) gR.push(["Image Alt Text","All images have descriptions."]);
-  if(!data.ux?.noVideo) gR.push(["Video Content","Video detected."]);
-  if(data.speedStatus==="good") gR.push(["Page Speed","Fast loading."]);
-  if(data.robotsStatus==="good") gR.push(["robots.txt","Properly configured."]);
-  if(data.sitemapStatus==="good") gR.push(["Sitemap","XML sitemap accessible."]);
-  if(gR.length>0){
-    sec("What's working ("+gR.length+")");
-    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
-      head:[["#","Check","Details"]],body:gR.map((r,i)=>[String(i+1),r[0],r[1]]),
-      columnStyles:{0:{cellWidth:26,halign:"center"},1:{cellWidth:110,fontStyle:"bold"},2:{cellWidth:"auto"}}
-    });
-    y=doc.lastAutoTable.finalY+12; ln(); gap(16);
+  /* ── Helpers ── */
+  const ensureSpace = (n) => { if (y + n > H - 60) { doc.addPage(); y = 44; } };
+  const gap = (n) => { y += (n || 10); };
+  const divider = () => { doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); };
+  const secTitle = (t) => { ensureSpace(52); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk); const lines = doc.splitTextToSize(t, CW); doc.text(lines, M, y); y += lines.length * 36 + 16; };
+  const note = (t, maxW) => { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * 16 + 4); doc.text(L, M, y); y += L.length * 16 + 4; };
+  const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
+  const fKD = (d) => d != null ? String(d) : "low";
+  const urlS = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
+
+  /* ══════════════════════════════════════════════
+     HEADER — logo + "IvaBot" inline, subtitle below, date+url right
+     ══════════════════════════════════════════════ */
+  doc.addImage(logoImg, "PNG", M, 28, 22, 19);
+  doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+  doc.text("IvaBot", M + 28, 42);
+  doc.setFontSize(9.5); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+  doc.text("Core Audit Report", M + 28, 55);
+  doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 36, { align: "right" });
+  doc.setFontSize(12);
+  doc.text(urlS, W - M, 52, { align: "right" });
+  y = 76;
+
+  /* ══════════════════════════════════════════════
+     SEO SCORE — 140px circle + text right
+     ══════════════════════════════════════════════ */
+  ensureSpace(120);
+  const sL = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
+  const sC = data.score >= 80 ? [155,122,230] : data.score >= 50 ? [212,160,232] : [226,212,245];
+  const circR = 70, cx = M + circR, cy = y + circR;
+  doc.setDrawColor(230,227,233); doc.setLineWidth(6); doc.circle(cx, cy, circR - 3);
+  doc.setDrawColor(...sC); doc.setLineWidth(6);
+  const arcEnd = -90 + (data.score / 100) * 360;
+  for (let a = -90; a < arcEnd; a += 1.5) {
+    const a1 = (a * Math.PI) / 180, a2 = (Math.min(a + 1.5, arcEnd) * Math.PI) / 180;
+    doc.line(cx + (circR - 3) * Math.cos(a1), cy + (circR - 3) * Math.sin(a1), cx + (circR - 3) * Math.cos(a2), cy + (circR - 3) * Math.sin(a2));
   }
+  doc.setFontSize(40); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+  doc.text(String(data.score), cx, cy + 6, { align: "center" });
+  doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...sC);
+  doc.text(sL, cx, cy + 24, { align: "center" });
+  const textX = M + circR * 2 + 24;
+  doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+  doc.text("SEO Score", textX, cy - 6);
+  doc.setFontSize(14); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+  doc.text(data.score >= 80 ? "Your page has a strong SEO foundation." : data.score >= 50 ? "There's room for improvement." : "Your page needs significant SEO work.", textX, cy + 14);
+  y = cy + circR + 24;
+  gap(48);
 
-  const pB=[];
-  if(data.titleStatus!=="good") pB.push({t:data.titleEval?.title||"Meta Title",serp:"SERP: "+urlS+" \u2014 "+(data.title||"No title"),w:data.titleEval?.why,s:data.titleEval?.suggestions,lk:[{l:"Google Search Console",u:"https://search.google.com/search-console"}]});
-  if(data.descStatus!=="good") pB.push({t:data.descEval?.title||"Meta Description",serp:"SERP: "+(data.desc?"\""+( data.desc.length>60?data.desc.slice(0,57)+"...":data.desc)+"\"":"No description"),w:data.descEval?.why,s:data.descEval?.suggestions});
-  if(data.headingsStatus!=="good") pB.push({t:"Heading Structure",w:data.headingsEval?.why,cur:data.headingsEval?.current,s:data.headingsEval?.suggestions});
-  if(data.linksStatus!=="good") pB.push({t:"Links",w:data.linksEval?.why,s:data.linksEval?.suggestions});
-  if(!data.ux?.cta?.found) pB.push({t:"No CTA Found",w:"No call-to-action detected.",s:["Add a prominent CTA above the fold"]});
-  if(!data.ux?.mobile) pB.push({t:"Not Mobile-Friendly",w:"Missing viewport meta tag.",s:["Add viewport meta tag"]});
-  if(data.ux?.altMissing) pB.push({t:data.imagesEval?.title||"Images Missing Alt",w:data.imagesEval?.why,s:data.imagesEval?.suggestions});
-  if(data.ux?.noVideo) pB.push({t:data.videoEval?.title||"No Video",w:data.videoEval?.why,s:data.videoEval?.suggestions});
-  if(data.speedStatus!=="good") pB.push({t:data.speedEval?.title||"Page Speed",w:data.speedEval?.why,s:data.speedEval?.suggestions,lk:[{l:"Google PageSpeed Insights",u:"https://pagespeed.web.dev/"}]});
-  if(data.robotsStatus!=="good") pB.push({t:"robots.txt Not Found",w:"Tells search engines which pages to crawl.",s:["Create robots.txt at your domain root"],lk:[{l:"How to create robots.txt",u:"https://developers.google.com/search/docs/crawling-indexing/robots/create-robots-txt"}]});
-  if(data.sitemapStatus!=="good") pB.push({t:"Sitemap Not Found",w:"Helps Google discover and index pages.",s:["Generate and submit XML sitemap"],lk:[{l:"Google Sitemap Guide",u:"https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap"}]});
-
-  if(pB.length>0){
-    sec("Needs improvement ("+pB.length+")");
-    const rows=[];
-    pB.forEach((item,i)=>{
-      rows.push([{content:String(i+1),styles:{fontStyle:"bold"}},{content:item.t,styles:{fontStyle:"bold"}},item.w||""]);
-      if(item.serp) rows.push(["",{content:item.serp,colSpan:2,styles:{fontSize:8,fontStyle:"italic",textColor:mt,fillColor:lavBg}}]);
-      if(item.cur){const ct=String(item.cur).slice(0,300); rows.push(["",{content:"Current:\n"+ct,colSpan:2,styles:{fontSize:8,textColor:dk,fillColor:lavBg,cellPadding:{top:4,bottom:4,left:6,right:6}}}]);}
-      if(item.s?.length>0) item.s.forEach(s=>{rows.push(["",{content:"Suggested:  "+String(s),colSpan:2,styles:{fillColor:wh,fontSize:8.5,textColor:mt}}]);});
-      if(item.lk?.length>0) item.lk.forEach(l=>{rows.push(["",{content:l.l+" \u2192",colSpan:2,styles:{fillColor:wh,fontSize:8,textColor:purple}}]);});
-    });
-    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:pH,bodyStyles:tB,alternateRowStyles:tA,
-      head:[["#","Issue","Details"]],body:rows,
-      columnStyles:{0:{cellWidth:26,halign:"center"},1:{cellWidth:100},2:{cellWidth:"auto"}}
-    });
-    y=doc.lastAutoTable.finalY+12; ln(); gap(16);
-  }
-
-  if(data.competitors?.length>0){
-    sec("Top competitors in Google");
-    note("Top organic results for \""+(data.keywords?.[0]||"your topic")+"\".");
-    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
-      head:[["#","Domain","SEO Tactics"]],
-      body:data.competitors.map((c,i)=>[String(i+1),(c.name||"")+(c.url?"\n"+c.url:""),c.tactics||""]),
-      columnStyles:{0:{cellWidth:26,halign:"center"},1:{cellWidth:150},2:{cellWidth:"auto"}}
-    });
-    y=doc.lastAutoTable.finalY+12; ln(); gap(16);
-  }
-
-  sec("PR & backlink opportunities");
-  if(data.backlinksCount!=null){
-    ensureSpace(35);
-    [["Backlinks",data.backlinksCount],["Referring Domains",data.referringDomains],["Ranked Keywords",data.totalRanked]].forEach(([l,v],i)=>{
-      const sx=M+(CW/3)*i;
-      doc.setFontSize(16); doc.setFont("helvetica","bold"); doc.setTextColor(...tc); doc.text(v!=null?v.toLocaleString():"\u2014",sx,y);
-      doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); doc.text(String(l),sx,y+14);
-    }); y+=34;
-    if(data.backlinksCount<10){note(data.backlinksCount===0?"No backlinks detected. Top 3 Google ranking factor.":"Low backlink count ("+data.backlinksCount+")."); gap(2);}
-  }
-  note("Every quality link is a 'vote of confidence' for Google.");
-  if(data.backlinks?.length>0){
-    doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
-      head:[["#","Source","Outreach Strategy"]],body:data.backlinks.map((b,i)=>[String(i+1),b.name,b.desc||""])
-    });
-    y=doc.lastAutoTable.finalY+12; ln(); gap(16);
-  }
-
-  sec("Final recommendations");
-  const recs=[...pB.map(item=>[item.t,item.s?.[0]||""]),
-    [data.backlinksCount!=null&&data.backlinksCount>=10?"Keep building backlinks":"Build quality backlinks","Reach out to industry blogs, directories."],
-    ["Create useful content","Content that solves real problems."],
-    ["Monitor with Google tools","Use Search Console and PageSpeed Insights."],
-    ["Re-audit after changes","Run another Core Audit to measure progress."]
-  ];
-  doc.autoTable({startY:y,margin:{left:M,right:M},headStyles:lH,bodyStyles:tB,alternateRowStyles:tA,
-    head:[["#","Action","How"]],body:recs.map((r,i)=>[String(i+1),r[0],r[1]]),
-    columnStyles:{0:{cellWidth:26,halign:"center"},1:{cellWidth:140,fontStyle:"bold"},2:{cellWidth:"auto"}}
+  /* ══════════════════════════════════════════════
+     PAGE CONTEXT SUMMARY
+     ══════════════════════════════════════════════ */
+  secTitle("Page Context Summary");
+  const ctxRows = [["Page URL", data.ctx?.url], ["Page title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition], ["Core message", data.ctx?.message]];
+  ctxRows.forEach(([label, val]) => {
+    if (!val) return;
+    ensureSpace(18);
+    doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+    doc.text(label, M, y);
+    doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+    const valLines = doc.splitTextToSize(String(val).slice(0, 120), CW - 130);
+    doc.text(valLines, M + 130, y);
+    y += Math.max(valLines.length * 16, 12) + 4;
   });
-  y=doc.lastAutoTable.finalY+20;
+  gap(48);
 
-  gap(6); ensureSpace(40);
-  const bW=200,bH=32,bX=W/2-bW/2,bY=y;
-  doc.setFillColor(...purple); doc.roundedRect(bX,bY,bW,bH,8,8,"F");
-  doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.setTextColor(...wh);
-  doc.text("Run your audit at ivabot.xyz",W/2,bY+20,{align:"center"});
-  doc.link(bX,bY,bW,bH,{url:"https://ivabot.xyz/app"});
+  /* ══════════════════════════════════════════════
+     KEYWORD TABLES
+     ══════════════════════════════════════════════ */
+  const kwTableStyles = {
+    headStyles: { fillColor: tblHdrBg, textColor: mt, fontSize: 10, fontStyle: "normal", cellPadding: 8 },
+    bodyStyles: { fontSize: 13, textColor: dk, cellPadding: 8, fillColor: false },
+    alternateRowStyles: { fillColor: false },
+    styles: { lineColor: divClr, lineWidth: 0.5 },
+    columnStyles: { 0: { cellWidth: 240, halign: "left", fontStyle: "bold" }, 1: { halign: "center", cellWidth: 55 }, 2: { halign: "center", cellWidth: 70 }, 3: { halign: "center", cellWidth: 55 } },
+    tableLineColor: divClr, tableLineWidth: 0
+  };
 
-  const tp=doc.getNumberOfPages();
-  for(let i=1;i<=tp;i++){doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...mt); doc.text("ivabot.xyz  \u00B7  AI SEO Assistant",W/2,H-22,{align:"center"}); doc.text("Page "+i+" of "+tp,W-M,H-22,{align:"right"}); doc.link(W/2-60,H-32,120,14,{url:"https://ivabot.xyz/app"});}
+  if (data.rankedKeywords?.length > 0) {
+    secTitle("How Your Page Ranks in Google");
+    doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+    doc.text("Real positions from the Google search index.", M, y); y += 20;
+    doc.autoTable({
+      startY: y, margin: { left: M, right: M }, ...kwTableStyles,
+      head: [["Keyword", "Pos.", "Volume", "KD"]],
+      body: data.rankedKeywords.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fV(r.volume), fKD(r.difficulty)]),
+      didParseCell: function(hookData) {
+        if (hookData.section === "body" && hookData.column.index === 1) {
+          const pos = parseInt(hookData.cell.raw);
+          if (pos >= 1 && pos <= 3) { hookData.cell.styles.fillColor = [237,228,255]; hookData.cell.styles.textColor = accent; hookData.cell.styles.fontStyle = "bold"; }
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 10;
+    note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
+    gap(8);
+    note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
+    gap(48);
+  }
 
-  const domain=(()=>{try{return new URL(data.url).hostname.replace(/^www\./,"");}catch(e){return "audit";}})();
-  const fileName="IvaBot-Audit-"+domain+"-"+new Date().toISOString().slice(0,10)+".pdf";
+  secTitle("What Your Page Is Built For");
+  doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+  const builtForDesc = "Based on your title, headings (H1\u2013H3), and meta description \u2014 these are the search queries your content is currently optimized for.";
+  const bfdLines = doc.splitTextToSize(builtForDesc, CW);
+  doc.text(bfdLines, M, y); y += bfdLines.length * 16 + 10;
+  if (data.keywordMetrics?.length > 0) {
+    doc.autoTable({
+      startY: y, margin: { left: M, right: M }, ...kwTableStyles,
+      head: [["Keyword", "Pos.", "Volume", "KD"]],
+      body: data.keywordMetrics.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fV(r.volume), fKD(r.difficulty)]),
+      didParseCell: function(hookData) {
+        if (hookData.section === "body" && hookData.column.index === 1) {
+          const pos = parseInt(hookData.cell.raw);
+          if (pos >= 1 && pos <= 3) { hookData.cell.styles.fillColor = [237,228,255]; hookData.cell.styles.textColor = accent; hookData.cell.styles.fontStyle = "bold"; }
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 10;
+    note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
+    gap(8);
+    note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
+  }
+  gap(48);
+
+  /* ══════════════════════════════════════════════
+     WHAT'S WORKING — card-style with dividers
+     ══════════════════════════════════════════════ */
+  const gItems = [];
+  if (data.titleStatus === "good") {
+    let displayUrl = data.url || ""; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
+    gItems.push({ title: "Meta Title", content: "Google Search Preview:\n" + displayUrl + "\n" + (data.title || "No title set"), detail: data.title.length + " characters", explain: "Your title is " + data.title.length + " characters \u2014 right in the sweet spot (30\u201360). This is the #1 on-page signal Google uses to understand your content." });
+  }
+  if (data.descStatus === "good") {
+    let displayUrl = data.url || ""; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
+    const truncDesc = data.desc.length > 160 ? data.desc.slice(0, 157) + "..." : data.desc;
+    gItems.push({ title: "Meta Description", content: "Google Search Preview:\n" + displayUrl + "\n" + (data.title || "") + "\n" + truncDesc, detail: data.desc.length + " characters", explain: "Within 120\u2013160 characters, the sweet spot. This is what users see in search results, so a good one means more clicks." });
+  }
+  if (data.headingsStatus === "good") {
+    const h1 = data.headings.filter(h => h.level === "H1"), h2 = data.headings.filter(h => h.level === "H2"), h3 = data.headings.filter(h => h.level === "H3");
+    let hText = "H1 \u2014 " + h1.length + " found\n";
+    h1.forEach(h => { hText += "  H1: " + h.text + "\n"; });
+    hText += "H2 \u2014 " + h2.length + " found\n";
+    h2.forEach(h => { hText += "  H2: " + h.text + "\n"; });
+    hText += "H3 \u2014 " + h3.length + " found\n";
+    h3.forEach(h => { hText += "  H3: " + h.text + "\n"; });
+    gItems.push({ title: "Heading Structure", content: hText.trim(), explain: "Think of headings as a table of contents. H1 is your main topic, H2s are chapters, H3s are subsections. Google uses this hierarchy to understand your page. Yours looks clean \u2014 no duplicates detected." });
+  }
+  if (data.linksStatus === "good") {
+    const sn = data.links.social.map(s => typeof s === "string" ? s : s.name);
+    const extDesc = data.links.external === 0 ? "No external links found. Linking to trusted sources builds credibility." : "Linking to trusted sources builds credibility.";
+    gItems.push({ title: "Links & Social Profiles", linksInternal: data.links.internal, linksExternal: data.links.external, intDesc: "Connect your pages so Google can discover and rank them.", extDesc: extDesc, social: sn, explain: "A healthy mix of internal links, external references, and social profiles tells Google your site is well-connected and trustworthy." + (sn.length === 0 ? " No social profiles linked \u2014 consider adding social links to build brand trust." : "") });
+  }
+  if (data.ux?.cta?.found) gItems.push({ title: "Call to Action", content: "CTA found: \"" + data.ux.cta.text + "\"", explain: "A clear call-to-action guides visitors to the next step. Pages with visible CTAs convert better." });
+  if (data.ux?.mobile) gItems.push({ title: "Mobile Optimization", content: "Viewport meta present. Your page looks great on phones and tablets.", explain: "Over 60% of searches happen on mobile. Google ranks mobile-friendly pages higher." });
+  if (!data.ux?.altMissing) gItems.push({ title: "Image Alt Text", content: "All images have descriptions.", explain: "Alt text helps Google understand your images and makes your site accessible to screen readers." });
+  if (!data.ux?.noVideo) gItems.push({ title: "Video Content", content: "Video detected on your page.", explain: "Pages with video keep visitors engaged longer. Google notices this \u2014 it\u2019s a positive ranking signal." });
+  if (data.speedStatus === "good") gItems.push({ title: "Page Speed", content: "Your page loads fast.", explain: "Speed is a Core Web Vital \u2014 Google uses it directly for rankings. Fast pages also have lower bounce rates." });
+  if (data.robotsStatus === "good") gItems.push({ title: "robots.txt", content: "Properly configured.", explain: "This file tells search engines which pages to crawl and which to skip. Yours is set up correctly." });
+  if (data.sitemapStatus === "good") gItems.push({ title: "Sitemap", content: "XML sitemap accessible.", explain: "A sitemap is like a roadmap for Google \u2014 it helps discover and index all your pages faster." });
+
+  if (gItems.length > 0) {
+    secTitle("What\u2019s Working (" + gItems.length + ")");
+    note("Good news \u2014 " + gItems.length + " things are already working well on your page.");
+    gap(12);
+    gItems.forEach((item, idx) => {
+      ensureSpace(80);
+      doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+      doc.text(item.title, M, y); y += 18;
+      if (item.linksInternal != null) {
+        doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+        doc.text(String(item.linksInternal), M, y);
+        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+        doc.text("Internal links", M + 50, y);
+        y += 14;
+        if (item.intDesc) { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); doc.text(item.intDesc, M, y); y += 16; }
+        y += 6;
+        doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+        doc.text(String(item.linksExternal), M, y);
+        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+        doc.text("External links", M + 50, y);
+        y += 14;
+        if (item.extDesc) { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); doc.text(item.extDesc, M, y); y += 16; }
+        y += 6;
+        if (item.social?.length > 0) {
+          doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+          doc.text("Social: " + item.social.join(" \u00B7 "), M, y); y += 16;
+        }
+      } else if (item.content) {
+        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+        const cLines = doc.splitTextToSize(item.content, CW);
+        ensureSpace(cLines.length * 16 + 4);
+        doc.text(cLines, M, y); y += cLines.length * 16 + 2;
+        if (item.detail) {
+          doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+          doc.text(item.detail, M, y); y += 16;
+        }
+      }
+      if (item.explain) {
+        doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+        const eLines = doc.splitTextToSize(item.explain, CW);
+        ensureSpace(eLines.length * 15 + 4);
+        doc.text(eLines, M, y); y += eLines.length * 15 + 4;
+      }
+      if (idx < gItems.length - 1) { y += 8; divider(); y += 12; }
+    });
+    gap(48);
+  }
+
+  /* ══════════════════════════════════════════════
+     NEEDS IMPROVEMENT — lavender card-style blocks
+     ══════════════════════════════════════════════ */
+  const pB = [];
+  if (data.titleStatus !== "good") pB.push({ t: data.titleEval?.title || "Meta Title Too Short", p: "critical", w: data.titleEval?.why, s: data.titleEval?.suggestions, cur: data.title ? "Current title: \"" + data.title + "\" (" + data.title.length + " characters)" : "No title set", curLabel: data.titleEval?.currentLabel });
+  if (data.descStatus !== "good") pB.push({ t: data.descEval?.title || "Description Needs Work", p: "critical", w: data.descEval?.why, s: data.descEval?.suggestions, cur: data.desc ? "Current description: \"" + (data.desc.length > 120 ? data.desc.slice(0, 117) + "..." : data.desc) + "\" (" + data.desc.length + " characters)" : "No description set", curLabel: data.descEval?.currentLabel });
+  if (data.headingsStatus !== "good") pB.push({ t: "Heading Structure", p: "critical", w: data.headingsEval?.why, s: data.headingsEval?.suggestions, cur: data.headingsEval?.current ? String(data.headingsEval.current).slice(0, 400) : null });
+  if (data.linksStatus !== "good") pB.push({ t: "Links", p: "important", w: data.linksEval?.why, s: data.linksEval?.suggestions, cur: data.linksEval?.current ? String(data.linksEval.current).slice(0, 300) : null });
+  if (!data.ux?.cta?.found) pB.push({ t: "No CTA Found", p: "important", w: "A call-to-action (CTA) is a button or link that guides visitors to take action \u2014 like \u2018Buy now\u2019, \u2018Sign up\u2019, or \u2018Contact us\u2019. Without one, visitors may leave without converting.", s: ["Add a prominent CTA above the fold"] });
+  if (!data.ux?.mobile) pB.push({ t: "Not Mobile-Friendly", p: "critical", w: "Your page doesn\u2019t have a viewport meta tag, which means it won\u2019t display properly on phones and tablets. Google uses mobile-first indexing, so this directly hurts your rankings.", s: ["Add viewport meta tag to your page head"] });
+  if (data.ux?.altMissing) pB.push({ t: data.imagesEval?.title || "Images Missing Alt", p: "nice", w: data.imagesEval?.why, s: data.imagesEval?.suggestions, cur: data.imagesEval?.current ? String(data.imagesEval.current).slice(0, 300) : null });
+  if (data.ux?.noVideo) pB.push({ t: data.videoEval?.title || "No Video", p: "nice", w: data.videoEval?.why, s: data.videoEval?.suggestions });
+  if (data.speedStatus !== "good") pB.push({ t: data.speedEval?.title || "Page Speed", p: "important", w: data.speedEval?.why, s: data.speedEval?.suggestions, cur: data.speedEval?.current ? String(data.speedEval.current).slice(0, 300) : null });
+  if (data.robotsStatus !== "good") pB.push({ t: "robots.txt Not Found", p: "nice", w: "robots.txt is a small file at the root of your site that tells search engines which pages to crawl and which to skip. Without it, Google may waste time crawling unnecessary pages or miss important ones. Most website platforms can generate this automatically.", s: ["Create robots.txt at your domain root"] });
+  if (data.sitemapStatus !== "good") pB.push({ t: "Sitemap Not Found", p: "nice", w: "An XML sitemap is a list of all your pages that helps Google discover and index them faster. Without one, new or deep pages may not appear in search results for weeks. Most CMS platforms generate sitemaps automatically \u2014 check your settings.", s: ["Generate and submit XML sitemap"] });
+  const prioOrd = { critical: 0, important: 1, nice: 2 };
+  pB.sort((a, b) => (prioOrd[a.p] ?? 1) - (prioOrd[b.p] ?? 1));
+
+  if (pB.length > 0) {
+    secTitle("Needs Improvement (" + pB.length + ")");
+    note("I found " + pB.length + " areas that need attention. Each card has a clear fix.");
+    gap(12);
+    pB.forEach((item) => {
+      const pr = PRIO_PDF[item.p] || PRIO_PDF.important;
+      const curLines = item.cur ? doc.splitTextToSize(String(item.cur), CW - 24) : [];
+      const whyLines = item.w ? doc.splitTextToSize(String(item.w), CW - 24) : [];
+      const sugArr = item.s || [];
+      let sugH = 0;
+      sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); sugH += sl.length * 26; });
+      if (sugArr.length > 0) sugH += 4;
+      const totalH = 16 + 22 + (curLines.length > 0 ? curLines.length * 15 + 10 : 0) + (item.w ? whyLines.length * 16 + 14 : 0) + sugH + 16;
+
+      ensureSpace(totalH + 10);
+      const cardY = y;
+      doc.setFillColor(...lavCardBg);
+      doc.setDrawColor(...lavCardBdr);
+      doc.setLineWidth(1);
+      doc.roundedRect(M, cardY, CW, totalH, 8, 8, "FD");
+
+      y = cardY + 16;
+      doc.setFontSize(15); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+      doc.text(item.t, M + 12, y);
+      const badgeW = doc.getTextWidth(pr.label) + 16;
+      const badgeX = W - M - 12 - badgeW;
+      doc.setFillColor(...pr.bg);
+      doc.roundedRect(badgeX, y - 11, badgeW, 16, 8, 8, "F");
+      doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(...pr.color);
+      doc.text(pr.label, badgeX + 8, y);
+      y += 22;
+      /* Current value (title, description, headings, etc.) */
+      if (curLines.length > 0) {
+        doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+        doc.text(curLines, M + 12, y); y += curLines.length * 15 + 10;
+      }
+      if (item.w) {
+        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+        doc.text(whyLines, M + 12, y); y += whyLines.length * 16 + 14;
+      }
+      sugArr.forEach(s => {
+        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+        const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24);
+        doc.text(sl, M + 12, y); y += sl.length * 26;
+      });
+
+      y = cardY + totalH + 12;
+    });
+    gap(48);
+  }
+
+  /* ══════════════════════════════════════════════
+     TOP COMPETITORS — table with domain only
+     ══════════════════════════════════════════════ */
+  if (data.competitors?.length > 0) {
+    secTitle("Top Competitors");
+    note("Want to go deeper? See how your competitors rank and where to earn backlinks.");
+    gap(8);
+    note("Top organic results for \"" + (data.keywords?.[0] || "your topic") + "\".");
+    gap(8);
+    doc.autoTable({
+      startY: y, margin: { left: M, right: M },
+      headStyles: { fillColor: tblHdrBg, textColor: mt, fontSize: 10, fontStyle: "normal", cellPadding: 8 },
+      bodyStyles: { fontSize: 13, textColor: dk, cellPadding: 8, fillColor: false },
+      alternateRowStyles: { fillColor: false },
+      styles: { lineColor: divClr, lineWidth: 0.5 },
+      head: [["#", "Domain", "SEO Tactics"]],
+      body: data.competitors.map((c, i) => {
+        let domain = c.name || "";
+        if (c.url) { try { domain = new URL(c.url).hostname.replace(/^www\./, ""); } catch(e) { domain = c.url; } }
+        return [String(i + 1), domain, c.tactics || ""];
+      }),
+      columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 160 }, 2: { cellWidth: "auto" } }
+    });
+    y = doc.lastAutoTable.finalY + 10;
+    note("Study their titles, descriptions, and content structure. What are they doing that you\u2019re not? Use their strengths as inspiration to improve your own page.");
+    gap(48);
+  }
+
+  /* ══════════════════════════════════════════════
+     PR & BACKLINK OPPORTUNITIES
+     ══════════════════════════════════════════════ */
+  secTitle("PR & Backlink Opportunities");
+  if (data.backlinksCount != null) {
+    ensureSpace(40);
+    [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([label, val], i) => {
+      const sx = M + (CW / 3) * i;
+      doc.setFontSize(20); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+      doc.text(val != null ? val.toLocaleString() : "\u2014", sx, y);
+      doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+      doc.text(String(label), sx, y + 16);
+    }); y += 38;
+    if (data.backlinksCount < 10) { note(data.backlinksCount === 0 ? "No backlinks detected. This is a top 3 Google ranking factor." : "Low backlink count (" + data.backlinksCount + ")."); gap(4); }
+  }
+  note("Every quality link from another website is a \u2018vote of confidence\u2019 for Google. Reach out to relevant sites \u2014 even 2\u20133 strong backlinks can make a real difference.");
+  gap(8);
+  if (data.backlinks?.length > 0) {
+    doc.autoTable({
+      startY: y, margin: { left: M, right: M },
+      headStyles: { fillColor: tblHdrBg, textColor: mt, fontSize: 10, fontStyle: "normal", cellPadding: 8 },
+      bodyStyles: { fontSize: 13, textColor: dk, cellPadding: 8, fillColor: false },
+      alternateRowStyles: { fillColor: false },
+      styles: { lineColor: divClr, lineWidth: 0.5 },
+      head: [["#", "Source", "Outreach Strategy"]],
+      body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""])
+    });
+    y = doc.lastAutoTable.finalY + 12;
+  }
+  gap(48);
+
+  /* ══════════════════════════════════════════════
+     FINAL RECOMMENDATIONS — cards with border
+     ══════════════════════════════════════════════ */
+  secTitle("Final Recommendations");
+  const allRecs = [
+    ...pB.map(item => ({ t: item.t, p: item.p, w: item.w, s: item.s })),
+    { t: data.backlinksCount != null && data.backlinksCount >= 10 ? "Keep building backlinks" : "Build quality backlinks", p: "important", w: "Every quality link is a vote of confidence for Google.", s: ["Reach out to industry blogs, directories, and relevant sites."] },
+    { t: "Create useful content", p: "important", w: "Content that solves real problems attracts links and rankings naturally.", s: ["Publish guides, studies, or tools that your audience needs."] },
+    { t: "Monitor with Google tools", p: "nice", w: "Track your progress and spot issues early.", s: ["Use Google Search Console and PageSpeed Insights regularly."] },
+    { t: "Re-audit after changes", p: "nice", w: "Measure the impact of your improvements.", s: ["Run another Core Audit to track progress."] }
+  ];
+
+  allRecs.forEach((item) => {
+    const pr = PRIO_PDF[item.p] || PRIO_PDF.important;
+    const whyLines = item.w ? doc.splitTextToSize(String(item.w), CW - 24) : [];
+    const sugArr = item.s || [];
+    let sugH = 0;
+    sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); sugH += sl.length * 26; });
+    const totalH = 16 + 22 + (whyLines.length > 0 ? whyLines.length * 16 + 14 : 0) + sugH + 16;
+
+    ensureSpace(totalH + 10);
+    const cardY = y;
+    doc.setDrawColor(...divClr); doc.setLineWidth(1);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(M, cardY, CW, totalH, 8, 8, "FD");
+
+    y = cardY + 16;
+    doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+    doc.text(item.t, M + 12, y);
+    const badgeW = doc.getTextWidth(pr.label) + 16;
+    const badgeX = W - M - 12 - badgeW;
+    doc.setFillColor(...pr.bg);
+    doc.roundedRect(badgeX, y - 11, badgeW, 16, 8, 8, "F");
+    doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(...pr.color);
+    doc.text(pr.label, badgeX + 8, y);
+    y += 22;
+    if (whyLines.length > 0) {
+      doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+      doc.text(whyLines, M + 12, y); y += whyLines.length * 16 + 14;
+    }
+    sugArr.forEach(s => {
+      doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+      const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24);
+      doc.text(sl, M + 12, y); y += sl.length * 26;
+    });
+
+    y = cardY + totalH + 10;
+  });
+
+  /* ══════════════════════════════════════════════
+     FOOTER — every page
+     ══════════════════════════════════════════════ */
+  const tp = doc.getNumberOfPages();
+  for (let i = 1; i <= tp; i++) {
+    doc.setPage(i);
+    doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+    doc.text("Run your audit at ivabot.xyz", W / 2, H - 22, { align: "center" });
+    doc.text("Page " + i + " of " + tp, W - M, H - 22, { align: "right" });
+    doc.link(W / 2 - 70, H - 32, 140, 14, { url: "https://ivabot.xyz/app" });
+  }
+
+  /* ══════════════════════════════════════════════
+     SAVE + UPLOAD
+     ══════════════════════════════════════════════ */
+  const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
+  const fileName = "IvaBot-Audit-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
   doc.save(fileName);
 
   const pdfBtn = document.getElementById("export-pdf-btn");
   const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
-  if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = C.dark; }
+  if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
 
   try {
     const pdfBlob = doc.output("blob");
@@ -773,18 +1029,18 @@ async function generatePDF(data) {
       }).then(r => r.json()).then(d => {
         if (d?.already_saved) {
           console.log("[IvaBot] PDF already saved for this audit");
-          if (pdfBtn) { pdfBtn.innerHTML = "✓ Already Saved"; pdfBtn.style.color = C.dark; }
+          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; }
         } else if (d?.url) {
           console.log("[IvaBot] PDF saved to dashboard:", d.url);
-          if (pdfBtn) { pdfBtn.innerHTML = "✓ Saved To Dashboard"; pdfBtn.style.color = C.dark; }
+          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; }
         } else {
           console.warn("[IvaBot] PDF upload response:", d);
-          if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = C.dark; }
+          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
         }
         setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
       }).catch(e => {
         console.warn("[IvaBot] PDF upload failed:", e);
-        if (pdfBtn) { pdfBtn.innerHTML = "✓ Downloaded"; pdfBtn.style.color = C.dark; }
+        if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
         setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
       });
     } else {
@@ -792,7 +1048,7 @@ async function generatePDF(data) {
       setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
     }
   } catch(ue) { console.warn("[IvaBot] PDF upload error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
-  } catch(err){console.error("[IvaBot] PDF error:",err); alert("PDF export failed: "+err.message);}
+  } catch(err) { console.error("[IvaBot] PDF error:", err); alert("PDF export failed: " + err.message); }
 }
 
 /* ═══ REPORT (unchanged) ═══ */
@@ -810,6 +1066,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
     <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>Keywords your page actually ranks for in Google right now — with real positions from the search index.</div>
     <RankingsTable rows={data.rankedKeywords} />
     <BotNote inline text="Positions 1–3 mean strong visibility. 4–10 is page one but below the fold. 11+ means page two or deeper — most users never scroll there." />
+    <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page — they bring niche traffic with less competition." />
   </div>}
   <div className="reveal reveal-delay-2" style={{ marginBottom: 20, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -819,6 +1076,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
     <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>Based on your title, headings (H1–H3), and meta description — these are the search queries your content is currently optimized for.</div>
     <RankingsTable rows={data.keywordMetrics} emptyMsg="Keywords will appear after audit completes." />
     <BotNote inline text="If your real rankings don't match these keywords, your content may need better keyword targeting. Update your headings and meta tags to align with your target queries." />
+    <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page — they bring niche traffic with less competition." />
   </div>
   <BotNote text={good.length > 0 ? `Good news — ${good.length} things are already working well on your page.` : "Let's look at what needs attention."} />
   {good.length > 0 && <div className="reveal reveal-delay-3" style={{ marginBottom: 12 }}><Fold title="What's Working" count={good.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{good.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
