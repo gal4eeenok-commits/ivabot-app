@@ -604,24 +604,28 @@ async function generatePDF(data) {
   const gap = (n) => { y += (n || 10); };
   const divider = () => { doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); };
   const secTitle = (t) => { ensureSpace(52); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk); const lines = doc.splitTextToSize(t, CW); doc.text(lines, M, y); y += lines.length * 36 + 16; };
-  const note = (t, maxW) => { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * 16 + 4); doc.text(L, M, y); y += L.length * 16 + 4; };
+  const note = (t, maxW) => { gap(6); doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * 16 + 4); doc.text(L, M, y); y += L.length * 16 + 8; };
   const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
   const fKD = (d) => d != null ? String(d) : "low";
   const urlS = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
 
   /* ══════════════════════════════════════════════
-     HEADER — logo + "IvaBot" inline, subtitle below, date+url right
+     HEADER — logo + "IvaBot" inline, subtitle + date/url aligned
      ══════════════════════════════════════════════ */
-  doc.addImage(logoImg, "PNG", M, 28, 22, 19);
+  doc.addImage(logoImg, "PNG", M, 24, 22, 19);
   doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-  doc.text("IvaBot", M + 28, 42);
-  doc.setFontSize(9.5); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-  doc.text("Core Audit Report", M + 28, 55);
+  doc.text("IvaBot", M + 28, 38);
+  /* Left: subtitle, Right: date — same line */
   doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 36, { align: "right" });
+  doc.text("Core Audit Report", M, 58);
+  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 58, { align: "right" });
+  /* Left: empty, Right: URL — second line */
   doc.setFontSize(12);
-  doc.text(urlS, W - M, 52, { align: "right" });
-  y = 76;
+  doc.text(urlS, W - M, 72, { align: "right" });
+  /* Thin divider */
+  y = 82;
+  doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
+  y = 96;
 
   /* ══════════════════════════════════════════════
      SEO SCORE — 140px circle + text right
@@ -730,12 +734,12 @@ async function generatePDF(data) {
   const gItems = [];
   if (data.titleStatus === "good") {
     let displayUrl = data.url || ""; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
-    gItems.push({ title: "Meta Title", content: "Google Search Preview:\n" + displayUrl + "\n" + (data.title || "No title set"), detail: data.title.length + " characters", explain: "Your title is " + data.title.length + " characters \u2014 right in the sweet spot (30\u201360). This is the #1 on-page signal Google uses to understand your content." });
+    gItems.push({ title: "Meta Title", serpPreview: { url: displayUrl, pageTitle: data.title || "No title set", desc: null }, detail: data.title.length + " characters", explain: "Your title is " + data.title.length + " characters \u2014 right in the sweet spot (30\u201360). This is the #1 on-page signal Google uses to understand your content." });
   }
   if (data.descStatus === "good") {
     let displayUrl = data.url || ""; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
     const truncDesc = data.desc.length > 160 ? data.desc.slice(0, 157) + "..." : data.desc;
-    gItems.push({ title: "Meta Description", content: "Google Search Preview:\n" + displayUrl + "\n" + (data.title || "") + "\n" + truncDesc, detail: data.desc.length + " characters", explain: "Within 120\u2013160 characters, the sweet spot. This is what users see in search results, so a good one means more clicks." });
+    gItems.push({ title: "Meta Description", serpPreview: { url: displayUrl, pageTitle: data.title || "", desc: truncDesc }, detail: data.desc.length + " characters", explain: "Within 120\u2013160 characters, the sweet spot. This is what users see in search results, so a good one means more clicks." });
   }
   if (data.headingsStatus === "good") {
     const h1 = data.headings.filter(h => h.level === "H1"), h2 = data.headings.filter(h => h.level === "H2"), h3 = data.headings.filter(h => h.level === "H3");
@@ -765,45 +769,118 @@ async function generatePDF(data) {
     note("Good news \u2014 " + gItems.length + " things are already working well on your page.");
     gap(12);
     gItems.forEach((item, idx) => {
-      ensureSpace(80);
-      doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-      doc.text(item.title, M, y); y += 18;
-      if (item.linksInternal != null) {
-        doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-        doc.text(String(item.linksInternal), M, y);
-        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        doc.text("Internal links", M + 50, y);
-        y += 14;
-        if (item.intDesc) { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); doc.text(item.intDesc, M, y); y += 16; }
-        y += 6;
-        doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-        doc.text(String(item.linksExternal), M, y);
-        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        doc.text("External links", M + 50, y);
-        y += 14;
-        if (item.extDesc) { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); doc.text(item.extDesc, M, y); y += 16; }
-        y += 6;
-        if (item.social?.length > 0) {
-          doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-          doc.text("Social: " + item.social.join(" \u00B7 "), M, y); y += 16;
+      ensureSpace(90);
+      /* Title — 15px for better hierarchy */
+      doc.setFontSize(15); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+      doc.text(item.title, M, y); y += 22;
+
+      /* SERP Preview box (for title/desc) */
+      if (item.serpPreview) {
+        const sp = item.serpPreview;
+        ensureSpace(60);
+        const boxY = y;
+        doc.setDrawColor(...divClr); doc.setLineWidth(0.5);
+        doc.setFillColor(255,255,255);
+        doc.roundedRect(M, boxY, CW, sp.desc ? 56 : 38, 6, 6, "FD");
+        /* URL line */
+        doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(77,81,86);
+        doc.text(sp.url, M + 12, boxY + 14);
+        /* Title in blue */
+        doc.setFontSize(14); doc.setFont("helvetica","normal"); doc.setTextColor(26,13,171);
+        const titleTrunc = sp.pageTitle.length > 60 ? sp.pageTitle.slice(0, 57) + "..." : sp.pageTitle;
+        doc.text(titleTrunc, M + 12, boxY + 30);
+        /* Desc if present */
+        if (sp.desc) {
+          doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(77,81,86);
+          const descLines = doc.splitTextToSize(sp.desc, CW - 24);
+          doc.text(descLines[0] || "", M + 12, boxY + 46);
         }
-      } else if (item.content) {
-        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        const cLines = doc.splitTextToSize(item.content, CW);
-        ensureSpace(cLines.length * 16 + 4);
-        doc.text(cLines, M, y); y += cLines.length * 16 + 2;
+        y = boxY + (sp.desc ? 56 : 38) + 10;
+        /* Status line */
         if (item.detail) {
-          doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+          doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
           doc.text(item.detail, M, y); y += 16;
         }
       }
+      /* Links — horizontal two-column table */
+      else if (item.linksInternal != null) {
+        ensureSpace(50);
+        /* Simple two-column layout */
+        const colW = CW / 2;
+        doc.setFontSize(28); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+        doc.text(String(item.linksInternal), M, y);
+        doc.text(String(item.linksExternal), M + colW, y);
+        y += 8;
+        doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+        doc.text("Internal links", M, y);
+        doc.text("External links", M + colW, y);
+        y += 6;
+        doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
+        doc.text(item.intDesc || "", M, y);
+        doc.text(item.extDesc || "", M + colW, y);
+        y += 18;
+        if (item.social?.length > 0) {
+          doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+          doc.text("Social: " + item.social.join(" \u00B7 "), M, y); y += 16;
+        }
+      }
+      /* Headings with colored H1/H2/H3 labels */
+      else if (item.content && item.title === "Heading Structure") {
+        const hLines = item.content.split("\n");
+        hLines.forEach(line => {
+          ensureSpace(18);
+          const hMatch = line.match(/^\s*(H[1-3])\s*[\u2014:]\s*(.*)/);
+          if (hMatch) {
+            const lv = hMatch[1], text = hMatch[2];
+            const isCount = text.match(/^\d+ found$/);
+            if (isCount) {
+              /* "H1 — 1 found" header line */
+              doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+              doc.text(lv + " \u2014 " + text, M, y); y += 18;
+            } else {
+              /* Individual heading with colored badge */
+              const hColors = { H1: [110,43,255], H2: [155,122,230], H3: [184,156,240] };
+              const hBg = { H1: [237,228,255], H2: [241,235,252], H3: [245,240,253] };
+              const hc = hColors[lv] || hColors.H2;
+              const hb = hBg[lv] || hBg.H2;
+              /* Badge */
+              const badgeW = 26;
+              doc.setFillColor(...hb);
+              doc.roundedRect(M + 8, y - 10, badgeW, 14, 3, 3, "F");
+              doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...hc);
+              doc.text(lv, M + 8 + 5, y);
+              /* Text */
+              doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+              const headText = doc.splitTextToSize(text, CW - 48);
+              doc.text(headText, M + 40, y);
+              y += headText.length * 15 + 4;
+            }
+          }
+        });
+        y += 4;
+      }
+      /* Generic content */
+      else if (item.content) {
+        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
+        const cLines = doc.splitTextToSize(item.content, CW);
+        ensureSpace(cLines.length * 16 + 4);
+        doc.text(cLines, M, y); y += cLines.length * 16 + 4;
+        if (item.detail) {
+          doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
+          doc.text(item.detail, M, y); y += 16;
+        }
+      }
+
+      /* Explanation */
       if (item.explain) {
+        gap(4);
         doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
         const eLines = doc.splitTextToSize(item.explain, CW);
         ensureSpace(eLines.length * 15 + 4);
-        doc.text(eLines, M, y); y += eLines.length * 15 + 4;
+        doc.text(eLines, M, y); y += eLines.length * 15 + 6;
       }
-      if (idx < gItems.length - 1) { y += 8; divider(); y += 12; }
+      /* Divider between items */
+      if (idx < gItems.length - 1) { y += 10; divider(); y += 16; }
     });
     gap(48);
   }
@@ -827,7 +904,10 @@ async function generatePDF(data) {
   pB.sort((a, b) => (prioOrd[a.p] ?? 1) - (prioOrd[b.p] ?? 1));
 
   if (pB.length > 0) {
-    secTitle("Needs Improvement (" + pB.length + ")");
+    /* Section title in accent color for attention */
+    ensureSpace(52); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...accent);
+    const niTitle = "Needs Improvement (" + pB.length + ")";
+    doc.text(niTitle, M, y); y += 52;
     note("I found " + pB.length + " areas that need attention. Each card has a clear fix.");
     gap(12);
     pB.forEach((item) => {
@@ -838,7 +918,7 @@ async function generatePDF(data) {
       let sugH = 0;
       sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); sugH += sl.length * 26; });
       if (sugArr.length > 0) sugH += 4;
-      const totalH = 16 + 22 + (curLines.length > 0 ? curLines.length * 15 + 10 : 0) + (item.w ? whyLines.length * 16 + 14 : 0) + sugH + 16;
+      const totalH = 20 + 22 + (curLines.length > 0 ? curLines.length * 15 + 10 : 0) + (item.w ? whyLines.length * 16 + 14 : 0) + sugH + 10;
 
       ensureSpace(totalH + 10);
       const cardY = y;
@@ -847,7 +927,7 @@ async function generatePDF(data) {
       doc.setLineWidth(1);
       doc.roundedRect(M, cardY, CW, totalH, 8, 8, "FD");
 
-      y = cardY + 16;
+      y = cardY + 20;
       doc.setFontSize(15); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
       doc.text(item.t, M + 12, y);
       const badgeW = doc.getTextWidth(pr.label) + 16;
@@ -872,7 +952,7 @@ async function generatePDF(data) {
         doc.text(sl, M + 12, y); y += sl.length * 26;
       });
 
-      y = cardY + totalH + 12;
+      y = cardY + totalH + 8;
     });
     gap(48);
   }
