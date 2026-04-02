@@ -789,10 +789,15 @@ async function generatePDF(data) {
   const scoreSubtitle = data.score >= 80 ? "Your page has a strong SEO foundation." : data.score >= 50 ? "There's room for improvement." : "Your page needs significant SEO work.";
   content.push({
     columns: [
-      { image: scoreImg, width: 120, margin: [0, 0, 40, 0] },
+      {
+        table: { widths: ["auto"], body: [[{ image: scoreImg, width: 115, margin: [8, 8, 8, 8] }]] },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+        width: "auto",
+        margin: [0, 0, 24, 0]
+      },
       {
         stack: [
-          { text: "SEO Score", fontSize: 26, bold: true, color: dk, margin: [0, 30, 0, 6] },
+          { text: "SEO Score", fontSize: 26, bold: true, color: dk, margin: [0, 36, 0, 6] },
           { text: scoreSubtitle, fontSize: 12, color: mt }
         ],
         width: "*"
