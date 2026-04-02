@@ -53,9 +53,9 @@ const MobileTab=({active,onSwitch,hasReport})=>{if(!hasReport)return null;return
 
 /* ═══ RANKINGS TABLE ═══ */
 const fmtVol=(v)=>{if(!v)return"—";if(v>=1000000)return(v/1000000).toFixed(1).replace(/\.0$/,"")+"M";if(v>=1000)return(v/1000).toFixed(1).replace(/\.0$/,"")+"K";return v.toLocaleString();};
-const NicheBadge=()=><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>&lt; 10</span>;
-const LowBadge=()=><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>low</span>;
-const RankingsTable=({rows,emptyMsg})=>(<div style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflow:"visible"}}><table style={{width:"100%",minWidth:380,borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6}}>—</span>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}>{r.difficulty!=null?<span style={{color:C.muted,fontSize:12}}>{r.difficulty}</span>:<LowBadge/>}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
+const NicheBadge=()=><Tip text="This keyword has fewer than 10 monthly searches in Google. This is normal for branded or highly specific terms — your page may still rank well for it."><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500,cursor:"help"}}>&lt; 10</span></Tip>;
+const LowBadge=()=><Tip text="Google doesn't have enough competition data for this keyword. Niche keywords are often easier to rank for."><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500,cursor:"help"}}>low</span></Tip>;
+const RankingsTable=({rows,emptyMsg})=>(<div style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflow:"visible"}}><table style={{width:"100%",minWidth:380,borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<Tip text="Position data unavailable — this keyword may be too niche for automated tracking. Your page could still rank for it."><span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6,cursor:"help"}}>—</span></Tip>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}>{r.difficulty!=null?<span style={{color:C.muted,fontSize:12}}>{r.difficulty}</span>:<LowBadge/>}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
 
 const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 
@@ -1010,16 +1010,38 @@ function ContentCoverage({ onHome, memberName: mn }) {
           body: JSON.stringify({ mode: "content_builder", keywords: allKwUnique.slice(0, 6), page_url: url })
         });
         if (dfsRes.ok) dfsData = await dfsRes.json();
-        console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length}` : "failed");
+        console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length} organic=${dfsData.serp_organic?.length || 0}` : "failed");
       } catch (e) { console.log("[CC] DFS error:", e); }
 
+      /* v6.1: Extract our page's SERP position from organic results (free — data already returned) */
+      let serpPosition = null;
+      if (dfsData?.serp_organic?.length > 0 && url) {
+        try {
+          const ourHost = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+          const ourPath = new URL(url).pathname.replace(/\/$/, "").toLowerCase();
+          for (const item of dfsData.serp_organic) {
+            try {
+              const itemHost = new URL(item.url).hostname.replace(/^www\./, "").toLowerCase();
+              const itemPath = new URL(item.url).pathname.replace(/\/$/, "").toLowerCase();
+              if (itemHost === ourHost && (itemPath === ourPath || ourPath === "" || ourPath === "/")) {
+                serpPosition = item.position;
+                console.log("[CC] Found our page in SERP at position", serpPosition, "for keyword:", dfsData.serp_organic[0]?.keyword || "first keyword");
+                break;
+              }
+            } catch(e) {}
+          }
+        } catch(e) {}
+      }
+
       // Build keyword metrics — extracted keywords table (fallback to ranked data for volume/KD)
-      const keywordMetrics = extractedKeywords.map(kw => {
+      const keywordMetrics = extractedKeywords.map((kw, idx) => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
+        /* v6.1: For the first keyword, use SERP organic position as fallback */
+        const pos = r?.position || (idx === 0 && serpPosition ? serpPosition : null);
         return {
           keyword: kw,
-          position: r?.position || null,
+          position: pos,
           volume: m?.search_volume || r?.volume || null,
           difficulty: m?.keyword_difficulty || r?.difficulty || null
         };
@@ -1071,10 +1093,11 @@ function ContentCoverage({ onHome, memberName: mn }) {
       const wordCount = parsed.visible_text ? parsed.visible_text.trim().split(/\s+/).filter(Boolean).length : null;
 
       // Enrich user keywords with DFS data (same as extracted)
-      const userKeywordMetrics = keywords.map(kw => {
+      const userKeywordMetrics = keywords.map((kw, idx) => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
-        return { keyword: kw, position: r?.position || null, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
+        const pos = r?.position || (idx === 0 && serpPosition ? serpPosition : null);
+        return { keyword: kw, position: pos, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
       });
 
       // Step 7: Build report
