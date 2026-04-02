@@ -1,4 +1,4 @@
-/* IvaBot Content Coverage v6.1 — PDF export, SVG checkmark, bullet fix, semantic suggestions filter */
+/* IvaBot Content Coverage v6.1 — PDF export, SVG checkmark, bullet fix, semantic filter, SERP position, niche tooltips */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] content-coverage.js v6.1 loaded");
@@ -904,6 +904,107 @@ async function generateCoveragePDF(data) {
       const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
       const stack = [];
       stack.push({ columns: [
+        { text: [{ text: "\u25CF  ", color: pr.color, fontSize: 8 }, { text: item.title, fontSize: 12, bold: true, color: dk }], width: "*" },
+        { ...badge(item.priority), width: "auto", alignment: "right" }
+      ], columnGap: 8, margin: [0, 0, 0, 3] });
+      if (item.why && typeof item.why === "string") {
+        const shortWhy = item.why.length > 200 ? item.why.slice(0, 197) + "..." : item.why;
+        stack.push({ text: shortWhy, fontSize: 10, color: mt, lineHeight: 1.3 });
+      }
+      if (item.suggestions?.length > 0 && typeof item.suggestions[0] === "string") {
+        stack.push({ text: "Suggested: " + item.suggestions[0], fontSize: 10, color: dk, margin: [0, 3, 0, 0] });
+      }
+      content.push({ table: { widths: ["*"], body: [[{ stack, margin: [10, 8, 10, 8] }]] },
+        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr },
+        margin: [0, 0, 0, 6]
+      });
+    });
+    /* Re-audit reminder */
+    content.push({ table: { widths: ["*"], body: [[{
+      stack: [
+        { text: [{ text: "\u25CF  ", color: accentC, fontSize: 8 }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
+        { text: "Run another Content Coverage Audit to measure your progress.", fontSize: 10, color: mt }
+      ], margin: [10, 8, 10, 8]
+    }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr }, margin: [0, 0, 0, 6] });
+    content.push(spacer(8));
+  }
+
+  /* ── IvaBot CTA ── */
+  content.push(spacer(12));
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
+  content.push({ table: { widths: ["*"], body: [[{
+    stack: [
+      { text: "Want to improve your score?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
+      { text: "Run another audit or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
+      { text: [
+        { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
+        { text: "  \u2022  ", color: mt },
+        { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
+        { text: "  \u2022  ", color: mt },
+        { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
+      ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
+      { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
+    ], margin: [16, 16, 16, 16]
+  }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] });
+
+  /* ── BUILD DOCUMENT ── */
+  const docDefinition = {
+    pageSize: "A4", pageMargins: [40, 40, 40, 50],
+    defaultStyle: { fontSize: 11, color: dk },
+    footer: (currentPage, pageCount) => ({ columns: [
+      { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
+      { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
+    ], margin: [40, 10, 0, 0] }),
+    content: content
+  };
+
+  /* ── GENERATE + DOWNLOAD + UPLOAD ── */
+  const fileName = "IvaBot-Coverage-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
+  const pdfDocGen = pdfMake.createPdf(docDefinition);
+  const pdfBtn = document.getElementById("export-coverage-pdf-btn");
+  const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
+
+  pdfDocGen.getBlob(async (pdfBlob) => {
+    try {
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = blobUrl; a.download = fileName; a.style.display = "none";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
+      console.log("[CC] PDF downloaded:", fileName);
+      if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+
+      let upMemberId = window.__memberId || window.__userId;
+      if (!upMemberId && window.__supabase) {
+        try { const { data: { session } } = await window.__supabase.auth.getSession(); upMemberId = session?.user?.id; } catch(me) {}
+      }
+      if (upMemberId && pdfBlob) {
+        if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
+        const form = new FormData();
+        form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+        form.append("member_id", upMemberId);
+        form.append("source_url", data.url || "");
+        form.append("flow_type", "coverage");
+        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+          method: "POST", body: form
+        }).then(r => r.json()).then(res => {
+          if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; } }
+          else if (res?.url) { console.log("[CC] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; } }
+          else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; } }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        }).catch(e => {
+          console.warn("[CC] PDF upload failed:", e);
+          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        });
+      } else {
+        console.log("[CC] PDF not uploaded — no member ID");
+        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
+      }
+    } catch(ue) { console.warn("[CC] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+  });
+  } catch(err) { console.error("[CC] PDF error:", err); alert("PDF export failed: " + err.message); }
+}
 
 /* ═══ PLACEHOLDER ═══ */
 const CoveragePlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
@@ -1025,7 +1126,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
               const itemPath = new URL(item.url).pathname.replace(/\/$/, "").toLowerCase();
               if (itemHost === ourHost && (itemPath === ourPath || ourPath === "" || ourPath === "/")) {
                 serpPosition = item.position;
-                console.log("[CC] Found our page in SERP at position", serpPosition, "for keyword:", dfsData.serp_organic[0]?.keyword || "first keyword");
+                console.log("[CC] Found our page in SERP at position", serpPosition);
                 break;
               }
             } catch(e) {}
@@ -1037,7 +1138,6 @@ function ContentCoverage({ onHome, memberName: mn }) {
       const keywordMetrics = extractedKeywords.map((kw, idx) => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
-        /* v6.1: For the first keyword, use SERP organic position as fallback */
         const pos = r?.position || (idx === 0 && serpPosition ? serpPosition : null);
         return {
           keyword: kw,
