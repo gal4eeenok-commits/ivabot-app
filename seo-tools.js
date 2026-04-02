@@ -350,21 +350,21 @@ function parseSEO(rawHtml, pageUrl) {
 
 /* Transform parsed + GPT + DataForSEO data into report format */
 function buildReportData(parsed, gpt, dfs) {
-  const rankedKeywords = dfs?.ranked_keywords || [];
+  const allRankedKeywords = dfs?.ranked_keywords || [];
   const serpCompetitors = dfs?.serp_competitors || [];
   const totalRanked = dfs?.total_ranked || 0;
 
   const gptKeywords = gpt?.keywords || [];
   const keywordMetrics = gptKeywords.map(k => {
     const kLow = k.toLowerCase();
-    /* Try exact match first, then partial (contains), then word overlap */
-    let match = rankedKeywords.find(rk => rk.keyword?.toLowerCase() === kLow);
-    if (!match) match = rankedKeywords.find(rk => rk.keyword?.toLowerCase().includes(kLow) || kLow.includes(rk.keyword?.toLowerCase()));
+    /* Try exact match first, then partial (contains), then word overlap — search ALL ranked keywords */
+    let match = allRankedKeywords.find(rk => rk.keyword?.toLowerCase() === kLow);
+    if (!match) match = allRankedKeywords.find(rk => rk.keyword?.toLowerCase().includes(kLow) || kLow.includes(rk.keyword?.toLowerCase()));
     if (!match) {
       const kWords = kLow.split(/\s+/).filter(w => w.length > 2);
       if (kWords.length > 0) {
         let bestMatch = null, bestOverlap = 0;
-        rankedKeywords.forEach(rk => {
+        allRankedKeywords.forEach(rk => {
           const rkWords = (rk.keyword || "").toLowerCase().split(/\s+/).filter(w => w.length > 2);
           const overlap = kWords.filter(w => rkWords.includes(w)).length;
           const ratio = overlap / Math.max(kWords.length, rkWords.length);
@@ -375,6 +375,16 @@ function buildReportData(parsed, gpt, dfs) {
     }
     return { keyword: k, position: match?.position || null, volume: match?.volume || null, difficulty: match?.difficulty || null };
   });
+
+  /* For "How Your Page Ranks" table — show top keywords by position (best first), limit 10 */
+  const rankedKeywords = allRankedKeywords
+    .filter(rk => rk.position != null && rk.position <= 20)
+    .sort((a, b) => (a.position || 999) - (b.position || 999))
+    .slice(0, 10);
+  /* If no top-20, show top by volume */
+  if (rankedKeywords.length === 0 && allRankedKeywords.length > 0) {
+    rankedKeywords.push(...allRankedKeywords.slice(0, 5));
+  }
 
   const backlinksCount = dfs?.backlinksCount || null;
   const referringDomains = dfs?.referringDomains || null;
