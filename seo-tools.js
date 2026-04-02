@@ -632,7 +632,7 @@ async function generatePDF(data) {
   const gap = (n) => { y += (n || 10); };
   const divider = () => { doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); };
   const secTitle = (t) => { ensureSpace(44); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk); const lines = doc.splitTextToSize(t, CW); doc.text(lines, M, y); y += lines.length * 36 + 4; };
-  const note = (t, maxW) => { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * 16 + 4); doc.text(L, M, y); y += L.length * 16 + 4; };
+  const note = (t, maxW) => { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * 16 + 8); doc.text(L, M, y); y += L.length * 16 + 6; };
   const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
   const fKD = (d) => d != null ? String(d) : "low";
   const urlS = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
@@ -725,7 +725,7 @@ async function generatePDF(data) {
         }
       }
     });
-    y = doc.lastAutoTable.finalY + 8;
+    y = doc.lastAutoTable.finalY + 14;
     note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
     gap(2);
     note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
@@ -749,7 +749,7 @@ async function generatePDF(data) {
         }
       }
     });
-    y = doc.lastAutoTable.finalY + 8;
+    y = doc.lastAutoTable.finalY + 14;
     note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
     gap(2);
     note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
@@ -948,21 +948,22 @@ async function generatePDF(data) {
       const curLines = item.cur ? doc.splitTextToSize(String(item.cur), CW - 24) : [];
       const whyLines = item.w ? doc.splitTextToSize(String(item.w), CW - 24) : [];
       const sugArr = item.s || [];
-      /* Pass 1: measure exact height */
-      let measuredH = 20 + 22; /* top padding + title row */
-      if (curLines.length > 0) measuredH += curLines.length * 15 + 8;
-      if (whyLines.length > 0) measuredH += whyLines.length * 16 + 10;
-      sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); measuredH += sl.length * 18 + 4; });
-      measuredH += 12; /* bottom padding */
+      /* Pass 1: measure content, draw content, track real y, then draw rect behind */
+      /* We need to calculate where content will end to size the card */
+      let contentH = 20 + 20; /* top padding + title row with badge */
+      if (curLines.length > 0) contentH += curLines.length * 15 + 6;
+      if (whyLines.length > 0) contentH += whyLines.length * 15 + 8;
+      sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); contentH += sl.length * 16 + 3; });
+      contentH += 8; /* bottom padding */
 
-      ensureSpace(measuredH + 10);
+      ensureSpace(contentH + 10);
       const cardY = y;
 
-      /* Pass 2: draw card background with exact height, then content on top */
+      /* Draw card background */
       doc.setFillColor(...lavCardBg);
       doc.setDrawColor(...lavCardBdr);
       doc.setLineWidth(1);
-      doc.roundedRect(M, cardY, CW, measuredH, 8, 8, "FD");
+      doc.roundedRect(M, cardY, CW, contentH, 8, 8, "FD");
 
       y = cardY + 20;
       doc.setFontSize(15); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
@@ -973,23 +974,23 @@ async function generatePDF(data) {
       doc.roundedRect(badgeX, y - 11, badgeW, 16, 8, 8, "F");
       doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(...pr.color);
       doc.text(pr.label, badgeX + 8, y);
-      y += 22;
+      y += 20;
       /* Current value (title, description, headings, etc.) */
       if (curLines.length > 0) {
         doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        doc.text(curLines, M + 12, y); y += curLines.length * 15 + 8;
+        doc.text(curLines, M + 12, y); y += curLines.length * 15 + 6;
       }
       if (item.w) {
         doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-        doc.text(whyLines, M + 12, y); y += whyLines.length * 16 + 10;
+        doc.text(whyLines, M + 12, y); y += whyLines.length * 15 + 8;
       }
       sugArr.forEach(s => {
         doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
         const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24);
-        doc.text(sl, M + 12, y); y += sl.length * 18 + 4;
+        doc.text(sl, M + 12, y); y += sl.length * 16 + 3;
       });
 
-      y = cardY + measuredH + 8;
+      y = cardY + contentH + 8;
     });
     gap(28);
   }
@@ -1017,7 +1018,7 @@ async function generatePDF(data) {
       }),
       columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 160 }, 2: { cellWidth: "auto" } }
     });
-    y = doc.lastAutoTable.finalY + 8;
+    y = doc.lastAutoTable.finalY + 14;
     note("Study their titles, descriptions, and content structure. What are they doing that you\u2019re not? Use their strengths as inspiration to improve your own page.");
     gap(28);
   }
@@ -1069,17 +1070,17 @@ async function generatePDF(data) {
     const pr = PRIO_PDF[item.p] || PRIO_PDF.important;
     const whyLines = item.w ? doc.splitTextToSize(String(item.w), CW - 24) : [];
     const sugArr = item.s || [];
-    /* Pass 1: measure exact height */
-    let measuredH = 16 + 22; /* top padding + title row */
-    if (whyLines.length > 0) measuredH += whyLines.length * 16 + 10;
-    sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); measuredH += sl.length * 18 + 4; });
-    measuredH += 10; /* bottom padding */
+    /* Measure content height */
+    let contentH = 16 + 20; /* top padding + title row */
+    if (whyLines.length > 0) contentH += whyLines.length * 15 + 8;
+    sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); contentH += sl.length * 16 + 3; });
+    contentH += 8; /* bottom padding */
 
-    ensureSpace(measuredH + 10);
+    ensureSpace(contentH + 10);
     const cardY = y;
     doc.setDrawColor(...divClr); doc.setLineWidth(1);
     doc.setFillColor(255, 255, 255);
-    doc.roundedRect(M, cardY, CW, measuredH, 8, 8, "FD");
+    doc.roundedRect(M, cardY, CW, contentH, 8, 8, "FD");
 
     y = cardY + 16;
     doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
@@ -1090,18 +1091,18 @@ async function generatePDF(data) {
     doc.roundedRect(badgeX, y - 11, badgeW, 16, 8, 8, "F");
     doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(...pr.color);
     doc.text(pr.label, badgeX + 8, y);
-    y += 22;
+    y += 20;
     if (whyLines.length > 0) {
       doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-      doc.text(whyLines, M + 12, y); y += whyLines.length * 16 + 10;
+      doc.text(whyLines, M + 12, y); y += whyLines.length * 15 + 8;
     }
     sugArr.forEach(s => {
       doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
       const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24);
-      doc.text(sl, M + 12, y); y += sl.length * 18 + 4;
+      doc.text(sl, M + 12, y); y += sl.length * 16 + 3;
     });
 
-    y = cardY + measuredH + 10;
+    y = cardY + contentH + 10;
   });
 
   /* ══════════════════════════════════════════════
