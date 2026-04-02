@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.0 — PDF export with pdfmake */
+/* IvaBot Content Coverage v6.1 — PDF export, SVG checkmark, bullet fix, semantic suggestions filter */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.0 loaded");
+console.log("[IvaBot] content-coverage.js v6.1 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -30,7 +30,7 @@ const SocialBadge=({name,url})=>(<a href={url||SOCIAL_URLS[name]||"#"} target="_
 
 const Fold=({title,children,open:d=false,borderColor,headerBg,titleColor,count})=>{const[o,setO]=useState(d);return(<div style={{borderRadius:12,border:`1px solid ${borderColor||C.border}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"14px 16px",background:headerBg||"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14,fontWeight:700,color:titleColor||C.dark}}>{title}</span>{count!=null&&<span style={{fontSize:11,fontWeight:600,color:titleColor?"rgba(255,255,255,0.7)":C.muted,background:titleColor?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.5)",padding:"2px 8px",borderRadius:10}}>{count}</span>}</div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={titleColor||C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s ease",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button><div style={{display:"grid",gridTemplateRows:o?"1fr":"0fr",opacity:o?1:0,transition:"grid-template-rows 0.7s cubic-bezier(0.16,1,0.3,1), opacity 0.5s ease"}}><div style={{overflow:"hidden"}}><div style={{padding:"0 16px 16px",borderTop:`1px solid ${borderColor||C.border}`}}>{children}</div></div></div></div>);};
 
-const WorkingItem=({title,content})=>{const[o,setO]=useState(false);return(<div style={{borderRadius:10,border:`1px solid ${C.cardBorder}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"11px 14px",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"'DM Sans',sans-serif"}}><span style={{color:"#9B7AE6",flexShrink:0,fontSize:13,fontWeight:600}}>✓</span><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&<div style={{padding:"0 14px 14px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>{content}</div></div>}</div>);};
+const WorkingItem=({title,content})=>{const[o,setO]=useState(false);return(<div style={{borderRadius:10,border:`1px solid ${C.cardBorder}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"11px 14px",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"'DM Sans',sans-serif"}}><span style={{color:"#9B7AE6",flexShrink:0,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9B7AE6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&<div style={{padding:"0 14px 14px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>{content}</div></div>}</div>);};
 
 const InfoBlock=({label,value,borderColor})=>{const renderLine=(line,i)=>{const hMatch=line.match(/^(H[1-3]):\s*(.*)/);if(hMatch){const lv=hMatch[1],text=hMatch[2];const hColorMap={H1:{color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},H2:{color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},H3:{color:"#B89CF0",bg:"rgba(184,156,240,0.12)"}};const hc=hColorMap[lv]||hColorMap.H2;const isBroken=text.includes("⚠");return(<div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:500,color:isBroken?C.accent:C.dark,padding:"2px 0"}}><span style={{fontSize:9,fontWeight:600,color:isBroken?C.accent:hc.color,background:isBroken?"rgba(110,43,255,0.08)":hc.bg,padding:"2px 5px",borderRadius:3,minWidth:22,textAlign:"center",flexShrink:0}}>{lv}</span><span>{text}</span></div>);}return<div key={i} style={{padding:"2px 0"}}>{line}</div>;};return(<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:`1px solid ${borderColor||C.border}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:3}}>{label}</div><div style={{fontSize:13,fontWeight:500,color:C.dark,lineHeight:1.5}}>{typeof value==="string"?value.split("\n").map(renderLine):value}</div></div>);};
 
@@ -526,7 +526,7 @@ function buildCoverageResults(d) {
       contentGood.push({ title: "Body Content — Keyword Coverage", content: (<><InfoBlock label="Keyword scan results" value={be.occurrences} borderColor={NB} /><BotNote inline text="Your keywords appear naturally throughout the body text — good balance without overuse." /></>) });
     } else {
       const kwList = (ukw.length ? ukw : d.extractedKeywords || []);
-      const actionLines = kwList.map(k => `• "${typeof k === "string" ? k : k.keyword}" — ${be.budgetPer[0]}–${be.budgetPer[1]} times`);
+      const actionLines = kwList.map(k => `"${typeof k === "string" ? k : k.keyword}" — ${be.budgetPer[0]}–${be.budgetPer[1]} times`);
       contentBad.push({ title: "Body Content — Keyword Coverage", priority: "critical", currentLabel: "Keyword scan results", current: be.occurrences, why: be.status === "no_body" ? "No body text detected on your page." : be.status === "missing" ? "Body content has individual keyword words but no exact phrases. Google weights exact phrase matches more heavily." : be.status === "low" ? "Partial coverage — add at least one more full key phrase." : "Keyword usage appears high — reduce repetition.", sugLabel: "Recommended keyword usage", suggestions: [...actionLines, `Total recommended: ${be.budgetTotal[0]}–${be.budgetTotal[1]} times across the entire body text.`], showCopy: false });
     }
     d.bodyStatus = be.status === "good" ? "good" : "bad";
@@ -546,7 +546,7 @@ function buildCoverageResults(d) {
           {sm.paa.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>People Also Ask <QM text="These are real questions that Google shows in a special FAQ-style block on the search results page. Answering them on your page can help you appear in this block." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Common questions shown in Google — answering them can get you featured.</div>{sm.paa.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>• {s}</div>)}</div>}
         </div>),
         sugLabel: "How to use these phrases",
-        suggestions: ["Related Searches — pick 1–2 phrases and use them as H2 or H3 headings, or mention them in your body text.", "People Also Ask — take 3–5 questions and add a short FAQ section to your page. This helps you appear in Google's FAQ block.", "Autocomplete — mention 1–2 of these phrases naturally in your text where they fit the context. Don't overuse them."],
+        suggestions: [...(sm.related.length > 0 ? ["Related Searches — pick 1–2 phrases and use them as H2 or H3 headings, or mention them in your body text."] : []), ...(sm.paa.length > 0 ? ["People Also Ask — take 3–5 questions and add a short FAQ section to your page. This helps you appear in Google's FAQ block."] : []), ...(sm.autocomplete.length > 0 ? ["Autocomplete — mention 1–2 of these phrases naturally in your text where they fit the context. Don't overuse them."] : [])],
         showCopy: false
       });
     }
@@ -698,7 +698,7 @@ const CoverageReport = ({ data }) => {
   </div>);
 };
 
-/* ═══ PDF EXPORT (pdfmake) ═══ */
+
 async function generateCoveragePDF(data) {
   try {
   const loadScript = (url) => new Promise((resolve, reject) => {
@@ -904,107 +904,6 @@ async function generateCoveragePDF(data) {
       const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
       const stack = [];
       stack.push({ columns: [
-        { text: [{ text: "\u25CF  ", color: pr.color, fontSize: 8 }, { text: item.title, fontSize: 12, bold: true, color: dk }], width: "*" },
-        { ...badge(item.priority), width: "auto", alignment: "right" }
-      ], columnGap: 8, margin: [0, 0, 0, 3] });
-      if (item.why && typeof item.why === "string") {
-        const shortWhy = item.why.length > 200 ? item.why.slice(0, 197) + "..." : item.why;
-        stack.push({ text: shortWhy, fontSize: 10, color: mt, lineHeight: 1.3 });
-      }
-      if (item.suggestions?.length > 0 && typeof item.suggestions[0] === "string") {
-        stack.push({ text: "Suggested: " + item.suggestions[0], fontSize: 10, color: dk, margin: [0, 3, 0, 0] });
-      }
-      content.push({ table: { widths: ["*"], body: [[{ stack, margin: [10, 8, 10, 8] }]] },
-        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr },
-        margin: [0, 0, 0, 6]
-      });
-    });
-    /* Re-audit reminder */
-    content.push({ table: { widths: ["*"], body: [[{
-      stack: [
-        { text: [{ text: "\u25CF  ", color: accentC, fontSize: 8 }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
-        { text: "Run another Content Coverage Audit to measure your progress.", fontSize: 10, color: mt }
-      ], margin: [10, 8, 10, 8]
-    }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr }, margin: [0, 0, 0, 6] });
-    content.push(spacer(8));
-  }
-
-  /* ── IvaBot CTA ── */
-  content.push(spacer(12));
-  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
-  content.push({ table: { widths: ["*"], body: [[{
-    stack: [
-      { text: "Want to improve your score?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
-      { text: "Run another audit or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
-      { text: [
-        { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
-        { text: "  \u2022  ", color: mt },
-        { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
-        { text: "  \u2022  ", color: mt },
-        { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
-      ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
-      { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
-    ], margin: [16, 16, 16, 16]
-  }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] });
-
-  /* ── BUILD DOCUMENT ── */
-  const docDefinition = {
-    pageSize: "A4", pageMargins: [40, 40, 40, 50],
-    defaultStyle: { fontSize: 11, color: dk },
-    footer: (currentPage, pageCount) => ({ columns: [
-      { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
-      { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
-    ], margin: [40, 10, 0, 0] }),
-    content: content
-  };
-
-  /* ── GENERATE + DOWNLOAD + UPLOAD ── */
-  const fileName = "IvaBot-Coverage-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
-  const pdfDocGen = pdfMake.createPdf(docDefinition);
-  const pdfBtn = document.getElementById("export-coverage-pdf-btn");
-  const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
-
-  pdfDocGen.getBlob(async (pdfBlob) => {
-    try {
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const a = document.createElement("a");
-      a.href = blobUrl; a.download = fileName; a.style.display = "none";
-      document.body.appendChild(a); a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
-      console.log("[CC] PDF downloaded:", fileName);
-      if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
-
-      let upMemberId = window.__memberId || window.__userId;
-      if (!upMemberId && window.__supabase) {
-        try { const { data: { session } } = await window.__supabase.auth.getSession(); upMemberId = session?.user?.id; } catch(me) {}
-      }
-      if (upMemberId && pdfBlob) {
-        if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
-        const form = new FormData();
-        form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
-        form.append("member_id", upMemberId);
-        form.append("source_url", data.url || "");
-        form.append("flow_type", "coverage");
-        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-          method: "POST", body: form
-        }).then(r => r.json()).then(res => {
-          if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; } }
-          else if (res?.url) { console.log("[CC] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; } }
-          else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; } }
-          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
-        }).catch(e => {
-          console.warn("[CC] PDF upload failed:", e);
-          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
-          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
-        });
-      } else {
-        console.log("[CC] PDF not uploaded — no member ID");
-        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
-      }
-    } catch(ue) { console.warn("[CC] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
-  });
-  } catch(err) { console.error("[CC] PDF error:", err); alert("PDF export failed: " + err.message); }
-}
 
 /* ═══ PLACEHOLDER ═══ */
 const CoveragePlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
