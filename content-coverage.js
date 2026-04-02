@@ -14,8 +14,8 @@ const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 /* ═══ MEMBER ID + CREDITS ═══ */
 function getMemberId(){if(window.__memberId)return window.__memberId;if(window.__userId)return window.__userId;try{const sb=window.__supabase;if(sb){const key=Object.keys(localStorage).find(k=>k.includes('auth-token'));if(key){const data=JSON.parse(localStorage.getItem(key));if(data?.user?.id)return data.user.id;}}}catch(e){}return null;}
 async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{let res=await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});let rows=res.ok?await res.json():[];if(rows.length===0){res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});rows=res.ok?await res.json():[];}if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
-async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify({p_member_id:memberId})});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
-async function recordCoverageRun(memberId,url){try{await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify({p_member_id:memberId,p_source_url:url||null})});console.log("[CC] run recorded");}catch(e){console.error("[CC] run record error:",e);}}
+async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const rpcBody=isUUID?{p_user_id:memberId}:{p_member_id:memberId};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify(rpcBody)});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
+async function recordCoverageRun(memberId,url){try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const runBody=isUUID?{p_user_id:memberId,p_source_url:url||null}:{p_member_id:memberId,p_source_url:url||null};await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify(runBody)});console.log("[CC] run recorded");}catch(e){console.error("[CC] run record error:",e);}}
 
 /* ═══ COLORS (identical to Core Audit + CB) ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
@@ -806,11 +806,16 @@ function ContentCoverage({ onHome, memberName: mn }) {
         console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length}` : "failed");
       } catch (e) { console.log("[CC] DFS error:", e); }
 
-      // Build keyword metrics — extracted keywords table
+      // Build keyword metrics — extracted keywords table (fallback to ranked data for volume/KD)
       const keywordMetrics = extractedKeywords.map(kw => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
-        return { keyword: kw, position: r?.position || null, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
+        return {
+          keyword: kw,
+          position: r?.position || null,
+          volume: m?.search_volume || r?.volume || null,
+          difficulty: m?.keyword_difficulty || r?.difficulty || null
+        };
       });
 
       // If DFS returned no SERP suggestions, fallback to GPT
