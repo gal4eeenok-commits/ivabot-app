@@ -1037,7 +1037,7 @@ async function generatePDF(data) {
   const docDefinition = {
     pageSize: "A4",
     pageMargins: [40, 40, 40, 50],
-    defaultStyle: { font: "Helvetica", fontSize: 11, color: dk },
+    defaultStyle: { fontSize: 11, color: dk },
     footer: (currentPage, pageCount) => ({
       columns: [
         { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
@@ -1053,58 +1053,61 @@ async function generatePDF(data) {
      ══════════════════════════════════════════════ */
   const fileName = "IvaBot-Audit-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
   const pdfDocGen = pdfMake.createPdf(docDefinition);
-
-  /* Download first */
-  pdfDocGen.download(fileName);
-
   const pdfBtn = document.getElementById("export-pdf-btn");
   const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
-  if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
 
-  /* Upload to Supabase Storage */
-  try {
-    pdfDocGen.getBlob(async (pdfBlob) => {
-      try {
-        let memberId = window.__memberId || window.__userId;
-        if (!memberId && window.__supabase) {
-          try {
-            const { data: { session } } = await window.__supabase.auth.getSession();
-            memberId = session?.user?.id;
-          } catch(me) {}
-        }
-        if (memberId && pdfBlob) {
-          if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
-          const form = new FormData();
-          form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
-          form.append("member_id", memberId);
-          form.append("source_url", data.url || "");
-          form.append("flow_type", "core");
-          fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-            method: "POST", body: form
-          }).then(r => r.json()).then(d => {
-            if (d?.already_saved) {
-              console.log("[IvaBot] PDF already saved for this audit");
-              if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; }
-            } else if (d?.url) {
-              console.log("[IvaBot] PDF saved to dashboard:", d.url);
-              if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; }
-            } else {
-              console.warn("[IvaBot] PDF upload response:", d);
-              if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
-            }
-            setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
-          }).catch(e => {
-            console.warn("[IvaBot] PDF upload failed:", e);
+  /* Use getBlob for both download and upload */
+  pdfDocGen.getBlob(async (pdfBlob) => {
+    try {
+      /* Download to user's computer */
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = blobUrl; a.download = fileName; a.style.display = "none";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
+      console.log("[IvaBot] PDF downloaded:", fileName);
+      if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+
+      /* Upload to Supabase Storage */
+      let upMemberId = window.__memberId || window.__userId;
+      if (!upMemberId && window.__supabase) {
+        try {
+          const { data: { session } } = await window.__supabase.auth.getSession();
+          upMemberId = session?.user?.id;
+        } catch(me) {}
+      }
+      if (upMemberId && pdfBlob) {
+        if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
+        const form = new FormData();
+        form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+        form.append("member_id", upMemberId);
+        form.append("source_url", data.url || "");
+        form.append("flow_type", "core");
+        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+          method: "POST", body: form
+        }).then(r => r.json()).then(d => {
+          if (d?.already_saved) {
+            console.log("[IvaBot] PDF already saved for this audit");
+            if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; }
+          } else if (d?.url) {
+            console.log("[IvaBot] PDF saved to dashboard:", d.url);
+            if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; }
+          } else {
+            console.warn("[IvaBot] PDF upload response:", d);
             if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
-            setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
-          });
-        } else {
-          console.log("[IvaBot] PDF not uploaded — no member ID (user not logged in)");
-          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
-        }
-      } catch(ue) { console.warn("[IvaBot] PDF upload error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
-    });
-  } catch(ue) { console.warn("[IvaBot] PDF blob error:", ue); }
+          }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        }).catch(e => {
+          console.warn("[IvaBot] PDF upload failed:", e);
+          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        });
+      } else {
+        console.log("[IvaBot] PDF not uploaded — no member ID (user not logged in)");
+        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
+      }
+    } catch(ue) { console.warn("[IvaBot] PDF download/upload error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+  });
   } catch(err) { console.error("[IvaBot] PDF error:", err); alert("PDF export failed: " + err.message); }
 }
 
