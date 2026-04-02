@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.1 — PDF export, SVG checkmark, bullet fix, semantic filter, SERP position, niche tooltips */
+/* IvaBot Content Coverage v6.2 — SERP positions all keywords, PDF safe symbols, Working Well open */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.1 loaded");
+console.log("[IvaBot] content-coverage.js v6.2 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -852,38 +852,104 @@ async function generateCoveragePDF(data) {
     content.push(spacer(8));
   }
 
-  /* ── CONTENT WORKING WELL ── */
+  /* ── CONTENT WORKING WELL (detailed, like Core Audit PDF) ── */
   if (contentGood.length > 0) {
     content.push(secTitle("Content & Structure \u2014 Working Well"));
     content.push(noteText(contentGood.length + " content elements are working well."));
-    contentGood.forEach(g => {
-      content.push({ table: { widths: ["*"], body: [[{
-        stack: [
-          { text: [{ text: "\u2713  ", color: "#9B7AE6", bold: true }, { text: g.title, fontSize: 12, bold: true, color: dk }] }
-        ], margin: [10, 8, 10, 8]
-      }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 4] });
+    content.push(spacer(6));
+
+    contentGood.forEach((g, idx) => {
+      content.push({ text: g.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 6] });
+
+      /* SERP Preview for Title/Description */
+      if (g.title === "Meta Title" || g.title === "Meta Description") {
+        let displayUrl = data.url || ""; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
+        const serpStack = [
+          { text: displayUrl, fontSize: 9, color: "#4d5156", margin: [8, 6, 8, 2] },
+          { text: (data.title || "No title").length > 60 ? (data.title || "").slice(0, 57) + "..." : (data.title || "No title"), fontSize: 12, color: "#1a0dab", margin: [8, 0, 8, 2] }
+        ];
+        if (g.title === "Meta Description" && data.desc) {
+          serpStack.push({ text: data.desc.length > 160 ? data.desc.slice(0, 157) + "..." : data.desc, fontSize: 10, color: "#4d5156", margin: [8, 0, 8, 6] });
+        } else { serpStack.push(spacer(4)); }
+        content.push({ table: { widths: ["*"], body: [[{ stack: serpStack }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 6] });
+        if (g.title === "Meta Title") content.push({ text: (data.title || "").length + " characters", fontSize: 11, bold: true, color: dk, margin: [0, 2, 0, 2] });
+        if (g.title === "Meta Description") content.push({ text: (data.desc || "").length + " characters", fontSize: 11, bold: true, color: dk, margin: [0, 2, 0, 2] });
+      }
+
+      /* Heading Structure */
+      if (g.title === "Heading Structure") {
+        const hColors = { H1: accentC, H2: "#9B7AE6", H3: "#B89CF0" };
+        [["H1", data.h1], ["H2", data.h2], ["H3", data.h3]].forEach(([lv, arr], gi) => {
+          if (!arr || arr.length === 0) return;
+          content.push({ text: lv + " \u2014 " + arr.length + " found", fontSize: 11, bold: true, color: dk, margin: [0, gi > 0 ? 10 : 4, 0, 4] });
+          arr.slice(0, 6).forEach(h => {
+            const hText = typeof h === "string" ? h : h.text || h;
+            content.push({ text: [{ text: lv + "  ", fontSize: 8, bold: true, color: hColors[lv] || "#9B7AE6" }, { text: hText, fontSize: 10, color: dk }], margin: [8, 1, 0, 1] });
+          });
+        });
+      }
+
+      /* Body Content */
+      if (g.title.includes("Body Content")) {
+        content.push({ text: "Keywords appear naturally throughout the body text.", fontSize: 11, color: dk, margin: [0, 0, 0, 4] });
+      }
+
+      /* Explain text */
+      const explains = {
+        "Meta Title": "Your title is " + (data.title || "").length + " characters \u2014 right in the sweet spot (30\u201360). This is the #1 on-page signal Google uses to understand your content.",
+        "Meta Description": "Your description is " + (data.desc || "").length + " characters \u2014 within the recommended range. This is what users see in search results, so a good one means more clicks.",
+        "Heading Structure": "Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page.",
+        "Body Content \u2014 Keyword Coverage": "Your keywords appear naturally throughout the body text \u2014 good balance without overuse."
+      };
+      const explain = explains[g.title] || null;
+      if (explain) content.push({ text: explain, fontSize: 10, color: mt, margin: [0, 6, 0, 6], lineHeight: 1.3 });
+
+      if (idx < contentGood.length - 1) content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 6, 0, 6] });
     });
     content.push(spacer(8));
   }
 
-  /* ── CONTENT NEEDS IMPROVEMENT ── */
+  /* ── CONTENT NEEDS IMPROVEMENT (with SERP preview + full suggestions) ── */
   if (contentBad.length > 0) {
     content.push(secTitle("Content & Structure \u2014 Needs Improvement (" + contentBad.length + ")", accentC));
     content.push(noteText("Each card has a clear fix \u2014 start from the top."));
-    contentBad.forEach(item => content.push(lavCard(item)));
+    contentBad.forEach(item => {
+      const itemCard = lavCard(item);
+      content.push(itemCard);
+
+      /* Add SERP preview for title/description issues */
+      if ((item.title.includes("Title") || item.title.includes("Description")) && data.url) {
+        let displayUrl = data.url; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
+        const serpStack = [
+          { text: displayUrl, fontSize: 9, color: "#4d5156", margin: [8, 6, 8, 2] },
+          { text: (data.title || "No title").length > 60 ? (data.title || "").slice(0, 57) + "..." : (data.title || "No title"), fontSize: 12, color: "#1a0dab", margin: [8, 0, 8, 2] }
+        ];
+        if (data.desc) serpStack.push({ text: data.desc.length > 160 ? data.desc.slice(0, 157) + "..." : data.desc, fontSize: 10, color: "#4d5156", margin: [8, 0, 8, 6] });
+        else serpStack.push(spacer(4));
+        content.push({ table: { widths: ["*"], body: [[{ stack: serpStack }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 8] });
+      }
+    });
     content.push(spacer(8));
   }
 
-  /* ── TRUST WORKING WELL ── */
+  /* ── TRUST WORKING WELL (with details) ── */
   if (trustGood.length > 0) {
     content.push(secTitle("Trust & Conversion \u2014 Working Well"));
     content.push(noteText(trustGood.length + " trust signals are in place."));
-    trustGood.forEach(g => {
-      content.push({ table: { widths: ["*"], body: [[{
-        stack: [
-          { text: [{ text: "\u2713  ", color: "#D4A0E8", bold: true }, { text: g.title, fontSize: 12, bold: true, color: dk }] }
-        ], margin: [10, 8, 10, 8]
-      }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 4] });
+    content.push(spacer(6));
+
+    const trustExplains = {
+      "Call to Action": "A clear call-to-action guides visitors to the next step. Pages with visible CTAs convert better.",
+      "FAQ Section": "An FAQ section improves user experience and helps you appear in Google's rich results.",
+      "Social Profiles": "Social links build brand trust and help Google verify your business identity.",
+      "Contact Info": "Contact information signals legitimacy and trustworthiness to both users and search engines.",
+      "Testimonials": "Social proof from customer testimonials increases conversion rates."
+    };
+    trustGood.forEach((g, idx) => {
+      content.push({ text: g.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 4] });
+      const explain = trustExplains[g.title] || "This trust signal is present on your page.";
+      content.push({ text: explain, fontSize: 10, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+      if (idx < trustGood.length - 1) content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 4, 0, 4] });
     });
     content.push(spacer(8));
   }
@@ -904,7 +970,7 @@ async function generateCoveragePDF(data) {
       const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
       const stack = [];
       stack.push({ columns: [
-        { text: [{ text: "\u25CF  ", color: pr.color, fontSize: 8 }, { text: item.title, fontSize: 12, bold: true, color: dk }], width: "*" },
+        { text: [{ text: "-  ", color: pr.color, fontSize: 10, bold: true }, { text: item.title, fontSize: 12, bold: true, color: dk }], width: "*" },
         { ...badge(item.priority), width: "auto", alignment: "right" }
       ], columnGap: 8, margin: [0, 0, 0, 3] });
       if (item.why && typeof item.why === "string") {
@@ -922,7 +988,7 @@ async function generateCoveragePDF(data) {
     /* Re-audit reminder */
     content.push({ table: { widths: ["*"], body: [[{
       stack: [
-        { text: [{ text: "\u25CF  ", color: accentC, fontSize: 8 }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
+        { text: [{ text: "-  ", color: accentC, fontSize: 10, bold: true }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
         { text: "Run another Content Coverage Audit to measure your progress.", fontSize: 10, color: mt }
       ], margin: [10, 8, 10, 8]
     }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr }, margin: [0, 0, 0, 6] });
@@ -1111,37 +1177,20 @@ function ContentCoverage({ onHome, memberName: mn }) {
           body: JSON.stringify({ mode: "content_builder", keywords: allKwUnique.slice(0, 6), page_url: url })
         });
         if (dfsRes.ok) dfsData = await dfsRes.json();
-        console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length} organic=${dfsData.serp_organic?.length || 0}` : "failed");
+        console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length} organic=${dfsData.serp_organic?.length || 0} serpPos=${JSON.stringify(dfsData.serp_positions || {})}` : "failed");
       } catch (e) { console.log("[CC] DFS error:", e); }
 
-      /* v6.1: Extract our page's SERP position from organic results (free — data already returned) */
-      let serpPosition = null;
-      if (dfsData?.serp_organic?.length > 0 && url) {
-        try {
-          const ourHost = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
-          const ourPath = new URL(url).pathname.replace(/\/$/, "").toLowerCase();
-          for (const item of dfsData.serp_organic) {
-            try {
-              const itemHost = new URL(item.url).hostname.replace(/^www\./, "").toLowerCase();
-              const itemPath = new URL(item.url).pathname.replace(/\/$/, "").toLowerCase();
-              if (itemHost === ourHost && (itemPath === ourPath || ourPath === "" || ourPath === "/")) {
-                serpPosition = item.position;
-                console.log("[CC] Found our page in SERP at position", serpPosition);
-                break;
-              }
-            } catch(e) {}
-          }
-        } catch(e) {}
-      }
+      /* v6.2: Use serp_positions from DFS — real Google positions for all keywords */
+      const serpPositions = dfsData?.serp_positions || {};
 
       // Build keyword metrics — extracted keywords table (fallback to ranked data for volume/KD)
       const keywordMetrics = extractedKeywords.map((kw, idx) => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
-        const pos = r?.position || (idx === 0 && serpPosition ? serpPosition : null);
+        const serpPos = serpPositions[kw.toLowerCase()] || null;
         return {
           keyword: kw,
-          position: pos,
+          position: r?.position || serpPos,
           volume: m?.search_volume || r?.volume || null,
           difficulty: m?.keyword_difficulty || r?.difficulty || null
         };
@@ -1196,8 +1245,8 @@ function ContentCoverage({ onHome, memberName: mn }) {
       const userKeywordMetrics = keywords.map((kw, idx) => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
-        const pos = r?.position || (idx === 0 && serpPosition ? serpPosition : null);
-        return { keyword: kw, position: pos, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
+        const serpPos = serpPositions[kw.toLowerCase()] || null;
+        return { keyword: kw, position: r?.position || serpPos, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
       });
 
       // Step 7: Build report
