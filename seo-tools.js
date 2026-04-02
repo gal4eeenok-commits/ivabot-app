@@ -630,7 +630,7 @@ async function generatePDF(data) {
   /* ── Helpers ── */
   const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
   const fKD = (d) => d != null ? String(d) : "low";
-  const urlS = (data.url || "").length > 80 ? data.url.slice(0, 77) + "..." : (data.url || "");
+  const urlS = data.url || "";
   const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
 
@@ -779,7 +779,7 @@ async function generatePDF(data) {
   content.push({
     columns: [
       { text: "Core Audit Report", fontSize: 10, color: mt, margin: [28, 0, 0, 0] },
-      { text: urlS, fontSize: 10, color: mt, alignment: "right" }
+      { text: urlS, fontSize: urlS.length > 60 ? 8 : 10, color: mt, alignment: "right", link: urlS }
     ],
     margin: [0, 0, 0, 6]
   });
@@ -789,7 +789,7 @@ async function generatePDF(data) {
   const scoreSubtitle = data.score >= 80 ? "Your page has a strong SEO foundation." : data.score >= 50 ? "There's room for improvement." : "Your page needs significant SEO work.";
   content.push({
     columns: [
-      { image: scoreImg, width: 130, margin: [0, 0, 28, 0] },
+      { image: scoreImg, width: 120, margin: [0, 0, 40, 0] },
       {
         stack: [
           { text: "SEO Score", fontSize: 26, bold: true, color: dk, margin: [0, 30, 0, 6] },
@@ -1052,11 +1052,11 @@ async function generatePDF(data) {
         { text: "Want to improve your score?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
         { text: "Run another audit after making changes, or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
         { text: [
-          { text: "Core Audit", bold: true, color: accentC },
+          { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
           { text: "  \u2022  ", color: mt },
-          { text: "Content Builder", bold: true, color: accentC },
+          { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
           { text: "  \u2022  ", color: mt },
-          { text: "Content Coverage", bold: true, color: accentC }
+          { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
         ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
         { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
       ],
