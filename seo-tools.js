@@ -589,18 +589,81 @@ const RankingsTable = ({ rows, emptyMsg }) => (
 );
 
 
-/* ═══ PDF EXPORT ═══ */
+/* ═══ PDF EXPORT (pdfmake) ═══ */
 async function generatePDF(data) {
   try {
+  /* ── Load pdfmake from CDN ── */
   const loadScript = (url) => new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${url}"]`);
-    if (existing && window.jspdf) { resolve(); return; }
+    if (existing && window.pdfMake) { resolve(); return; }
     if (existing) existing.remove();
     const s = document.createElement("script"); s.src = url; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load " + url));
     document.head.appendChild(s);
   });
-  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js");
-  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.2/jspdf.plugin.autotable.min.js");
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");
+
+  /* ── Color palette (hex for pdfmake) ── */
+  const dk = "#151415", mt = "#928E95", accentC = "#6E2BFF";
+  const divClr = "#e6e3e9";
+  const tblHdrBg = "#f0edf3";
+  const lavCardBg = "#fcfaff";
+  const lavCardBdr = "#dcd2f0";
+  const PRIO = {
+    critical: { label: "Critical", color: "#6E2BFF", bg: "#ede4ff" },
+    important: { label: "Important", color: "#9B7AE6", bg: "#f1ebfc" },
+    nice: { label: "Nice to have", color: "#B89CF0", bg: "#f5f0fd" }
+  };
+
+  /* ── Helpers ── */
+  const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
+  const fKD = (d) => d != null ? String(d) : "low";
+  const urlS = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
+  const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
+
+  const secTitle = (t, color) => ({ text: t, fontSize: 26, bold: true, color: color || dk, margin: [0, 24, 0, 4] });
+  const noteText = (t) => ({ text: t, fontSize: 11, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+  const dividerLine = () => ({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 8, 0, 8] });
+  const spacer = (n) => ({ text: "", margin: [0, 0, 0, n || 12] });
+
+  /* Badge helper — table with colored bg */
+  const badge = (label, prio) => {
+    const pr = PRIO[prio] || PRIO.important;
+    return {
+      table: { body: [[{ text: pr.label, fontSize: 8, bold: true, color: pr.color, margin: [6, 2, 6, 2] }]] },
+      layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => pr.bg, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }
+    };
+  };
+
+  /* ── Score Circle (canvas → dataURL) ── */
+  const makeScoreImg = () => new Promise(resolve => {
+    const size = 280, r = 130, lw = 12;
+    const cvs = document.createElement("canvas"); cvs.width = size; cvs.height = size;
+    const ctx = cvs.getContext("2d");
+    const cx = size / 2, cy = size / 2;
+    /* Background ring */
+    ctx.strokeStyle = "#e6e3e9"; ctx.lineWidth = lw; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    /* Score arc */
+    const sClr = data.score >= 80 ? "#9B7AE6" : data.score >= 50 ? "#B89CF0" : "#E2D4F5";
+    ctx.strokeStyle = sClr; ctx.lineWidth = lw; ctx.lineCap = "round";
+    const startAngle = -Math.PI / 2;
+    const endAngle = startAngle + (data.score / 100) * Math.PI * 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r, startAngle, endAngle); ctx.stroke();
+    /* Score number */
+    ctx.fillStyle = "#151415"; ctx.font = "bold 72px Helvetica, Arial, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(data.score), cx, cy - 4);
+    /* Label */
+    const sL = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
+    ctx.fillStyle = sClr; ctx.font = "24px Helvetica, Arial, sans-serif";
+    ctx.fillText(sL, cx, cy + 40);
+    resolve(cvs.toDataURL("image/png"));
+  });
+  const scoreImg = await makeScoreImg();
+
+  /* ── Logo (canvas → dataURL) ── */
   const makeLogo = () => new Promise(resolve => {
     const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
     const ctx = cvs.getContext("2d"); ctx.fillStyle = "#6E2BFF"; ctx.scale(2, 2);
@@ -612,159 +675,154 @@ async function generatePDF(data) {
     resolve(cvs.toDataURL("image/png"));
   });
   const logoImg = await makeLogo();
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
-  const M = 40, CW = W - M * 2;
-  let y = 0;
 
-  /* ── Color palette ── */
-  const dk = [21,20,21], mt = [146,142,149], accent = [110,43,255], wh = [255,255,255];
-  const divClr = [230,227,233];
-  const tblHdrBg = [240,237,243];
-  const lavCardBg = [252,250,255];
-  const lavCardBdr = [220,210,240];
-  const PRIO_PDF = {
-    critical: { label: "Critical", color: [110,43,255], bg: [237,228,255] },
-    important: { label: "Important", color: [155,122,230], bg: [241,235,252] },
-    nice: { label: "Nice to have", color: [184,156,240], bg: [245,240,253] }
+  /* ── Keyword table builder ── */
+  const kwTable = (rows, highlight) => {
+    const head = [
+      { text: "Keyword", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
+      { text: "Pos.", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "Volume", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "KD", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] }
+    ];
+    const body = rows.map(r => {
+      const pos = r.position != null ? String(r.position) : "100+";
+      const isTop3 = r.position >= 1 && r.position <= 3;
+      return [
+        { text: r.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
+        { text: pos, fontSize: 11, color: isTop3 ? accentC : dk, bold: isTop3, alignment: "center", fillColor: isTop3 ? "#ede4ff" : null, margin: [4, 6, 4, 6] },
+        { text: fV(r.volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: fKD(r.difficulty), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] }
+      ];
+    });
+    return {
+      table: { headerRows: 1, widths: ["*", 45, 55, 45], body: [head, ...body] },
+      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      margin: [0, 4, 0, 8]
+    };
   };
 
-  /* ── Helpers ── */
-  const ensureSpace = (n) => { if (y + n > H - 60) { doc.addPage(); y = 44; } };
-  const gap = (n) => { y += (n || 10); };
-  const divider = () => { doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); };
-  /* lineH: exact line height for a given font size (jsPDF default lineHeightFactor=1.15) */
-  const _lhCache = {};
-  const lineH = (sz) => { if (_lhCache[sz]) return _lhCache[sz]; const prev = doc.getFontSize(); doc.setFontSize(sz); const h = doc.getTextDimensions("Mg").h * 1.15; doc.setFontSize(prev); _lhCache[sz] = h; return h; };
-  const textH = (sz, text, maxW) => { doc.setFontSize(sz); const lines = doc.splitTextToSize(String(text), maxW || CW); return lines.length * lineH(sz); };
-  const secTitle = (t) => { ensureSpace(44); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk); const lines = doc.splitTextToSize(t, CW); doc.text(lines, M, y); y += lines.length * lineH(32) + 4; };
-  const note = (t, maxW) => { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * lineH(12) + 8); doc.text(L, M, y); y += L.length * lineH(12) + 6; };
-  const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
-  const fKD = (d) => d != null ? String(d) : "low";
-  const urlS = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
+  const kwNotes = [
+    noteText("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper."),
+    noteText("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.")
+  ];
+
+  /* ── Card builder (lavender bg for Needs Improvement) ── */
+  const lavCard = (item) => {
+    const pr = PRIO[item.p] || PRIO.important;
+    const stack = [];
+    /* Title row with badge */
+    stack.push({
+      columns: [
+        { text: item.t, fontSize: 13, bold: true, color: dk, width: "*" },
+        { ...badge(pr.label, item.p), width: "auto", alignment: "right" }
+      ],
+      columnGap: 8,
+      margin: [0, 0, 0, 4]
+    });
+    if (item.cur) stack.push({ text: String(item.cur), fontSize: 10, color: dk, margin: [0, 0, 0, 4] });
+    if (item.w) stack.push({ text: String(item.w), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 });
+    (item.s || []).forEach(s => stack.push({ text: "\u2022 " + String(s), fontSize: 11, color: dk, margin: [0, 1, 0, 1] }));
+    return {
+      table: { widths: ["*"], body: [[{ stack, margin: [10, 10, 10, 10] }]] },
+      layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg },
+      margin: [0, 0, 0, 8]
+    };
+  };
+
+  /* ── White card builder (for Final Recommendations) ── */
+  const whiteCard = (item) => {
+    const pr = PRIO[item.p] || PRIO.important;
+    const stack = [];
+    stack.push({
+      columns: [
+        { text: item.t, fontSize: 12, bold: true, color: dk, width: "*" },
+        { ...badge(pr.label, item.p), width: "auto", alignment: "right" }
+      ],
+      columnGap: 8,
+      margin: [0, 0, 0, 4]
+    });
+    if (item.w) stack.push({ text: String(item.w), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 });
+    (item.s || []).forEach(s => stack.push({ text: "\u2022 " + String(s), fontSize: 11, color: dk, margin: [0, 1, 0, 1] }));
+    return {
+      table: { widths: ["*"], body: [[{ stack, margin: [10, 10, 10, 10] }]] },
+      layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => divClr, vLineColor: () => divClr, fillColor: () => "#ffffff" },
+      margin: [0, 0, 0, 8]
+    };
+  };
 
   /* ══════════════════════════════════════════════
-     HEADER — logo + "IvaBot" top, subtitle + date/url aligned below
+     BUILD CONTENT ARRAY
      ══════════════════════════════════════════════ */
-  doc.addImage(logoImg, "PNG", M, 24, 22, 19);
-  doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-  doc.text("IvaBot", M + 28, 38);
-  /* Row 1 right: Date aligned with "IvaBot" */
-  const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-  doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-  doc.text(dateString, W - M, 38, { align: "right" });
-  /* Row 2: "Core Audit Report" left under IvaBot, URL right */
-  doc.text("Core Audit Report", M + 30, 52);
-  doc.text(urlS, W - M, 52, { align: "right" });
-  /* Thin divider */
-  y = 62;
-  doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
-  y = 74;
+  const content = [];
 
-  /* ══════════════════════════════════════════════
-     SEO SCORE — 140px circle + text right
-     ══════════════════════════════════════════════ */
-  ensureSpace(120);
-  const sL = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
-  const sC = data.score >= 80 ? [155,122,230] : data.score >= 50 ? [184,156,240] : [226,212,245];
-  const circR = 70, cx = M + circR, cy = y + circR;
-  doc.setDrawColor(230,227,233); doc.setLineWidth(6); doc.circle(cx, cy, circR - 3);
-  doc.setDrawColor(...sC); doc.setLineWidth(6);
-  const arcEnd = -90 + (data.score / 100) * 360;
-  for (let a = -90; a < arcEnd; a += 1.5) {
-    const a1 = (a * Math.PI) / 180, a2 = (Math.min(a + 1.5, arcEnd) * Math.PI) / 180;
-    doc.line(cx + (circR - 3) * Math.cos(a1), cy + (circR - 3) * Math.sin(a1), cx + (circR - 3) * Math.cos(a2), cy + (circR - 3) * Math.sin(a2));
-  }
-  doc.setFontSize(40); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-  doc.text(String(data.score), cx, cy + 6, { align: "center" });
-  doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...sC);
-  doc.text(sL, cx, cy + 24, { align: "center" });
-  const textX = M + circR * 2 + 24;
-  doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-  doc.text("SEO Score", textX, cy - 6);
-  doc.setFontSize(14); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-  doc.text(data.score >= 80 ? "Your page has a strong SEO foundation." : data.score >= 50 ? "There's room for improvement." : "Your page needs significant SEO work.", textX, cy + 14);
-  y = cy + circR + 24;
-  gap(36);
-
-  /* ══════════════════════════════════════════════
-     PAGE CONTEXT SUMMARY
-     ══════════════════════════════════════════════ */
-  secTitle("Page Context Summary");
-  const ctxRows = [["Page URL", data.ctx?.url], ["Page title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition], ["Core message", data.ctx?.message]];
-  ctxRows.forEach(([label, val]) => {
-    if (!val) return;
-    ensureSpace(18);
-    doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-    doc.text(label, M, y);
-    doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-    const valLines = doc.splitTextToSize(String(val).slice(0, 120), CW - 130);
-    doc.text(valLines, M + 130, y);
-    y += Math.max(valLines.length * 16, 12) + 4;
+  /* ── HEADER ── */
+  content.push({
+    columns: [
+      { image: logoImg, width: 22, margin: [0, 2, 0, 0] },
+      { text: "IvaBot", fontSize: 16, bold: true, color: dk, width: "auto", margin: [6, 0, 0, 0] },
+      { text: dateString, fontSize: 10, color: mt, alignment: "right" }
+    ],
+    margin: [0, 0, 0, 2]
   });
-  gap(36);
+  content.push({
+    columns: [
+      { text: "Core Audit Report", fontSize: 10, color: mt, margin: [28, 0, 0, 0] },
+      { text: urlS, fontSize: 10, color: mt, alignment: "right" }
+    ],
+    margin: [0, 0, 0, 6]
+  });
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
 
-  /* ══════════════════════════════════════════════
-     KEYWORD TABLES
-     ══════════════════════════════════════════════ */
-  const kwTableStyles = {
-    headStyles: { fillColor: tblHdrBg, textColor: mt, fontSize: 10, fontStyle: "normal", cellPadding: 8 },
-    bodyStyles: { fontSize: 13, textColor: dk, cellPadding: 8, fillColor: false },
-    alternateRowStyles: { fillColor: false },
-    styles: { lineColor: divClr, lineWidth: 0.5 },
-    columnStyles: { 0: { cellWidth: 240, halign: "left", fontStyle: "bold" }, 1: { halign: "center", cellWidth: 55 }, 2: { halign: "center", cellWidth: 70 }, 3: { halign: "center", cellWidth: 55 } },
-    tableLineColor: divClr, tableLineWidth: 0
-  };
+  /* ── SEO SCORE ── */
+  const scoreSubtitle = data.score >= 80 ? "Your page has a strong SEO foundation." : data.score >= 50 ? "There's room for improvement." : "Your page needs significant SEO work.";
+  content.push({
+    columns: [
+      { image: scoreImg, width: 130, margin: [0, 0, 16, 0] },
+      {
+        stack: [
+          { text: "SEO Score", fontSize: 26, bold: true, color: dk, margin: [0, 30, 0, 6] },
+          { text: scoreSubtitle, fontSize: 12, color: mt }
+        ],
+        width: "*"
+      }
+    ],
+    margin: [0, 0, 0, 24]
+  });
 
+  /* ── PAGE CONTEXT SUMMARY ── */
+  content.push(secTitle("Page Context Summary"));
+  const ctxRows = [["Page URL", data.ctx?.url], ["Page title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition], ["Core message", data.ctx?.message]];
+  const ctxBody = ctxRows.filter(([, v]) => v).map(([label, val]) => [
+    { text: label, fontSize: 11, color: mt, margin: [4, 4, 4, 4] },
+    { text: String(val).slice(0, 120), fontSize: 11, color: dk, margin: [4, 4, 4, 4] }
+  ]);
+  if (ctxBody.length > 0) {
+    content.push({
+      table: { widths: [100, "*"], body: ctxBody },
+      layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      margin: [0, 4, 0, 16]
+    });
+  }
+
+  /* ── KEYWORD TABLES ── */
   if (data.rankedKeywords?.length > 0) {
-    secTitle("How Your Page Ranks in Google");
-    doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-    doc.text("Real positions from the Google search index.", M, y); y += 20;
-    doc.autoTable({
-      startY: y, margin: { left: M, right: M }, ...kwTableStyles,
-      head: [["Keyword", "Pos.", "Volume", "KD"]],
-      body: data.rankedKeywords.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fV(r.volume), fKD(r.difficulty)]),
-      didParseCell: function(hookData) {
-        if (hookData.section === "body" && hookData.column.index === 1) {
-          const pos = parseInt(hookData.cell.raw);
-          if (pos >= 1 && pos <= 3) { hookData.cell.styles.fillColor = [237,228,255]; hookData.cell.styles.textColor = accent; hookData.cell.styles.fontStyle = "bold"; }
-        }
-      }
-    });
-    y = doc.lastAutoTable.finalY + 14;
-    note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
-    gap(2);
-    note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
-    gap(36);
+    content.push(secTitle("How Your Page Ranks in Google"));
+    content.push(noteText("Real positions from the Google search index."));
+    content.push(kwTable(data.rankedKeywords));
+    content.push(...kwNotes);
+    content.push(spacer(16));
   }
 
-  secTitle("What Your Page Is Built For");
-  doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-  const builtForDesc = "Based on your title, headings (H1\u2013H3), and meta description \u2014 these are the search queries your content is currently optimized for.";
-  const bfdLines = doc.splitTextToSize(builtForDesc, CW);
-  doc.text(bfdLines, M, y); y += bfdLines.length * 16 + 10;
+  content.push(secTitle("What Your Page Is Built For"));
+  content.push(noteText("Based on your title, headings (H1\u2013H3), and meta description \u2014 these are the search queries your content is currently optimized for."));
   if (data.keywordMetrics?.length > 0) {
-    doc.autoTable({
-      startY: y, margin: { left: M, right: M }, ...kwTableStyles,
-      head: [["Keyword", "Pos.", "Volume", "KD"]],
-      body: data.keywordMetrics.map(r => [r.keyword, r.position != null ? String(r.position) : "100+", fV(r.volume), fKD(r.difficulty)]),
-      didParseCell: function(hookData) {
-        if (hookData.section === "body" && hookData.column.index === 1) {
-          const pos = parseInt(hookData.cell.raw);
-          if (pos >= 1 && pos <= 3) { hookData.cell.styles.fillColor = [237,228,255]; hookData.cell.styles.textColor = accent; hookData.cell.styles.fontStyle = "bold"; }
-        }
-      }
-    });
-    y = doc.lastAutoTable.finalY + 14;
-    note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
-    gap(2);
-    note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
+    content.push(kwTable(data.keywordMetrics));
+    content.push(...kwNotes);
   }
-  gap(36);
+  content.push(spacer(16));
 
   /* ══════════════════════════════════════════════
-     WHAT'S WORKING — card-style with dividers
+     WHAT'S WORKING
      ══════════════════════════════════════════════ */
   const gItems = [];
   if (data.titleStatus === "good") {
@@ -778,13 +836,7 @@ async function generatePDF(data) {
   }
   if (data.headingsStatus === "good") {
     const h1 = data.headings.filter(h => h.level === "H1"), h2 = data.headings.filter(h => h.level === "H2"), h3 = data.headings.filter(h => h.level === "H3");
-    let hText = "H1 \u2014 " + h1.length + " found\n";
-    h1.forEach(h => { hText += "  H1: " + h.text + "\n"; });
-    hText += "H2 \u2014 " + h2.length + " found\n";
-    h2.forEach(h => { hText += "  H2: " + h.text + "\n"; });
-    hText += "H3 \u2014 " + h3.length + " found\n";
-    h3.forEach(h => { hText += "  H3: " + h.text + "\n"; });
-    gItems.push({ title: "Heading Structure", content: hText.trim(), explain: "Think of headings as a table of contents. H1 is your main topic, H2s are chapters, H3s are subsections. Google uses this hierarchy to understand your page. Yours looks clean \u2014 no duplicates detected." });
+    gItems.push({ title: "Heading Structure", headings: { h1, h2, h3 }, explain: "Think of headings as a table of contents. H1 is your main topic, H2s are chapters, H3s are subsections. Google uses this hierarchy to understand your page. Yours looks clean \u2014 no duplicates detected." });
   }
   if (data.linksStatus === "good") {
     const sn = data.links.social.map(s => typeof s === "string" ? s : s.name);
@@ -800,137 +852,87 @@ async function generatePDF(data) {
   if (data.sitemapStatus === "good") gItems.push({ title: "Sitemap", content: "XML sitemap accessible.", explain: "A sitemap is like a roadmap for Google \u2014 it helps discover and index all your pages faster." });
 
   if (gItems.length > 0) {
-    secTitle("What\u2019s Working (" + gItems.length + ")");
-    note("Good news \u2014 " + gItems.length + " things are already working well on your page.");
-    gap(6);
-    gItems.forEach((item, idx) => {
-      ensureSpace(90);
-      /* Title — 15px for better hierarchy */
-      doc.setFontSize(15); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-      doc.text(item.title, M, y); y += 22;
+    content.push(secTitle("What\u2019s Working (" + gItems.length + ")"));
+    content.push(noteText("Good news \u2014 " + gItems.length + " things are already working well on your page."));
+    content.push(spacer(6));
 
-      /* SERP Preview box (for title/desc) */
+    gItems.forEach((item, idx) => {
+      /* Item title */
+      content.push({ text: item.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 6] });
+
+      /* SERP Preview box */
       if (item.serpPreview) {
         const sp = item.serpPreview;
-        ensureSpace(60);
-        const boxY = y;
-        doc.setDrawColor(...divClr); doc.setLineWidth(0.5);
-        doc.setFillColor(255,255,255);
-        doc.roundedRect(M, boxY, CW, sp.desc ? 56 : 38, 6, 6, "FD");
-        /* URL line */
-        doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(77,81,86);
-        doc.text(sp.url, M + 12, boxY + 14);
-        /* Title in blue */
-        doc.setFontSize(14); doc.setFont("helvetica","normal"); doc.setTextColor(26,13,171);
         const titleTrunc = sp.pageTitle.length > 60 ? sp.pageTitle.slice(0, 57) + "..." : sp.pageTitle;
-        doc.text(titleTrunc, M + 12, boxY + 30);
-        /* Desc if present */
-        if (sp.desc) {
-          doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(77,81,86);
-          const descLines = doc.splitTextToSize(sp.desc, CW - 24);
-          doc.text(descLines[0] || "", M + 12, boxY + 46);
-        }
-        y = boxY + (sp.desc ? 56 : 38) + 6;
-        /* Status line */
-        if (item.detail) {
-          doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-          doc.text(item.detail, M, y); y += 16;
-        }
-      }
-      /* Links — horizontal two-column layout */
-      else if (item.linksInternal != null) {
-        ensureSpace(60);
-        const colW = CW / 2;
-        /* Column 1: Internal */
-        doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-        doc.text(String(item.linksInternal), M, y);
-        const intNumW = doc.getTextWidth(String(item.linksInternal));
-        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        doc.text("Internal links", M + intNumW + 8, y);
-        /* Column 2: External */
-        doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-        doc.text(String(item.linksExternal), M + colW, y);
-        const extNumW = doc.getTextWidth(String(item.linksExternal));
-        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        doc.text("External links", M + colW + extNumW + 8, y);
-        y += 16;
-        /* Descriptions under each */
-        doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-        doc.text(item.intDesc || "", M, y);
-        doc.text(item.extDesc || "", M + colW, y);
-        y += 18;
-        if (item.social?.length > 0) {
-          doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-          doc.text("Social: " + item.social.join(" \u00B7 "), M, y); y += 16;
-        }
-      }
-      /* Headings with colored H1/H2/H3 labels */
-      else if (item.content && item.title === "Heading Structure") {
-        const hLines = item.content.split("\n");
-        hLines.forEach(line => {
-          ensureSpace(18);
-          const hMatch = line.match(/^\s*(H[1-3])\s*[\u2014:]\s*(.*)/);
-          if (hMatch) {
-            const lv = hMatch[1], text = hMatch[2];
-            const isCount = text.match(/^\d+ found$/);
-            if (isCount) {
-              /* "H1 — 1 found" header line */
-              doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-              doc.text(lv + " \u2014 " + text, M, y); y += 18;
-            } else {
-              /* Individual heading with colored badge */
-              const hColors = { H1: [110,43,255], H2: [155,122,230], H3: [184,156,240] };
-              const hBg = { H1: [237,228,255], H2: [241,235,252], H3: [245,240,253] };
-              const hc = hColors[lv] || hColors.H2;
-              const hb = hBg[lv] || hBg.H2;
-              /* Badge */
-              const badgeW = 26;
-              doc.setFillColor(...hb);
-              doc.roundedRect(M + 8, y - 10, badgeW, 14, 3, 3, "F");
-              doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...hc);
-              doc.text(lv, M + 8 + 5, y);
-              /* Text */
-              doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-              const headText = doc.splitTextToSize(text, CW - 48);
-              doc.text(headText, M + 40, y);
-              y += headText.length * 15 + 4;
-            }
-          }
+        const serpStack = [
+          { text: sp.url, fontSize: 9, color: "#4d5156", margin: [8, 6, 8, 2] },
+          { text: titleTrunc, fontSize: 12, color: "#1a0dab", margin: [8, 0, 8, 2] }
+        ];
+        if (sp.desc) serpStack.push({ text: sp.desc.length > 160 ? sp.desc.slice(0, 157) + "..." : sp.desc, fontSize: 10, color: "#4d5156", margin: [8, 0, 8, 6] });
+        else serpStack.push(spacer(4));
+        content.push({
+          table: { widths: ["*"], body: [[{ stack: serpStack }]] },
+          layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+          margin: [0, 0, 0, 4]
         });
-        y += 4;
+        if (item.detail) content.push({ text: item.detail, fontSize: 11, bold: true, color: dk, margin: [0, 0, 0, 4] });
+      }
+      /* Links layout */
+      else if (item.linksInternal != null) {
+        content.push({
+          columns: [
+            { stack: [
+              { text: [{ text: String(item.linksInternal), fontSize: 20, bold: true, color: dk }, { text: "  Internal links", fontSize: 11, color: dk }] },
+              { text: item.intDesc || "", fontSize: 10, color: mt, margin: [0, 2, 0, 0] }
+            ], width: "50%" },
+            { stack: [
+              { text: [{ text: String(item.linksExternal), fontSize: 20, bold: true, color: dk }, { text: "  External links", fontSize: 11, color: dk }] },
+              { text: item.extDesc || "", fontSize: 10, color: mt, margin: [0, 2, 0, 0] }
+            ], width: "50%" }
+          ],
+          margin: [0, 0, 0, 4]
+        });
+        if (item.social?.length > 0) content.push({ text: "Social: " + item.social.join(" \u00B7 "), fontSize: 10, color: dk, margin: [0, 0, 0, 4] });
+      }
+      /* Headings with H1/H2/H3 grouped */
+      else if (item.headings) {
+        const hColors = { H1: "#6E2BFF", H2: "#9B7AE6", H3: "#B89CF0" };
+        ["h1", "h2", "h3"].forEach(lvKey => {
+          const arr = item.headings[lvKey];
+          const lv = lvKey.toUpperCase();
+          content.push({ text: lv + " \u2014 " + arr.length + " found", fontSize: 11, bold: true, color: dk, margin: [0, 4, 0, 2] });
+          arr.forEach(h => {
+            content.push({
+              text: [
+                { text: lv + "  ", fontSize: 8, bold: true, color: hColors[lv] || "#9B7AE6" },
+                { text: h.text, fontSize: 10, color: dk }
+              ],
+              margin: [8, 1, 0, 1]
+            });
+          });
+        });
       }
       /* Generic content */
       else if (item.content) {
-        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        const cLines = doc.splitTextToSize(item.content, CW);
-        ensureSpace(cLines.length * 16 + 4);
-        doc.text(cLines, M, y); y += cLines.length * 16 + 4;
-        if (item.detail) {
-          doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-          doc.text(item.detail, M, y); y += 16;
-        }
+        content.push({ text: item.content, fontSize: 11, color: dk, margin: [0, 0, 0, 4] });
+        if (item.detail) content.push({ text: item.detail, fontSize: 11, bold: true, color: dk, margin: [0, 0, 0, 4] });
       }
 
       /* Explanation */
-      if (item.explain) {
-        gap(4);
-        doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-        const eLines = doc.splitTextToSize(item.explain, CW);
-        ensureSpace(eLines.length * 15 + 4);
-        doc.text(eLines, M, y); y += eLines.length * 15 + 6;
-      }
+      if (item.explain) content.push({ text: item.explain, fontSize: 10, color: mt, margin: [0, 2, 0, 6], lineHeight: 1.3 });
+
       /* Divider between items */
-      if (idx < gItems.length - 1) { y += 4; divider(); y += 18; }
+      if (idx < gItems.length - 1) content.push(dividerLine());
     });
-    gap(36);
+    content.push(spacer(16));
   }
 
   /* ══════════════════════════════════════════════
-     NEEDS IMPROVEMENT — lavender card-style blocks
+     NEEDS IMPROVEMENT — lavender cards
      ══════════════════════════════════════════════ */
   const pB = [];
-  if (data.titleStatus !== "good") pB.push({ t: data.titleEval?.title || "Meta Title Too Short", p: "critical", w: data.titleEval?.why, s: data.titleEval?.suggestions, cur: data.title ? "Current title: \"" + data.title + "\" (" + data.title.length + " characters)" : "No title set", curLabel: data.titleEval?.currentLabel });
-  if (data.descStatus !== "good") pB.push({ t: data.descEval?.title || "Description Needs Work", p: "critical", w: data.descEval?.why, s: data.descEval?.suggestions, cur: data.desc ? "Current description: \"" + (data.desc.length > 120 ? data.desc.slice(0, 117) + "..." : data.desc) + "\" (" + data.desc.length + " characters)" : "No description set", curLabel: data.descEval?.currentLabel });
+  if (data.titleStatus !== "good") pB.push({ t: data.titleEval?.title || "Meta Title Too Short", p: "critical", w: data.titleEval?.why, s: data.titleEval?.suggestions, cur: data.title ? "Current title: \"" + data.title + "\" (" + data.title.length + " characters)" : "No title set" });
+  if (data.descStatus !== "good") pB.push({ t: data.descEval?.title || "Description Needs Work", p: "critical", w: data.descEval?.why, s: data.descEval?.suggestions, cur: data.desc ? "Current description: \"" + (data.desc.length > 120 ? data.desc.slice(0, 117) + "..." : data.desc) + "\" (" + data.desc.length + " characters)" : "No description set" });
   if (data.headingsStatus !== "good") pB.push({ t: "Heading Structure", p: "critical", w: data.headingsEval?.why, s: data.headingsEval?.suggestions, cur: data.headingsEval?.current ? String(data.headingsEval.current).slice(0, 400) : null });
   if (data.linksStatus !== "good") pB.push({ t: "Links", p: "important", w: data.linksEval?.why, s: data.linksEval?.suggestions, cur: data.linksEval?.current ? String(data.linksEval.current).slice(0, 300) : null });
   if (!data.ux?.cta?.found) pB.push({ t: "No CTA Found", p: "important", w: "A call-to-action (CTA) is a button or link that guides visitors to take action \u2014 like \u2018Buy now\u2019, \u2018Sign up\u2019, or \u2018Contact us\u2019. Without one, visitors may leave without converting.", s: ["Add a prominent CTA above the fold"] });
@@ -944,125 +946,82 @@ async function generatePDF(data) {
   pB.sort((a, b) => (prioOrd[a.p] ?? 1) - (prioOrd[b.p] ?? 1));
 
   if (pB.length > 0) {
-    /* Section title in accent color for attention */
-    ensureSpace(44); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...accent);
-    const niTitle = "Needs Improvement (" + pB.length + ")";
-    doc.text(niTitle, M, y); y += 40;
-    note("I found " + pB.length + " areas that need attention. Each card has a clear fix.");
-    gap(6);
-    pB.forEach((item) => {
-      const pr = PRIO_PDF[item.p] || PRIO_PDF.important;
-      const curLines = item.cur ? (doc.setFontSize(12), doc.splitTextToSize(String(item.cur), CW - 24)) : [];
-      const whyLines = item.w ? (doc.setFontSize(13), doc.splitTextToSize(String(item.w), CW - 24)) : [];
-      const sugArr = item.s || [];
-      /* Compute suggestion lines once */
-      const sugData = sugArr.map(s => { doc.setFontSize(13); return doc.splitTextToSize("\u2022 " + String(s), CW - 24); });
-
-      /* Unified height calc using lineH() */
-      const PAD_TOP = 18, TITLE_ROW = lineH(15) + 6, PAD_BOT = 10;
-      let ch = PAD_TOP + TITLE_ROW;
-      if (curLines.length > 0) ch += curLines.length * lineH(12) + 4;
-      if (whyLines.length > 0) ch += whyLines.length * lineH(13) + 6;
-      sugData.forEach(sl => { ch += sl.length * lineH(13) + 2; });
-      ch += PAD_BOT;
-
-      ensureSpace(ch + 10);
-      const cardY = y;
-      doc.setFillColor(...lavCardBg); doc.setDrawColor(...lavCardBdr); doc.setLineWidth(1);
-      doc.roundedRect(M, cardY, CW, ch, 8, 8, "FD");
-
-      /* Render content with SAME spacing */
-      y = cardY + PAD_TOP;
-      doc.setFontSize(15); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-      doc.text(item.t, M + 12, y);
-      const badgeW = doc.getTextWidth(pr.label) + 16;
-      const badgeX = W - M - 12 - badgeW;
-      doc.setFillColor(...pr.bg);
-      doc.roundedRect(badgeX, y - 11, badgeW, 16, 8, 8, "F");
-      doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(...pr.color);
-      doc.text(pr.label, badgeX + 8, y);
-      y += TITLE_ROW;
-      if (curLines.length > 0) {
-        doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        doc.text(curLines, M + 12, y); y += curLines.length * lineH(12) + 4;
-      }
-      if (item.w) {
-        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-        doc.text(whyLines, M + 12, y); y += whyLines.length * lineH(13) + 6;
-      }
-      sugData.forEach(sl => {
-        doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        doc.text(sl, M + 12, y); y += sl.length * lineH(13) + 2;
-      });
-
-      y = cardY + ch + 8;
-    });
-    gap(36);
+    content.push(secTitle("Needs Improvement (" + pB.length + ")", accentC));
+    content.push(noteText("I found " + pB.length + " areas that need attention. Each card has a clear fix."));
+    content.push(spacer(6));
+    pB.forEach(item => content.push(lavCard(item)));
+    content.push(spacer(16));
   }
 
   /* ══════════════════════════════════════════════
-     TOP COMPETITORS — table with domain only
+     TOP COMPETITORS
      ══════════════════════════════════════════════ */
   if (data.competitors?.length > 0) {
-    secTitle("Top Competitors");
-    note("Want to go deeper? See how your competitors rank and where to earn backlinks.");
-    gap(8);
-    note("Top organic results for \"" + (data.keywords?.[0] || "your topic") + "\".");
-    gap(8);
-    doc.autoTable({
-      startY: y, margin: { left: M, right: M },
-      headStyles: { fillColor: tblHdrBg, textColor: mt, fontSize: 10, fontStyle: "normal", cellPadding: 8 },
-      bodyStyles: { fontSize: 13, textColor: dk, cellPadding: 8, fillColor: false },
-      alternateRowStyles: { fillColor: false },
-      styles: { lineColor: divClr, lineWidth: 0.5 },
-      head: [["#", "Domain", "SEO Tactics"]],
-      body: data.competitors.map((c, i) => {
-        let domain = c.name || "";
-        if (c.url) { try { domain = new URL(c.url).hostname.replace(/^www\./, ""); } catch(e) { domain = c.url; } }
-        return [String(i + 1), domain, c.tactics || ""];
-      }),
-      columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 160 }, 2: { cellWidth: "auto" } }
+    content.push(secTitle("Top Competitors"));
+    content.push(noteText("Want to go deeper? See how your competitors rank and where to earn backlinks."));
+    content.push(noteText("Top organic results for \"" + (data.keywords?.[0] || "your topic") + "\"."));
+    const compHead = [
+      { text: "#", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "Domain", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
+      { text: "SEO Tactics", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] }
+    ];
+    const compBody = data.competitors.map((c, i) => {
+      let cdomain = c.name || "";
+      if (c.url) { try { cdomain = new URL(c.url).hostname.replace(/^www\./, ""); } catch(e) { cdomain = c.url; } }
+      return [
+        { text: String(i + 1), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: cdomain, fontSize: 11, color: dk, margin: [4, 6, 4, 6] },
+        { text: c.tactics || "", fontSize: 11, color: dk, margin: [4, 6, 4, 6] }
+      ];
     });
-    y = doc.lastAutoTable.finalY + 14;
-    note("Study their titles, descriptions, and content structure. What are they doing that you\u2019re not? Use their strengths as inspiration to improve your own page.");
-    gap(36);
+    content.push({
+      table: { headerRows: 1, widths: [25, 130, "*"], body: [compHead, ...compBody] },
+      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      margin: [0, 4, 0, 8]
+    });
+    content.push(noteText("Study their titles, descriptions, and content structure. What are they doing that you\u2019re not? Use their strengths as inspiration to improve your own page."));
+    content.push(spacer(16));
   }
 
   /* ══════════════════════════════════════════════
      PR & BACKLINK OPPORTUNITIES
      ══════════════════════════════════════════════ */
-  secTitle("PR & Backlink Opportunities");
+  content.push(secTitle("PR & Backlink Opportunities"));
   if (data.backlinksCount != null) {
-    ensureSpace(40);
-    [["Backlinks", data.backlinksCount], ["Referring Domains", data.referringDomains], ["Ranked Keywords", data.totalRanked]].forEach(([label, val], i) => {
-      const sx = M + (CW / 3) * i;
-      doc.setFontSize(20); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-      doc.text(val != null ? val.toLocaleString() : "\u2014", sx, y);
-      doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-      doc.text(String(label), sx, y + 16);
-    }); y += 38;
-    if (data.backlinksCount < 10) { note(data.backlinksCount === 0 ? "No backlinks detected. This is a top 3 Google ranking factor." : "Low backlink count (" + data.backlinksCount + ")."); gap(4); }
-  }
-  note("Every quality link from another website is a \u2018vote of confidence\u2019 for Google. Reach out to relevant sites \u2014 even 2\u20133 strong backlinks can make a real difference.");
-  gap(8);
-  if (data.backlinks?.length > 0) {
-    doc.autoTable({
-      startY: y, margin: { left: M, right: M },
-      headStyles: { fillColor: tblHdrBg, textColor: mt, fontSize: 10, fontStyle: "normal", cellPadding: 8 },
-      bodyStyles: { fontSize: 13, textColor: dk, cellPadding: 8, fillColor: false },
-      alternateRowStyles: { fillColor: false },
-      styles: { lineColor: divClr, lineWidth: 0.5 },
-      head: [["#", "Source", "Outreach Strategy"]],
-      body: data.backlinks.map((b, i) => [String(i + 1), b.name, b.desc || ""])
+    content.push({
+      columns: [
+        { stack: [{ text: data.backlinksCount != null ? data.backlinksCount.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Backlinks", fontSize: 10, color: mt }] },
+        { stack: [{ text: data.referringDomains != null ? data.referringDomains.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Referring Domains", fontSize: 10, color: mt }] },
+        { stack: [{ text: data.totalRanked != null ? data.totalRanked.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Ranked Keywords", fontSize: 10, color: mt }] }
+      ],
+      margin: [0, 4, 0, 12]
     });
-    y = doc.lastAutoTable.finalY + 12;
+    if (data.backlinksCount < 10) content.push(noteText(data.backlinksCount === 0 ? "No backlinks detected. This is a top 3 Google ranking factor." : "Low backlink count (" + data.backlinksCount + ")."));
   }
-  gap(36);
+  content.push(noteText("Every quality link from another website is a \u2018vote of confidence\u2019 for Google. Reach out to relevant sites \u2014 even 2\u20133 strong backlinks can make a real difference."));
+  if (data.backlinks?.length > 0) {
+    const blHead = [
+      { text: "#", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "Source", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
+      { text: "Outreach Strategy", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] }
+    ];
+    const blBody = data.backlinks.map((b, i) => [
+      { text: String(i + 1), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: b.name, fontSize: 11, color: dk, margin: [4, 6, 4, 6] },
+      { text: b.desc || "", fontSize: 11, color: dk, margin: [4, 6, 4, 6] }
+    ]);
+    content.push({
+      table: { headerRows: 1, widths: [25, 120, "*"], body: [blHead, ...blBody] },
+      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      margin: [0, 4, 0, 8]
+    });
+  }
+  content.push(spacer(16));
 
   /* ══════════════════════════════════════════════
-     FINAL RECOMMENDATIONS — cards with border
+     FINAL RECOMMENDATIONS — white cards
      ══════════════════════════════════════════════ */
-  secTitle("Final Recommendations");
+  content.push(secTitle("Final Recommendations"));
   const allRecs = [
     ...pB.map(item => ({ t: item.t, p: item.p, w: item.w, s: item.s })),
     { t: data.backlinksCount != null && data.backlinksCount >= 10 ? "Keep building backlinks" : "Build quality backlinks", p: "important", w: "Every quality link is a vote of confidence for Google.", s: ["Reach out to industry blogs, directories, and relevant sites."] },
@@ -1070,110 +1029,82 @@ async function generatePDF(data) {
     { t: "Monitor with Google tools", p: "nice", w: "Track your progress and spot issues early.", s: ["Use Google Search Console and PageSpeed Insights regularly."] },
     { t: "Re-audit after changes", p: "nice", w: "Measure the impact of your improvements.", s: ["Run another Core Audit to track progress."] }
   ];
-
-  allRecs.forEach((item) => {
-    const pr = PRIO_PDF[item.p] || PRIO_PDF.important;
-    const whyLines = item.w ? (doc.setFontSize(13), doc.splitTextToSize(String(item.w), CW - 24)) : [];
-    const sugData = (item.s || []).map(s => { doc.setFontSize(13); return doc.splitTextToSize("\u2022 " + String(s), CW - 24); });
-
-    /* Unified height calc */
-    const PAD_TOP = 16, TITLE_ROW = lineH(14) + 6, PAD_BOT = 8;
-    let ch = PAD_TOP + TITLE_ROW;
-    if (whyLines.length > 0) ch += whyLines.length * lineH(13) + 6;
-    sugData.forEach(sl => { ch += sl.length * lineH(13) + 2; });
-    ch += PAD_BOT;
-
-    ensureSpace(ch + 10);
-    const cardY = y;
-    doc.setDrawColor(...divClr); doc.setLineWidth(1);
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(M, cardY, CW, ch, 8, 8, "FD");
-
-    y = cardY + PAD_TOP;
-    doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
-    doc.text(item.t, M + 12, y);
-    const badgeW = doc.getTextWidth(pr.label) + 16;
-    const badgeX = W - M - 12 - badgeW;
-    doc.setFillColor(...pr.bg);
-    doc.roundedRect(badgeX, y - 11, badgeW, 16, 8, 8, "F");
-    doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(...pr.color);
-    doc.text(pr.label, badgeX + 8, y);
-    y += TITLE_ROW;
-    if (whyLines.length > 0) {
-      doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-      doc.text(whyLines, M + 12, y); y += whyLines.length * lineH(13) + 6;
-    }
-    sugData.forEach(sl => {
-      doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-      doc.text(sl, M + 12, y); y += sl.length * lineH(13) + 2;
-    });
-
-    y = cardY + ch + 10;
-  });
+  allRecs.forEach(item => content.push(whiteCard(item)));
 
   /* ══════════════════════════════════════════════
-     FOOTER — every page
+     BUILD DOCUMENT DEFINITION
      ══════════════════════════════════════════════ */
-  const tp = doc.getNumberOfPages();
-  for (let i = 1; i <= tp; i++) {
-    doc.setPage(i);
-    doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-    doc.text("Run your audit at ivabot.xyz", W / 2, H - 22, { align: "center" });
-    doc.text("Page " + i + " of " + tp, W - M, H - 22, { align: "right" });
-    doc.link(W / 2 - 70, H - 32, 140, 14, { url: "https://ivabot.xyz/app" });
-  }
+  const docDefinition = {
+    pageSize: "A4",
+    pageMargins: [40, 40, 40, 50],
+    defaultStyle: { font: "Helvetica", fontSize: 11, color: dk },
+    footer: (currentPage, pageCount) => ({
+      columns: [
+        { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
+        { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
+      ],
+      margin: [40, 10, 0, 0]
+    }),
+    content: content
+  };
 
   /* ══════════════════════════════════════════════
-     SAVE + UPLOAD
+     GENERATE + DOWNLOAD + UPLOAD
      ══════════════════════════════════════════════ */
-  const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
   const fileName = "IvaBot-Audit-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
-  doc.save(fileName);
+  const pdfDocGen = pdfMake.createPdf(docDefinition);
+
+  /* Download first */
+  pdfDocGen.download(fileName);
 
   const pdfBtn = document.getElementById("export-pdf-btn");
   const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
   if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
 
+  /* Upload to Supabase Storage */
   try {
-    const pdfBlob = doc.output("blob");
-    let memberId = window.__memberId || window.__userId;
-    if (!memberId && window.__supabase) {
+    pdfDocGen.getBlob(async (pdfBlob) => {
       try {
-        const { data: { session } } = await window.__supabase.auth.getSession();
-        memberId = session?.user?.id;
-      } catch(me) {}
-    }
-    if (memberId && pdfBlob) {
-      if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
-      const form = new FormData();
-      form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
-      form.append("member_id", memberId);
-      form.append("source_url", data.url || "");
-      form.append("flow_type", "core");
-      fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-        method: "POST", body: form
-      }).then(r => r.json()).then(d => {
-        if (d?.already_saved) {
-          console.log("[IvaBot] PDF already saved for this audit");
-          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; }
-        } else if (d?.url) {
-          console.log("[IvaBot] PDF saved to dashboard:", d.url);
-          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; }
-        } else {
-          console.warn("[IvaBot] PDF upload response:", d);
-          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+        let memberId = window.__memberId || window.__userId;
+        if (!memberId && window.__supabase) {
+          try {
+            const { data: { session } } = await window.__supabase.auth.getSession();
+            memberId = session?.user?.id;
+          } catch(me) {}
         }
-        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
-      }).catch(e => {
-        console.warn("[IvaBot] PDF upload failed:", e);
-        if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
-        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
-      });
-    } else {
-      console.log("[IvaBot] PDF not uploaded — no member ID (user not logged in)");
-      setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
-    }
-  } catch(ue) { console.warn("[IvaBot] PDF upload error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+        if (memberId && pdfBlob) {
+          if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
+          const form = new FormData();
+          form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+          form.append("member_id", memberId);
+          form.append("source_url", data.url || "");
+          form.append("flow_type", "core");
+          fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+            method: "POST", body: form
+          }).then(r => r.json()).then(d => {
+            if (d?.already_saved) {
+              console.log("[IvaBot] PDF already saved for this audit");
+              if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; }
+            } else if (d?.url) {
+              console.log("[IvaBot] PDF saved to dashboard:", d.url);
+              if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; }
+            } else {
+              console.warn("[IvaBot] PDF upload response:", d);
+              if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+            }
+            setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+          }).catch(e => {
+            console.warn("[IvaBot] PDF upload failed:", e);
+            if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+            setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+          });
+        } else {
+          console.log("[IvaBot] PDF not uploaded — no member ID (user not logged in)");
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
+        }
+      } catch(ue) { console.warn("[IvaBot] PDF upload error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+    });
+  } catch(ue) { console.warn("[IvaBot] PDF blob error:", ue); }
   } catch(err) { console.error("[IvaBot] PDF error:", err); alert("PDF export failed: " + err.message); }
 }
 
@@ -1449,7 +1380,31 @@ function IvaBotV6() {
       sPLoad(null);
       setSR(true);
       setAuditData(reportData);
-      if (!USE_MOCK) setCredits(prev => ({ ...prev, core: Math.max(0, prev.core - 1) }));
+      if (!USE_MOCK) {
+        setCredits(prev => ({ ...prev, core: Math.max(0, prev.core - 1) }));
+        /* ── Decrement credit in DB & record run ── */
+        const isUUID = memberId && /^[0-9a-f]{8}-/.test(memberId);
+        const rpcBody = isUUID ? { p_user_id: memberId } : { p_member_id: memberId };
+        try {
+          const incRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/increment_core_used", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY },
+            body: JSON.stringify(rpcBody)
+          });
+          const incData = await incRes.json();
+          console.log("[IvaBot] increment_core_used:", incData);
+        } catch(e) { console.warn("[IvaBot] increment_core_used error:", e); }
+        try {
+          const runBody = isUUID ? { p_user_id: memberId, p_source_url: reportData.url || "" } : { p_member_id: memberId, p_source_url: reportData.url || "" };
+          const runRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_core_run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY },
+            body: JSON.stringify(runBody)
+          });
+          const runData = await runRes.json();
+          console.log("[IvaBot] insert_core_run:", runData);
+        } catch(e) { console.warn("[IvaBot] insert_core_run error:", e); }
+      }
       if (isMobile) sMTab("report");
 
       const d = reportData;
