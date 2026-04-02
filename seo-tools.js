@@ -376,15 +376,8 @@ function buildReportData(parsed, gpt, dfs) {
     return { keyword: k, position: match?.position || null, volume: match?.volume || null, difficulty: match?.difficulty || null };
   });
 
-  /* For "How Your Page Ranks" table — show top keywords by position (best first), limit 10 */
-  const rankedKeywords = allRankedKeywords
-    .filter(rk => rk.position != null && rk.position <= 20)
-    .sort((a, b) => (a.position || 999) - (b.position || 999))
-    .slice(0, 10);
-  /* If no top-20, show top by volume */
-  if (rankedKeywords.length === 0 && allRankedKeywords.length > 0) {
-    rankedKeywords.push(...allRankedKeywords.slice(0, 5));
-  }
+  /* For "How Your Page Ranks" table — show top 7 by volume (DFS already sorts by volume desc) */
+  const rankedKeywords = allRankedKeywords.slice(0, 7);
 
   const backlinksCount = dfs?.backlinksCount || null;
   const referringDomains = dfs?.referringDomains || null;
