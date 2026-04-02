@@ -1,7 +1,7 @@
-/* IvaBot Content Builder v69 — PDF export with pdfmake (structure + content) */
+/* IvaBot Content Builder v70 — brand guide upload (read file, 15K limit, send to GPT) */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v69 loaded");
+console.log("[IvaBot] content-builder.js v70 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -351,7 +351,26 @@ const HP=({text,onClick,disabled:d})=><span onClick={d?undefined:onClick} style=
 const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif",cursor:"default",pointerEvents:"none"}}>{text}</span>;
 /* Example box — shows examples in vertical list, grey, clearly not clickable */
 const ExBox=({items})=><div style={{padding:"8px 12px",borderRadius:8,border:`1px dashed ${C.border}`,background:"transparent",marginBottom:6}}><div style={{fontSize:11,fontWeight:500,color:C.muted,marginBottom:4}}>Examples:</div><div style={{fontSize:11,color:C.muted,lineHeight:1.8}}>{items.map((item,i)=><div key={i}>• {item}</div>)}</div><div style={{fontSize:10,color:"#B8B5BB",marginTop:4,fontStyle:"italic"}}>or type your own</div></div>;
-const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
+const BRAND_LIMIT=15000;
+const readFileAsText=async(file)=>{
+  const name=file.name.toLowerCase();
+  if(name.endsWith(".txt")||name.endsWith(".md")){return await file.text();}
+  if(name.endsWith(".pdf")){
+    /* Read PDF as text — extract readable characters from raw bytes */
+    const buf=await file.arrayBuffer();
+    const bytes=new Uint8Array(buf);
+    let raw="";for(let i=0;i<bytes.length;i++){const c=bytes[i];if(c>=32&&c<127)raw+=String.fromCharCode(c);else if(c===10||c===13)raw+="\n";}
+    /* Extract text between BT/ET markers (PDF text objects) */
+    const textParts=[];const btMatches=[...raw.matchAll(/BT\s([\s\S]*?)ET/g)];
+    if(btMatches.length>0){btMatches.forEach(m=>{const inner=m[1];const tjMatches=[...inner.matchAll(/\(([^)]*)\)\s*Tj/g)];tjMatches.forEach(tj=>textParts.push(tj[1]));const tdMatches=[...inner.matchAll(/\[(.*?)\]\s*TJ/g)];tdMatches.forEach(td=>{const parts=[...td[1].matchAll(/\(([^)]*)\)/g)];parts.forEach(p=>textParts.push(p[1]));});});}
+    if(textParts.length>0)return textParts.join(" ").replace(/\s+/g," ").trim();
+    /* Fallback: just extract printable strings */
+    return raw.replace(/[^\x20-\x7E\n]+/g," ").replace(/\s{3,}/g,"\n").trim().slice(0,BRAND_LIMIT);
+  }
+  /* .doc/.docx — read as text (basic, won't get formatting) */
+  return await file.text();
+};
+const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);const[loading,sLoading]=useState(false);const[err,sErr]=useState("");return<div style={{display:"inline-flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><input ref={r} type="file" accept=".pdf,.txt,.md" style={{display:"none"}} onChange={async e=>{if(!e.target.files?.[0])return;const file=e.target.files[0];if(file.size>2*1024*1024){sErr("File too large (max 2MB)");return;}sErr("");sLoading(true);sf(file);try{let text=await readFileAsText(file);if(text.length>BRAND_LIMIT){text=text.slice(0,BRAND_LIMIT);console.log("[CB] brand file trimmed to",BRAND_LIMIT,"chars");}ou?.(file,text);sLoading(false);}catch(ex){console.error("[CB] file read error:",ex);sErr("Could not read file");sLoading(false);}}}/><button onClick={()=>r.current?.click()} disabled={loading} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:loading?"wait":"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{if(!loading){e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>{loading?"Reading...":"Upload brand guide"}</button>{f&&!loading&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}{err&&<span style={{fontSize:10,color:"#c0392b",fontWeight:500}}>{err}</span>}</div>;};
 
 /* ═══ EXTRAS BLOCK — shows related/paa/autocomplete inline with keywords ═══ */
 const ExtrasBlock=({extra})=>{
@@ -755,7 +774,7 @@ const gStr=async()=>{
       supporting_keywords:classified.supporting.map(k=>k.keyword),
       keywords:kwWithData,page_type:ans.pt||"",page_type_details:ans.ptx||"",
       page_description:ans.pd||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
-      market:ans.mk||"",brand_details:ans.me||"",brand_name:brandName||null,target_length:defaultLen,
+      market:ans.mk||"",brand_details:ans.me||"",brand_guide:ans.brandGuide||"",brand_name:brandName||null,target_length:defaultLen,
       related:dfsExtraRef.current.related||[],paa:dfsExtraRef.current.paa||[],
       autocomplete:dfsExtraRef.current.autocomplete||[],chat_history:buildChatHistory(msgs)
     });
@@ -867,7 +886,7 @@ const gCnt=async()=>{
       keyword_placement:kwPlacement,
       min_words:minWords,
       page_type:ans.pt||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
-      market:ans.mk||"",brand_details:ans.me||"",brand_name:brandName||null,
+      market:ans.mk||"",brand_details:ans.me||"",brand_guide:ans.brandGuide||"",brand_name:brandName||null,
       title:confirmedTitleRef.current||bd?.title||"",
       research:researchData,chat_history:buildChatHistory(msgs)
     });
@@ -955,7 +974,7 @@ const handleStructureTweak=async(text)=>{
     const kwWithData=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skwRef.current.includes(k.keyword));
     const gptRes=await callGPT("generate_structure",{
       title:chosenTitle,keywords:kwWithData,page_type:ans.pt||"",page_description:ans.pd||"",
-      goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",brand_details:ans.me||"",
+      goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",brand_details:ans.me||"",brand_guide:ans.brandGuide||"",
       target_length:bd?.contentLength||"500-800 words",
       related:dfsExtraRef.current.related||[],paa:dfsExtraRef.current.paa||[],
       autocomplete:dfsExtraRef.current.autocomplete||[],
@@ -1385,7 +1404,7 @@ const send=()=>{
 
   if(step==="gl"){sAns(p=>({...p,gl:t}));mk("gl");setStep("au");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 2 of 4 — Who is your target audience?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects tone, word choice, and how the content speaks to visitors.</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids","Tech professionals"]}/></div>);return;}
 
-  if(step==="au"){sAns(p=>({...p,au:t}));mk("au");setStep("tn");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 3 of 4 — How should the content sound?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>The right tone makes your page feel authentic to your audience.</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal","Bold and confident"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);return;}
+  if(step==="au"){sAns(p=>({...p,au:t}));mk("au");setStep("tn");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 3 of 4 — How should the content sound?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>The right tone makes your page feel authentic to your audience.</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal","Bold and confident"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={(f,text)=>{add("u",`Uploaded: ${f.name} (${Math.round(text.length/1000)}K chars)`);if(text&&text.length>50){sAns(p=>({...p,brandGuide:text}));bot(<div><div style={{color:C.accent,fontSize:12,fontWeight:600,marginBottom:4}}>Brand guide loaded ({Math.round(text.length/1000)}K characters).</div><div style={{color:C.muted,fontSize:12}}>Now type your preferred tone of voice below (e.g. "Confident and direct") — I'll combine it with your brand guide.</div></div>,400);}else{bot(<div><div style={{color:C.muted,fontSize:12}}>Could not extract enough text from this file. Try a .txt or .pdf with selectable text.</div></div>,400);}}}/></div></div>);return;}
 
   if(step==="tn"){sAns(p=>({...p,tn:t}));mk("tn");setStep("mk");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 4 of 4 — What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Global","Online"]}/></div>);return;}
 
