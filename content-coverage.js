@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v5.9 — IIFE wrapped, unified style, score card, HL badges, credit deduction */
+/* IvaBot Content Coverage v6.0 — PDF export with pdfmake */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v5.9 loaded");
+console.log("[IvaBot] content-coverage.js v6.0 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -698,6 +698,314 @@ const CoverageReport = ({ data }) => {
   </div>);
 };
 
+/* ═══ PDF EXPORT (pdfmake) ═══ */
+async function generateCoveragePDF(data) {
+  try {
+  const loadScript = (url) => new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${url}"]`);
+    if (existing && window.pdfMake) { resolve(); return; }
+    if (existing) existing.remove();
+    const s = document.createElement("script"); s.src = url; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load " + url));
+    document.head.appendChild(s);
+  });
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");
+  if (window.pdfMake && window.pdfMake.fonts) {
+    window.pdfMake.fonts = { Roboto: { normal: "Roboto-Regular.ttf", bold: "Roboto-Medium.ttf", italics: "Roboto-Italic.ttf", bolditalics: "Roboto-MediumItalic.ttf" } };
+  }
+
+  const dk = "#151415", mt = "#928E95", accentC = "#6E2BFF";
+  const divClr = "#e6e3e9", tblHdrBg = "#f0edf3", lavCardBg = "#fcfaff", lavCardBdr = "#dcd2f0";
+  const PRIO_PDF = {
+    critical: { label: "Critical", color: "#6E2BFF", bg: "#ede4ff" },
+    important: { label: "Important", color: "#9B7AE6", bg: "#f1ebfc" },
+    nice: { label: "Nice to have", color: "#B89CF0", bg: "#f5f0fd" }
+  };
+  const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
+  const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
+  const fKD = (d) => d != null ? String(d) : "low";
+
+  const secTitle = (t, color) => ({ text: t, fontSize: 22, bold: true, color: color || dk, margin: [0, 24, 0, 4] });
+  const noteText = (t) => ({ text: t, fontSize: 11, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+  const spacer = (n) => ({ text: "", margin: [0, 0, 0, n || 12] });
+
+  const badge = (prio) => {
+    const pr = PRIO_PDF[prio] || PRIO_PDF.important;
+    return {
+      table: { body: [[{ text: pr.label, fontSize: 8, bold: true, color: pr.color, margin: [6, 2, 6, 2] }]] },
+      layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => pr.bg, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }
+    };
+  };
+
+  const lavCard = (item) => {
+    const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
+    const stack = [];
+    stack.push({ columns: [
+      { text: item.title, fontSize: 13, bold: true, color: dk, width: "*" },
+      { ...badge(item.priority), width: "auto", alignment: "right" }
+    ], columnGap: 8, margin: [0, 0, 0, 4] });
+    if (item.why && typeof item.why === "string") stack.push({ text: item.why.slice(0, 300), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 });
+    if (item.suggestions?.length > 0) {
+      stack.push({ text: "Suggested:", fontSize: 9, color: mt, bold: true, margin: [0, 4, 0, 2] });
+      item.suggestions.forEach(s => {
+        if (typeof s === "string") stack.push({ text: "\u2022 " + s, fontSize: 11, color: dk, margin: [0, 1, 0, 1] });
+      });
+    }
+    return {
+      table: { widths: ["*"], body: [[{ stack, margin: [10, 10, 10, 10] }]] },
+      layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg },
+      margin: [0, 0, 0, 8]
+    };
+  };
+
+  /* Logo */
+  const makeLogo = () => new Promise(resolve => {
+    const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
+    const ctx = cvs.getContext("2d"); ctx.fillStyle = "#6E2BFF"; ctx.scale(2, 2);
+    ctx.fill(new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z"));
+    ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z"));
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
+    resolve(cvs.toDataURL("image/png"));
+  });
+  const logoImg = await makeLogo();
+
+  /* Build results */
+  const { contentGood, contentBad, trustGood, trustBad } = buildCoverageResults(data);
+  const totalIssues = contentBad.length + trustBad.length;
+  const contentTotal = contentGood.length + contentBad.length;
+  const trustTotal = trustGood.length + trustBad.length;
+  const contentPct = contentTotal > 0 ? Math.round((contentGood.length / contentTotal) * 100) : 0;
+  const trustPct = trustTotal > 0 ? Math.round((trustGood.length / trustTotal) * 100) : 0;
+
+  const content = [];
+
+  /* ── HEADER ── */
+  content.push({ columns: [
+    { image: logoImg, width: 22, margin: [0, 2, 0, 0] },
+    { text: "IvaBot", fontSize: 16, bold: true, color: dk, width: "auto", margin: [6, 0, 0, 0] },
+    { text: dateString, fontSize: 10, color: mt, alignment: "right" }
+  ], margin: [0, 0, 0, 2] });
+  content.push({ columns: [
+    { text: "Content Coverage Report", fontSize: 10, color: mt, margin: [28, 0, 0, 0] },
+    { text: data.url || "", fontSize: data.url?.length > 60 ? 8 : 10, color: mt, alignment: "right", link: data.url }
+  ], margin: [0, 0, 0, 6] });
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
+
+  /* ── SCORE CARD ── */
+  content.push({
+    table: { widths: [80, "*"], body: [[
+      { stack: [
+        { text: String(totalIssues), fontSize: 36, bold: true, color: dk, alignment: "center" },
+        { text: "Issues", fontSize: 10, bold: true, color: "#9B7AE6", alignment: "center" }
+      ], margin: [8, 14, 8, 14], fillColor: lavCardBg },
+      { stack: [
+        { text: domain, fontSize: 14, bold: true, color: dk, margin: [0, 0, 0, 10] },
+        { text: [
+          { text: "Content & Keywords  ", fontSize: 10, color: mt },
+          { text: contentGood.length + " / " + contentTotal + "  (" + contentPct + "%)", fontSize: 10, bold: true, color: "#9B7AE6" }
+        ], margin: [0, 0, 0, 6] },
+        { text: [
+          { text: "Trust & Conversion  ", fontSize: 10, color: mt },
+          { text: trustGood.length + " / " + trustTotal + "  (" + trustPct + "%)", fontSize: 10, bold: true, color: "#D4A0E8" }
+        ] }
+      ], margin: [12, 14, 8, 14] }
+    ]] },
+    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: (i, node, col) => col === 0 ? lavCardBg : null, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+    margin: [0, 0, 0, 16]
+  });
+
+  /* ── KEYWORDS TABLE ── */
+  const kwRows = data.userKeywordMetrics || data.keywordMetrics || (data.userKeywords || []).map(k => ({ keyword: k, position: null, volume: null, difficulty: null }));
+  if (kwRows.length > 0) {
+    content.push(secTitle("Keywords"));
+    const isAligned = data.usedExtracted || false;
+    content.push(noteText(isAligned ? "Your page is aligned with your target keywords." : "Keywords you want to rank for."));
+    const kwHead = [
+      { text: "Keyword", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
+      { text: "Pos.", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "Volume", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "KD", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] }
+    ];
+    const kwBody = kwRows.map(r => [
+      { text: r.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
+      { text: r.position != null ? String(r.position) : "\u2014", fontSize: 11, color: r.position && r.position <= 3 ? accentC : dk, bold: r.position && r.position <= 3, alignment: "center", fillColor: r.position && r.position <= 3 ? "#ede4ff" : null, margin: [4, 6, 4, 6] },
+      { text: fV(r.volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: fKD(r.difficulty), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] }
+    ]);
+    content.push({ table: { headerRows: 1, widths: ["*", 45, 60, 45], body: [kwHead, ...kwBody] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 8] });
+
+    /* Extracted keywords table (if different from user keywords) */
+    if (!isAligned && data.keywordMetrics?.length > 0) {
+      content.push(spacer(6));
+      content.push(noteText("What your page is currently built for:"));
+      const exBody = data.keywordMetrics.map(r => [
+        { text: r.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
+        { text: r.position != null ? String(r.position) : "\u2014", fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: fV(r.volume || r.search_volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: fKD(r.difficulty || r.keyword_difficulty), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] }
+      ]);
+      content.push({ table: { headerRows: 1, widths: ["*", 45, 60, 45], body: [kwHead, ...exBody] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 8] });
+    }
+    content.push(spacer(8));
+  }
+
+  /* ── CONTENT WORKING WELL ── */
+  if (contentGood.length > 0) {
+    content.push(secTitle("Content & Structure \u2014 Working Well"));
+    content.push(noteText(contentGood.length + " content elements are working well."));
+    contentGood.forEach(g => {
+      content.push({ table: { widths: ["*"], body: [[{
+        stack: [
+          { text: [{ text: "\u2713  ", color: "#9B7AE6", bold: true }, { text: g.title, fontSize: 12, bold: true, color: dk }] }
+        ], margin: [10, 8, 10, 8]
+      }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 4] });
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── CONTENT NEEDS IMPROVEMENT ── */
+  if (contentBad.length > 0) {
+    content.push(secTitle("Content & Structure \u2014 Needs Improvement (" + contentBad.length + ")", accentC));
+    content.push(noteText("Each card has a clear fix \u2014 start from the top."));
+    contentBad.forEach(item => content.push(lavCard(item)));
+    content.push(spacer(8));
+  }
+
+  /* ── TRUST WORKING WELL ── */
+  if (trustGood.length > 0) {
+    content.push(secTitle("Trust & Conversion \u2014 Working Well"));
+    content.push(noteText(trustGood.length + " trust signals are in place."));
+    trustGood.forEach(g => {
+      content.push({ table: { widths: ["*"], body: [[{
+        stack: [
+          { text: [{ text: "\u2713  ", color: "#D4A0E8", bold: true }, { text: g.title, fontSize: 12, bold: true, color: dk }] }
+        ], margin: [10, 8, 10, 8]
+      }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 4] });
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── TRUST NEEDS IMPROVEMENT ── */
+  if (trustBad.length > 0) {
+    content.push(secTitle("Trust & Conversion \u2014 Needs Improvement (" + trustBad.length + ")", accentC));
+    trustBad.forEach(item => content.push(lavCard(item)));
+    content.push(spacer(8));
+  }
+
+  /* ── FINAL RECOMMENDATIONS ── */
+  const allBad = [...contentBad, ...trustBad];
+  if (allBad.length > 0) {
+    content.push(secTitle("Final Recommendations"));
+    content.push(noteText("Fix these and your rankings will improve."));
+    allBad.forEach(item => {
+      const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
+      const stack = [];
+      stack.push({ columns: [
+        { text: [{ text: "\u25CF  ", color: pr.color, fontSize: 8 }, { text: item.title, fontSize: 12, bold: true, color: dk }], width: "*" },
+        { ...badge(item.priority), width: "auto", alignment: "right" }
+      ], columnGap: 8, margin: [0, 0, 0, 3] });
+      if (item.why && typeof item.why === "string") {
+        const shortWhy = item.why.length > 200 ? item.why.slice(0, 197) + "..." : item.why;
+        stack.push({ text: shortWhy, fontSize: 10, color: mt, lineHeight: 1.3 });
+      }
+      if (item.suggestions?.length > 0 && typeof item.suggestions[0] === "string") {
+        stack.push({ text: "Suggested: " + item.suggestions[0], fontSize: 10, color: dk, margin: [0, 3, 0, 0] });
+      }
+      content.push({ table: { widths: ["*"], body: [[{ stack, margin: [10, 8, 10, 8] }]] },
+        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr },
+        margin: [0, 0, 0, 6]
+      });
+    });
+    /* Re-audit reminder */
+    content.push({ table: { widths: ["*"], body: [[{
+      stack: [
+        { text: [{ text: "\u25CF  ", color: accentC, fontSize: 8 }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
+        { text: "Run another Content Coverage Audit to measure your progress.", fontSize: 10, color: mt }
+      ], margin: [10, 8, 10, 8]
+    }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr }, margin: [0, 0, 0, 6] });
+    content.push(spacer(8));
+  }
+
+  /* ── IvaBot CTA ── */
+  content.push(spacer(12));
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
+  content.push({ table: { widths: ["*"], body: [[{
+    stack: [
+      { text: "Want to improve your score?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
+      { text: "Run another audit or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
+      { text: [
+        { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
+        { text: "  \u2022  ", color: mt },
+        { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
+        { text: "  \u2022  ", color: mt },
+        { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
+      ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
+      { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
+    ], margin: [16, 16, 16, 16]
+  }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] });
+
+  /* ── BUILD DOCUMENT ── */
+  const docDefinition = {
+    pageSize: "A4", pageMargins: [40, 40, 40, 50],
+    defaultStyle: { fontSize: 11, color: dk },
+    footer: (currentPage, pageCount) => ({ columns: [
+      { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
+      { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
+    ], margin: [40, 10, 0, 0] }),
+    content: content
+  };
+
+  /* ── GENERATE + DOWNLOAD + UPLOAD ── */
+  const fileName = "IvaBot-Coverage-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
+  const pdfDocGen = pdfMake.createPdf(docDefinition);
+  const pdfBtn = document.getElementById("export-coverage-pdf-btn");
+  const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
+
+  pdfDocGen.getBlob(async (pdfBlob) => {
+    try {
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = blobUrl; a.download = fileName; a.style.display = "none";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
+      console.log("[CC] PDF downloaded:", fileName);
+      if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+
+      let upMemberId = window.__memberId || window.__userId;
+      if (!upMemberId && window.__supabase) {
+        try { const { data: { session } } = await window.__supabase.auth.getSession(); upMemberId = session?.user?.id; } catch(me) {}
+      }
+      if (upMemberId && pdfBlob) {
+        if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
+        const form = new FormData();
+        form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+        form.append("member_id", upMemberId);
+        form.append("source_url", data.url || "");
+        form.append("flow_type", "coverage");
+        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+          method: "POST", body: form
+        }).then(r => r.json()).then(res => {
+          if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; } }
+          else if (res?.url) { console.log("[CC] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; } }
+          else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; } }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        }).catch(e => {
+          console.warn("[CC] PDF upload failed:", e);
+          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        });
+      } else {
+        console.log("[CC] PDF not uploaded — no member ID");
+        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
+      }
+    } catch(ue) { console.warn("[CC] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+  });
+  } catch(err) { console.error("[CC] PDF error:", err); alert("PDF export failed: " + err.message); }
+}
+
 /* ═══ PLACEHOLDER ═══ */
 const CoveragePlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
   <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(110,43,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
@@ -1154,7 +1462,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
 
     {showR && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: isMobile ? "8px 12px 16px" : "8px 24px 16px", maxWidth: isMobile ? "100%" : 1224, margin: "0 auto", width: "100%", alignItems: "center" }}>
       <button onClick={() => { setSR(false); sMsgs([]); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); setStep("init"); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setPageUrl(null); sTyp(true); setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); setTimeout(() => { sTyp(false); add("b", <div><div style={{fontWeight:600}}>Paste your URL below and I'll audit another page.</div></div>); setStep("url"); }, 1500); }, 1000); }} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Audit</button>
-      <button id="export-coverage-pdf-btn" style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface} onClick={() => { const btn = document.getElementById("export-coverage-pdf-btn"); if (btn) { btn.innerHTML = "Coming soon..."; btn.style.color = C.muted; setTimeout(() => { btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF'; btn.style.color = C.dark; }, 2000); } }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
+      <button id="export-coverage-pdf-btn" style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface} onClick={() => generateCoveragePDF(auditData)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
       {!isMobile && <button onClick={onHome} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>Try Other Tools</button>}
     </div>}
   </div>);
