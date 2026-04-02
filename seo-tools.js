@@ -603,6 +603,18 @@ async function generatePDF(data) {
   await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");
   await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");
 
+  /* Ensure pdfmake uses Roboto from vfs_fonts (no Helvetica in pdfmake) */
+  if (window.pdfMake && window.pdfMake.fonts) {
+    window.pdfMake.fonts = {
+      Roboto: {
+        normal: "Roboto-Regular.ttf",
+        bold: "Roboto-Medium.ttf",
+        italics: "Roboto-Italic.ttf",
+        bolditalics: "Roboto-MediumItalic.ttf"
+      }
+    };
+  }
+
   /* ── Color palette (hex for pdfmake) ── */
   const dk = "#151415", mt = "#928E95", accentC = "#6E2BFF";
   const divClr = "#e6e3e9";
