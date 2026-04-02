@@ -630,7 +630,7 @@ async function generatePDF(data) {
   /* ── Helpers ── */
   const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
   const fKD = (d) => d != null ? String(d) : "low";
-  const urlS = (data.url || "").length > 60 ? data.url.slice(0, 57) + "..." : (data.url || "");
+  const urlS = (data.url || "").length > 80 ? data.url.slice(0, 77) + "..." : (data.url || "");
   const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
 
@@ -789,7 +789,7 @@ async function generatePDF(data) {
   const scoreSubtitle = data.score >= 80 ? "Your page has a strong SEO foundation." : data.score >= 50 ? "There's room for improvement." : "Your page needs significant SEO work.";
   content.push({
     columns: [
-      { image: scoreImg, width: 130, margin: [0, 0, 16, 0] },
+      { image: scoreImg, width: 130, margin: [0, 0, 28, 0] },
       {
         stack: [
           { text: "SEO Score", fontSize: 26, bold: true, color: dk, margin: [0, 30, 0, 6] },
@@ -885,9 +885,9 @@ async function generatePDF(data) {
         content.push({
           table: { widths: ["*"], body: [[{ stack: serpStack }]] },
           layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-          margin: [0, 0, 0, 4]
+          margin: [0, 0, 0, 8]
         });
-        if (item.detail) content.push({ text: item.detail, fontSize: 11, bold: true, color: dk, margin: [0, 0, 0, 4] });
+        if (item.detail) content.push({ text: item.detail, fontSize: 11, bold: true, color: dk, margin: [0, 6, 0, 4] });
       }
       /* Links layout */
       else if (item.linksInternal != null) {
@@ -902,17 +902,17 @@ async function generatePDF(data) {
               { text: item.extDesc || "", fontSize: 10, color: mt, margin: [0, 2, 0, 0] }
             ], width: "50%" }
           ],
-          margin: [0, 0, 0, 4]
+          margin: [0, 0, 0, 10]
         });
-        if (item.social?.length > 0) content.push({ text: "Social: " + item.social.join(" \u00B7 "), fontSize: 10, color: dk, margin: [0, 0, 0, 4] });
+        if (item.social?.length > 0) content.push({ text: "Social: " + item.social.join(" \u00B7 "), fontSize: 10, color: dk, margin: [0, 4, 0, 4] });
       }
       /* Headings with H1/H2/H3 grouped */
       else if (item.headings) {
         const hColors = { H1: "#6E2BFF", H2: "#9B7AE6", H3: "#B89CF0" };
-        ["h1", "h2", "h3"].forEach(lvKey => {
+        ["h1", "h2", "h3"].forEach((lvKey, groupIdx) => {
           const arr = item.headings[lvKey];
           const lv = lvKey.toUpperCase();
-          content.push({ text: lv + " \u2014 " + arr.length + " found", fontSize: 11, bold: true, color: dk, margin: [0, 4, 0, 2] });
+          content.push({ text: lv + " \u2014 " + arr.length + " found", fontSize: 11, bold: true, color: dk, margin: [0, groupIdx > 0 ? 12 : 4, 0, 4] });
           arr.forEach(h => {
             content.push({
               text: [
@@ -931,7 +931,7 @@ async function generatePDF(data) {
       }
 
       /* Explanation */
-      if (item.explain) content.push({ text: item.explain, fontSize: 10, color: mt, margin: [0, 2, 0, 6], lineHeight: 1.3 });
+      if (item.explain) content.push({ text: item.explain, fontSize: 10, color: mt, margin: [0, 10, 0, 6], lineHeight: 1.3 });
 
       /* Divider between items */
       if (idx < gItems.length - 1) content.push(dividerLine());
@@ -1042,6 +1042,29 @@ async function generatePDF(data) {
     { t: "Re-audit after changes", p: "nice", w: "Measure the impact of your improvements.", s: ["Run another Core Audit to track progress."] }
   ];
   allRecs.forEach(item => content.push(whiteCard(item)));
+
+  /* ── IvaBot CTA ── */
+  content.push(spacer(20));
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
+  content.push({
+    table: { widths: ["*"], body: [[{
+      stack: [
+        { text: "Want to improve your score?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
+        { text: "Run another audit after making changes, or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
+        { text: [
+          { text: "Core Audit", bold: true, color: accentC },
+          { text: "  \u2022  ", color: mt },
+          { text: "Content Builder", bold: true, color: accentC },
+          { text: "  \u2022  ", color: mt },
+          { text: "Content Coverage", bold: true, color: accentC }
+        ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
+        { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
+      ],
+      margin: [16, 16, 16, 16]
+    }]] },
+    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg },
+    margin: [0, 0, 0, 8]
+  });
 
   /* ══════════════════════════════════════════════
      BUILD DOCUMENT DEFINITION
