@@ -83,6 +83,8 @@ async function callChat(context, chatHistory, question) {
 async function trackBuilderUsage(memberId) {
   if (!memberId) { console.log("[CB] trackUsage: no memberId"); return { success: false }; }
   try {
+    const isUUID = /^[0-9a-f]{8}-/.test(memberId);
+    const rpcBody = isUUID ? { p_user_id: memberId } : { p_member_id: memberId };
     const res = await fetch("https://empuzslozakbicmenxfo.supabase.co/rest/v1/rpc/increment_builder_used", {
       method: "POST",
       headers: {
@@ -90,7 +92,7 @@ async function trackBuilderUsage(memberId) {
         "Authorization": "Bearer " + SUPABASE_KEY,
         "apikey": SUPABASE_KEY
       },
-      body: JSON.stringify({ p_member_id: memberId })
+      body: JSON.stringify(rpcBody)
     });
     if (res.ok) {
       const data = await res.json();
@@ -782,10 +784,12 @@ const gStr=async()=>{
     try{const r=await trackBuilderUsage(memberId);if(r&&r.success)console.log("[CB] credit deducted:",r.used+"/"+r.limit);}catch(e){}
     try{
       const title=confirmedTitleRef.current||briefData?.title||"Content Builder";
+      const isUUID2=/^[0-9a-f]{8}-/.test(memberId);
+      const runBody=isUUID2?{p_user_id:memberId,p_title:title}:{p_member_id:memberId,p_title:title};
       await fetch("https://empuzslozakbicmenxfo.supabase.co/rest/v1/rpc/insert_cb_run",{
         method:"POST",
         headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},
-        body:JSON.stringify({p_member_id:memberId,p_title:title})
+        body:JSON.stringify(runBody)
       });
       console.log("[CB] run recorded");
     }catch(e){console.error("[CB] run record error:",e);}
