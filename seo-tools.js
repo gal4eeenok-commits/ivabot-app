@@ -247,7 +247,19 @@ function parseSEO(rawHtml, pageUrl) {
     .replace(/<svg[\s\S]*?<\/svg>/gi,'').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
 
   const mt = html.match(/<title[^>]*>(.*?)<\/title>/i);
-  r.title = mt ? mt[1].trim() : "";
+  let rawTitle = mt ? mt[1].trim() : "";
+  /* Fallback: if title looks like a JS placeholder or is too generic, try og:title then h1 */
+  const isGenericTitle = (t) => !t || t.length < 5 || /^(simple page|loading|untitled|document|home|index|page|welcome)$/i.test(t) || /^\{\{.*\}\}$/.test(t) || /^\{.*\}$/.test(t) || /^\[.*\]$/.test(t);
+  if (isGenericTitle(rawTitle)) {
+    const ogMatch = rawHtml.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
+      || rawHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+    if (ogMatch && ogMatch[1].trim().length >= 5) { rawTitle = ogMatch[1].trim(); }
+    else {
+      const h1Match = rawHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+      if (h1Match) { const h1Text = h1Match[1].replace(/<[^>]+>/g,'').trim(); if (h1Text.length >= 5 && !isGenericTitle(h1Text)) rawTitle = h1Text; }
+    }
+  }
+  r.title = rawTitle;
   r.title_missing = !r.title;
   r.title_length = r.title.length;
   r.title_too_short = r.title.length > 0 && r.title.length < 30;
@@ -344,7 +356,23 @@ function buildReportData(parsed, gpt, dfs) {
 
   const gptKeywords = gpt?.keywords || [];
   const keywordMetrics = gptKeywords.map(k => {
-    const match = rankedKeywords.find(rk => rk.keyword?.toLowerCase() === k.toLowerCase());
+    const kLow = k.toLowerCase();
+    /* Try exact match first, then partial (contains), then word overlap */
+    let match = rankedKeywords.find(rk => rk.keyword?.toLowerCase() === kLow);
+    if (!match) match = rankedKeywords.find(rk => rk.keyword?.toLowerCase().includes(kLow) || kLow.includes(rk.keyword?.toLowerCase()));
+    if (!match) {
+      const kWords = kLow.split(/\s+/).filter(w => w.length > 2);
+      if (kWords.length > 0) {
+        let bestMatch = null, bestOverlap = 0;
+        rankedKeywords.forEach(rk => {
+          const rkWords = (rk.keyword || "").toLowerCase().split(/\s+/).filter(w => w.length > 2);
+          const overlap = kWords.filter(w => rkWords.includes(w)).length;
+          const ratio = overlap / Math.max(kWords.length, rkWords.length);
+          if (ratio > 0.5 && overlap > bestOverlap) { bestOverlap = overlap; bestMatch = rk; }
+        });
+        match = bestMatch;
+      }
+    }
     return { keyword: k, position: match?.position || null, volume: match?.volume || null, difficulty: match?.difficulty || null };
   });
 
@@ -603,7 +631,7 @@ async function generatePDF(data) {
   const ensureSpace = (n) => { if (y + n > H - 60) { doc.addPage(); y = 44; } };
   const gap = (n) => { y += (n || 10); };
   const divider = () => { doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); };
-  const secTitle = (t) => { ensureSpace(44); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk); const lines = doc.splitTextToSize(t, CW); doc.text(lines, M, y); y += lines.length * 36 + 8; };
+  const secTitle = (t) => { ensureSpace(44); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...dk); const lines = doc.splitTextToSize(t, CW); doc.text(lines, M, y); y += lines.length * 36 + 4; };
   const note = (t, maxW) => { doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...mt); const L = doc.splitTextToSize(String(t), maxW || CW); ensureSpace(L.length * 16 + 4); doc.text(L, M, y); y += L.length * 16 + 4; };
   const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
   const fKD = (d) => d != null ? String(d) : "low";
@@ -615,23 +643,24 @@ async function generatePDF(data) {
   doc.addImage(logoImg, "PNG", M, 24, 22, 19);
   doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
   doc.text("IvaBot", M + 28, 38);
-  /* Row 1: "Core Audit Report" left, Date right */
+  /* Row 1 right: Date aligned with "IvaBot" */
+  const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-  doc.text("Core Audit Report", M, 56);
-  doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), W - M, 56, { align: "right" });
-  /* Row 2: URL right only */
-  doc.text(urlS, W - M, 68, { align: "right" });
+  doc.text(dateString, W - M, 38, { align: "right" });
+  /* Row 2: "Core Audit Report" left under IvaBot, URL right */
+  doc.text("Core Audit Report", M + 30, 52);
+  doc.text(urlS, W - M, 52, { align: "right" });
   /* Thin divider */
-  y = 76;
+  y = 62;
   doc.setDrawColor(...divClr); doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
-  y = 88;
+  y = 74;
 
   /* ══════════════════════════════════════════════
      SEO SCORE — 140px circle + text right
      ══════════════════════════════════════════════ */
   ensureSpace(120);
   const sL = data.score >= 80 ? "Strong" : data.score >= 50 ? "Moderate" : "Weak";
-  const sC = data.score >= 80 ? [155,122,230] : data.score >= 50 ? [212,160,232] : [226,212,245];
+  const sC = data.score >= 80 ? [155,122,230] : data.score >= 50 ? [184,156,240] : [226,212,245];
   const circR = 70, cx = M + circR, cy = y + circR;
   doc.setDrawColor(230,227,233); doc.setLineWidth(6); doc.circle(cx, cy, circR - 3);
   doc.setDrawColor(...sC); doc.setLineWidth(6);
@@ -696,7 +725,7 @@ async function generatePDF(data) {
         }
       }
     });
-    y = doc.lastAutoTable.finalY + 4;
+    y = doc.lastAutoTable.finalY + 8;
     note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
     gap(2);
     note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
@@ -720,7 +749,7 @@ async function generatePDF(data) {
         }
       }
     });
-    y = doc.lastAutoTable.finalY + 4;
+    y = doc.lastAutoTable.finalY + 8;
     note("Positions 1\u20133 = strong visibility. 4\u201310 = page one but below the fold. 11+ = page two or deeper.");
     gap(2);
     note("Low-volume keywords are useful as supporting phrases on your page \u2014 they bring niche traffic with less competition.");
@@ -884,7 +913,7 @@ async function generatePDF(data) {
         doc.text(eLines, M, y); y += eLines.length * 15 + 6;
       }
       /* Divider between items */
-      if (idx < gItems.length - 1) { y += 6; divider(); y += 10; }
+      if (idx < gItems.length - 1) { y += 10; divider(); y += 14; }
     });
     gap(28);
   }
@@ -911,7 +940,7 @@ async function generatePDF(data) {
     /* Section title in accent color for attention */
     ensureSpace(44); doc.setFontSize(32); doc.setFont("helvetica","bold"); doc.setTextColor(...accent);
     const niTitle = "Needs Improvement (" + pB.length + ")";
-    doc.text(niTitle, M, y); y += 44;
+    doc.text(niTitle, M, y); y += 40;
     note("I found " + pB.length + " areas that need attention. Each card has a clear fix.");
     gap(6);
     pB.forEach((item) => {
@@ -919,17 +948,21 @@ async function generatePDF(data) {
       const curLines = item.cur ? doc.splitTextToSize(String(item.cur), CW - 24) : [];
       const whyLines = item.w ? doc.splitTextToSize(String(item.w), CW - 24) : [];
       const sugArr = item.s || [];
-      let sugH = 0;
-      sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); sugH += sl.length * 26; });
-      if (sugArr.length > 0) sugH += 4;
-      const totalH = 20 + 22 + (curLines.length > 0 ? curLines.length * 15 + 10 : 0) + (item.w ? whyLines.length * 16 + 14 : 0) + sugH + 10;
+      /* Pass 1: measure exact height */
+      let measuredH = 20 + 22; /* top padding + title row */
+      if (curLines.length > 0) measuredH += curLines.length * 15 + 8;
+      if (whyLines.length > 0) measuredH += whyLines.length * 16 + 10;
+      sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); measuredH += sl.length * 18 + 4; });
+      measuredH += 12; /* bottom padding */
 
-      ensureSpace(totalH + 10);
+      ensureSpace(measuredH + 10);
       const cardY = y;
+
+      /* Pass 2: draw card background with exact height, then content on top */
       doc.setFillColor(...lavCardBg);
       doc.setDrawColor(...lavCardBdr);
       doc.setLineWidth(1);
-      doc.roundedRect(M, cardY, CW, totalH, 8, 8, "FD");
+      doc.roundedRect(M, cardY, CW, measuredH, 8, 8, "FD");
 
       y = cardY + 20;
       doc.setFontSize(15); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
@@ -944,19 +977,19 @@ async function generatePDF(data) {
       /* Current value (title, description, headings, etc.) */
       if (curLines.length > 0) {
         doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
-        doc.text(curLines, M + 12, y); y += curLines.length * 15 + 10;
+        doc.text(curLines, M + 12, y); y += curLines.length * 15 + 8;
       }
       if (item.w) {
         doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-        doc.text(whyLines, M + 12, y); y += whyLines.length * 16 + 14;
+        doc.text(whyLines, M + 12, y); y += whyLines.length * 16 + 10;
       }
       sugArr.forEach(s => {
         doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
         const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24);
-        doc.text(sl, M + 12, y); y += sl.length * 26;
+        doc.text(sl, M + 12, y); y += sl.length * 18 + 4;
       });
 
-      y = cardY + totalH + 8;
+      y = cardY + measuredH + 8;
     });
     gap(28);
   }
@@ -984,7 +1017,7 @@ async function generatePDF(data) {
       }),
       columnStyles: { 0: { cellWidth: 30, halign: "center" }, 1: { cellWidth: 160 }, 2: { cellWidth: "auto" } }
     });
-    y = doc.lastAutoTable.finalY + 4;
+    y = doc.lastAutoTable.finalY + 8;
     note("Study their titles, descriptions, and content structure. What are they doing that you\u2019re not? Use their strengths as inspiration to improve your own page.");
     gap(28);
   }
@@ -1036,15 +1069,17 @@ async function generatePDF(data) {
     const pr = PRIO_PDF[item.p] || PRIO_PDF.important;
     const whyLines = item.w ? doc.splitTextToSize(String(item.w), CW - 24) : [];
     const sugArr = item.s || [];
-    let sugH = 0;
-    sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); sugH += sl.length * 26; });
-    const totalH = 16 + 22 + (whyLines.length > 0 ? whyLines.length * 16 + 14 : 0) + sugH + 16;
+    /* Pass 1: measure exact height */
+    let measuredH = 16 + 22; /* top padding + title row */
+    if (whyLines.length > 0) measuredH += whyLines.length * 16 + 10;
+    sugArr.forEach(s => { const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24); measuredH += sl.length * 18 + 4; });
+    measuredH += 10; /* bottom padding */
 
-    ensureSpace(totalH + 10);
+    ensureSpace(measuredH + 10);
     const cardY = y;
     doc.setDrawColor(...divClr); doc.setLineWidth(1);
     doc.setFillColor(255, 255, 255);
-    doc.roundedRect(M, cardY, CW, totalH, 8, 8, "FD");
+    doc.roundedRect(M, cardY, CW, measuredH, 8, 8, "FD");
 
     y = cardY + 16;
     doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.setTextColor(...dk);
@@ -1058,15 +1093,15 @@ async function generatePDF(data) {
     y += 22;
     if (whyLines.length > 0) {
       doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...mt);
-      doc.text(whyLines, M + 12, y); y += whyLines.length * 16 + 14;
+      doc.text(whyLines, M + 12, y); y += whyLines.length * 16 + 10;
     }
     sugArr.forEach(s => {
       doc.setFontSize(13); doc.setFont("helvetica","normal"); doc.setTextColor(...dk);
       const sl = doc.splitTextToSize("\u2022 " + String(s), CW - 24);
-      doc.text(sl, M + 12, y); y += sl.length * 26;
+      doc.text(sl, M + 12, y); y += sl.length * 18 + 4;
     });
 
-    y = cardY + totalH + 10;
+    y = cardY + measuredH + 10;
   });
 
   /* ══════════════════════════════════════════════
