@@ -1124,7 +1124,7 @@ async function generatePDF(data) {
         form.append("source_url", data.url || "");
         form.append("flow_type", "core");
         fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-          method: "POST", body: form
+          method: "POST", headers: { "Authorization": "Bearer " + SUPABASE_KEY }, body: form
         }).then(r => r.json()).then(d => {
           if (d?.already_saved) {
             console.log("[IvaBot] PDF already saved for this audit");
