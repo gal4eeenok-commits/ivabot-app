@@ -1124,7 +1124,7 @@ async function generatePDF(data) {
         form.append("source_url", data.url || "");
         form.append("flow_type", "core");
         fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-          method: "POST", headers: { "Authorization": "Bearer " + SUPABASE_KEY }, body: form
+          method: "POST", body: form
         }).then(r => r.json()).then(d => {
           if (d?.already_saved) {
             console.log("[IvaBot] PDF already saved for this audit");
@@ -1335,7 +1335,7 @@ function IvaBotV6() {
         var reportData = A;
       } else {
         setStep(0);
-        const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY }, body: JSON.stringify({ url }) });
+        const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
         if (!htmlRes.ok) throw new Error("Could not fetch page");
         const rawHtml = await htmlRes.text();
 
@@ -1415,8 +1415,8 @@ function IvaBotV6() {
         setStep(5);
         var reportData = buildReportData(parsed, gpt, dfsSeo);
 
-        try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
-        try { const sm = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY }, body: JSON.stringify({ url: parsed.sitemap_url }) }); if (sm.ok) { const smt = await sm.text(); reportData.sitemapStatus = (smt.includes("<urlset") || smt.includes("<sitemapindex") || smt.includes("<url>")) ? "good" : "bad"; } else { reportData.sitemapStatus = "bad"; } } catch(e){ reportData.sitemapStatus = "bad"; }
+        try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
+        try { const sm = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.sitemap_url }) }); if (sm.ok) { const smt = await sm.text(); reportData.sitemapStatus = (smt.includes("<urlset") || smt.includes("<sitemapindex") || smt.includes("<url>")) ? "good" : "bad"; } else { reportData.sitemapStatus = "bad"; } } catch(e){ reportData.sitemapStatus = "bad"; }
       }
 
       setLS(-1);
