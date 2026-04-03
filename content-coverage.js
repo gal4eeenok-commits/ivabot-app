@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v5.9 — IIFE wrapped, unified style, score card, HL badges, credit deduction */
+/* IvaBot Content Coverage v6.2 — SERP positions all keywords, PDF safe symbols, Working Well open */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v5.9 loaded");
+console.log("[IvaBot] content-coverage.js v6.2 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -30,7 +30,7 @@ const SocialBadge=({name,url})=>(<a href={url||SOCIAL_URLS[name]||"#"} target="_
 
 const Fold=({title,children,open:d=false,borderColor,headerBg,titleColor,count})=>{const[o,setO]=useState(d);return(<div style={{borderRadius:12,border:`1px solid ${borderColor||C.border}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"14px 16px",background:headerBg||"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14,fontWeight:700,color:titleColor||C.dark}}>{title}</span>{count!=null&&<span style={{fontSize:11,fontWeight:600,color:titleColor?"rgba(255,255,255,0.7)":C.muted,background:titleColor?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.5)",padding:"2px 8px",borderRadius:10}}>{count}</span>}</div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={titleColor||C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s ease",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button><div style={{display:"grid",gridTemplateRows:o?"1fr":"0fr",opacity:o?1:0,transition:"grid-template-rows 0.7s cubic-bezier(0.16,1,0.3,1), opacity 0.5s ease"}}><div style={{overflow:"hidden"}}><div style={{padding:"0 16px 16px",borderTop:`1px solid ${borderColor||C.border}`}}>{children}</div></div></div></div>);};
 
-const WorkingItem=({title,content})=>{const[o,setO]=useState(false);return(<div style={{borderRadius:10,border:`1px solid ${C.cardBorder}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"11px 14px",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"'DM Sans',sans-serif"}}><span style={{color:"#9B7AE6",flexShrink:0,fontSize:13,fontWeight:600}}>✓</span><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&<div style={{padding:"0 14px 14px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>{content}</div></div>}</div>);};
+const WorkingItem=({title,content})=>{const[o,setO]=useState(true);return(<div style={{borderRadius:10,border:`1px solid ${C.cardBorder}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"11px 14px",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"'DM Sans',sans-serif"}}><span style={{color:"#9B7AE6",flexShrink:0,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9B7AE6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&<div style={{padding:"0 14px 14px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>{content}</div></div>}</div>);};
 
 const InfoBlock=({label,value,borderColor})=>{const renderLine=(line,i)=>{const hMatch=line.match(/^(H[1-3]):\s*(.*)/);if(hMatch){const lv=hMatch[1],text=hMatch[2];const hColorMap={H1:{color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},H2:{color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},H3:{color:"#B89CF0",bg:"rgba(184,156,240,0.12)"}};const hc=hColorMap[lv]||hColorMap.H2;const isBroken=text.includes("⚠");return(<div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:500,color:isBroken?C.accent:C.dark,padding:"2px 0"}}><span style={{fontSize:9,fontWeight:600,color:isBroken?C.accent:hc.color,background:isBroken?"rgba(110,43,255,0.08)":hc.bg,padding:"2px 5px",borderRadius:3,minWidth:22,textAlign:"center",flexShrink:0}}>{lv}</span><span>{text}</span></div>);}return<div key={i} style={{padding:"2px 0"}}>{line}</div>;};return(<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:`1px solid ${borderColor||C.border}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:3}}>{label}</div><div style={{fontSize:13,fontWeight:500,color:C.dark,lineHeight:1.5}}>{typeof value==="string"?value.split("\n").map(renderLine):value}</div></div>);};
 
@@ -53,9 +53,9 @@ const MobileTab=({active,onSwitch,hasReport})=>{if(!hasReport)return null;return
 
 /* ═══ RANKINGS TABLE ═══ */
 const fmtVol=(v)=>{if(!v)return"—";if(v>=1000000)return(v/1000000).toFixed(1).replace(/\.0$/,"")+"M";if(v>=1000)return(v/1000).toFixed(1).replace(/\.0$/,"")+"K";return v.toLocaleString();};
-const NicheBadge=()=><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>&lt; 10</span>;
-const LowBadge=()=><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>low</span>;
-const RankingsTable=({rows,emptyMsg})=>(<div style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflow:"visible"}}><table style={{width:"100%",minWidth:380,borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6}}>—</span>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}>{r.difficulty!=null?<span style={{color:C.muted,fontSize:12}}>{r.difficulty}</span>:<LowBadge/>}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
+const NicheBadge=()=><Tip text="This keyword has fewer than 10 monthly searches in Google. This is normal for branded or highly specific terms — your page may still rank well for it."><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500,cursor:"help"}}>&lt; 10</span></Tip>;
+const LowBadge=()=><Tip text="Google doesn't have enough competition data for this keyword. Niche keywords are often easier to rank for."><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500,cursor:"help"}}>low</span></Tip>;
+const RankingsTable=({rows,emptyMsg})=>(<div style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflow:"visible"}}><table style={{width:"100%",minWidth:380,borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<Tip text="Position data unavailable — this keyword may be too niche for automated tracking. Your page could still rank for it."><span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6,cursor:"help"}}>—</span></Tip>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}>{r.difficulty!=null?<span style={{color:C.muted,fontSize:12}}>{r.difficulty}</span>:<LowBadge/>}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
 
 const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 
@@ -526,7 +526,7 @@ function buildCoverageResults(d) {
       contentGood.push({ title: "Body Content — Keyword Coverage", content: (<><InfoBlock label="Keyword scan results" value={be.occurrences} borderColor={NB} /><BotNote inline text="Your keywords appear naturally throughout the body text — good balance without overuse." /></>) });
     } else {
       const kwList = (ukw.length ? ukw : d.extractedKeywords || []);
-      const actionLines = kwList.map(k => `• "${typeof k === "string" ? k : k.keyword}" — ${be.budgetPer[0]}–${be.budgetPer[1]} times`);
+      const actionLines = kwList.map(k => `"${typeof k === "string" ? k : k.keyword}" — ${be.budgetPer[0]}–${be.budgetPer[1]} times`);
       contentBad.push({ title: "Body Content — Keyword Coverage", priority: "critical", currentLabel: "Keyword scan results", current: be.occurrences, why: be.status === "no_body" ? "No body text detected on your page." : be.status === "missing" ? "Body content has individual keyword words but no exact phrases. Google weights exact phrase matches more heavily." : be.status === "low" ? "Partial coverage — add at least one more full key phrase." : "Keyword usage appears high — reduce repetition.", sugLabel: "Recommended keyword usage", suggestions: [...actionLines, `Total recommended: ${be.budgetTotal[0]}–${be.budgetTotal[1]} times across the entire body text.`], showCopy: false });
     }
     d.bodyStatus = be.status === "good" ? "good" : "bad";
@@ -546,7 +546,7 @@ function buildCoverageResults(d) {
           {sm.paa.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>People Also Ask <QM text="These are real questions that Google shows in a special FAQ-style block on the search results page. Answering them on your page can help you appear in this block." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Common questions shown in Google — answering them can get you featured.</div>{sm.paa.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>• {s}</div>)}</div>}
         </div>),
         sugLabel: "How to use these phrases",
-        suggestions: ["Related Searches — pick 1–2 phrases and use them as H2 or H3 headings, or mention them in your body text.", "People Also Ask — take 3–5 questions and add a short FAQ section to your page. This helps you appear in Google's FAQ block.", "Autocomplete — mention 1–2 of these phrases naturally in your text where they fit the context. Don't overuse them."],
+        suggestions: [...(sm.related.length > 0 ? ["Related Searches — pick 1–2 phrases and use them as H2 or H3 headings, or mention them in your body text."] : []), ...(sm.paa.length > 0 ? ["People Also Ask — take 3–5 questions and add a short FAQ section to your page. This helps you appear in Google's FAQ block."] : []), ...(sm.autocomplete.length > 0 ? ["Autocomplete — mention 1–2 of these phrases naturally in your text where they fit the context. Don't overuse them."] : [])],
         showCopy: false
       });
     }
@@ -698,6 +698,380 @@ const CoverageReport = ({ data }) => {
   </div>);
 };
 
+
+async function generateCoveragePDF(data) {
+  try {
+  const loadScript = (url) => new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${url}"]`);
+    if (existing && window.pdfMake) { resolve(); return; }
+    if (existing) existing.remove();
+    const s = document.createElement("script"); s.src = url; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load " + url));
+    document.head.appendChild(s);
+  });
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");
+  if (window.pdfMake && window.pdfMake.fonts) {
+    window.pdfMake.fonts = { Roboto: { normal: "Roboto-Regular.ttf", bold: "Roboto-Medium.ttf", italics: "Roboto-Italic.ttf", bolditalics: "Roboto-MediumItalic.ttf" } };
+  }
+
+  const dk = "#151415", mt = "#928E95", accentC = "#6E2BFF";
+  const divClr = "#e6e3e9", tblHdrBg = "#f0edf3", lavCardBg = "#fcfaff", lavCardBdr = "#dcd2f0";
+  const PRIO_PDF = {
+    critical: { label: "Critical", color: "#6E2BFF", bg: "#ede4ff" },
+    important: { label: "Important", color: "#9B7AE6", bg: "#f1ebfc" },
+    nice: { label: "Nice to have", color: "#B89CF0", bg: "#f5f0fd" }
+  };
+  const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
+  const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
+  const fKD = (d) => d != null ? String(d) : "low";
+
+  const secTitle = (t, color) => ({ text: t, fontSize: 22, bold: true, color: color || dk, margin: [0, 24, 0, 4] });
+  const noteText = (t) => ({ text: t, fontSize: 11, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+  const spacer = (n) => ({ text: "", margin: [0, 0, 0, n || 12] });
+
+  const badge = (prio) => {
+    const pr = PRIO_PDF[prio] || PRIO_PDF.important;
+    return {
+      table: { body: [[{ text: pr.label, fontSize: 8, bold: true, color: pr.color, margin: [6, 2, 6, 2] }]] },
+      layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => pr.bg, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }
+    };
+  };
+
+  const lavCard = (item) => {
+    const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
+    const stack = [];
+    stack.push({ columns: [
+      { text: item.title, fontSize: 13, bold: true, color: dk, width: "*" },
+      { ...badge(item.priority), width: "auto", alignment: "right" }
+    ], columnGap: 8, margin: [0, 0, 0, 4] });
+    if (item.why && typeof item.why === "string") stack.push({ text: item.why.slice(0, 300), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 });
+    if (item.suggestions?.length > 0) {
+      stack.push({ text: "Suggested:", fontSize: 9, color: mt, bold: true, margin: [0, 4, 0, 2] });
+      item.suggestions.forEach(s => {
+        if (typeof s === "string") stack.push({ text: "\u2022 " + s, fontSize: 11, color: dk, margin: [0, 1, 0, 1] });
+      });
+    }
+    return {
+      table: { widths: ["*"], body: [[{ stack, margin: [10, 10, 10, 10] }]] },
+      layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg },
+      margin: [0, 0, 0, 8]
+    };
+  };
+
+  /* Logo */
+  const makeLogo = () => new Promise(resolve => {
+    const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
+    const ctx = cvs.getContext("2d"); ctx.fillStyle = "#6E2BFF"; ctx.scale(2, 2);
+    ctx.fill(new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z"));
+    ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z"));
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
+    resolve(cvs.toDataURL("image/png"));
+  });
+  const logoImg = await makeLogo();
+
+  /* Build results */
+  const { contentGood, contentBad, trustGood, trustBad } = buildCoverageResults(data);
+  const totalIssues = contentBad.length + trustBad.length;
+  const contentTotal = contentGood.length + contentBad.length;
+  const trustTotal = trustGood.length + trustBad.length;
+  const contentPct = contentTotal > 0 ? Math.round((contentGood.length / contentTotal) * 100) : 0;
+  const trustPct = trustTotal > 0 ? Math.round((trustGood.length / trustTotal) * 100) : 0;
+
+  const content = [];
+
+  /* ── HEADER ── */
+  content.push({ columns: [
+    { image: logoImg, width: 22, margin: [0, 2, 0, 0] },
+    { text: "IvaBot", fontSize: 16, bold: true, color: dk, width: "auto", margin: [6, 0, 0, 0] },
+    { text: dateString, fontSize: 10, color: mt, alignment: "right" }
+  ], margin: [0, 0, 0, 2] });
+  content.push({ columns: [
+    { text: "Content Coverage Report", fontSize: 10, color: mt, margin: [28, 0, 0, 0] },
+    { text: data.url || "", fontSize: data.url?.length > 60 ? 8 : 10, color: mt, alignment: "right", link: data.url }
+  ], margin: [0, 0, 0, 6] });
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
+
+  /* ── SCORE CARD ── */
+  content.push({
+    table: { widths: [80, "*"], body: [[
+      { stack: [
+        { text: String(totalIssues), fontSize: 36, bold: true, color: dk, alignment: "center" },
+        { text: "Issues", fontSize: 10, bold: true, color: "#9B7AE6", alignment: "center" }
+      ], margin: [8, 14, 8, 14], fillColor: lavCardBg },
+      { stack: [
+        { text: domain, fontSize: 14, bold: true, color: dk, margin: [0, 0, 0, 10] },
+        { text: [
+          { text: "Content & Keywords  ", fontSize: 10, color: mt },
+          { text: contentGood.length + " / " + contentTotal + "  (" + contentPct + "%)", fontSize: 10, bold: true, color: "#9B7AE6" }
+        ], margin: [0, 0, 0, 6] },
+        { text: [
+          { text: "Trust & Conversion  ", fontSize: 10, color: mt },
+          { text: trustGood.length + " / " + trustTotal + "  (" + trustPct + "%)", fontSize: 10, bold: true, color: "#D4A0E8" }
+        ] }
+      ], margin: [12, 14, 8, 14] }
+    ]] },
+    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: (i, node, col) => col === 0 ? lavCardBg : null, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+    margin: [0, 0, 0, 16]
+  });
+
+  /* ── KEYWORDS TABLE ── */
+  const kwRows = data.userKeywordMetrics || data.keywordMetrics || (data.userKeywords || []).map(k => ({ keyword: k, position: null, volume: null, difficulty: null }));
+  if (kwRows.length > 0) {
+    content.push(secTitle("Keywords"));
+    const isAligned = data.usedExtracted || false;
+    content.push(noteText(isAligned ? "Your page is aligned with your target keywords." : "Keywords you want to rank for."));
+    const kwHead = [
+      { text: "Keyword", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
+      { text: "Pos.", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "Volume", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "KD", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] }
+    ];
+    const kwBody = kwRows.map(r => [
+      { text: r.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
+      { text: r.position != null ? String(r.position) : "\u2014", fontSize: 11, color: r.position && r.position <= 3 ? accentC : dk, bold: r.position && r.position <= 3, alignment: "center", fillColor: r.position && r.position <= 3 ? "#ede4ff" : null, margin: [4, 6, 4, 6] },
+      { text: fV(r.volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: fKD(r.difficulty), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] }
+    ]);
+    content.push({ table: { headerRows: 1, widths: ["*", 45, 60, 45], body: [kwHead, ...kwBody] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 8] });
+
+    /* Extracted keywords table (if different from user keywords) */
+    if (!isAligned && data.keywordMetrics?.length > 0) {
+      content.push(spacer(6));
+      content.push(noteText("What your page is currently built for:"));
+      const exBody = data.keywordMetrics.map(r => [
+        { text: r.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
+        { text: r.position != null ? String(r.position) : "\u2014", fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: fV(r.volume || r.search_volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: fKD(r.difficulty || r.keyword_difficulty), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] }
+      ]);
+      content.push({ table: { headerRows: 1, widths: ["*", 45, 60, 45], body: [kwHead, ...exBody] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 8] });
+    }
+    content.push(spacer(8));
+  }
+
+  /* ── CONTENT WORKING WELL (detailed, like Core Audit PDF) ── */
+  if (contentGood.length > 0) {
+    content.push(secTitle("Content & Structure \u2014 Working Well"));
+    content.push(noteText(contentGood.length + " content elements are working well."));
+    content.push(spacer(6));
+
+    contentGood.forEach((g, idx) => {
+      content.push({ text: g.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 6] });
+
+      /* SERP Preview for Title/Description */
+      if (g.title === "Meta Title" || g.title === "Meta Description") {
+        let displayUrl = data.url || ""; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
+        const serpStack = [
+          { text: displayUrl, fontSize: 9, color: "#4d5156", margin: [8, 6, 8, 2] },
+          { text: (data.title || "No title").length > 60 ? (data.title || "").slice(0, 57) + "..." : (data.title || "No title"), fontSize: 12, color: "#1a0dab", margin: [8, 0, 8, 2] }
+        ];
+        if (g.title === "Meta Description" && data.desc) {
+          serpStack.push({ text: data.desc.length > 160 ? data.desc.slice(0, 157) + "..." : data.desc, fontSize: 10, color: "#4d5156", margin: [8, 0, 8, 6] });
+        } else { serpStack.push(spacer(4)); }
+        content.push({ table: { widths: ["*"], body: [[{ stack: serpStack }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 6] });
+        if (g.title === "Meta Title") content.push({ text: (data.title || "").length + " characters", fontSize: 11, bold: true, color: dk, margin: [0, 2, 0, 2] });
+        if (g.title === "Meta Description") content.push({ text: (data.desc || "").length + " characters", fontSize: 11, bold: true, color: dk, margin: [0, 2, 0, 2] });
+      }
+
+      /* Heading Structure */
+      if (g.title === "Heading Structure") {
+        const hColors = { H1: accentC, H2: "#9B7AE6", H3: "#B89CF0" };
+        [["H1", data.h1], ["H2", data.h2], ["H3", data.h3]].forEach(([lv, arr], gi) => {
+          if (!arr || arr.length === 0) return;
+          content.push({ text: lv + " \u2014 " + arr.length + " found", fontSize: 11, bold: true, color: dk, margin: [0, gi > 0 ? 10 : 4, 0, 4] });
+          arr.slice(0, 6).forEach(h => {
+            const hText = typeof h === "string" ? h : h.text || h;
+            content.push({ text: [{ text: lv + "  ", fontSize: 8, bold: true, color: hColors[lv] || "#9B7AE6" }, { text: hText, fontSize: 10, color: dk }], margin: [8, 1, 0, 1] });
+          });
+        });
+      }
+
+      /* Body Content */
+      if (g.title.includes("Body Content")) {
+        content.push({ text: "Keywords appear naturally throughout the body text.", fontSize: 11, color: dk, margin: [0, 0, 0, 4] });
+      }
+
+      /* Explain text */
+      const explains = {
+        "Meta Title": "Your title is " + (data.title || "").length + " characters \u2014 right in the sweet spot (30\u201360). This is the #1 on-page signal Google uses to understand your content.",
+        "Meta Description": "Your description is " + (data.desc || "").length + " characters \u2014 within the recommended range. This is what users see in search results, so a good one means more clicks.",
+        "Heading Structure": "Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page.",
+        "Body Content \u2014 Keyword Coverage": "Your keywords appear naturally throughout the body text \u2014 good balance without overuse."
+      };
+      const explain = explains[g.title] || null;
+      if (explain) content.push({ text: explain, fontSize: 10, color: mt, margin: [0, 6, 0, 6], lineHeight: 1.3 });
+
+      if (idx < contentGood.length - 1) content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 6, 0, 6] });
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── CONTENT NEEDS IMPROVEMENT (with SERP preview + full suggestions) ── */
+  if (contentBad.length > 0) {
+    content.push(secTitle("Content & Structure \u2014 Needs Improvement (" + contentBad.length + ")", accentC));
+    content.push(noteText("Each card has a clear fix \u2014 start from the top."));
+    contentBad.forEach(item => {
+      const itemCard = lavCard(item);
+      content.push(itemCard);
+
+      /* Add SERP preview for title/description issues */
+      if ((item.title.includes("Title") || item.title.includes("Description")) && data.url) {
+        let displayUrl = data.url; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
+        const serpStack = [
+          { text: displayUrl, fontSize: 9, color: "#4d5156", margin: [8, 6, 8, 2] },
+          { text: (data.title || "No title").length > 60 ? (data.title || "").slice(0, 57) + "..." : (data.title || "No title"), fontSize: 12, color: "#1a0dab", margin: [8, 0, 8, 2] }
+        ];
+        if (data.desc) serpStack.push({ text: data.desc.length > 160 ? data.desc.slice(0, 157) + "..." : data.desc, fontSize: 10, color: "#4d5156", margin: [8, 0, 8, 6] });
+        else serpStack.push(spacer(4));
+        content.push({ table: { widths: ["*"], body: [[{ stack: serpStack }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 8] });
+      }
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── TRUST WORKING WELL (with details) ── */
+  if (trustGood.length > 0) {
+    content.push(secTitle("Trust & Conversion \u2014 Working Well"));
+    content.push(noteText(trustGood.length + " trust signals are in place."));
+    content.push(spacer(6));
+
+    const trustExplains = {
+      "Call to Action": "A clear call-to-action guides visitors to the next step. Pages with visible CTAs convert better.",
+      "FAQ Section": "An FAQ section improves user experience and helps you appear in Google's rich results.",
+      "Social Profiles": "Social links build brand trust and help Google verify your business identity.",
+      "Contact Info": "Contact information signals legitimacy and trustworthiness to both users and search engines.",
+      "Testimonials": "Social proof from customer testimonials increases conversion rates."
+    };
+    trustGood.forEach((g, idx) => {
+      content.push({ text: g.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 4] });
+      const explain = trustExplains[g.title] || "This trust signal is present on your page.";
+      content.push({ text: explain, fontSize: 10, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+      if (idx < trustGood.length - 1) content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 4, 0, 4] });
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── TRUST NEEDS IMPROVEMENT ── */
+  if (trustBad.length > 0) {
+    content.push(secTitle("Trust & Conversion \u2014 Needs Improvement (" + trustBad.length + ")", accentC));
+    trustBad.forEach(item => content.push(lavCard(item)));
+    content.push(spacer(8));
+  }
+
+  /* ── FINAL RECOMMENDATIONS ── */
+  const allBad = [...contentBad, ...trustBad];
+  if (allBad.length > 0) {
+    content.push(secTitle("Final Recommendations"));
+    content.push(noteText("Fix these and your rankings will improve."));
+    allBad.forEach(item => {
+      const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
+      const stack = [];
+      stack.push({ columns: [
+        { text: [{ text: "-  ", color: pr.color, fontSize: 10, bold: true }, { text: item.title, fontSize: 12, bold: true, color: dk }], width: "*" },
+        { ...badge(item.priority), width: "auto", alignment: "right" }
+      ], columnGap: 8, margin: [0, 0, 0, 3] });
+      if (item.why && typeof item.why === "string") {
+        const shortWhy = item.why.length > 200 ? item.why.slice(0, 197) + "..." : item.why;
+        stack.push({ text: shortWhy, fontSize: 10, color: mt, lineHeight: 1.3 });
+      }
+      if (item.suggestions?.length > 0 && typeof item.suggestions[0] === "string") {
+        stack.push({ text: "Suggested: " + item.suggestions[0], fontSize: 10, color: dk, margin: [0, 3, 0, 0] });
+      }
+      content.push({ table: { widths: ["*"], body: [[{ stack, margin: [10, 8, 10, 8] }]] },
+        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr },
+        margin: [0, 0, 0, 6]
+      });
+    });
+    /* Re-audit reminder */
+    content.push({ table: { widths: ["*"], body: [[{
+      stack: [
+        { text: [{ text: "-  ", color: accentC, fontSize: 10, bold: true }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
+        { text: "Run another Content Coverage Audit to measure your progress.", fontSize: 10, color: mt }
+      ], margin: [10, 8, 10, 8]
+    }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr }, margin: [0, 0, 0, 6] });
+    content.push(spacer(8));
+  }
+
+  /* ── IvaBot CTA ── */
+  content.push(spacer(12));
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
+  content.push({ table: { widths: ["*"], body: [[{
+    stack: [
+      { text: "Want to improve your score?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
+      { text: "Run another audit or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
+      { text: [
+        { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
+        { text: "  \u2022  ", color: mt },
+        { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
+        { text: "  \u2022  ", color: mt },
+        { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
+      ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
+      { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
+    ], margin: [16, 16, 16, 16]
+  }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] });
+
+  /* ── BUILD DOCUMENT ── */
+  const docDefinition = {
+    pageSize: "A4", pageMargins: [40, 40, 40, 50],
+    defaultStyle: { fontSize: 11, color: dk },
+    footer: (currentPage, pageCount) => ({ columns: [
+      { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
+      { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
+    ], margin: [40, 10, 0, 0] }),
+    content: content
+  };
+
+  /* ── GENERATE + DOWNLOAD + UPLOAD ── */
+  const fileName = "IvaBot-Coverage-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
+  const pdfDocGen = pdfMake.createPdf(docDefinition);
+  const pdfBtn = document.getElementById("export-coverage-pdf-btn");
+  const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
+
+  pdfDocGen.getBlob(async (pdfBlob) => {
+    try {
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = blobUrl; a.download = fileName; a.style.display = "none";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
+      console.log("[CC] PDF downloaded:", fileName);
+      if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+
+      let upMemberId = window.__memberId || window.__userId;
+      if (!upMemberId && window.__supabase) {
+        try { const { data: { session } } = await window.__supabase.auth.getSession(); upMemberId = session?.user?.id; } catch(me) {}
+      }
+      if (upMemberId && pdfBlob) {
+        if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
+        const form = new FormData();
+        form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+        form.append("member_id", upMemberId);
+        form.append("source_url", data.url || "");
+        form.append("flow_type", "coverage");
+        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+          method: "POST", body: form
+        }).then(r => r.json()).then(res => {
+          if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; } }
+          else if (res?.url) { console.log("[CC] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; } }
+          else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; } }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        }).catch(e => {
+          console.warn("[CC] PDF upload failed:", e);
+          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        });
+      } else {
+        console.log("[CC] PDF not uploaded — no member ID");
+        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
+      }
+    } catch(ue) { console.warn("[CC] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+  });
+  } catch(err) { console.error("[CC] PDF error:", err); alert("PDF export failed: " + err.message); }
+}
+
 /* ═══ PLACEHOLDER ═══ */
 const CoveragePlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
   <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(110,43,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
@@ -761,7 +1135,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     try {
       // Step 0: Fetch HTML
       setStepNum(0);
-      const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY }, body: JSON.stringify({ url }) });
+      const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
       if (!htmlRes.ok) throw new Error("Could not fetch page");
       const rawHtml = await htmlRes.text();
 
@@ -775,7 +1149,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       try {
         const gptRes = await fetch(COVERAGE_GPT, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword })
         });
         if (gptRes.ok) gptData = await gptRes.json();
@@ -803,16 +1177,20 @@ function ContentCoverage({ onHome, memberName: mn }) {
           body: JSON.stringify({ mode: "content_builder", keywords: allKwUnique.slice(0, 6), page_url: url })
         });
         if (dfsRes.ok) dfsData = await dfsRes.json();
-        console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length}` : "failed");
+        console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length} organic=${dfsData.serp_organic?.length || 0} serpPos=${JSON.stringify(dfsData.serp_positions || {})}` : "failed");
       } catch (e) { console.log("[CC] DFS error:", e); }
 
+      /* v6.2: Use serp_positions from DFS — real Google positions for all keywords */
+      const serpPositions = dfsData?.serp_positions || {};
+
       // Build keyword metrics — extracted keywords table (fallback to ranked data for volume/KD)
-      const keywordMetrics = extractedKeywords.map(kw => {
+      const keywordMetrics = extractedKeywords.map((kw, idx) => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
+        const serpPos = serpPositions[kw.toLowerCase()] || null;
         return {
           keyword: kw,
-          position: r?.position || null,
+          position: r?.position || serpPos,
           volume: m?.search_volume || r?.volume || null,
           difficulty: m?.keyword_difficulty || r?.difficulty || null
         };
@@ -827,7 +1205,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         try {
           const serpGptRes = await fetch(COVERAGE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ step: "serp_suggestions", keywords: finalKeywords, page_summary: gptData?.page_context?.topic || parsed.summary.slice(0, 300) })
           });
           if (serpGptRes.ok) {
@@ -853,7 +1231,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       try {
         const sugRes = await fetch(COVERAGE_GPT, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ step: "generate_suggestions", title: parsed.title, description: parsed.description, h1: parsed.h1, h2: parsed.h2, h3: parsed.h3, keywords: finalKeywords, page_context: gptData?.page_context })
         });
         if (sugRes.ok) gptSuggestions = await sugRes.json();
@@ -864,10 +1242,11 @@ function ContentCoverage({ onHome, memberName: mn }) {
       const wordCount = parsed.visible_text ? parsed.visible_text.trim().split(/\s+/).filter(Boolean).length : null;
 
       // Enrich user keywords with DFS data (same as extracted)
-      const userKeywordMetrics = keywords.map(kw => {
+      const userKeywordMetrics = keywords.map((kw, idx) => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
-        return { keyword: kw, position: r?.position || null, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
+        const serpPos = serpPositions[kw.toLowerCase()] || null;
+        return { keyword: kw, position: r?.position || serpPos, volume: m?.search_volume || null, difficulty: m?.keyword_difficulty || null };
       });
 
       // Step 7: Build report
@@ -926,7 +1305,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       const history = msgs.filter(m => typeof m.c === "string").slice(-10).map(m => `${m.f === "b" ? "IvaBot" : "User"}: ${m.c}`).join("\n");
       const res = await fetch(COVERAGE_GPT, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           step: "chat",
           audit_context: `Page: ${d?.url}\nTitle: "${d?.title}"\nKeywords: ${(d?.extractedKeywords || []).join(", ")}\nBody status: ${d?.bodyEval?.status || "unknown"}\nTrust: contacts=${d?.trust?.contacts?.found}, socials=${d?.trust?.socials?.found}, faq=${d?.trust?.faq?.found}, cta=${d?.trust?.cta?.found}`,
@@ -954,14 +1333,14 @@ function ContentCoverage({ onHome, memberName: mn }) {
       // Real: fetch + parse + GPT extract keywords
       (async () => {
         try {
-          const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY }, body: JSON.stringify({ url: v.url }) });
+          const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: v.url }) });
           if (!htmlRes.ok) throw new Error("Could not fetch page");
           const rawHtml = await htmlRes.text();
           const parsed = parseCoverage(rawHtml, v.url);
 
           const gptRes = await fetch(COVERAGE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword })
           });
           let kw = [parsed.primary_keyword].filter(Boolean);
@@ -999,7 +1378,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         try {
           const res = await fetch(COVERAGE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ step: "confirm_keywords", initial_keywords: extractedKw || [], user_feedback: cleanedInput, page_topic: pageTopic || "" })
           });
           const data = await res.json();
@@ -1035,7 +1414,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         try {
           const res = await fetch(COVERAGE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ step: "confirm_keywords", initial_keywords: pendingKw || extractedKw || [], user_feedback: text, page_topic: pageTopic || "" })
           });
           const data = await res.json();
@@ -1111,7 +1490,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
             </div>
           </div>); }} /></div>}
     {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change — replace a keyword, add something, or describe what you're looking for."); }} /></div>}
-    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
+    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
   </React.Fragment>;
 
   const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><CoverageReport data={auditData} /></div> : <CoveragePlaceholder />}</React.Fragment>;
@@ -1154,7 +1533,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
 
     {showR && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: isMobile ? "8px 12px 16px" : "8px 24px 16px", maxWidth: isMobile ? "100%" : 1224, margin: "0 auto", width: "100%", alignItems: "center" }}>
       <button onClick={() => { setSR(false); sMsgs([]); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); setStep("init"); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setPageUrl(null); sTyp(true); setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); setTimeout(() => { sTyp(false); add("b", <div><div style={{fontWeight:600}}>Paste your URL below and I'll audit another page.</div></div>); setStep("url"); }, 1500); }, 1000); }} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Audit</button>
-      <button id="export-coverage-pdf-btn" style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface} onClick={() => { const btn = document.getElementById("export-coverage-pdf-btn"); if (btn) { btn.innerHTML = "Coming soon..."; btn.style.color = C.muted; setTimeout(() => { btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF'; btn.style.color = C.dark; }, 2000); } }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
+      <button id="export-coverage-pdf-btn" style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface} onClick={() => generateCoveragePDF(auditData)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
       {!isMobile && <button onClick={onHome} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>Try Other Tools</button>}
     </div>}
   </div>);
