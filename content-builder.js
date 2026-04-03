@@ -1,7 +1,7 @@
-/* IvaBot Content Builder v70 — brand guide upload (read file, 15K limit, send to GPT) */
+/* IvaBot Content Builder v68 — updated examples, placeholder, lavender toast, no Nothing Special */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v70 loaded");
+console.log("[IvaBot] content-builder.js v68 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -21,7 +21,7 @@ async function callGPT(step, data) {
     const payload = { step, ...(typeof data === "string" ? { data } : data) };
     const res = await fetch(CB_GPT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
       body: JSON.stringify(payload)
     });
     if (!res.ok) {
@@ -61,7 +61,7 @@ async function callChat(context, chatHistory, question) {
   try {
     const res = await fetch(CB_GPT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
       body: JSON.stringify({ step: "chat", context, chat_history: chatHistory, question })
     });
     if (!res.ok) throw new Error("Chat HTTP " + res.status);
@@ -351,26 +351,7 @@ const HP=({text,onClick,disabled:d})=><span onClick={d?undefined:onClick} style=
 const HE=({text})=><span style={{padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",color:"#B8B5BB",fontSize:11,fontFamily:"'DM Sans',sans-serif",cursor:"default",pointerEvents:"none"}}>{text}</span>;
 /* Example box — shows examples in vertical list, grey, clearly not clickable */
 const ExBox=({items})=><div style={{padding:"8px 12px",borderRadius:8,border:`1px dashed ${C.border}`,background:"transparent",marginBottom:6}}><div style={{fontSize:11,fontWeight:500,color:C.muted,marginBottom:4}}>Examples:</div><div style={{fontSize:11,color:C.muted,lineHeight:1.8}}>{items.map((item,i)=><div key={i}>• {item}</div>)}</div><div style={{fontSize:10,color:"#B8B5BB",marginTop:4,fontStyle:"italic"}}>or type your own</div></div>;
-const BRAND_LIMIT=15000;
-const readFileAsText=async(file)=>{
-  const name=file.name.toLowerCase();
-  if(name.endsWith(".txt")||name.endsWith(".md")){return await file.text();}
-  if(name.endsWith(".pdf")){
-    /* Read PDF as text — extract readable characters from raw bytes */
-    const buf=await file.arrayBuffer();
-    const bytes=new Uint8Array(buf);
-    let raw="";for(let i=0;i<bytes.length;i++){const c=bytes[i];if(c>=32&&c<127)raw+=String.fromCharCode(c);else if(c===10||c===13)raw+="\n";}
-    /* Extract text between BT/ET markers (PDF text objects) */
-    const textParts=[];const btMatches=[...raw.matchAll(/BT\s([\s\S]*?)ET/g)];
-    if(btMatches.length>0){btMatches.forEach(m=>{const inner=m[1];const tjMatches=[...inner.matchAll(/\(([^)]*)\)\s*Tj/g)];tjMatches.forEach(tj=>textParts.push(tj[1]));const tdMatches=[...inner.matchAll(/\[(.*?)\]\s*TJ/g)];tdMatches.forEach(td=>{const parts=[...td[1].matchAll(/\(([^)]*)\)/g)];parts.forEach(p=>textParts.push(p[1]));});});}
-    if(textParts.length>0)return textParts.join(" ").replace(/\s+/g," ").trim();
-    /* Fallback: just extract printable strings */
-    return raw.replace(/[^\x20-\x7E\n]+/g," ").replace(/\s{3,}/g,"\n").trim().slice(0,BRAND_LIMIT);
-  }
-  /* .doc/.docx — read as text (basic, won't get formatting) */
-  return await file.text();
-};
-const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);const[loading,sLoading]=useState(false);const[err,sErr]=useState("");return<div style={{display:"inline-flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><input ref={r} type="file" accept=".pdf,.txt,.md" style={{display:"none"}} onChange={async e=>{if(!e.target.files?.[0])return;const file=e.target.files[0];if(file.size>2*1024*1024){sErr("File too large (max 2MB)");return;}sErr("");sLoading(true);sf(file);try{let text=await readFileAsText(file);if(text.length>BRAND_LIMIT){text=text.slice(0,BRAND_LIMIT);console.log("[CB] brand file trimmed to",BRAND_LIMIT,"chars");}ou?.(file,text);sLoading(false);}catch(ex){console.error("[CB] file read error:",ex);sErr("Could not read file");sLoading(false);}}}/><button onClick={()=>r.current?.click()} disabled={loading} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:loading?"wait":"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{if(!loading){e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>{loading?"Reading...":"Upload brand guide"}</button>{f&&!loading&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}{err&&<span style={{fontSize:10,color:"#c0392b",fontWeight:500}}>{err}</span>}</div>;};
+const UBtn=({onUpload:ou})=>{const r=useRef(null);const[f,sf]=useState(null);return<div style={{display:"inline-flex",alignItems:"center",gap:6}}><input ref={r} type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0]){sf(e.target.files[0]);ou?.(e.target.files[0]);}}}/><button onClick={()=>r.current?.click()} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 12px",borderRadius:8,background:"rgba(21,20,21,0.03)",border:"1px solid transparent",color:"#B8B5BB",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,43,255,0.06)";e.currentTarget.style.color="#6E2BFF";e.currentTarget.style.borderColor="rgba(110,43,255,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(21,20,21,0.03)";e.currentTarget.style.color="#B8B5BB";e.currentTarget.style.borderColor="transparent";}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Upload brand guide</button>{f&&<span style={{fontSize:10,color:C.accent,fontWeight:500}}>{f.name}</span>}</div>;};
 
 /* ═══ EXTRAS BLOCK — shows related/paa/autocomplete inline with keywords ═══ */
 const ExtrasBlock=({extra})=>{
@@ -774,7 +755,7 @@ const gStr=async()=>{
       supporting_keywords:classified.supporting.map(k=>k.keyword),
       keywords:kwWithData,page_type:ans.pt||"",page_type_details:ans.ptx||"",
       page_description:ans.pd||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
-      market:ans.mk||"",brand_details:ans.me||"",brand_guide:ans.brandGuide||"",brand_name:brandName||null,target_length:defaultLen,
+      market:ans.mk||"",brand_details:ans.me||"",brand_name:brandName||null,target_length:defaultLen,
       related:dfsExtraRef.current.related||[],paa:dfsExtraRef.current.paa||[],
       autocomplete:dfsExtraRef.current.autocomplete||[],chat_history:buildChatHistory(msgs)
     });
@@ -886,7 +867,7 @@ const gCnt=async()=>{
       keyword_placement:kwPlacement,
       min_words:minWords,
       page_type:ans.pt||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
-      market:ans.mk||"",brand_details:ans.me||"",brand_guide:ans.brandGuide||"",brand_name:brandName||null,
+      market:ans.mk||"",brand_details:ans.me||"",brand_name:brandName||null,
       title:confirmedTitleRef.current||bd?.title||"",
       research:researchData,chat_history:buildChatHistory(msgs)
     });
@@ -974,7 +955,7 @@ const handleStructureTweak=async(text)=>{
     const kwWithData=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skwRef.current.includes(k.keyword));
     const gptRes=await callGPT("generate_structure",{
       title:chosenTitle,keywords:kwWithData,page_type:ans.pt||"",page_description:ans.pd||"",
-      goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",brand_details:ans.me||"",brand_guide:ans.brandGuide||"",
+      goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",brand_details:ans.me||"",
       target_length:bd?.contentLength||"500-800 words",
       related:dfsExtraRef.current.related||[],paa:dfsExtraRef.current.paa||[],
       autocomplete:dfsExtraRef.current.autocomplete||[],
@@ -1009,343 +990,6 @@ const handleContentTweak=async(text)=>{
   } catch(err){console.error("[CB] tweak:",err);sTyp(false);add("b","Something went wrong. Try again.");}
 };
 
-/* ═══ PDF EXPORT (pdfmake) ═══ */
-async function generateCBPDF(briefData, contentHtml, panelMode) {
-  try {
-  const loadScript = (url) => new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${url}"]`);
-    if (existing && window.pdfMake) { resolve(); return; }
-    if (existing) existing.remove();
-    const s = document.createElement("script"); s.src = url; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load " + url));
-    document.head.appendChild(s);
-  });
-  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");
-  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");
-  if (window.pdfMake && window.pdfMake.fonts) {
-    window.pdfMake.fonts = { Roboto: { normal: "Roboto-Regular.ttf", bold: "Roboto-Medium.ttf", italics: "Roboto-Italic.ttf", bolditalics: "Roboto-MediumItalic.ttf" } };
-  }
-
-  const dk = "#151415", mt = "#928E95", accentC = "#6E2BFF";
-  const divClr = "#e6e3e9", tblHdrBg = "#f0edf3", lavCardBg = "#fcfaff", lavCardBdr = "#dcd2f0";
-  const d = briefData;
-  const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-  const fV = (v) => { if (!v) return "\u2014"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
-
-  const secTitle = (t, color) => ({ text: t, fontSize: 22, bold: true, color: color || dk, margin: [0, 24, 0, 4] });
-  const noteText = (t) => ({ text: t, fontSize: 11, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
-  const dividerLine = () => ({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 8, 0, 8] });
-  const spacer = (n) => ({ text: "", margin: [0, 0, 0, n || 12] });
-
-  /* Logo (same canvas as seo-tools) */
-  const makeLogo = () => new Promise(resolve => {
-    const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
-    const ctx = cvs.getContext("2d"); ctx.fillStyle = "#6E2BFF"; ctx.scale(2, 2);
-    ctx.fill(new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z"));
-    ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z"));
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
-    resolve(cvs.toDataURL("image/png"));
-  });
-  const logoImg = await makeLogo();
-
-  const content = [];
-
-  /* ── HEADER ── */
-  content.push({ columns: [
-    { image: logoImg, width: 22, margin: [0, 2, 0, 0] },
-    { text: "IvaBot", fontSize: 16, bold: true, color: dk, width: "auto", margin: [6, 0, 0, 0] },
-    { text: dateString, fontSize: 10, color: mt, alignment: "right" }
-  ], margin: [0, 0, 0, 2] });
-  content.push({ columns: [
-    { text: "Content Builder Report", fontSize: 10, color: mt, margin: [28, 0, 0, 0] },
-    { text: panelMode === "ct" ? "Structure + Content" : "Structure Only", fontSize: 10, color: mt, alignment: "right" }
-  ], margin: [0, 0, 0, 6] });
-  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
-
-  /* ── SEO TITLE & META DESCRIPTION ── */
-  content.push(secTitle("SEO Title & Meta Description"));
-  content.push({ table: { widths: ["*"], body: [[{
-    stack: [
-      { text: "SEO TITLE", fontSize: 9, color: mt, bold: true, margin: [0, 0, 0, 4] },
-      { text: d.title || "Untitled", fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 10] },
-      { text: "META DESCRIPTION", fontSize: 9, color: mt, bold: true, margin: [0, 0, 0, 4] },
-      { text: d.description || "No description", fontSize: 11, color: dk, lineHeight: 1.4 }
-    ], margin: [12, 12, 12, 12]
-  }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, fillColor: () => lavCardBg }, margin: [0, 4, 0, 12] });
-
-  /* ── FOCUS KEYWORDS ── */
-  if (d.keywords?.length > 0) {
-    content.push(secTitle("Focus Keywords"));
-    const kwHead = [
-      { text: "Keyword", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
-      { text: "Volume", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
-      { text: "KD", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
-      { text: "Priority", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] }
-    ];
-    const kwBody = d.keywords.map(k => [
-      { text: k.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
-      { text: fV(k.volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
-      { text: k.kd != null ? String(k.kd) : "\u2014", fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
-      { text: k.freq || "MV", fontSize: 10, bold: true, color: k.freq === "HV" ? accentC : k.freq === "LV" ? "#B89CF0" : "#9B7AE6", alignment: "center", margin: [4, 6, 4, 6] }
-    ]);
-    content.push({ table: { headerRows: 1, widths: ["*", 60, 40, 55], body: [kwHead, ...kwBody] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 8] });
-    content.push(spacer(8));
-  }
-
-  /* ── RECOMMENDATIONS ── */
-  if (d.recs?.length > 0) {
-    content.push(secTitle("Recommendations"));
-    const recBody = d.recs.map(r => [
-      { text: r.key, fontSize: 10, color: mt, margin: [4, 6, 4, 6] },
-      { text: r.value, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] }
-    ]);
-    content.push({ table: { widths: [80, "*"], body: recBody }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 12] });
-  }
-
-  /* ── PAGE STRUCTURE ── */
-  if (d.sections?.length > 0) {
-    content.push(secTitle("Page Structure"));
-    noteText("Your SEO-optimized page structure with heading hierarchy.");
-    const hColors = { H1: accentC, h1: accentC, H2: "#9B7AE6", h2: "#9B7AE6", H3: "#B89CF0", h3: "#B89CF0" };
-    d.sections.forEach(sec => {
-      const lvColor = hColors[sec.level] || "#9B7AE6";
-      const stack = [];
-      stack.push({ text: [
-        { text: (sec.level || "H2").toUpperCase() + "  ", fontSize: 9, bold: true, color: lvColor },
-        { text: sec.title || "", fontSize: sec.level === "H1" || sec.level === "h1" ? 13 : 12, bold: true, color: dk }
-      ] });
-      if (sec.desc) stack.push({ text: sec.desc, fontSize: 11, color: mt, margin: [0, 3, 0, 0], lineHeight: 1.3 });
-      if (sec.kwNote) stack.push({ text: sec.kwNote, fontSize: 10, color: mt, italics: true, margin: [0, 2, 0, 0] });
-      if (sec.visuals?.length > 0) stack.push({ text: "Visuals: " + sec.visuals.map(v => v.text).join(", "), fontSize: 10, color: mt, margin: [0, 2, 0, 0] });
-      content.push({ table: { widths: ["*"], body: [[{ stack, margin: [10, 8, 10, 8] }]] },
-        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr },
-        margin: [0, 0, 0, 6]
-      });
-    });
-    content.push(spacer(8));
-  }
-
-  /* ── ADDITIONAL SEARCH PHRASES ── */
-  const hasExtra = (d.related?.length > 0 || d.paa?.length > 0 || d.autocomplete?.length > 0);
-  if (hasExtra) {
-    content.push(secTitle("Additional Search Phrases"));
-    if (d.related?.length > 0) {
-      content.push({ text: "RELATED SEARCHES", fontSize: 9, bold: true, color: accentC, margin: [0, 6, 0, 4] });
-      content.push({ text: d.related.join("  \u2022  "), fontSize: 11, color: dk, margin: [0, 0, 0, 10], lineHeight: 1.4 });
-    }
-    if (d.paa?.length > 0) {
-      content.push({ text: "PEOPLE ALSO ASK", fontSize: 9, bold: true, color: accentC, margin: [0, 6, 0, 4] });
-      d.paa.forEach(q => content.push({ text: "\u2022 " + q, fontSize: 11, color: dk, margin: [4, 1, 0, 1] }));
-      content.push(spacer(8));
-    }
-    if (d.autocomplete?.length > 0) {
-      content.push({ text: "AUTOCOMPLETE", fontSize: 9, bold: true, color: accentC, margin: [0, 6, 0, 4] });
-      content.push({ text: d.autocomplete.join("  \u2022  "), fontSize: 11, color: dk, margin: [0, 0, 0, 10], lineHeight: 1.4 });
-    }
-    content.push(spacer(8));
-  }
-
-  /* ── FULL CONTENT (if panelMode === "ct") ── */
-  if (panelMode === "ct" && contentHtml) {
-    content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: accentC }], margin: [0, 8, 0, 8] });
-    content.push(secTitle("Full Content", accentC));
-    content.push(noteText("Ready-to-use SEO content. Copy and paste into your page."));
-    content.push(spacer(8));
-
-    /* Parse HTML into pdfmake elements */
-    const parseHtmlToPdf = (html) => {
-      const items = [];
-      /* Split by headings */
-      const parts = html.split(/(?=<h[123]>)/);
-      parts.forEach(part => {
-        if (!part.trim()) return;
-        /* Heading */
-        const hMatch = part.match(/<h([123])>([\s\S]*?)<\/h\1>/);
-        if (hMatch) {
-          const lv = parseInt(hMatch[1]);
-          const hText = hMatch[2].replace(/<[^>]+>/g, "").trim();
-          const hColor = lv === 1 ? accentC : lv === 2 ? "#9B7AE6" : "#B89CF0";
-          items.push({
-            text: [
-              { text: "H" + lv + "  ", fontSize: 9, bold: true, color: hColor },
-              { text: hText, fontSize: lv === 1 ? 16 : lv === 2 ? 14 : 12, bold: true, color: dk }
-            ],
-            margin: [0, lv === 1 ? 16 : 12, 0, 6]
-          });
-        }
-        /* Body after heading */
-        const body = part.replace(/<h[123]>[\s\S]*?<\/h[123]>/, "").trim();
-        if (!body) return;
-
-        /* Process paragraphs, lists, blockquotes, tables */
-        const bodyParts = body.split(/(?=<(?:p|ul|ol|blockquote|table|div)[>\s])|(?=<(?:p|ul|ol|blockquote|table|div)>)/);
-        bodyParts.forEach(bp => {
-          const cleanBp = bp.trim();
-          if (!cleanBp) return;
-
-          /* Lists */
-          if (cleanBp.startsWith("<ul") || cleanBp.startsWith("<ol")) {
-            const lis = [...cleanBp.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)];
-            lis.forEach(li => {
-              const liText = li[1].replace(/<[^>]+>/g, "").trim();
-              if (liText) items.push({ text: "\u2022 " + liText, fontSize: 11, color: dk, margin: [12, 2, 0, 2], lineHeight: 1.4 });
-            });
-            return;
-          }
-
-          /* Blockquote */
-          if (cleanBp.startsWith("<blockquote")) {
-            const bqText = cleanBp.replace(/<[^>]+>/g, "").trim();
-            if (bqText) items.push({
-              table: { widths: [3, "*"], body: [[
-                { text: "", fillColor: "#dcd2f0" },
-                { text: bqText, fontSize: 11, italics: true, color: dk, margin: [8, 6, 8, 6], lineHeight: 1.4 }
-              ]] },
-              layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-              margin: [0, 4, 0, 4]
-            });
-            return;
-          }
-
-          /* Table */
-          if (cleanBp.startsWith("<table")) {
-            const rows = [...cleanBp.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
-            if (rows.length > 0) {
-              const tblBody = rows.map((row, ri) => {
-                const cells = [...row[1].matchAll(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi)];
-                return cells.map(cell => ({
-                  text: cell[1].replace(/<[^>]+>/g, "").trim(),
-                  fontSize: 10,
-                  color: ri === 0 ? mt : dk,
-                  bold: ri === 0,
-                  fillColor: ri === 0 ? tblHdrBg : null,
-                  margin: [4, 4, 4, 4]
-                }));
-              }).filter(r => r.length > 0);
-              if (tblBody.length > 0) {
-                const colCount = Math.max(...tblBody.map(r => r.length));
-                const widths = Array(colCount).fill("*");
-                /* Pad rows to same column count */
-                const paddedBody = tblBody.map(r => {
-                  while (r.length < colCount) r.push({ text: "", margin: [4, 4, 4, 4] });
-                  return r;
-                });
-                items.push({ table: { headerRows: 1, widths, body: paddedBody }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 8] });
-              }
-            }
-            return;
-          }
-
-          /* Regular paragraph / text */
-          let plainText = cleanBp.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
-          if (plainText) {
-            /* Check for bold fragments — extract <strong> sections */
-            const hasBold = /<strong[^>]*>/.test(cleanBp);
-            if (hasBold) {
-              const segments = [];
-              let remaining = cleanBp.replace(/<(?!strong|\/strong)[^>]+>/g, "");
-              const boldRe = /<strong[^>]*>([\s\S]*?)<\/strong>/gi;
-              let lastIdx = 0, match;
-              while ((match = boldRe.exec(remaining)) !== null) {
-                if (match.index > lastIdx) segments.push({ text: remaining.slice(lastIdx, match.index).replace(/<[^>]+>/g, ""), fontSize: 11, color: dk });
-                segments.push({ text: match[1].replace(/<[^>]+>/g, ""), fontSize: 11, bold: true, color: dk });
-                lastIdx = match.index + match[0].length;
-              }
-              if (lastIdx < remaining.length) segments.push({ text: remaining.slice(lastIdx).replace(/<[^>]+>/g, ""), fontSize: 11, color: dk });
-              if (segments.length > 0) items.push({ text: segments, lineHeight: 1.5, margin: [0, 3, 0, 3] });
-            } else {
-              items.push({ text: plainText, fontSize: 11, color: dk, lineHeight: 1.5, margin: [0, 3, 0, 3] });
-            }
-          }
-        });
-      });
-      return items;
-    };
-
-    const contentItems = parseHtmlToPdf(contentHtml);
-    contentItems.forEach(item => content.push(item));
-    content.push(spacer(16));
-  }
-
-  /* ── IvaBot CTA ── */
-  content.push(spacer(16));
-  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
-  content.push({ table: { widths: ["*"], body: [[{
-    stack: [
-      { text: "Need more SEO tools?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
-      { text: "Run a full audit or check your content coverage:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
-      { text: [
-        { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
-        { text: "  \u2022  ", color: mt },
-        { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
-        { text: "  \u2022  ", color: mt },
-        { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
-      ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
-      { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
-    ], margin: [16, 16, 16, 16]
-  }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] });
-
-  /* ── BUILD DOCUMENT ── */
-  const docDefinition = {
-    pageSize: "A4", pageMargins: [40, 40, 40, 50],
-    defaultStyle: { fontSize: 11, color: dk },
-    footer: (currentPage, pageCount) => ({ columns: [
-      { text: "Built with ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
-      { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
-    ], margin: [40, 10, 0, 0] }),
-    content: content
-  };
-
-  /* ── GENERATE + DOWNLOAD + UPLOAD ── */
-  const slug = (d.title || "content").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
-  const fileName = "IvaBot-Content-" + slug + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
-  const pdfDocGen = pdfMake.createPdf(docDefinition);
-  const pdfBtn = document.getElementById("export-cb-pdf-btn");
-  const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
-
-  pdfDocGen.getBlob(async (pdfBlob) => {
-    try {
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const a = document.createElement("a");
-      a.href = blobUrl; a.download = fileName; a.style.display = "none";
-      document.body.appendChild(a); a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
-      console.log("[CB] PDF downloaded:", fileName);
-      if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
-
-      let upMemberId = window.__memberId || window.__userId;
-      if (!upMemberId && window.__supabase) {
-        try { const { data: { session } } = await window.__supabase.auth.getSession(); upMemberId = session?.user?.id; } catch(me) {}
-      }
-      if (upMemberId && pdfBlob) {
-        if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
-        const form = new FormData();
-        form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
-        form.append("member_id", upMemberId);
-        form.append("source_url", "");
-        form.append("flow_type", "builder");
-        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-          method: "POST", body: form
-        }).then(r => r.json()).then(res => {
-          if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; } }
-          else if (res?.url) { console.log("[CB] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; } }
-          else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; } }
-          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
-        }).catch(e => {
-          console.warn("[CB] PDF upload failed:", e);
-          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
-          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
-        });
-      } else {
-        console.log("[CB] PDF not uploaded — no member ID");
-        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
-      }
-    } catch(ue) { console.warn("[CB] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
-  });
-  } catch(err) { console.error("[CB] PDF error:", err); alert("PDF export failed: " + err.message); }
-}
-
 /* ═══ RESET ═══ */
 const reset=()=>{
   setStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);skwRef.current=[];sStit(null);confirmedTitleRef.current=null;sConfirmedKeywords([]);sBrandName(null);sCleanedBrand("");sSavedTitles([]);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sAdjustRound(0);
@@ -1365,7 +1009,7 @@ const send=()=>{
   if(step==="ec"){
     const tl=t.toLowerCase().trim();
     if(/\b(find|search|suggest|help|generate)\b/i.test(tl)){mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>);return;}
-    if(/\b(my|own|have|paste|use)\b/i.test(tl)||t.includes(",")){mk("e");setStep("ok");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Type your keyword phrases below, separated by commas.</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Use 2–3 word phrases. Up to 7 phrases max.</div><ExBox items={["brazilian coffee beans, vegan coffee, organic roast","handmade silver rings, custom jewelry, boho rings","yoga for beginners, morning stretches, home yoga"]}/></div>);return;}
+    if(/\b(my|own|have|paste|use)\b/i.test(tl)||t.includes(",")){mk("e");setStep("ok");bot(<div>Paste your target keywords below, separated by commas.</div>);return;}
     bot(<div>Please choose: do you want me to find keywords, or do you have your own?</div>);return;
   }
 
@@ -1404,7 +1048,7 @@ const send=()=>{
 
   if(step==="gl"){sAns(p=>({...p,gl:t}));mk("gl");setStep("au");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 2 of 4 — Who is your target audience?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects tone, word choice, and how the content speaks to visitors.</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids","Tech professionals"]}/></div>);return;}
 
-  if(step==="au"){sAns(p=>({...p,au:t}));mk("au");setStep("tn");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 3 of 4 — How should the content sound?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>The right tone makes your page feel authentic to your audience.</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal","Bold and confident"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={(f,text)=>{add("u",`Uploaded: ${f.name} (${Math.round(text.length/1000)}K chars)`);if(text&&text.length>50){sAns(p=>({...p,brandGuide:text}));bot(<div><div style={{color:C.accent,fontSize:12,fontWeight:600,marginBottom:4}}>Brand guide loaded ({Math.round(text.length/1000)}K characters).</div><div style={{color:C.muted,fontSize:12}}>Now type your preferred tone of voice below (e.g. "Confident and direct") — I'll combine it with your brand guide.</div></div>,400);}else{bot(<div><div style={{color:C.muted,fontSize:12}}>Could not extract enough text from this file. Try a .txt or .pdf with selectable text.</div></div>,400);}}}/></div></div>);return;}
+  if(step==="au"){sAns(p=>({...p,au:t}));mk("au");setStep("tn");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 3 of 4 — How should the content sound?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>The right tone makes your page feel authentic to your audience.</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal","Bold and confident"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={f=>{add("u",`Uploaded: ${f.name}`);}}/></div></div>);return;}
 
   if(step==="tn"){sAns(p=>({...p,tn:t}));mk("tn");setStep("mk");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 4 of 4 — What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Global","Online"]}/></div>);return;}
 
@@ -1506,7 +1150,7 @@ const startKwGeneration=async(pageDesc)=>{
 /* ═══ RENDER ═══ */
 const lastBotIdx=msgs.reduce((acc,m,i)=>m.f==="b"?i:acc,-1);
 const phase2=step==="sr"||step==="cr";
-const chatMessages=<React.Fragment><style>{`.cb-past-msg{opacity:0.75}.cb-past-msg button:not(.bot-tip-expand){pointer-events:none!important;cursor:default!important;opacity:0.5}.cb-past-msg [onclick]{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand,.cb-past-msg details>summary{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>{add("u","Find Keywords");mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>);}}/><Btn text="Use My Keywords" onClick={()=>{add("u","Use My Keywords");mk("e");setStep("ok");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Type your keyword phrases below, separated by commas.</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Use 2–3 word phrases. Up to 7 phrases max.</div><ExBox items={["brazilian coffee beans, vegan coffee, organic roast","handmade silver rings, custom jewelry, boho rings","yoga for beginners, morning stretches, home yoga"]}/></div>);}}/></div>}</React.Fragment>;
+const chatMessages=<React.Fragment><style>{`.cb-past-msg{opacity:0.75}.cb-past-msg button:not(.bot-tip-expand){pointer-events:none!important;cursor:default!important;opacity:0.5}.cb-past-msg [onclick]{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand,.cb-past-msg details>summary{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>{add("u","Find Keywords");mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>);}}/><Btn text="Use My Keywords" onClick={()=>{add("u","Use My Keywords");mk("e");setStep("ok");bot(<div>Paste your target keywords below, separated by commas.</div>);}}/></div>}</React.Fragment>;
 
 const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd} kwData={kwData}/></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={contentHtml} d={bd} kwData={kwData}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
 
@@ -1527,7 +1171,7 @@ return<div style={{fontFamily:"'DM Sans',sans-serif",flex:1,display:"flex",flexD
 {(rp==="br"||rp==="ct")&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:isMobile?"8px 12px 16px":"8px 24px 16px",maxWidth:isMobile?"100%":1224,margin:"0 auto",width:"100%",alignItems:"center"}}>
 {rp==="br"&&<button onClick={gCnt} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Generate Content</button>}
 {rp==="ct"&&<button onClick={reset} style={{height:40,padding:"0 20px",borderRadius:10,background:C.accent,border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background="#5a22d9"} onMouseLeave={e=>e.currentTarget.style.background=C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Start New Page</button>}
-<button id="export-cb-pdf-btn" onClick={() => generateCBPDF(bd, contentHtml, rp)} style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF</button>
+<button style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF</button>
 <button onClick={onHome} style={{height:40,padding:"0 20px",borderRadius:10,background:C.surface,border:`1px solid ${C.borderMid}`,color:C.dark,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",gap:6}} onMouseEnter={e=>e.currentTarget.style.background=C.accentLight} onMouseLeave={e=>e.currentTarget.style.background=C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Try Another Tool</button>
 </div>}
 </div>;}
