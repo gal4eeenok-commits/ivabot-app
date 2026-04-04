@@ -7,7 +7,7 @@ console.log("[IvaBot] content-coverage.js v6.3 loaded");
 const USE_MOCK=false;
 const SUPABASE_URL="https://empuzslozakbicmenxfo.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
-function getAuthJWT(){try{const s=localStorage.getItem('sb-empuzslozakbicmenxfo-auth-token');if(s){const p=JSON.parse(s);if(p&&p.access_token)return 'Bearer '+p.access_token;}}catch(e){}return 'Bearer '+SUPABASE_KEY;}
+function getAuthJWT(){try{const s=localStorage.getItem('sb-empuzslozakbicmenxfo-auth-token');if(s){const p=JSON.parse(s);if(p&&p.access_token)return p.access_token;}}catch(e){}return SUPABASE_KEY;}
 const CORS_PROXY=SUPABASE_URL+"/functions/v1/fetch-page";
 const DFS_PROXY=SUPABASE_URL+"/functions/v1/dataforseo-proxy";
 const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
