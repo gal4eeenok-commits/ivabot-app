@@ -7,7 +7,7 @@ console.log("[IvaBot] content-builder.js v72 loaded");
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
 const DFS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/dataforseo-proxy";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
-function getAuthJWT(){try{const s=localStorage.getItem('sb-empuzslozakbicmenxfo-auth-token');if(s){const p=JSON.parse(s);if(p&&p.access_token)return 'Bearer '+p.access_token;}}catch(e){}return 'Bearer '+SUPABASE_KEY;}
+function getAuthJWT(){try{const s=localStorage.getItem('sb-empuzslozakbicmenxfo-auth-token');if(s){const p=JSON.parse(s);if(p&&p.access_token)return p.access_token;}}catch(e){}return SUPABASE_KEY;}
 
 /* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ COLORS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2),0 8px 32px rgba(110,43,255,0.1)"};
