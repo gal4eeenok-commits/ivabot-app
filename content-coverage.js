@@ -1,27 +1,27 @@
-/* IvaBot Content Coverage v6.3 â SERP positions all keywords, PDF safe symbols, Working Well open */
+/* IvaBot Content Coverage v6.3 Ã¢ÂÂ SERP positions all keywords, PDF safe symbols, Working Well open */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] content-coverage.js v6.3 loaded");
 
-/* âââ CONFIG âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ CONFIG Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 const USE_MOCK=false;
 const SUPABASE_URL="https://empuzslozakbicmenxfo.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
-function getAuthJWT(){try{const s=localStorage.getItem('sb-empuzslozakbicmenxfo-auth-token');if(s){const p=JSON.parse(s);if(p&&p.access_token)return p.access_token;}}catch(e){}return SUPABASE_KEY;}
+function getAuthJWT(){try{const s=localStorage.getItem('sb-empuzslozakbicmenxfo-auth-token');if(s){const p=JSON.parse(s);if(p&&p.access_token)return 'Bearer '+p.access_token;}}catch(e){}return 'Bearer '+SUPABASE_KEY;}
 const CORS_PROXY=SUPABASE_URL+"/functions/v1/fetch-page";
 const DFS_PROXY=SUPABASE_URL+"/functions/v1/dataforseo-proxy";
 const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 
-/* âââ MEMBER ID + CREDITS âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ MEMBER ID + CREDITS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function getMemberId(){if(window.__memberId)return window.__memberId;if(window.__userId)return window.__userId;try{const sb=window.__supabase;if(sb){const key=Object.keys(localStorage).find(k=>k.includes('auth-token'));if(key){const data=JSON.parse(localStorage.getItem(key));if(data?.user?.id)return data.user.id;}}}catch(e){}return null;}
 async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{let res=await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+getAuthJWT(),"apikey":SUPABASE_KEY}});let rows=res.ok?await res.json():[];if(rows.length===0){res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+getAuthJWT(),"apikey":SUPABASE_KEY}});rows=res.ok?await res.json():[];}if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
 async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const rpcBody=isUUID?{p_user_id:memberId}:{p_member_id:memberId};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+getAuthJWT(),"apikey":SUPABASE_KEY},body:JSON.stringify(rpcBody)});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
 async function recordCoverageRun(memberId,url){try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const runBody=isUUID?{p_user_id:memberId,p_source_url:url||null}:{p_member_id:memberId,p_source_url:url||null};await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+getAuthJWT(),"apikey":SUPABASE_KEY},body:JSON.stringify(runBody)});console.log("[CC] run recorded");}catch(e){console.error("[CC] run record error:",e);}}
 
-/* âââ COLORS (identical to Core Audit + CB) âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ COLORS (identical to Core Audit + CB) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
 
-/* âââ PRIMITIVES (1:1 from seo-tools.js) âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ PRIMITIVES (1:1 from seo-tools.js) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 const Tip=({text,children})=>{const[s,setS]=useState(false);const ref=useRef(null);const[pos,setPos]=useState({above:true,alignRight:false});return(<span ref={ref} style={{position:"relative",display:"inline-flex",alignItems:"center"}} onMouseEnter={()=>{if(ref.current){const rect=ref.current.getBoundingClientRect();setPos({above:rect.top>160,alignRight:rect.left>window.innerWidth/2});}setS(true);}} onMouseLeave={()=>setS(false)}>{children}{s&&<span style={{position:"absolute",...(pos.above?{bottom:"calc(100% + 8px)"}:{top:"calc(100% + 8px)"}),...(pos.alignRight?{right:0}:{left:0}),background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:260,maxWidth:"85vw",zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal",wordBreak:"break-word",textAlign:"left"}}>{text}</span>}</span>);};
 const QM=({text})=>(<Tip text={text}><span style={{width:16,height:16,borderRadius:"50%",border:`1px solid ${C.borderMid}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,cursor:"help",marginLeft:4,flexShrink:0,verticalAlign:"top",position:"relative",top:-1}}>?</span></Tip>);
 const CopyBtn=({text})=>{const[c,setC]=useState(false);return(<button onClick={()=>{navigator.clipboard?.writeText(text);setC(true);setTimeout(()=>setC(false),1500);}} style={{fontSize:10,fontWeight:600,color:c?"#9B7AE6":C.accent,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"2px 6px"}}>{c?"Copied!":"Copy"}</button>);};
@@ -33,10 +33,10 @@ const Fold=({title,children,open:d=false,borderColor,headerBg,titleColor,count})
 
 const WorkingItem=({title,content})=>{const[o,setO]=useState(true);return(<div style={{borderRadius:10,border:`1px solid ${C.cardBorder}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"11px 14px",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"'DM Sans',sans-serif"}}><span style={{color:"#9B7AE6",flexShrink:0,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9B7AE6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&<div style={{padding:"0 14px 14px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>{content}</div></div>}</div>);};
 
-const InfoBlock=({label,value,borderColor})=>{const renderLine=(line,i)=>{const hMatch=line.match(/^(H[1-3]):\s*(.*)/);if(hMatch){const lv=hMatch[1],text=hMatch[2];const hColorMap={H1:{color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},H2:{color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},H3:{color:"#B89CF0",bg:"rgba(184,156,240,0.12)"}};const hc=hColorMap[lv]||hColorMap.H2;const isBroken=text.includes("â ");return(<div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:500,color:isBroken?C.accent:C.dark,padding:"2px 0"}}><span style={{fontSize:9,fontWeight:600,color:isBroken?C.accent:hc.color,background:isBroken?"rgba(110,43,255,0.08)":hc.bg,padding:"2px 5px",borderRadius:3,minWidth:22,textAlign:"center",flexShrink:0}}>{lv}</span><span>{text}</span></div>);}return<div key={i} style={{padding:"2px 0"}}>{line}</div>;};return(<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:`1px solid ${borderColor||C.border}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:3}}>{label}</div><div style={{fontSize:13,fontWeight:500,color:C.dark,lineHeight:1.5}}>{typeof value==="string"?value.split("\n").map(renderLine):value}</div></div>);};
+const InfoBlock=({label,value,borderColor})=>{const renderLine=(line,i)=>{const hMatch=line.match(/^(H[1-3]):\s*(.*)/);if(hMatch){const lv=hMatch[1],text=hMatch[2];const hColorMap={H1:{color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},H2:{color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},H3:{color:"#B89CF0",bg:"rgba(184,156,240,0.12)"}};const hc=hColorMap[lv]||hColorMap.H2;const isBroken=text.includes("Ã¢ÂÂ ");return(<div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:500,color:isBroken?C.accent:C.dark,padding:"2px 0"}}><span style={{fontSize:9,fontWeight:600,color:isBroken?C.accent:hc.color,background:isBroken?"rgba(110,43,255,0.08)":hc.bg,padding:"2px 5px",borderRadius:3,minWidth:22,textAlign:"center",flexShrink:0}}>{lv}</span><span>{text}</span></div>);}return<div key={i} style={{padding:"2px 0"}}>{line}</div>;};return(<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:`1px solid ${borderColor||C.border}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:3}}>{label}</div><div style={{fontSize:13,fontWeight:500,color:C.dark,lineHeight:1.5}}>{typeof value==="string"?value.split("\n").map(renderLine):value}</div></div>);};
 
 const PRIO={critical:{label:"Critical",color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},important:{label:"Important",color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},nice:{label:"Nice to have",color:"#B89CF0",bg:"rgba(184,156,240,0.08)"}};
-const ProblemCard=({title,why,currentLabel,current,suggestions,sugLabel,showCopy=true,links,serpSnippet,soft,priority})=>{const[o,setO]=useState(false);const pr=PRIO[priority]||PRIO.important;return(<div style={{borderRadius:12,border:soft?"1px solid rgba(110,43,255,0.12)":"1px solid rgba(110,43,255,0.25)",overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"13px 16px",background:C.surface,border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontFamily:"'DM Sans',sans-serif"}}><div style={{width:6,height:6,borderRadius:"50%",background:pr.color,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><span style={{fontSize:9,fontWeight:600,color:pr.color,background:pr.bg,padding:"3px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:"0.5px",flexShrink:0}}>{pr.label}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&(<div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:12}}>{serpSnippet&&<SerpSnippet {...serpSnippet}/>}{current&&(typeof current==="string"?<InfoBlock label={currentLabel||"Current"} value={current} borderColor="rgba(110,43,255,0.15)"/>:<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:"1px solid rgba(110,43,255,0.15)"}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{currentLabel||"Current"}</div>{current}</div>)}{why&&<div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"8px 12px",borderRadius:8,background:soft?"rgba(184,156,240,0.06)":"rgba(110,43,255,0.04)",border:`1px solid ${soft?"rgba(184,156,240,0.12)":"rgba(110,43,255,0.1)"}`}}><div style={{width:7,height:7,borderRadius:"50%",background:pr.color,flexShrink:0,marginTop:4}}/><span style={{fontSize:11.5,color:C.dark,lineHeight:1.5}}>{why}</span></div>}{suggestions?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{sugLabel||"Suggested"}</div><div style={{display:"flex",flexDirection:"column",gap:5}}>{suggestions.map((s,i)=>showCopy?(<HoverCard key={i} style={{padding:"9px 12px"}}><span style={{fontSize:12.5,color:C.dark,fontWeight:500,display:"block",marginBottom:4}}>{s}</span><CopyBtn text={s}/></HoverCard>):(<div key={i} style={{padding:"9px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,fontSize:12.5,color:C.dark,fontWeight:500}}>{s}</div>))}</div></div>}{links?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>Learn more</div>{links.map((l,i)=>(<a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:12,color:C.accent,marginBottom:4,textDecoration:"none"}}>{l.label} â</a>))}</div>}</div></div>)}</div>);};
+const ProblemCard=({title,why,currentLabel,current,suggestions,sugLabel,showCopy=true,links,serpSnippet,soft,priority})=>{const[o,setO]=useState(false);const pr=PRIO[priority]||PRIO.important;return(<div style={{borderRadius:12,border:soft?"1px solid rgba(110,43,255,0.12)":"1px solid rgba(110,43,255,0.25)",overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"13px 16px",background:C.surface,border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontFamily:"'DM Sans',sans-serif"}}><div style={{width:6,height:6,borderRadius:"50%",background:pr.color,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><span style={{fontSize:9,fontWeight:600,color:pr.color,background:pr.bg,padding:"3px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:"0.5px",flexShrink:0}}>{pr.label}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&(<div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:12}}>{serpSnippet&&<SerpSnippet {...serpSnippet}/>}{current&&(typeof current==="string"?<InfoBlock label={currentLabel||"Current"} value={current} borderColor="rgba(110,43,255,0.15)"/>:<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:"1px solid rgba(110,43,255,0.15)"}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{currentLabel||"Current"}</div>{current}</div>)}{why&&<div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"8px 12px",borderRadius:8,background:soft?"rgba(184,156,240,0.06)":"rgba(110,43,255,0.04)",border:`1px solid ${soft?"rgba(184,156,240,0.12)":"rgba(110,43,255,0.1)"}`}}><div style={{width:7,height:7,borderRadius:"50%",background:pr.color,flexShrink:0,marginTop:4}}/><span style={{fontSize:11.5,color:C.dark,lineHeight:1.5}}>{why}</span></div>}{suggestions?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{sugLabel||"Suggested"}</div><div style={{display:"flex",flexDirection:"column",gap:5}}>{suggestions.map((s,i)=>showCopy?(<HoverCard key={i} style={{padding:"9px 12px"}}><span style={{fontSize:12.5,color:C.dark,fontWeight:500,display:"block",marginBottom:4}}>{s}</span><CopyBtn text={s}/></HoverCard>):(<div key={i} style={{padding:"9px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,fontSize:12.5,color:C.dark,fontWeight:500}}>{s}</div>))}</div></div>}{links?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>Learn more</div>{links.map((l,i)=>(<a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:12,color:C.accent,marginBottom:4,textDecoration:"none"}}>{l.label} Ã¢ÂÂ</a>))}</div>}</div></div>)}</div>);};
 
 const SerpSnippet=({url,title,desc,hideDesc})=>{let displayUrl=url||"";try{const u=new URL(url);displayUrl=u.hostname+(u.pathname==="/"?"":u.pathname);}catch(e){}const truncTitle=title?(title.length>60?title.slice(0,57)+"...":title):"No title set";const truncDesc=desc?(desc.length>160?desc.slice(0,157)+"...":desc):"No description set";return(<div style={{padding:"14px 16px",borderRadius:10,background:C.surface,border:`1px solid ${C.cardBorder}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.5px"}}>Google Search Preview</div><div style={{padding:"12px 14px",borderRadius:8,background:"#fff",border:"1px solid rgba(21,20,21,0.06)"}}><div style={{fontSize:11,color:"#202124",marginBottom:2,display:"flex",alignItems:"center",gap:6}}><div style={{width:18,height:18,borderRadius:"50%",background:"rgba(21,20,21,0.06)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,fontWeight:700,color:C.muted}}>{(displayUrl[0]||"?").toUpperCase()}</span></div><span style={{color:"#4d5156",fontSize:11}}>{displayUrl}</span></div><div style={{fontSize:16,color:"#1a0dab",fontWeight:400,lineHeight:1.3,marginBottom:hideDesc?0:3,cursor:"pointer"}}>{truncTitle}</div>{!hideDesc&&<div style={{fontSize:12,color:"#4d5156",lineHeight:1.5}}>{truncDesc}</div>}</div></div>);};
 
@@ -52,17 +52,17 @@ const useIsMobile=()=>{const[m,sm]=useState(window.innerWidth<1024);useEffect(()
 const LBar=({step,total,text})=>{const p=((step+1)/total)*100;return(<div style={{padding:"14px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,fontWeight:500,color:C.dark}}>{text}</span><span style={{fontSize:11,fontWeight:600,color:C.accent}}>{Math.round(p)}%</span></div><div style={{height:4,background:"rgba(110,43,255,0.08)",borderRadius:100,overflow:"hidden"}}><div style={{height:"100%",background:C.accent,borderRadius:100,width:`${p}%`,transition:"width 0.5s ease"}}/></div></div>);};
 const MobileTab=({active,onSwitch,hasReport})=>{if(!hasReport)return null;return<div style={{display:"flex",gap:0,background:"rgba(21,20,21,0.04)",borderRadius:10,padding:3,margin:"0 16px 8px"}}><button onClick={()=>onSwitch("chat")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="chat"?C.surface:"transparent",color:active==="chat"?C.dark:C.muted,boxShadow:active==="chat"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Chat</button><button onClick={()=>onSwitch("report")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="report"?C.surface:"transparent",color:active==="report"?C.dark:C.muted,boxShadow:active==="report"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Report</button></div>;};
 
-/* âââ RANKINGS TABLE âââ */
-const fmtVol=(v)=>{if(!v)return"â";if(v>=1000000)return(v/1000000).toFixed(1).replace(/\.0$/,"")+"M";if(v>=1000)return(v/1000).toFixed(1).replace(/\.0$/,"")+"K";return v.toLocaleString();};
-const NicheBadge=()=><Tip text="This keyword has fewer than 10 monthly searches in Google. This is normal for branded or highly specific terms â your page may still rank well for it."><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500,cursor:"help"}}>&lt; 10</span></Tip>;
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ RANKINGS TABLE Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
+const fmtVol=(v)=>{if(!v)return"Ã¢ÂÂ";if(v>=1000000)return(v/1000000).toFixed(1).replace(/\.0$/,"")+"M";if(v>=1000)return(v/1000).toFixed(1).replace(/\.0$/,"")+"K";return v.toLocaleString();};
+const NicheBadge=()=><Tip text="This keyword has fewer than 10 monthly searches in Google. This is normal for branded or highly specific terms Ã¢ÂÂ your page may still rank well for it."><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500,cursor:"help"}}>&lt; 10</span></Tip>;
 const LowBadge=()=><Tip text="Google doesn't have enough competition data for this keyword. Niche keywords are often easier to rank for."><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500,cursor:"help"}}>low</span></Tip>;
-const RankingsTable=({rows,emptyMsg})=>(<div style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflow:"visible"}}><table style={{width:"100%",minWidth:380,borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume â how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0â100) â how hard it is to rank in the top 10. Under 30 = easy, 30â60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<Tip text="Position data unavailable â this keyword may be too niche for automated tracking. Your page could still rank for it."><span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6,cursor:"help"}}>â</span></Tip>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}>{r.difficulty!=null?<span style={{color:C.muted,fontSize:12}}>{r.difficulty}</span>:<LowBadge/>}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
+const RankingsTable=({rows,emptyMsg})=>(<div style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflow:"visible"}}><table style={{width:"100%",minWidth:380,borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume Ã¢ÂÂ how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty (0Ã¢ÂÂ100) Ã¢ÂÂ how hard it is to rank in the top 10. Under 30 = easy, 30Ã¢ÂÂ60 = moderate, 60+ = hard."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<Tip text="Position data unavailable Ã¢ÂÂ this keyword may be too niche for automated tracking. Your page could still rank for it."><span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6,cursor:"help"}}>Ã¢ÂÂ</span></Tip>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}>{r.difficulty!=null?<span style={{color:C.muted,fontSize:12}}>{r.difficulty}</span>:<LowBadge/>}</td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
 
 const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
 
 function valUrl(raw){let s=raw.trim();if(!s)return{ok:false,e:"Paste a URL to start."};const m=s.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/i);if(m)s=m[0];else{const d=s.match(/[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}[^\s]*/);if(d)s="https://"+d[0];else return{ok:false,e:"Need a URL like https://example.com"};}s=s.replace(/\s+/g,"");if(!s.startsWith("http"))s="https://"+s;try{const u=new URL(s);if(!u.hostname.includes("."))return{ok:false,e:"Not valid."};return{ok:true,url:u.href};}catch{return{ok:false,e:"Not valid."};}}
 
-/* âââ HTML PARSER â extended from Core Audit parseSEO âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ HTML PARSER Ã¢ÂÂ extended from Core Audit parseSEO Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function parseCoverage(rawHtml, pageUrl) {
   const r = {};
   let normalized = pageUrl.trim().replace(/\s+/g, "");
@@ -81,7 +81,7 @@ function parseCoverage(rawHtml, pageUrl) {
   r.title_length = r.title.length;
   r.title_too_short = r.title.length > 0 && r.title.length < 30;
   r.title_too_long = r.title.length > 90;
-  const titleParts = r.title.split(/\s*[|ââ-]\s*/).map(p => p.trim().toLowerCase()).filter(Boolean);
+  const titleParts = r.title.split(/\s*[|Ã¢ÂÂÃ¢ÂÂ-]\s*/).map(p => p.trim().toLowerCase()).filter(Boolean);
   r.title_has_repeated_brand = titleParts.length >= 2 && new Set(titleParts).size < titleParts.length;
 
   const md = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i)
@@ -98,7 +98,7 @@ function parseCoverage(rawHtml, pageUrl) {
   r.h2 = exH(html,2);
   r.h3 = exH(html,3);
 
-  // Body text (paragraphs only â for keyword density)
+  // Body text (paragraphs only Ã¢ÂÂ for keyword density)
   const bodyParagraphs = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map(m => m[1].replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/\s+/g,' ').trim()).filter(t => t.length > 10);
   r.body_text = bodyParagraphs.join(" ");
 
@@ -140,12 +140,12 @@ function parseCoverage(rawHtml, pageUrl) {
   return r;
 }
 
-/* âââ BODY KEYWORD DENSITY â ported from Typebot single_body_density.js âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ BODY KEYWORD DENSITY Ã¢ÂÂ ported from Typebot single_body_density.js Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function analyzeBodyDensity(bodyText, keywords) {
   const scanChars = bodyText.length;
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const STOP_EN = new Set(["a","an","the","and","or","but","of","in","on","to","for","from","with","as","is","are","was","were","be","been","being","it","its","at","by","if","not","no","so","than","that","this","into","over","under","up","down","out","off","via","per","about","can","could","should","would","may","might","must","do","does","did","have","has","had","you","your","we","our","they","their","he","she","him","her","his","them","i","me","my"]);
-  const STOP_RU = new Set(["Ð¸","Ð²","Ð½Ð°","Ð¿Ð¾","Ðº","Ñ","Ñ","Ð¾","Ð¾Ñ","Ð´Ð¾","Ð·Ð°","Ð¸Ð·","Ð²Ð¾","Ð½Ðµ","Ð´Ð°","Ð½Ð¾","Ð¸Ð»Ð¸","Ð¶Ðµ","ÑÑÐ¾","ÑÐ°Ðº","ÐºÐ°Ðº","Ð´Ð»Ñ","Ð¿ÑÐ¸","Ð½Ð°Ð´","Ð±ÐµÐ·"]);
+  const STOP_RU = new Set(["ÃÂ¸","ÃÂ²","ÃÂ½ÃÂ°","ÃÂ¿ÃÂ¾","ÃÂº","ÃÂ","ÃÂ","ÃÂ¾","ÃÂ¾ÃÂ","ÃÂ´ÃÂ¾","ÃÂ·ÃÂ°","ÃÂ¸ÃÂ·","ÃÂ²ÃÂ¾","ÃÂ½ÃÂµ","ÃÂ´ÃÂ°","ÃÂ½ÃÂ¾","ÃÂ¸ÃÂ»ÃÂ¸","ÃÂ¶ÃÂµ","ÃÂÃÂÃÂ¾","ÃÂÃÂ°ÃÂº","ÃÂºÃÂ°ÃÂº","ÃÂ´ÃÂ»ÃÂ","ÃÂ¿ÃÂÃÂ¸","ÃÂ½ÃÂ°ÃÂ´","ÃÂ±ÃÂµÃÂ·"]);
   const STOP = new Set([...STOP_EN, ...STOP_RU]);
 
   const countPhrase = (text, phrase) => {
@@ -155,7 +155,7 @@ function analyzeBodyDensity(bodyText, keywords) {
   };
 
   // Soft match: allow prepositions between keyword words (from CB v63 logic)
-  const PREPS = new Set(["to","in","for","from","during","of","on","at","with","by","about","and","the","a","an","Ð²","Ð½Ð°","Ð´Ð»Ñ","Ð¿Ð¾","Ñ","Ð¸Ð·","Ð¾Ñ","Ð´Ð¾","Ð·Ð°","Ð¾","Ðº"]);
+  const PREPS = new Set(["to","in","for","from","during","of","on","at","with","by","about","and","the","a","an","ÃÂ²","ÃÂ½ÃÂ°","ÃÂ´ÃÂ»ÃÂ","ÃÂ¿ÃÂ¾","ÃÂ","ÃÂ¸ÃÂ·","ÃÂ¾ÃÂ","ÃÂ´ÃÂ¾","ÃÂ·ÃÂ°","ÃÂ¾","ÃÂº"]);
   const countSoftPhrase = (text, phrase) => {
     if (!text || !phrase) return 0;
     const words = phrase.toLowerCase().split(/\s+/).filter(Boolean);
@@ -191,14 +191,14 @@ function analyzeBodyDensity(bodyText, keywords) {
     const exact = countPhrase(bodyText, k);
     const soft = countSoftPhrase(bodyText, k);
     const effectiveCount = Math.max(exact, soft);
-    if (exact > 0) occurrences.push(`â¢ phrase "${k.toLowerCase()}" â appears ${exact} ${exact===1?"time":"times"}`);
-    else if (soft > 0) occurrences.push(`â¢ phrase "${k.toLowerCase()}" â appears ${soft} ${soft===1?"time":"times"} (with prepositions)`);
+    if (exact > 0) occurrences.push(`Ã¢ÂÂ¢ phrase "${k.toLowerCase()}" Ã¢ÂÂ appears ${exact} ${exact===1?"time":"times"}`);
+    else if (soft > 0) occurrences.push(`Ã¢ÂÂ¢ phrase "${k.toLowerCase()}" Ã¢ÂÂ appears ${soft} ${soft===1?"time":"times"} (with prepositions)`);
   }
   // Individual words
   const tokens = Array.from(new Set(keywords.flatMap(k => k.toLowerCase().split(/\s+/).filter(Boolean)).filter(t => !STOP.has(t))));
   for (const t of tokens) {
     const c = countToken(bodyText, t);
-    if (c > 0) occurrences.push(`â¢ word "${t}" â appears ${c} ${c===1?"time":"times"}`);
+    if (c > 0) occurrences.push(`Ã¢ÂÂ¢ word "${t}" Ã¢ÂÂ appears ${c} ${c===1?"time":"times"}`);
   }
 
   const totalExact = keywords.reduce((s, k) => s + Math.max(countPhrase(bodyText, k), countSoftPhrase(bodyText, k)), 0);
@@ -225,23 +225,23 @@ function analyzeBodyDensity(bodyText, keywords) {
   };
 }
 
-/* âââ KEYWORD VALIDATION â clean user input âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ KEYWORD VALIDATION Ã¢ÂÂ clean user input Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function validateUserKeywords(raw) {
   const parts = raw.split(",").map(s => s.trim()).filter(Boolean);
   const cleaned = [];
   const errors = [];
   for (const p of parts) {
     const words = p.split(/\s+/).filter(Boolean);
-    if (words.length < 2) { errors.push(`"${p}" â needs at least 2 words`); continue; }
-    if (words.length > 4) { errors.push(`"${p}" â max 3-4 words per phrase`); continue; }
+    if (words.length < 2) { errors.push(`"${p}" Ã¢ÂÂ needs at least 2 words`); continue; }
+    if (words.length > 4) { errors.push(`"${p}" Ã¢ÂÂ max 3-4 words per phrase`); continue; }
     cleaned.push(p);
   }
   return { keywords: cleaned.slice(0, 3), errors, valid: cleaned.length > 0 };
 }
 
-/* âââ TITLE/DESC/HEADINGS KEYWORD ANALYSIS â ported from Typebot âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ TITLE/DESC/HEADINGS KEYWORD ANALYSIS Ã¢ÂÂ ported from Typebot Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function analyzeTitleDescHeadings(parsed, keywords) {
-  const STOP = new Set(["a","an","the","and","or","but","of","in","on","to","for","from","with","as","is","are","was","were","be","been","being","it","its","at","by","if","not","no","so","than","that","this","into","up","down","out","off","via","per","about","can","could","should","would","do","does","did","have","has","had","you","your","we","our","they","their","he","she","him","her","his","them","i","me","my","Ð¸","Ð²","Ð½Ð°","Ð¿Ð¾","Ðº","Ñ","Ñ","Ð¾","Ð¾Ñ","Ð´Ð¾","Ð·Ð°","Ð¸Ð·","Ð²Ð¾","Ð½Ðµ","Ð´Ð°","Ð½Ð¾","Ð¸Ð»Ð¸","Ð¶Ðµ","ÑÑÐ¾","ÐºÐ°Ðº","Ð´Ð»Ñ","Ð¿ÑÐ¸"]);
+  const STOP = new Set(["a","an","the","and","or","but","of","in","on","to","for","from","with","as","is","are","was","were","be","been","being","it","its","at","by","if","not","no","so","than","that","this","into","up","down","out","off","via","per","about","can","could","should","would","do","does","did","have","has","had","you","your","we","our","they","their","he","she","him","her","his","them","i","me","my","ÃÂ¸","ÃÂ²","ÃÂ½ÃÂ°","ÃÂ¿ÃÂ¾","ÃÂº","ÃÂ","ÃÂ","ÃÂ¾","ÃÂ¾ÃÂ","ÃÂ´ÃÂ¾","ÃÂ·ÃÂ°","ÃÂ¸ÃÂ·","ÃÂ²ÃÂ¾","ÃÂ½ÃÂµ","ÃÂ´ÃÂ°","ÃÂ½ÃÂ¾","ÃÂ¸ÃÂ»ÃÂ¸","ÃÂ¶ÃÂµ","ÃÂÃÂÃÂ¾","ÃÂºÃÂ°ÃÂº","ÃÂ´ÃÂ»ÃÂ","ÃÂ¿ÃÂÃÂ¸"]);
   const norm = s => (s||"").toLowerCase().replace(/[^\p{L}\p{N}\s]+/gu," ").replace(/\s+/g," ").trim();
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
   const tokenizeNoStop = s => norm(s).split(" ").filter(w => w && !STOP.has(w));
@@ -290,7 +290,7 @@ function analyzeTitleDescHeadings(parsed, keywords) {
     missing: !title,
     tooShort: titleLen > 0 && titleLen < 30,
     tooLong: titleLen > 90,
-    occurrences: titleKwResults.map(r => `â¢ "${r.keyword}" â ${r.label === "exact" ? `exact match (${r.exact}Ã)` : r.label === "all_words" ? "all words present (not exact)" : r.label === "some_words" ? "some words present" : "not found"}`).join("\n"),
+    occurrences: titleKwResults.map(r => `Ã¢ÂÂ¢ "${r.keyword}" Ã¢ÂÂ ${r.label === "exact" ? `exact match (${r.exact}ÃÂ)` : r.label === "all_words" ? "all words present (not exact)" : r.label === "some_words" ? "some words present" : "not found"}`).join("\n"),
     // Rank booleans for full balance
     strong: titleCoverage === "strong",
     overusedKw: titleOverused,
@@ -322,7 +322,7 @@ function analyzeTitleDescHeadings(parsed, keywords) {
     tooLong: h1List.length > 0 && h1List[0].length > 80,
     matchesTitle: h1MatchesTitle,
     strong: h1HasExact,
-    occurrences: h1KwResults.map(r => `â¢ "${r.keyword}" â ${r.label === "exact" ? `found in H1` : r.label === "all_words" ? "all words present" : r.label === "some_words" ? "some words" : "not in H1"}`).join("\n"),
+    occurrences: h1KwResults.map(r => `Ã¢ÂÂ¢ "${r.keyword}" Ã¢ÂÂ ${r.label === "exact" ? `found in H1` : r.label === "all_words" ? "all words present" : r.label === "some_words" ? "some words" : "not in H1"}`).join("\n"),
   };
 
   // --- H2/H3 analysis ---
@@ -365,7 +365,7 @@ function analyzeTrust(parsed, pageType) {
   return trust;
 }
 
-/* âââ SEMANTIC FILTER â from Typebot single_semantic.js âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ SEMANTIC FILTER Ã¢ÂÂ from Typebot single_semantic.js Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function filterSemanticMissing(autocomplete, related, paa, visibleText) {
   const STOPWORDS = new Set(["a","an","the","and","or","but","if","for","from","to","of","in","on","at","by","with","as","is","are","was","were","be","been","being","it","its","so","not","no","very","can","could","should","would","may","might","must","do","does","did","have","has","had","you","your","we","our","they","their","he","she","him","her","his","them","i","me","my","s","t","re","ll","d","m","ve"]);
   const norm = s => (s||"").toLowerCase().replace(/[^\p{L}\p{N}\s]+/gu," ").replace(/\s+/g," ").trim();
@@ -390,11 +390,11 @@ function filterSemanticMissing(autocomplete, related, paa, visibleText) {
   };
 }
 
-/* âââ HEADING LIST (from Core Audit â colored badges) âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ HEADING LIST (from Core Audit Ã¢ÂÂ colored badges) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 const hColors = { H1: { color: "#6E2BFF", bg: "rgba(110,43,255,0.08)" }, H2: { color: "#9B7AE6", bg: "rgba(155,122,230,0.08)" }, H3: { color: "#B89CF0", bg: "rgba(184,156,240,0.12)" } };
 const HL = ({ tags, lv }) => (<div style={{ display: "flex", flexDirection: "column", gap: 3 }}>{tags.map((h, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 500, color: C.dark }}><span style={{ fontSize: 9, fontWeight: 600, color: hColors[lv].color, background: hColors[lv].bg, padding: "2px 5px", borderRadius: 3, minWidth: 22, textAlign: "center" }}>{lv}</span>{typeof h === "string" ? h : h.text}</div>))}</div>);
 
-/* âââ COVERAGE SCORE CARD âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ COVERAGE SCORE CARD Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad }) => {
   const contentTotal = contentGood.length + contentBad.length;
   const trustTotal = trustGood.length + trustBad.length;
@@ -434,13 +434,13 @@ const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad }
   </div>);
 };
 
-/* âââ BUILD RESULTS (same structure as v4 but with real data) âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ BUILD RESULTS (same structure as v4 but with real data) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function buildCoverageResults(d) {
   const NB = C.cardBorder;
   const contentGood = [], contentBad = [], trustGood = [], trustBad = [];
   const ukw = d.userKeywords || [];
 
-  /* Title â with keyword presence analysis */
+  /* Title Ã¢ÂÂ with keyword presence analysis */
   const ta = d.titleAnalysis?.title;
   if (ta) {
     const titleOk = !ta.missing && !ta.tooShort && !ta.tooLong && ta.coverage === "strong" && !ta.duplicates.length;
@@ -448,17 +448,17 @@ function buildCoverageResults(d) {
       contentGood.push({ title: "Meta Title", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} hideDesc /><InfoBlock label="Keyword scan" value={ta.occurrences} borderColor={NB} /><BotNote inline text={`Your title is ${ta.length} characters with strong keyword alignment.`} /></>) });
     } else {
       const whyParts = [];
-      if (ta.missing) whyParts.push("No meta title found â Google can't generate a proper search snippet.");
+      if (ta.missing) whyParts.push("No meta title found Ã¢ÂÂ Google can't generate a proper search snippet.");
       else {
-        if (ta.tooShort) whyParts.push(`Title is only ${ta.length} characters â too short. Aim for 30â60 characters.`);
-        if (ta.tooLong) whyParts.push(`Title is ${ta.length} characters â too long, Google will truncate it.`);
-        if (ta.coverage === "none") whyParts.push("None of your target keywords appear in the title â this is the #1 on-page SEO signal.");
+        if (ta.tooShort) whyParts.push(`Title is only ${ta.length} characters Ã¢ÂÂ too short. Aim for 30Ã¢ÂÂ60 characters.`);
+        if (ta.tooLong) whyParts.push(`Title is ${ta.length} characters Ã¢ÂÂ too long, Google will truncate it.`);
+        if (ta.coverage === "none") whyParts.push("None of your target keywords appear in the title Ã¢ÂÂ this is the #1 on-page SEO signal.");
         else if (ta.coverage === "partial") whyParts.push("Your keywords are partially present in the title, but not as exact phrases.");
-        if (ta.duplicates.length) whyParts.push("Duplicate words found: " + ta.duplicates.map(([w,c]) => `"${w}" (${c}Ã)`).join(", ") + ". Rephrase to avoid repetition.");
-        if (ta.overused) whyParts.push("Keywords are overused in the title â keep each phrase to 1 mention.");
+        if (ta.duplicates.length) whyParts.push("Duplicate words found: " + ta.duplicates.map(([w,c]) => `"${w}" (${c}ÃÂ)`).join(", ") + ". Rephrase to avoid repetition.");
+        if (ta.overused) whyParts.push("Keywords are overused in the title Ã¢ÂÂ keep each phrase to 1 mention.");
       }
       const titlePrio = (d.pageType === "about" || d.pageType === "contact") ? "important" : "critical";
-      contentBad.push({ title: "Meta Title Needs Work", priority: titlePrio, serpSnippet: { url: d.url, title: d.title || "(no title)", desc: d.desc, hideDesc: true }, currentLabel: "Keyword presence in title", current: ta.occurrences, why: whyParts.join(" "), suggestions: d.gptSuggestions?.suggested_titles?.length > 0 ? d.gptSuggestions.suggested_titles : ["Add your primary keyword phrase once near the beginning of the title", "Keep title between 30â60 characters"], showCopy: !!(d.gptSuggestions?.suggested_titles?.length > 0) });
+      contentBad.push({ title: "Meta Title Needs Work", priority: titlePrio, serpSnippet: { url: d.url, title: d.title || "(no title)", desc: d.desc, hideDesc: true }, currentLabel: "Keyword presence in title", current: ta.occurrences, why: whyParts.join(" "), suggestions: d.gptSuggestions?.suggested_titles?.length > 0 ? d.gptSuggestions.suggested_titles : ["Add your primary keyword phrase once near the beginning of the title", "Keep title between 30Ã¢ÂÂ60 characters"], showCopy: !!(d.gptSuggestions?.suggested_titles?.length > 0) });
     }
     d.titleStatus = titleOk ? "good" : "bad";
   } else {
@@ -466,20 +466,20 @@ function buildCoverageResults(d) {
     contentBad.push({ title: "Meta Title", priority: "critical", why: "Could not analyze title.", suggestions: [], showCopy: false });
   }
 
-  /* Description â with keyword check */
+  /* Description Ã¢ÂÂ with keyword check */
   const da = d.titleAnalysis?.desc;
   if (da) {
     if (da.good && da.hasKeywords) {
-      contentGood.push({ title: "Meta Description", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} /><BotNote inline text={`Your description is ${da.length} characters â within 90â180, with keyword mentions. Good for click-through rate.`} /></>) });
+      contentGood.push({ title: "Meta Description", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} /><BotNote inline text={`Your description is ${da.length} characters Ã¢ÂÂ within 90Ã¢ÂÂ180, with keyword mentions. Good for click-through rate.`} /></>) });
     } else {
       const whyParts = [];
       if (da.missing) whyParts.push("No meta description found.");
       else {
-        if (da.tooShort) whyParts.push(`Description is only ${da.length} characters â too short. Aim for 140â160 characters.`);
-        if (da.tooLong) whyParts.push(`Description is ${da.length} characters â too long, Google may truncate it.`);
+        if (da.tooShort) whyParts.push(`Description is only ${da.length} characters Ã¢ÂÂ too short. Aim for 140Ã¢ÂÂ160 characters.`);
+        if (da.tooLong) whyParts.push(`Description is ${da.length} characters Ã¢ÂÂ too long, Google may truncate it.`);
         if (!da.hasKeywords && !da.missing) whyParts.push("None of your target keywords appear in the description. Including them improves click-through rate.");
       }
-      contentBad.push({ title: "Description Needs Work", priority: "critical", serpSnippet: { url: d.url, title: d.title, desc: d.desc || "(no description)" }, why: whyParts.join(" ") || "Description needs improvement.", suggestions: d.gptSuggestions?.suggested_descriptions?.length > 0 ? d.gptSuggestions.suggested_descriptions : ["Write 140â160 characters including your primary keyword", "Make it compelling â this is what users see in search results"], showCopy: !!(d.gptSuggestions?.suggested_descriptions?.length > 0) });
+      contentBad.push({ title: "Description Needs Work", priority: "critical", serpSnippet: { url: d.url, title: d.title, desc: d.desc || "(no description)" }, why: whyParts.join(" ") || "Description needs improvement.", suggestions: d.gptSuggestions?.suggested_descriptions?.length > 0 ? d.gptSuggestions.suggested_descriptions : ["Write 140Ã¢ÂÂ160 characters including your primary keyword", "Make it compelling Ã¢ÂÂ this is what users see in search results"], showCopy: !!(d.gptSuggestions?.suggested_descriptions?.length > 0) });
     }
     d.descStatus = (da.good && da.hasKeywords) ? "good" : "bad";
   } else {
@@ -487,7 +487,7 @@ function buildCoverageResults(d) {
     contentBad.push({ title: "Description", priority: "critical", why: "Could not analyze description.", suggestions: [], showCopy: false });
   }
 
-  /* Headings â with keyword presence */
+  /* Headings Ã¢ÂÂ with keyword presence */
   const ha = d.titleAnalysis;
   const h1a = ha?.h1;
   const h2h3a = ha?.h2h3;
@@ -496,19 +496,19 @@ function buildCoverageResults(d) {
     const h2h3Ok = h2h3a.h2Count > 0 && h2h3a.hasKeywords;
     if (h1Ok && h2h3Ok) {
       const h1 = d.h1, h2 = d.h2, h3 = d.h3;
-      contentGood.push({ title: "Heading Structure", content: (<><InfoBlock label={`H1 â ${h1.length} found`} value={<HL tags={h1} lv="H1" />} borderColor={NB} /><InfoBlock label={`H2 â ${h2.length} found`} value={<HL tags={h2} lv="H2" />} borderColor={NB} />{h3.length > 0 && <InfoBlock label={`H3 â ${h3.length} found`} value={<HL tags={h3} lv="H3" />} borderColor={NB} />}<InfoBlock label="Keyword presence" value={h1a.occurrences} borderColor={NB} /><BotNote inline text="Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page." /></>) });
+      contentGood.push({ title: "Heading Structure", content: (<><InfoBlock label={`H1 Ã¢ÂÂ ${h1.length} found`} value={<HL tags={h1} lv="H1" />} borderColor={NB} /><InfoBlock label={`H2 Ã¢ÂÂ ${h2.length} found`} value={<HL tags={h2} lv="H2" />} borderColor={NB} />{h3.length > 0 && <InfoBlock label={`H3 Ã¢ÂÂ ${h3.length} found`} value={<HL tags={h3} lv="H3" />} borderColor={NB} />}<InfoBlock label="Keyword presence" value={h1a.occurrences} borderColor={NB} /><BotNote inline text="Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page." /></>) });
     } else {
       if (h1a.missing || h1a.matchesTitle || h1a.tooLong || !h1a.strong) {
         const h1WhyParts = [];
-        if (h1a.missing) h1WhyParts.push("H1 is missing â this is your page's main heading. Google uses it to understand what the page is about.");
-        if (h1a.tooLong) h1WhyParts.push(`H1 is ${h1a.list[0]?.length || 0} characters â way too long. Keep H1 under 60â80 characters for best impact.`);
-        if (h1a.matchesTitle) h1WhyParts.push("H1 is identical to the title â rewrite it to expand on the title while keeping your primary keyword.");
+        if (h1a.missing) h1WhyParts.push("H1 is missing Ã¢ÂÂ this is your page's main heading. Google uses it to understand what the page is about.");
+        if (h1a.tooLong) h1WhyParts.push(`H1 is ${h1a.list[0]?.length || 0} characters Ã¢ÂÂ way too long. Keep H1 under 60Ã¢ÂÂ80 characters for best impact.`);
+        if (h1a.matchesTitle) h1WhyParts.push("H1 is identical to the title Ã¢ÂÂ rewrite it to expand on the title while keeping your primary keyword.");
         if (!h1a.strong && !h1a.missing) h1WhyParts.push("Your target keywords are not in the H1 heading.");
         const h1Why = h1WhyParts.join(" ");
-        contentBad.push({ title: "H1 Needs Work", priority: "critical", currentLabel: "Current H1", current: d.h1.length > 0 ? <HL tags={d.h1} lv="H1" /> : "No H1 found", why: h1Why, suggestions: d.gptSuggestions?.suggested_h1?.length > 0 ? d.gptSuggestions.suggested_h1 : ["Add a unique H1 with your primary keyword", "Make it different from the title â expand on the topic"], showCopy: !!(d.gptSuggestions?.suggested_h1?.length > 0) });
+        contentBad.push({ title: "H1 Needs Work", priority: "critical", currentLabel: "Current H1", current: d.h1.length > 0 ? <HL tags={d.h1} lv="H1" /> : "No H1 found", why: h1Why, suggestions: d.gptSuggestions?.suggested_h1?.length > 0 ? d.gptSuggestions.suggested_h1 : ["Add a unique H1 with your primary keyword", "Make it different from the title Ã¢ÂÂ expand on the topic"], showCopy: !!(d.gptSuggestions?.suggested_h1?.length > 0) });
       }
       if (h2h3a.h2Count === 0 || !h2h3a.hasKeywords) {
-        const h2Why = h2h3a.h2Count === 0 ? "No H2 headings found â add subheadings to break content into sections." : "Keywords are missing from H2/H3 headings. Include secondary keywords in subheadings.";
+        const h2Why = h2h3a.h2Count === 0 ? "No H2 headings found Ã¢ÂÂ add subheadings to break content into sections." : "Keywords are missing from H2/H3 headings. Include secondary keywords in subheadings.";
         contentBad.push({ title: "H2/H3 Structure Needs Work", priority: "important", currentLabel: "Current Subheadings", current: (d.h2.length > 0 || d.h3.length > 0) ? <div>{d.h2.length > 0 && <HL tags={d.h2} lv="H2" />}{d.h3.length > 0 && <div style={{marginTop:4}}><HL tags={d.h3.slice(0, 4)} lv="H3" /></div>}</div> : "No subheadings found", why: h2Why, suggestions: d.gptSuggestions?.suggested_h2?.length > 0 ? d.gptSuggestions.suggested_h2 : ["Use H2 for main content sections with secondary keywords", "Add H3 for subsections within each H2"], showCopy: !!(d.gptSuggestions?.suggested_h2?.length > 0) });
       }
     }
@@ -524,11 +524,11 @@ function buildCoverageResults(d) {
   if (d.bodyEval) {
     const be = d.bodyEval;
     if (be.status === "good") {
-      contentGood.push({ title: "Body Content â Keyword Coverage", content: (<><InfoBlock label="Keyword scan results" value={be.occurrences} borderColor={NB} /><BotNote inline text="Your keywords appear naturally throughout the body text â good balance without overuse." /></>) });
+      contentGood.push({ title: "Body Content Ã¢ÂÂ Keyword Coverage", content: (<><InfoBlock label="Keyword scan results" value={be.occurrences} borderColor={NB} /><BotNote inline text="Your keywords appear naturally throughout the body text Ã¢ÂÂ good balance without overuse." /></>) });
     } else {
       const kwList = (ukw.length ? ukw : d.extractedKeywords || []);
-      const actionLines = kwList.map(k => `"${typeof k === "string" ? k : k.keyword}" â ${be.budgetPer[0]}â${be.budgetPer[1]} times`);
-      contentBad.push({ title: "Body Content â Keyword Coverage", priority: "critical", currentLabel: "Keyword scan results", current: be.occurrences, why: be.status === "no_body" ? "No body text detected on your page." : be.status === "missing" ? "Body content has individual keyword words but no exact phrases. Google weights exact phrase matches more heavily." : be.status === "low" ? "Partial coverage â add at least one more full key phrase." : "Keyword usage appears high â reduce repetition.", sugLabel: "Recommended keyword usage", suggestions: [...actionLines, `Total recommended: ${be.budgetTotal[0]}â${be.budgetTotal[1]} times across the entire body text.`], showCopy: false });
+      const actionLines = kwList.map(k => `"${typeof k === "string" ? k : k.keyword}" Ã¢ÂÂ ${be.budgetPer[0]}Ã¢ÂÂ${be.budgetPer[1]} times`);
+      contentBad.push({ title: "Body Content Ã¢ÂÂ Keyword Coverage", priority: "critical", currentLabel: "Keyword scan results", current: be.occurrences, why: be.status === "no_body" ? "No body text detected on your page." : be.status === "missing" ? "Body content has individual keyword words but no exact phrases. Google weights exact phrase matches more heavily." : be.status === "low" ? "Partial coverage Ã¢ÂÂ add at least one more full key phrase." : "Keyword usage appears high Ã¢ÂÂ reduce repetition.", sugLabel: "Recommended keyword usage", suggestions: [...actionLines, `Total recommended: ${be.budgetTotal[0]}Ã¢ÂÂ${be.budgetTotal[1]} times across the entire body text.`], showCopy: false });
     }
     d.bodyStatus = be.status === "good" ? "good" : "bad";
   }
@@ -538,16 +538,16 @@ function buildCoverageResults(d) {
     const sm = d.semanticMissing;
     const allMissing = [...(sm.autocomplete||[]), ...(sm.related||[]), ...(sm.paa||[])];
     if (allMissing.length > 0) {
-      contentBad.push({ title: "Semantic Expansion â Topics You May Be Missing", priority: "nice", soft: true,
-        why: "I checked real Google search data and found topics related to your keywords that are missing from your page. Adding some of these phrases can help your page appear for more search queries and bring in more targeted visitors. Only add phrases that naturally fit your content â don't force them in.",
+      contentBad.push({ title: "Semantic Expansion Ã¢ÂÂ Topics You May Be Missing", priority: "nice", soft: true,
+        why: "I checked real Google search data and found topics related to your keywords that are missing from your page. Adding some of these phrases can help your page appear for more search queries and bring in more targeted visitors. Only add phrases that naturally fit your content Ã¢ÂÂ don't force them in.",
         currentLabel: "Missing from your page",
         current: (<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {sm.autocomplete.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Autocomplete <QM text="These are Google's suggestions that appear as users type your keyword into the search bar. They reflect real, popular search patterns." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Google's suggestions as you type â real, popular search patterns.</div>{sm.autocomplete.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>â¢ {s}</div>)}</div>}
-          {sm.related.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Related searches <QM text="These queries appear at the bottom of Google's search results page. They show what users also search for after your keyword." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Queries users also look for â shown at the bottom of Google results.</div>{sm.related.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>â¢ {s}</div>)}</div>}
-          {sm.paa.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>People Also Ask <QM text="These are real questions that Google shows in a special FAQ-style block on the search results page. Answering them on your page can help you appear in this block." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Common questions shown in Google â answering them can get you featured.</div>{sm.paa.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>â¢ {s}</div>)}</div>}
+          {sm.autocomplete.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Autocomplete <QM text="These are Google's suggestions that appear as users type your keyword into the search bar. They reflect real, popular search patterns." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Google's suggestions as you type Ã¢ÂÂ real, popular search patterns.</div>{sm.autocomplete.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>Ã¢ÂÂ¢ {s}</div>)}</div>}
+          {sm.related.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Related searches <QM text="These queries appear at the bottom of Google's search results page. They show what users also search for after your keyword." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Queries users also look for Ã¢ÂÂ shown at the bottom of Google results.</div>{sm.related.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>Ã¢ÂÂ¢ {s}</div>)}</div>}
+          {sm.paa.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>People Also Ask <QM text="These are real questions that Google shows in a special FAQ-style block on the search results page. Answering them on your page can help you appear in this block." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Common questions shown in Google Ã¢ÂÂ answering them can get you featured.</div>{sm.paa.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>Ã¢ÂÂ¢ {s}</div>)}</div>}
         </div>),
         sugLabel: "How to use these phrases",
-        suggestions: [...(sm.related.length > 0 ? ["Related Searches â pick 1â2 phrases and use them as H2 or H3 headings, or mention them in your body text."] : []), ...(sm.paa.length > 0 ? ["People Also Ask â take 3â5 questions and add a short FAQ section to your page. This helps you appear in Google's FAQ block."] : []), ...(sm.autocomplete.length > 0 ? ["Autocomplete â mention 1â2 of these phrases naturally in your text where they fit the context. Don't overuse them."] : [])],
+        suggestions: [...(sm.related.length > 0 ? ["Related Searches Ã¢ÂÂ pick 1Ã¢ÂÂ2 phrases and use them as H2 or H3 headings, or mention them in your body text."] : []), ...(sm.paa.length > 0 ? ["People Also Ask Ã¢ÂÂ take 3Ã¢ÂÂ5 questions and add a short FAQ section to your page. This helps you appear in Google's FAQ block."] : []), ...(sm.autocomplete.length > 0 ? ["Autocomplete Ã¢ÂÂ mention 1Ã¢ÂÂ2 of these phrases naturally in your text where they fit the context. Don't overuse them."] : [])],
         showCopy: false
       });
     }
@@ -557,7 +557,7 @@ function buildCoverageResults(d) {
   if (d.trust) {
     const t = d.trust;
     if (t.contacts.show) {
-      if (t.contacts.found) trustGood.push({ title: "Contact Information", content: (<><InfoBlock label="Status" value="Contact information detected on your page." borderColor={NB} /><BotNote inline text="Visible contact info builds trust with visitors and search engines â it's a key E-E-A-T signal." /></>) });
+      if (t.contacts.found) trustGood.push({ title: "Contact Information", content: (<><InfoBlock label="Status" value="Contact information detected on your page." borderColor={NB} /><BotNote inline text="Visible contact info builds trust with visitors and search engines Ã¢ÂÂ it's a key E-E-A-T signal." /></>) });
       else trustBad.push({ title: "No Contact Information", priority: "nice", why: "No contact details found. Adding an email, phone number, or contact form helps build trust.", suggestions: ["Add a contact section or footer with email/phone", "Include a contact form on the page"], showCopy: false });
     }
     if (t.cta.show) {
@@ -570,30 +570,30 @@ function buildCoverageResults(d) {
     }
     if (t.testimonials.show) {
       if (t.testimonials.found) trustGood.push({ title: "Testimonials / Social Proof", content: (<><InfoBlock label="Status" value="Testimonials or reviews detected." borderColor={NB} /><BotNote inline text="Social proof helps visitors trust your brand." /></>) });
-      else trustBad.push({ title: "No Testimonials Found", priority: "nice", why: "No testimonials or reviews detected. Adding 2â3 short customer quotes builds social proof.", suggestions: ["Add 2â3 short testimonials from customers", "Include star ratings or review counts if available"], showCopy: false });
+      else trustBad.push({ title: "No Testimonials Found", priority: "nice", why: "No testimonials or reviews detected. Adding 2Ã¢ÂÂ3 short customer quotes builds social proof.", suggestions: ["Add 2Ã¢ÂÂ3 short testimonials from customers", "Include star ratings or review counts if available"], showCopy: false });
     }
     if (t.faq.show) {
       if (t.faq.found) trustGood.push({ title: "FAQ Section", content: (<><InfoBlock label="Status" value="FAQ section detected on your page." borderColor={NB} /><BotNote inline text="FAQ sections help users find answers quickly and improve your chances of appearing in Google's 'People Also Ask' results." /></>) });
-      else trustBad.push({ title: "No FAQ Section", priority: "nice", why: "No FAQ section found. Adding 3â5 common questions improves E-E-A-T signals.", suggestions: ["Add a short FAQ with 3â5 questions related to your topic"], showCopy: false });
+      else trustBad.push({ title: "No FAQ Section", priority: "nice", why: "No FAQ section found. Adding 3Ã¢ÂÂ5 common questions improves E-E-A-T signals.", suggestions: ["Add a short FAQ with 3Ã¢ÂÂ5 questions related to your topic"], showCopy: false });
     }
   }
 
   return { contentGood, contentBad, trustGood, trustBad };
 }
 
-/* âââ RANKING GAPS âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ RANKING GAPS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function buildRankingGaps(d) {
   const g = [];
-  if (d.titleStatus !== "good") g.push({ text: "Title needs work â lacks descriptive keywords and context.", critical: true });
-  if (d.h1Status !== "good") g.push({ text: "H1 too short or matches the title â rewrite for clarity.", critical: true });
-  if (d.bodyStatus !== "good") g.push({ text: "Missing keyword phrases in body text â weak search relevance.", critical: true });
-  if (d.trust && !d.trust.testimonials?.found && d.trust.testimonials?.show) g.push({ text: "No testimonials â weak social proof.", critical: false });
-  if (d.trust && !d.trust.faq?.found && d.trust.faq?.show) g.push({ text: "No FAQ section â fewer trust indicators.", critical: false });
-  if (d.trust && !d.trust.socials?.found && d.trust.socials?.show) g.push({ text: "Missing social profiles â weak off-page trust.", critical: false });
+  if (d.titleStatus !== "good") g.push({ text: "Title needs work Ã¢ÂÂ lacks descriptive keywords and context.", critical: true });
+  if (d.h1Status !== "good") g.push({ text: "H1 too short or matches the title Ã¢ÂÂ rewrite for clarity.", critical: true });
+  if (d.bodyStatus !== "good") g.push({ text: "Missing keyword phrases in body text Ã¢ÂÂ weak search relevance.", critical: true });
+  if (d.trust && !d.trust.testimonials?.found && d.trust.testimonials?.show) g.push({ text: "No testimonials Ã¢ÂÂ weak social proof.", critical: false });
+  if (d.trust && !d.trust.faq?.found && d.trust.faq?.show) g.push({ text: "No FAQ section Ã¢ÂÂ fewer trust indicators.", critical: false });
+  if (d.trust && !d.trust.socials?.found && d.trust.socials?.show) g.push({ text: "Missing social profiles Ã¢ÂÂ weak off-page trust.", critical: false });
   return g;
 }
 
-/* âââ REPORT âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ REPORT Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 const CoverageReport = ({ data }) => {
   const { contentGood, contentBad, trustGood, trustBad } = buildCoverageResults(data);
   const prioOrder = { critical: 0, important: 1, nice: 2 };
@@ -604,7 +604,7 @@ const CoverageReport = ({ data }) => {
   const ukw = data.userKeywords || [];
 
   return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
-    <BotNote text="Here's your full content coverage audit. I'll walk you through each part â what's working, what needs fixing, and exactly how to fix it." />
+    <BotNote text="Here's your full content coverage audit. I'll walk you through each part Ã¢ÂÂ what's working, what needs fixing, and exactly how to fix it." />
 
     {/* Coverage Score Card */}
     <CoverageScoreCard url={data.url} contentGood={contentGood} contentBad={contentBad} trustGood={trustGood} trustBad={trustBad} />
@@ -613,10 +613,10 @@ const CoverageReport = ({ data }) => {
     <BotNote text="This is how search engines interpret your page based on visible content and structure." />
     <div className="reveal reveal-delay-1" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Page Context Summary</span><QM text="If something looks off here, it means Google may misunderstand your page's purpose." /></div>
-      <div className="iva-ctx-grid">{[{ l: "Page URL", v: data.url }, { l: "Page Title", v: data.title || "(no title)" }, { l: "Topic", v: data.ctx?.topic || "Unknown" }, { l: "Content Type", v: data.ctx?.content_type || "Page" }, { l: "Goal", v: data.ctx?.goal || "Inform" }, { l: "Industry", v: data.ctx?.industry || "General" }, { l: "Region", v: data.ctx?.region || "Global" }, { l: "Word Count", v: data.wordCount ? data.wordCount.toLocaleString() : "â" }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div></div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{data.ctx?.message || ""}</div></div></div>
+      <div className="iva-ctx-grid">{[{ l: "Page URL", v: data.url }, { l: "Page Title", v: data.title || "(no title)" }, { l: "Topic", v: data.ctx?.topic || "Unknown" }, { l: "Content Type", v: data.ctx?.content_type || "Page" }, { l: "Goal", v: data.ctx?.goal || "Inform" }, { l: "Industry", v: data.ctx?.industry || "General" }, { l: "Region", v: data.ctx?.region || "Global" }, { l: "Word Count", v: data.wordCount ? data.wordCount.toLocaleString() : "Ã¢ÂÂ" }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div></div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{data.ctx?.message || ""}</div></div></div>
     </div>
 
-    {/* Keywords â smart merge: one table if keywords match, two if different */}
+    {/* Keywords Ã¢ÂÂ smart merge: one table if keywords match, two if different */}
     {(() => {
       const exKw = (data.extractedKeywords || []).map(k => (typeof k === "string" ? k : k.keyword || "").toLowerCase().trim()).filter(Boolean);
       const usKw = ukw.map(k => k.toLowerCase().trim()).filter(Boolean);
@@ -640,7 +640,7 @@ const CoverageReport = ({ data }) => {
         <BotNote text="These are the keywords Google currently associates with your page." />
         <div className="reveal reveal-delay-2" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>What your page is built for</span><QM text="Based on your title, H1âH3 headings, and meta description." /></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>What your page is built for</span><QM text="Based on your title, H1Ã¢ÂÂH3 headings, and meta description." /></div>
             <span style={{ fontSize: 10, color: C.muted, background: "rgba(21,20,21,0.04)", padding: "3px 10px", borderRadius: 10, fontWeight: 500 }}>content analysis</span>
           </div>
           <RankingsTable rows={data.keywordMetrics || data.extractedKeywords?.map(k => ({ keyword: k, position: null, volume: null, difficulty: null }))} emptyMsg="Keywords will appear after audit completes." />
@@ -656,23 +656,23 @@ const CoverageReport = ({ data }) => {
       </>);
     })()}
 
-    <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page â they bring niche traffic with less competition." />
+    <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page Ã¢ÂÂ they bring niche traffic with less competition." />
 
     {/* Content Working */}
-    <BotNote text={contentGood.length > 0 ? `Good news â ${contentGood.length} content elements are already working well.` : "Let's look at your content structure."} />
-    {contentGood.length > 0 && <div className="reveal reveal-delay-3" style={{ marginBottom: 12 }}><Fold title="Content & Structure â Working Well" count={contentGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{contentGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+    <BotNote text={contentGood.length > 0 ? `Good news Ã¢ÂÂ ${contentGood.length} content elements are already working well.` : "Let's look at your content structure."} />
+    {contentGood.length > 0 && <div className="reveal reveal-delay-3" style={{ marginBottom: 12 }}><Fold title="Content & Structure Ã¢ÂÂ Working Well" count={contentGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{contentGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
 
     {/* Content Needs Improvement */}
     <BotNote text={contentBad.length > 0 ? `I found ${contentBad.length} content areas that need attention.` : "Your content structure looks great!"} />
-    {contentBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Content & Structure â Needs Improvement" count={contentBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{contentBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+    {contentBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Content & Structure Ã¢ÂÂ Needs Improvement" count={contentBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{contentBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
 
     {/* Trust Working */}
     <BotNote text={trustGood.length > 0 ? `${trustGood.length} trust signals are already in place.` : "Let's check your trust and conversion signals."} />
-    {trustGood.length > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="Trust & Conversion â Working Well" count={trustGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{trustGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+    {trustGood.length > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="Trust & Conversion Ã¢ÂÂ Working Well" count={trustGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{trustGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
 
     {/* Trust Needs Improvement */}
     <BotNote text={trustBad.length > 0 ? `${trustBad.length} trust signals are missing.` : "All trust signals are in place!"} />
-    {trustBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Trust & Conversion â Needs Improvement" count={trustBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{trustBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+    {trustBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Trust & Conversion Ã¢ÂÂ Needs Improvement" count={trustBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{trustBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
 
     {/* Final Recommendations */}
     <BotNote text="Here's a summary of what to focus on. Fix these and your rankings will improve." />
@@ -681,7 +681,7 @@ const CoverageReport = ({ data }) => {
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {allBad.map((item, i) => {const pr=PRIO[item.priority]||PRIO.important;return(<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-            <span style={{ color: pr.color, fontSize: 10, marginTop: 4 }}>â</span>
+            <span style={{ color: pr.color, fontSize: 10, marginTop: 4 }}>Ã¢ÂÂ</span>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{item.title}</span><span style={{ fontSize: 9, fontWeight: 600, color: pr.color, background: pr.bg, padding: "2px 7px", borderRadius: 5, textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0 }}>{pr.label}</span></div>
               {item.why && typeof item.why === "string" && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions?.[0] ? 6 : 0 }}>{item.why.length > 150 ? item.why.slice(0, 147) + "..." : item.why}</div>}
@@ -693,7 +693,7 @@ const CoverageReport = ({ data }) => {
             </div>
           </div>
         </div>)})}
-        <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>â</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-audit after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Run another Content Coverage Audit to measure your progress.</div></div></div></div>
+        <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>Ã¢ÂÂ</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-audit after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Run another Content Coverage Audit to measure your progress.</div></div></div></div>
       </div>
     </div>
   </div>);
@@ -783,7 +783,7 @@ async function generateCoveragePDF(data) {
 
   const content = [];
 
-  /* ââ HEADER ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ HEADER Ã¢ÂÂÃ¢ÂÂ */
   content.push({ columns: [
     { image: logoImg, width: 22, margin: [0, 2, 0, 0] },
     { text: "IvaBot", fontSize: 16, bold: true, color: dk, width: "auto", margin: [6, 0, 0, 0] },
@@ -795,7 +795,7 @@ async function generateCoveragePDF(data) {
   ], margin: [0, 0, 0, 6] });
   content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
 
-  /* ââ SCORE CARD ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ SCORE CARD Ã¢ÂÂÃ¢ÂÂ */
   content.push({
     table: { widths: [80, "*"], body: [[
       { stack: [
@@ -818,7 +818,7 @@ async function generateCoveragePDF(data) {
     margin: [0, 0, 0, 16]
   });
 
-  /* ââ KEYWORDS TABLE ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ KEYWORDS TABLE Ã¢ÂÂÃ¢ÂÂ */
   const kwRows = data.userKeywordMetrics || data.keywordMetrics || (data.userKeywords || []).map(k => ({ keyword: k, position: null, volume: null, difficulty: null }));
   if (kwRows.length > 0) {
     content.push(secTitle("Keywords"));
@@ -853,7 +853,7 @@ async function generateCoveragePDF(data) {
     content.push(spacer(8));
   }
 
-  /* ââ CONTENT WORKING WELL (detailed, like Core Audit PDF) ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ CONTENT WORKING WELL (detailed, like Core Audit PDF) Ã¢ÂÂÃ¢ÂÂ */
   if (contentGood.length > 0) {
     content.push(secTitle("Content & Structure \u2014 Working Well"));
     content.push(noteText(contentGood.length + " content elements are working well."));
@@ -910,7 +910,7 @@ async function generateCoveragePDF(data) {
     content.push(spacer(8));
   }
 
-  /* ââ CONTENT NEEDS IMPROVEMENT (with SERP preview + full suggestions) ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ CONTENT NEEDS IMPROVEMENT (with SERP preview + full suggestions) Ã¢ÂÂÃ¢ÂÂ */
   if (contentBad.length > 0) {
     content.push(secTitle("Content & Structure \u2014 Needs Improvement (" + contentBad.length + ")", accentC));
     content.push(noteText("Each card has a clear fix \u2014 start from the top."));
@@ -933,7 +933,7 @@ async function generateCoveragePDF(data) {
     content.push(spacer(8));
   }
 
-  /* ââ TRUST WORKING WELL (with details) ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ TRUST WORKING WELL (with details) Ã¢ÂÂÃ¢ÂÂ */
   if (trustGood.length > 0) {
     content.push(secTitle("Trust & Conversion \u2014 Working Well"));
     content.push(noteText(trustGood.length + " trust signals are in place."));
@@ -955,14 +955,14 @@ async function generateCoveragePDF(data) {
     content.push(spacer(8));
   }
 
-  /* ââ TRUST NEEDS IMPROVEMENT ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ TRUST NEEDS IMPROVEMENT Ã¢ÂÂÃ¢ÂÂ */
   if (trustBad.length > 0) {
     content.push(secTitle("Trust & Conversion \u2014 Needs Improvement (" + trustBad.length + ")", accentC));
     trustBad.forEach(item => content.push(lavCard(item)));
     content.push(spacer(8));
   }
 
-  /* ââ FINAL RECOMMENDATIONS ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ FINAL RECOMMENDATIONS Ã¢ÂÂÃ¢ÂÂ */
   const allBad = [...contentBad, ...trustBad];
   if (allBad.length > 0) {
     content.push(secTitle("Final Recommendations"));
@@ -996,7 +996,7 @@ async function generateCoveragePDF(data) {
     content.push(spacer(8));
   }
 
-  /* ââ IvaBot CTA ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ IvaBot CTA Ã¢ÂÂÃ¢ÂÂ */
   content.push(spacer(12));
   content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
   content.push({ table: { widths: ["*"], body: [[{
@@ -1014,7 +1014,7 @@ async function generateCoveragePDF(data) {
     ], margin: [16, 16, 16, 16]
   }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] });
 
-  /* ââ BUILD DOCUMENT ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ BUILD DOCUMENT Ã¢ÂÂÃ¢ÂÂ */
   const docDefinition = {
     pageSize: "A4", pageMargins: [40, 40, 40, 50],
     defaultStyle: { fontSize: 11, color: dk },
@@ -1025,7 +1025,7 @@ async function generateCoveragePDF(data) {
     content: content
   };
 
-  /* ââ GENERATE + DOWNLOAD + UPLOAD ââ */
+  /* Ã¢ÂÂÃ¢ÂÂ GENERATE + DOWNLOAD + UPLOAD Ã¢ÂÂÃ¢ÂÂ */
   const fileName = "IvaBot-Coverage-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
   const pdfDocGen = pdfMake.createPdf(docDefinition);
   const pdfBtn = document.getElementById("export-coverage-pdf-btn");
@@ -1065,7 +1065,7 @@ async function generateCoveragePDF(data) {
           setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
         });
       } else {
-        console.log("[CC] PDF not uploaded â no member ID");
+        console.log("[CC] PDF not uploaded Ã¢ÂÂ no member ID");
         setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
       }
     } catch(ue) { console.warn("[CC] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
@@ -1073,21 +1073,21 @@ async function generateCoveragePDF(data) {
   } catch(err) { console.error("[CC] PDF error:", err); alert("PDF export failed: " + err.message); }
 }
 
-/* âââ PLACEHOLDER âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ PLACEHOLDER Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 const CoveragePlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
   <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(110,43,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
   <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 8 }}>Your content coverage report will appear here</div>
-  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, textAlign: "center", maxWidth: 340, marginBottom: 24 }}>I'll analyze your page and show you what's missing â so you know exactly what to fix to rank higher and convert more visitors.</div>
+  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, textAlign: "center", maxWidth: 340, marginBottom: 24 }}>I'll analyze your page and show you what's missing Ã¢ÂÂ so you know exactly what to fix to rank higher and convert more visitors.</div>
   <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 340 }}>
     {[{ n: "1", t: "Keywords & context", d: "I check which keywords Google associates with your page" }, { n: "2", t: "Content & structure", d: "I analyze your title, headings, and body text for keyword coverage" }, { n: "3", t: "Trust & conversion", d: "I scan for social proof, CTAs, FAQ, and contact info" }].map((s, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.08)" }}><div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(155,122,230,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}><span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6" }}>{s.n}</span></div><div><div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{s.t}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.d}</div></div></div>)}
   </div>
 </div>;
 
-const LoadingPanel = ({ text }) => <div style={{ minHeight: "calc(100vh - 130px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}><div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(110,43,255,0.1)", borderTopColor: C.accent, animation: "spin 0.8s linear infinite", marginBottom: 16 }} /><div style={{ fontSize: 13, fontWeight: 500, color: C.dark, marginBottom: 4 }}>{text || "Analyzing..."}</div><div style={{ fontSize: 12, color: C.muted }}>This usually takes 15â30 seconds</div><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
+const LoadingPanel = ({ text }) => <div style={{ minHeight: "calc(100vh - 130px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}><div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(110,43,255,0.1)", borderTopColor: C.accent, animation: "spin 0.8s linear infinite", marginBottom: 16 }} /><div style={{ fontSize: 13, fontWeight: 500, color: C.dark, marginBottom: 4 }}>{text || "Analyzing..."}</div><div style={{ fontSize: 12, color: C.muted }}>This usually takes 15Ã¢ÂÂ30 seconds</div><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
 
 const STEPS = ["Fetching page...", "Analyzing structure...", "Extracting keywords...", "Checking keyword coverage...", "Fetching search data...", "Scanning trust signals...", "Building your report..."];
 
-/* âââ MAIN COMPONENT âââ */
+/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ MAIN COMPONENT Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
 function ContentCoverage({ onHome, memberName: mn }) {
   const isMobile = useIsMobile();
   const [mTab, sMTab] = useState("chat");
@@ -1121,7 +1121,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     setTimeout(() => { sTyp(false); add("b", <div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>I'll check how well your page covers target keywords, how deep and structured your content is, and whether your trust signals are strong enough. By fixing the gaps I find, you'll improve this page's visibility in Google.</div><div style={{fontWeight:600}}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 4000);
   }, []);
 
-  /* âââ REAL AUDIT PIPELINE âââ */
+  /* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ REAL AUDIT PIPELINE Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
   const runAudit = async (url, keywords, usedExtracted = false) => {
     /* Check credits before starting */
     const mid = getMemberId();
@@ -1144,7 +1144,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       setStepNum(1);
       const parsed = parseCoverage(rawHtml, url);
 
-      // Step 2: GPT â extract page context + keywords
+      // Step 2: GPT Ã¢ÂÂ extract page context + keywords
       setStepNum(2);
       let gptData = null;
       try {
@@ -1168,7 +1168,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       setStepNum(3);
       const bodyEval = analyzeBodyDensity(parsed.body_text, finalKeywords);
 
-      // Step 4: DFS â volume/KD + SERP (PAA, related, autocomplete)
+      // Step 4: DFS Ã¢ÂÂ volume/KD + SERP (PAA, related, autocomplete)
       setStepNum(4);
       let dfsData = null;
       try {
@@ -1181,10 +1181,10 @@ function ContentCoverage({ onHome, memberName: mn }) {
         console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length} organic=${dfsData.serp_organic?.length || 0} serpPos=${JSON.stringify(dfsData.serp_positions || {})}` : "failed");
       } catch (e) { console.log("[CC] DFS error:", e); }
 
-      /* v6.2: Use serp_positions from DFS â real Google positions for all keywords */
+      /* v6.2: Use serp_positions from DFS Ã¢ÂÂ real Google positions for all keywords */
       const serpPositions = dfsData?.serp_positions || {};
 
-      // Build keyword metrics â extracted keywords table (fallback to ranked data for volume/KD)
+      // Build keyword metrics Ã¢ÂÂ extracted keywords table (fallback to ranked data for volume/KD)
       const keywordMetrics = extractedKeywords.map((kw, idx) => {
         const m = dfsData?.keyword_metrics?.find(km => km.keyword?.toLowerCase() === kw.toLowerCase());
         const r = dfsData?.ranked_keywords?.find(rk => rk.keyword?.toLowerCase() === kw.toLowerCase());
@@ -1202,7 +1202,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       let serpRelated = dfsData?.related_searches || [];
       let serpPaa = dfsData?.people_also_ask || [];
       if (serpAutocomplete.length === 0 && serpRelated.length === 0 && serpPaa.length === 0) {
-        console.log("[CC] DFS SERP empty â falling back to GPT serp_suggestions");
+        console.log("[CC] DFS SERP empty Ã¢ÂÂ falling back to GPT serp_suggestions");
         try {
           const serpGptRes = await fetch(COVERAGE_GPT, {
             method: "POST",
@@ -1239,7 +1239,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         console.log("[CC] GPT suggestions:", gptSuggestions ? "ok" : "failed");
       } catch (e) { console.log("[CC] suggestions error:", e); }
 
-      // Word count (basic â count words in visible text)
+      // Word count (basic Ã¢ÂÂ count words in visible text)
       const wordCount = parsed.visible_text ? parsed.visible_text.trim().split(/\s+/).filter(Boolean).length : null;
 
       // Enrich user keywords with DFS data (same as extracted)
@@ -1282,7 +1282,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       sTyp(true);
       setTimeout(() => {
         sTyp(false);
-        bot(<div><div style={{fontWeight:600,marginBottom:8}}>{"Done! I found " + totalIssues + " areas that need attention."}</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Each card has a clear fix â tap to see what to do. {isMobile ? "Switch to the Report tab" : "Check the report on the right"} for the full breakdown.</div><div style={{fontWeight:600}}>Ask me anything â I can explain any issue or help you fix it.</div></div>);
+        bot(<div><div style={{fontWeight:600,marginBottom:8}}>{"Done! I found " + totalIssues + " areas that need attention."}</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Each card has a clear fix Ã¢ÂÂ tap to see what to do. {isMobile ? "Switch to the Report tab" : "Check the report on the right"} for the full breakdown.</div><div style={{fontWeight:600}}>Ask me anything Ã¢ÂÂ I can explain any issue or help you fix it.</div></div>);
         setStep("done");
       }, 1000);
 
@@ -1293,7 +1293,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     }
   };
 
-  /* âââ CHAT âââ */
+  /* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ CHAT Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
   const sendChat = async (text) => {
     sTyp(true);
     try {
@@ -1355,8 +1355,8 @@ function ContentCoverage({ onHome, memberName: mn }) {
           bot(<div>
             <div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content to understand what Google currently associates with it.</div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div>
-            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>â¢ {k}</div>)}</div>
-            <div style={{ color: C.muted, fontSize: 12, marginBottom: 6 }}>I'll use these keywords to deeply analyze your page â checking how well your content covers them, where they appear in your structure, and what's missing.</div>
+            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>Ã¢ÂÂ¢ {k}</div>)}</div>
+            <div style={{ color: C.muted, fontSize: 12, marginBottom: 6 }}>I'll use these keywords to deeply analyze your page Ã¢ÂÂ checking how well your content covers them, where they appear in your structure, and what's missing.</div>
             <div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div>
           </div>);
           setStep("keywords");
@@ -1370,8 +1370,8 @@ function ContentCoverage({ onHome, memberName: mn }) {
     }
 
     if (step === "own_keywords") {
-      // User typed their own keywords â clean separators, send to GPT for cleaning
-      const cleanedInput = text.replace(/[â¢Â·\-ââ|\/\\]/g, ",").replace(/,{2,}/g, ",");
+      // User typed their own keywords Ã¢ÂÂ clean separators, send to GPT for cleaning
+      const cleanedInput = text.replace(/[Ã¢ÂÂ¢ÃÂ·\-Ã¢ÂÂÃ¢ÂÂ|\/\\]/g, ",").replace(/,{2,}/g, ",");
       sTyp(true);
       (async () => {
         try {
@@ -1387,7 +1387,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           bot(<div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Your keywords, ready for audit:</div>
             <div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I removed duplicates, trimmed extra words, and made sure each phrase matches how people actually search in Google.</div>
-            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>â¢ {k}</div>)}</div>
+            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>Ã¢ÂÂ¢ {k}</div>)}</div>
             <div style={{ color: C.muted, fontSize: 12 }}>These are the exact phrases I'll search for on your page. Confirm or adjust.</div>
           </div>);
           setStep("confirm_own");
@@ -1397,7 +1397,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           setPendingKw(fallback);
           bot(<div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>I'll use these keywords:</div>
-            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{fallback.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>â¢ {k}</div>)}</div>
+            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{fallback.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>Ã¢ÂÂ¢ {k}</div>)}</div>
             <div style={{ color: C.muted, fontSize: 12 }}>Confirm or adjust.</div>
           </div>);
           setStep("confirm_own");
@@ -1407,7 +1407,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     }
 
     if (step === "adjust_keywords") {
-      // User wants to adjust â send feedback to GPT again
+      // User wants to adjust Ã¢ÂÂ send feedback to GPT again
       sTyp(true);
       (async () => {
         try {
@@ -1422,7 +1422,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           sTyp(false);
           bot(<div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Updated keywords:</div>
-            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>â¢ {k}</div>)}</div>
+            <div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{cleaned.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>Ã¢ÂÂ¢ {k}</div>)}</div>
             <div style={{ color: C.muted, fontSize: 12 }}>Confirm or adjust again.</div>
           </div>);
           setStep("confirm_own");
@@ -1435,7 +1435,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     }
 
     if (step === "done" || showR) {
-      // Check if user typed a new URL â offer re-audit with credit check
+      // Check if user typed a new URL Ã¢ÂÂ offer re-audit with credit check
       const v = valUrl(text);
       if (v.ok) {
         (async () => {
@@ -1481,15 +1481,15 @@ function ContentCoverage({ onHome, memberName: mn }) {
     {loadStep >= 0 && <div style={{ maxWidth: "95%", alignSelf: "flex-start" }}><LBar step={loadStep} total={STEPS.length} text={STEPS[loadStep]} /></div>}
     {typ && <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}><div style={{ marginBottom: 3, marginLeft: 2 }}><BL s={16} /></div><div style={{ padding: "10px 14px", borderRadius: "4px 12px 12px 12px", background: C.surface, border: `1px solid ${C.border}` }}><div className="typing-dots"><span /><span /><span /></div></div></div>}
     {step === "keywords" && extractedKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Use These Keywords" onClick={() => { add("u", "Use these keywords"); setUserKw(extractedKw); setStep("running"); runAudit(pageUrl, extractedKw, true); }} /><Btn text="Write My Own" onClick={() => { setStep("own_keywords"); bot(<div>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>Type 1â3 keyword phrases you want to rank for.</div>
-            <div style={{ color: C.muted, fontSize: 12, marginBottom: 10 }}>Each phrase should be 2â3 words â the way real people search in Google. Separate with commas.</div>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Type 1Ã¢ÂÂ3 keyword phrases you want to rank for.</div>
+            <div style={{ color: C.muted, fontSize: 12, marginBottom: 10 }}>Each phrase should be 2Ã¢ÂÂ3 words Ã¢ÂÂ the way real people search in Google. Separate with commas.</div>
             <div style={{ padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, marginBottom: 4 }}>Example</div>
               <div style={{ fontSize: 12, color: C.dark }}>coffee shop Berlin, espresso Berlin, best coffee nearby</div>
             </div>
           </div>); }} /></div>}
-    {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change â replace a keyword, add something, or describe what you're looking for."); }} /></div>}
-    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>â¢ {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
+    {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change Ã¢ÂÂ replace a keyword, add something, or describe what you're looking for."); }} /></div>}
+    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>Ã¢ÂÂ¢ {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
   </React.Fragment>;
 
   const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><CoverageReport data={auditData} /></div> : <CoveragePlaceholder />}</React.Fragment>;
