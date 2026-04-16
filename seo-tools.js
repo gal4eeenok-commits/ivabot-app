@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v82 — PDF redesign, NicheBadge/LowBadge in RankingsTable */
+/* IvaBot seo-tools v83 — PDF redesign, NicheBadge/LowBadge in RankingsTable */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v82 loaded");
+console.log("[IvaBot] seo-tools.js v83 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -369,12 +369,14 @@ function buildReportData(parsed, gpt, dfs) {
   const totalRanked = dfs?.total_ranked || 0;
 
   const gptKeywords = gpt?.keywords || [];
+  /* v83: use keyword_volume endpoint as source of truth for Vol/KD */
+  const gptKwMetrics = dfs?.gpt_keyword_metrics || [];
   const keywordMetrics = gptKeywords.map(k => {
     const kLow = k.toLowerCase();
-    /* Try exact match first, then partial (contains), then word overlap — search ALL ranked keywords */
-    let match = allRankedKeywords.find(rk => rk.keyword?.toLowerCase() === kLow);
-    if (!match) match = allRankedKeywords.find(rk => rk.keyword?.toLowerCase().includes(kLow) || kLow.includes(rk.keyword?.toLowerCase()));
-    if (!match) {
+    /* Position: search ranked_keywords — null if page does not rank */
+    let posMatch = allRankedKeywords.find(rk => rk.keyword?.toLowerCase() === kLow);
+    if (!posMatch) posMatch = allRankedKeywords.find(rk => rk.keyword?.toLowerCase().includes(kLow) || kLow.includes(rk.keyword?.toLowerCase()));
+    if (!posMatch) {
       const kWords = kLow.split(/\s+/).filter(w => w.length > 2);
       if (kWords.length > 0) {
         let bestMatch = null, bestOverlap = 0;
@@ -384,10 +386,14 @@ function buildReportData(parsed, gpt, dfs) {
           const ratio = overlap / Math.max(kWords.length, rkWords.length);
           if (ratio > 0.5 && overlap > bestOverlap) { bestOverlap = overlap; bestMatch = rk; }
         });
-        match = bestMatch;
+        posMatch = bestMatch;
       }
     }
-    return { keyword: k, position: match?.position || null, volume: match?.volume || null, difficulty: match?.difficulty || null };
+    /* Vol/KD: prefer keyword_volume endpoint, fallback to ranked match */
+    const kvMatch = gptKwMetrics.find(m => m.keyword?.toLowerCase() === kLow);
+    const volume = kvMatch?.volume ?? posMatch?.volume ?? null;
+    const difficulty = kvMatch?.difficulty ?? posMatch?.difficulty ?? null;
+    return { keyword: k, position: posMatch?.position || null, volume, difficulty };
   });
 
   /* For "How Your Page Ranks" table — show top 7 by volume (DFS already sorts by volume desc) */
@@ -1424,6 +1430,28 @@ function IvaBotV6() {
           console.log("[IvaBot] DFS OK — ranked:", dfsSeo.ranked_keywords.length, "serp:", dfsSeo.serp_competitors.length);
         } else {
           console.log("[IvaBot] DFS failed:", dfsResult.reason?.message || "no data");
+        }
+
+        /* v83: fetch real Vol/KD for GPT-suggested keywords */
+        const gptKws = gpt?.keywords || [];
+        if (gptKws.length > 0) {
+          try {
+            const kvRes = await fetch(SUPABASE_URL + "/functions/v1/dataforseo-proxy", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+              body: JSON.stringify({ mode: "keyword_volume", keywords: gptKws })
+            });
+            if (kvRes.ok) {
+              const kvData = await kvRes.json();
+              if (Array.isArray(kvData?.keyword_metrics)) {
+                dfsSeo = dfsSeo || { ranked_keywords: [], serp_competitors: [], total_ranked: 0 };
+                dfsSeo.gpt_keyword_metrics = kvData.keyword_metrics;
+                console.log("[IvaBot] DFS keyword_volume OK:", kvData.keyword_metrics.length);
+              }
+            } else {
+              console.log("[IvaBot] DFS keyword_volume HTTP", kvRes.status);
+            }
+          } catch(e) { console.log("[IvaBot] DFS keyword_volume error:", e.message); }
         }
 
         setStep(5);
