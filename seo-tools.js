@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v81 — PDF redesign, NicheBadge/LowBadge in RankingsTable */
+/* IvaBot seo-tools v82 — PDF redesign, NicheBadge/LowBadge in RankingsTable */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v81 loaded");
+console.log("[IvaBot] seo-tools.js v82 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -46,19 +46,33 @@ const ScoreRing = ({ score, size = 92 }) => { const r = (size - 10) / 2, circ = 
 const Tip = ({ text, children }) => {
   const [s, setS] = useState(false);
   const ref = useRef(null);
-  const [pos, setPos] = useState({ above: true, alignRight: false });
+  const [coords, setCoords] = useState({ top: 0, left: 0, above: true });
+  const updatePos = () => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const tipW = 260, above = rect.top > 160, vw = window.innerWidth;
+    let left = rect.left;
+    if (left + tipW > vw - 10) left = vw - tipW - 10;
+    if (left < 10) left = 10;
+    setCoords({ top: above ? rect.top - 8 : rect.bottom + 8, left, above });
+  };
   return (<span ref={ref} style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
-    onMouseEnter={() => { if (ref.current) { const rect = ref.current.getBoundingClientRect(); setPos({ above: rect.top > 160, alignRight: rect.left > window.innerWidth / 2 }); } setS(true); }}
-    onMouseLeave={() => setS(false)}>{children}{s && <span style={{
-      position: "absolute",
-      ...(pos.above ? { bottom: "calc(100% + 8px)" } : { top: "calc(100% + 8px)" }),
-      ...(pos.alignRight ? { right: 0 } : { left: 0 }),
-      background: C.surface, color: C.dark, padding: "10px 14px", borderRadius: 10,
-      fontSize: 11, lineHeight: 1.5, width: 260, maxWidth: "85vw", zIndex: 9999,
-      fontWeight: 400, boxShadow: "0 4px 24px rgba(0,0,0,0.14)",
-      border: `1px solid ${C.border}`, pointerEvents: "none",
-      whiteSpace: "normal", wordBreak: "break-word", textAlign: "left"
-    }}>{text}</span>}</span>);
+    onMouseEnter={() => { updatePos(); setS(true); }}
+    onMouseLeave={() => setS(false)}>
+    {children}
+    {s && ReactDOM.createPortal(
+      <span style={{
+        position: "fixed", top: coords.top, left: coords.left,
+        transform: coords.above ? "translateY(-100%)" : "none",
+        background: C.surface, color: C.dark, padding: "10px 14px", borderRadius: 10,
+        fontSize: 11, lineHeight: 1.5, width: 260, maxWidth: "85vw", zIndex: 99999,
+        fontWeight: 400, boxShadow: "0 4px 24px rgba(0,0,0,0.14)",
+        border: `1px solid ${C.border}`, pointerEvents: "none",
+        whiteSpace: "normal", wordBreak: "break-word", textAlign: "left"
+      }}>{text}</span>,
+      document.body
+    )}
+  </span>);
 };
 const QM = ({ text }) => (<Tip text={text}><span style={{ width: 16, height: 16, borderRadius: "50%", border: `1px solid ${C.borderMid}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: C.muted, cursor: "help", marginLeft: 4, flexShrink: 0, verticalAlign: "top", position: "relative", top: -1 }}>?</span></Tip>);
 const CopyBtn = ({ text }) => { const [c, setC] = useState(false); return (<button onClick={() => { navigator.clipboard?.writeText(text); setC(true); setTimeout(() => setC(false), 1500); }} style={{ fontSize: 10, fontWeight: 600, color: c ? "#9B7AE6" : C.accent, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: "2px 6px" }}>{c ? "Copied!" : "Copy"}</button>); };
