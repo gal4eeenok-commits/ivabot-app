@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v83 — PDF redesign, NicheBadge/LowBadge in RankingsTable */
+/* IvaBot seo-tools v84 — tool order Core→Coverage→Builder */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v83 loaded");
+console.log("[IvaBot] seo-tools.js v84 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -27,13 +27,13 @@ const PACKS_NEW = [
     { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
     { n: "Large", p: "34", sessions: 60, tier: "large", save: "43%" }
   ]},
-  { instrument: "builder", label: "Content Builder", packs: [
+  { instrument: "coverage", label: "Content Coverage", packs: [
     { n: "Mini", p: "5", sessions: 5, tier: "mini" },
     { n: "Starter", p: "12", sessions: 15, tier: "starter", popular: true, save: "20%" },
     { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
     { n: "Large", p: "34", sessions: 60, tier: "large", save: "43%" }
   ]},
-  { instrument: "coverage", label: "Content Coverage", packs: [
+  { instrument: "builder", label: "Content Builder", packs: [
     { n: "Mini", p: "5", sessions: 5, tier: "mini" },
     { n: "Starter", p: "12", sessions: 15, tier: "starter", popular: true, save: "20%" },
     { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
@@ -1078,10 +1078,10 @@ async function generatePDF(data) {
         { text: "Run another audit after making changes, or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
         { text: [
           { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
-          { text: "  \u2022  ", color: mt },
-          { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
-          { text: "  \u2022  ", color: mt },
-          { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
+{ text: "  \u2022  ", color: mt },
+{ text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" },
+{ text: "  \u2022  ", color: mt },
+{ text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" }
         ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
         { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
       ],
