@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.2 — SERP positions all keywords, PDF safe symbols, Working Well open */
+/* IvaBot Content Coverage v6.3 — Content Coverage rename, AI signals tooltip, chat limit 100 */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.2 loaded");
+console.log("[IvaBot] content-coverage.js v6.3 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -408,7 +408,7 @@ const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad }
     <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
         <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>Content Coverage Score</span>
-        <QM text="Your coverage score shows how many content and trust checks your page passes. Content & Keywords counts how well your target keywords appear in title, description, headings, and body text. Trust & Conversion checks for social proof, CTA, FAQ, contacts, and testimonials." />
+        <QM text="Your coverage score shows how many content and trust checks your page passes. Content & Keywords counts how well your target keywords appear in title, description, headings, and body text. Trust & Conversion checks for social proof, CTA, FAQ, contacts, and testimonials — these signals help you rank on Google and also boost visibility in AI search tools like ChatGPT." />
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
       <div style={{ marginBottom: 8 }}>
@@ -692,7 +692,7 @@ const CoverageReport = ({ data }) => {
             </div>
           </div>
         </div>)})}
-        <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-audit after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Run another Content Coverage Audit to measure your progress.</div></div></div></div>
+        <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-audit after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Run another Content Coverage to measure your progress.</div></div></div></div>
       </div>
     </div>
   </div>);
@@ -989,7 +989,7 @@ async function generateCoveragePDF(data) {
     content.push({ table: { widths: ["*"], body: [[{
       stack: [
         { text: [{ text: "-  ", color: accentC, fontSize: 10, bold: true }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
-        { text: "Run another Content Coverage Audit to measure your progress.", fontSize: 10, color: mt }
+        { text: "Run another Content Coverage to measure your progress.", fontSize: 10, color: mt }
       ], margin: [10, 8, 10, 8]
     }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr }, margin: [0, 0, 0, 6] });
     content.push(spacer(8));
@@ -1102,6 +1102,8 @@ function ContentCoverage({ onHome, memberName: mn }) {
   const [pendingKw, setPendingKw] = useState(null);
   const [pageTopic, setPageTopic] = useState("");
   const [pageUrl, setPageUrl] = useState(null);
+  const [chatCount, setChatCount] = useState(0);
+  const MAX_CHAT = 100;
   const chatRef = useRef(null);
   const inputRef = useRef(null);
   const prevMsgCount = useRef(0);
@@ -1126,7 +1128,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     const mid = getMemberId();
     const creditCheck = await checkCoverageCredits(mid);
     if (!creditCheck.ok) {
-      bot(<div><div style={{marginBottom:6}}>You've used all your Content Coverage Audit credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
+      bot(<div><div style={{marginBottom:6}}>You've used all your Content Coverage credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
       return;
     }
     setSR(false); setAuditData(null); sPLoad("Analyzing your page..."); setLS(0);
@@ -1296,6 +1298,11 @@ function ContentCoverage({ onHome, memberName: mn }) {
 
   /* ═══ CHAT ═══ */
   const sendChat = async (text) => {
+    if (chatCount >= MAX_CHAT) {
+      bot(<div>You've reached the message limit for this session. Run another audit or try our other tools to keep improving your SEO!</div>);
+      return;
+    }
+    setChatCount(c => c + 1);
     sTyp(true);
     try {
       const d = auditData;
@@ -1456,11 +1463,11 @@ function ContentCoverage({ onHome, memberName: mn }) {
             const u = rows[0] || {};
             const left = Math.max(0, (u.coverage_limit || 0) - (u.coverage_used || 0));
             if (left <= 0) {
-              bot(<div>You're out of Coverage Audit credits. <a href="/dashboard#buy-credits" style={{ color: C.accent, fontWeight: 600, textDecoration: "underline" }}>Buy more credits</a> to continue.</div>);
+              bot(<div>You're out of Content Coverage credits. <a href="/dashboard#buy-credits" style={{ color: C.accent, fontWeight: 600, textDecoration: "underline" }}>Buy more credits</a> to continue.</div>);
               return;
             }
             bot(<div>
-              <div style={{ marginBottom: 10 }}>You have <strong>{left}</strong> Coverage Audit credit{left !== 1 ? "s" : ""} left. Run audit on <strong>{v.url}</strong>?</div>
+              <div style={{ marginBottom: 10 }}>You have <strong>{left}</strong> Content Coverage credit{left !== 1 ? "s" : ""} left. Run audit on <strong>{v.url}</strong>?</div>
             </div>);
             setStep("confirm_reaudit");
             setPageUrl(v.url);
@@ -1490,7 +1497,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
             </div>
           </div>); }} /></div>}
     {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change — replace a keyword, add something, or describe what you're looking for."); }} /></div>}
-    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
+    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setChatCount(0); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
   </React.Fragment>;
 
   const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><CoverageReport data={auditData} /></div> : <CoveragePlaceholder />}</React.Fragment>;
@@ -1500,7 +1507,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
   return (<div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
     <div style={{ padding: isMobile ? "0 12px 6px" : "0 24px 10px", display: "flex", alignItems: "center", gap: 6, maxWidth: 1224, margin: "0 auto", width: "100%" }}>
       <button onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button>
-      <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>Content Coverage Audit</span>
+      <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>Content Coverage</span>
       {showR && <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6", background: "rgba(155,122,230,0.08)", padding: "3px 8px", borderRadius: 10, marginLeft: 4 }}>Done</span>}
     </div>
 
