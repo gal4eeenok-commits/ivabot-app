@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v85 — Content Coverage rename, card descriptions updated, sessions→credits UI */
+/* IvaBot seo-tools v86 — KD fallback shows "—" instead of fake "low" badge */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v85 loaded");
+console.log("[IvaBot] seo-tools.js v86 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -601,7 +601,7 @@ const RankingsTable = ({ rows, emptyMsg }) => (
           <span style={{ background: r.position <= 3 ? "rgba(110,43,255,0.08)" : "rgba(21,20,21,0.04)", color: r.position <= 3 ? C.accent : C.muted, fontWeight: 600, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{r.position}</span>
         ) : <span style={{ color: C.muted, fontSize: 10, background: "rgba(21,20,21,0.03)", padding: "3px 8px", borderRadius: 6 }}>100+</span>}</td>
         <td style={{ textAlign: "right", padding: "10px 4px", whiteSpace: "nowrap" }}>{r.volume != null && r.volume > 0 ? <span style={{ color: C.dark, fontSize: 12 }}>{fmtVol(r.volume)}</span> : <NicheBadge />}</td>
-        <td style={{ textAlign: "right", padding: "10px 0", whiteSpace: "nowrap" }}>{r.difficulty != null ? <span style={{ color: C.muted, fontSize: 12 }}>{r.difficulty}</span> : <LowBadge />}</td>
+        <td style={{ textAlign: "right", padding: "10px 0", whiteSpace: "nowrap" }}>{r.difficulty != null ? <span style={{ color: C.muted, fontSize: 12 }}>{r.difficulty}</span> : <span style={{ color: C.muted, fontSize: 12 }}>—</span>}</td>
       </tr>
     )) : <tr><td colSpan={4} style={{ padding: "14px 0", color: C.muted, fontSize: 12, textAlign: "center" }}>{emptyMsg || "No data available yet."}</td></tr>}</tbody>
   </table>
