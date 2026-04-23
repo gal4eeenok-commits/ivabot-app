@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v87 — KD shows number + low/medium/high badge */
+/* IvaBot seo-tools v88 — KD shows low/medium/high badge only (no numbers) */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v87 loaded");
+console.log("[IvaBot] seo-tools.js v88 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -593,7 +593,7 @@ const RankingsTable = ({ rows, emptyMsg }) => (
       <th style={{ textAlign: "left", padding: "8px 0", color: C.muted, fontWeight: 500, fontSize: 11.5 }}>Keyword</th>
       <th style={{ textAlign: "center", padding: "8px 4px", color: C.muted, fontWeight: 500, fontSize: 11.5, width: 50, whiteSpace: "nowrap" }}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region." /></th>
       <th style={{ textAlign: "right", padding: "8px 4px", color: C.muted, fontWeight: 500, fontSize: 11.5, width: 70, whiteSpace: "nowrap" }}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google." /></th>
-      <th style={{ textAlign: "right", padding: "8px 0", color: C.muted, fontWeight: 500, fontSize: 11.5, width: 50, whiteSpace: "nowrap" }}>KD <QM text="Keyword difficulty (0–100) — how hard it is to rank in the top 10. Under 30 = easy, 30–60 = moderate, 60+ = hard." /></th>
+      <th style={{ textAlign: "right", padding: "8px 0", color: C.muted, fontWeight: 500, fontSize: 11.5, width: 50, whiteSpace: "nowrap" }}>KD <QM text="Keyword difficulty — how hard it is to rank in the top 10. Low = easy to rank, medium = moderate competition, high = very competitive." /></th>
     </tr></thead>
     <tbody>{rows.length > 0 ? rows.map((r, i) => (
       <tr key={i} style={{ borderBottom: i < rows.length - 1 ? `1px solid rgba(21,20,21,0.04)` : "none" }}>
@@ -602,7 +602,7 @@ const RankingsTable = ({ rows, emptyMsg }) => (
           <span style={{ background: r.position <= 3 ? "rgba(110,43,255,0.08)" : "rgba(21,20,21,0.04)", color: r.position <= 3 ? C.accent : C.muted, fontWeight: 600, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{r.position}</span>
         ) : <span style={{ color: C.muted, fontSize: 10, background: "rgba(21,20,21,0.03)", padding: "3px 8px", borderRadius: 6 }}>100+</span>}</td>
         <td style={{ textAlign: "right", padding: "10px 4px", whiteSpace: "nowrap" }}>{r.volume != null && r.volume > 0 ? <span style={{ color: C.dark, fontSize: 12 }}>{fmtVol(r.volume)}</span> : <NicheBadge />}</td>
-        <td style={{ textAlign: "right", padding: "10px 0", whiteSpace: "nowrap" }}>{r.difficulty != null ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ color: C.muted, fontSize: 12 }}>{r.difficulty}</span><KdBadge d={r.difficulty} /></span> : <KdBadge d={null} />}</td>
+        <td style={{ textAlign: "right", padding: "10px 0", whiteSpace: "nowrap" }}><KdBadge d={r.difficulty} /></td>
       </tr>
     )) : <tr><td colSpan={4} style={{ padding: "14px 0", color: C.muted, fontSize: 12, textAlign: "center" }}>{emptyMsg || "No data available yet."}</td></tr>}</tbody>
   </table>
@@ -650,7 +650,7 @@ async function generatePDF(data) {
 
   /* ── Helpers ── */
   const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
-  const fKD = (d) => d == null ? "low" : (d < 30 ? String(d) + " low" : d < 60 ? String(d) + " medium" : String(d) + " high");
+  const fKD = (d) => d == null ? "low" : (d < 30 ? "low" : d < 60 ? "medium" : "high");
   const urlS = data.url || "";
   const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
