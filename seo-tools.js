@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v84 — tool order Core→Coverage→Builder */
+/* IvaBot seo-tools v85 — Content Coverage rename, card descriptions updated, sessions→credits UI */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v84 loaded");
+console.log("[IvaBot] seo-tools.js v85 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -542,7 +542,7 @@ const BuyM = ({ onClose, memberId }) => {
         </div>
         <div style={{ height: 1, background: "#F6F6F6", margin: "10px 0" }} />
         <div style={{ fontSize: 24, fontWeight: 800, color: C.dark, textAlign: "center" }}>{pk.sessions}</div>
-        <div style={{ fontSize: 12, color: C.muted, textAlign: "center", marginBottom: 4 }}>sessions</div>
+        <div style={{ fontSize: 12, color: C.muted, textAlign: "center", marginBottom: 4 }}>credits</div>
         {pk.save && <div style={{ fontSize: 11, color: C.accent, fontWeight: 600, textAlign: "center" }}>Save {pk.save}</div>}
         {!pk.save && <div style={{ minHeight: 15 }} />}
         <button onClick={() => buyPack(pk)} disabled={buying === pk.tier} style={{ display: "block", width: "100%", padding: "10px 0", borderRadius: 8, background: pk.popular ? C.dark : C.surface, color: pk.popular ? "#fff" : C.dark, border: `1px solid ${pk.popular ? C.dark : C.borderMid}`, fontSize: 13, fontWeight: 600, textAlign: "center", fontFamily: "'DM Sans',sans-serif", cursor: buying === pk.tier ? "wait" : "pointer", transition: "background 0.2s", marginTop: 12, opacity: buying === pk.tier ? 0.6 : 1 }} onMouseEnter={e => { if (!buying) { if (pk.popular) e.currentTarget.style.background = "#333"; else e.currentTarget.style.background = C.accentLight; }}} onMouseLeave={e => { if (!buying) e.currentTarget.style.background = pk.popular ? C.dark : C.surface; }}>{buying === pk.tier ? "Loading..." : "Buy Credits"}</button>
@@ -1663,7 +1663,7 @@ function IvaBotV6() {
         <div style={{ flex: 1, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px", gap: 36, maxWidth: 780, width: "100%" }}>
             <div style={{ textAlign: "center" }}><div className="iva-seo-title" style={{ fontWeight: 400, color: C.dark, letterSpacing: "-0.2px", lineHeight: 1, marginBottom: 16, background: "linear-gradient(116deg, rgba(21,20,21,0.25) 8%, #151415 35%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>SEO Tools</div><p style={{ fontSize: 20, color: "rgba(21,20,21,0.5)", maxWidth: 460, margin: "0 auto", lineHeight: 1.1, letterSpacing: "-0.2px", fontWeight: 400 }}>Analyze pages, build content, and find gaps — powered by AI with real Google data.</p></div>
-            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} onBuy={() => setSB(true)} /><TCard title="Content Coverage Audit" desc="Keyword gaps, topical depth, and trust signals. Chat with AI to explore improvements." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} onBuy={() => setSB(true)} /><TCard title="Content Builder" desc="Keywords, SEO structure, and full page content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} onBuy={() => setSB(true)} /></div>
+            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} onBuy={() => setSB(true)} /><TCard title="Content Coverage" desc="Find keyword gaps and trust signals that help you rank on Google and get cited by AI tools." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} onBuy={() => setSB(true)} /><TCard title="Content Builder" desc="Finds low-competition keywords, builds SEO page structure, and writes full content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} onBuy={() => setSB(true)} /></div>
           </div>
         </div>
       ) : tool === "builder" && window.ContentBuilder ? (
