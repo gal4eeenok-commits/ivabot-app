@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v86 — KD fallback shows "—" instead of fake "low" badge */
+/* IvaBot seo-tools v87 — KD shows number + low/medium/high badge */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v86 loaded");
+console.log("[IvaBot] seo-tools.js v87 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -584,7 +584,8 @@ const SerpSnippet = ({ url, title, desc, hideDesc }) => {
 /* ═══ RANKINGS TABLE ═══ */
 const fmtVol = (v) => { if (!v) return "—"; if (v >= 1000000) return (v/1000000).toFixed(1).replace(/\.0$/,"") + "M"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"") + "K"; return v.toLocaleString(); };
 const NicheBadge = () => <span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>&lt; 10</span>;
-const LowBadge = () => <span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>low</span>;
+const KdBadge = ({ d }) => { const label = d == null ? "low" : d < 30 ? "low" : d < 60 ? "medium" : "high"; return <span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>{label}</span>; };
+const LowBadge = () => <KdBadge d={null} />;
 const RankingsTable = ({ rows, emptyMsg }) => (
   <div className="iva-scroll-inner" style={{ background: C.surface, borderRadius: 10, padding: "4px 14px", border: `1px solid ${C.cardBorder}`, overflowX: "auto" }}>
   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
@@ -601,7 +602,7 @@ const RankingsTable = ({ rows, emptyMsg }) => (
           <span style={{ background: r.position <= 3 ? "rgba(110,43,255,0.08)" : "rgba(21,20,21,0.04)", color: r.position <= 3 ? C.accent : C.muted, fontWeight: 600, padding: "3px 10px", borderRadius: 8, fontSize: 12 }}>{r.position}</span>
         ) : <span style={{ color: C.muted, fontSize: 10, background: "rgba(21,20,21,0.03)", padding: "3px 8px", borderRadius: 6 }}>100+</span>}</td>
         <td style={{ textAlign: "right", padding: "10px 4px", whiteSpace: "nowrap" }}>{r.volume != null && r.volume > 0 ? <span style={{ color: C.dark, fontSize: 12 }}>{fmtVol(r.volume)}</span> : <NicheBadge />}</td>
-        <td style={{ textAlign: "right", padding: "10px 0", whiteSpace: "nowrap" }}>{r.difficulty != null ? <span style={{ color: C.muted, fontSize: 12 }}>{r.difficulty}</span> : <span style={{ color: C.muted, fontSize: 12 }}>—</span>}</td>
+        <td style={{ textAlign: "right", padding: "10px 0", whiteSpace: "nowrap" }}>{r.difficulty != null ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ color: C.muted, fontSize: 12 }}>{r.difficulty}</span><KdBadge d={r.difficulty} /></span> : <KdBadge d={null} />}</td>
       </tr>
     )) : <tr><td colSpan={4} style={{ padding: "14px 0", color: C.muted, fontSize: 12, textAlign: "center" }}>{emptyMsg || "No data available yet."}</td></tr>}</tbody>
   </table>
@@ -649,7 +650,7 @@ async function generatePDF(data) {
 
   /* ── Helpers ── */
   const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
-  const fKD = (d) => d != null ? String(d) : "low";
+  const fKD = (d) => d == null ? "low" : (d < 30 ? String(d) + " low" : d < 60 ? String(d) + " medium" : String(d) + " high");
   const urlS = data.url || "";
   const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
