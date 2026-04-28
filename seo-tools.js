@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v88 — KD shows low/medium/high badge only (no numbers) */
+/* IvaBot seo-tools v89 — decode HTML entities (&amp; → &), score formula: video removed, content threshold lowered, title/desc/mobile rebalanced */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v88 loaded");
+console.log("[IvaBot] seo-tools.js v89 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -42,6 +42,15 @@ const PACKS_NEW = [
 ];
 
 /* ═══ PRIMITIVES ═══ */
+/* Decode HTML entities like &amp; &quot; &#039; &lt; &gt; into plain characters.
+   Uses a textarea so the browser does the work natively (covers all named/numeric entities). */
+const decodeHTML = (s) => {
+  if (typeof s !== "string" || !s) return s;
+  if (!s.includes("&")) return s;
+  const ta = document.createElement("textarea");
+  ta.innerHTML = s;
+  return ta.value;
+};
 const ScoreRing = ({ score, size = 92 }) => { const r = (size - 10) / 2, circ = 2 * Math.PI * r, off = circ - (score / 100) * circ, co = score >= 80 ? "#9B7AE6" : score >= 50 ? "#D4A0E8" : "#E2D4F5", lb = score >= 80 ? "Strong" : score >= 50 ? "Moderate" : "Weak"; return (<div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}><svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}><circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(21,20,21,0.05)" strokeWidth="6" /><circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={co} strokeWidth="6" strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round" style={{ transition: "stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1)" }} /></svg><div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 22, fontWeight: 700, color: C.dark }}>{score}</span><span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>{lb}</span></div></div>); };
 const Tip = ({ text, children }) => {
   const [s, setS] = useState(false);
@@ -273,7 +282,7 @@ function parseSEO(rawHtml, pageUrl) {
       if (h1Match) { const h1Text = h1Match[1].replace(/<[^>]+>/g,'').trim(); if (h1Text.length >= 5 && !isGenericTitle(h1Text)) rawTitle = h1Text; }
     }
   }
-  r.title = rawTitle;
+  r.title = decodeHTML(rawTitle);
   r.title_missing = !r.title;
   r.title_length = r.title.length;
   r.title_too_short = r.title.length > 0 && r.title.length < 30;
@@ -286,13 +295,13 @@ function parseSEO(rawHtml, pageUrl) {
 
   const md = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i)
     || html.match(/<meta[^>]*content=["']([\s\S]*?)["'][^>]*name=["']description["']/i);
-  r.desc = md ? md[1].trim() : "";
+  r.desc = md ? decodeHTML(md[1].trim()) : "";
   r.desc_missing = !r.desc;
   r.desc_too_short = r.desc.length > 0 && r.desc.length < 50;
   r.desc_too_long = r.desc.length > 200;
 
   const isTemplate = (t) => /^\{.*\}$/.test(t) || /^\{\{.*\}\}$/.test(t) || /^\[.*\]$/.test(t);
-  const exH = (h, lv) => [...h.matchAll(new RegExp(`<h${lv}[^>]*>([\\s\\S]*?)<\\/h${lv}>`, 'gi'))].map(m => m[1].replace(/<[^>]+>/g,'').trim()).filter(t => t && t.length > 1);
+  const exH = (h, lv) => [...h.matchAll(new RegExp(`<h${lv}[^>]*>([\\s\\S]*?)<\\/h${lv}>`, 'gi'))].map(m => decodeHTML(m[1].replace(/<[^>]+>/g,'').trim())).filter(t => t && t.length > 1);
   r.h1_raw = exH(html,1); r.h2 = exH(html,2); r.h3 = exH(html,3);
   r.h1 = r.h1_raw.filter(t => !isTemplate(t));
   r.h1_broken = r.h1_raw.filter(t => isTemplate(t));
@@ -345,16 +354,17 @@ function parseSEO(rawHtml, pageUrl) {
   let sc = 0;
   const ts = r.title_missing ? "missing" : r.title_too_short ? "too_short" : r.title_too_long ? "too_long" : r.title_has_repeated_brand ? "duplicate" : "good";
   const ds = r.desc_missing ? "missing" : r.desc_too_short ? "too_short" : r.desc_too_long ? "too_long" : "good";
-  if(ts==="good") sc+=15; else if(!r.title_missing) sc+=5;
-  if(ds==="good") sc+=10; else if(!r.desc_missing) sc+=3;
+  /* v89 score formula — max=100, video removed, landings get fairer content scores */
+  if(ts==="good") sc+=17; else if(!r.title_missing) sc+=6;
+  if(ds==="good") sc+=11; else if(!r.desc_missing) sc+=4;
   if(r.h1.length>0 && !r.h1_has_dups) sc+=10; else if(r.h1.length>0) sc+=6;
   if(r.h2.length>0 && r.h3.length>0) sc+=8; else if(r.h2.length>0) sc+=5; else sc+=2;
   if(int>3 && ext>0 && r.social.length>0) sc+=10; else if(int>0||ext>0) sc+=5;
   if(r.has_cta) sc+=7;
-  if(r.has_mobile) sc+=10;
+  if(r.has_mobile) sc+=12;
   if(r.img_count>0 && r.all_alt) sc+=8; else if(r.img_count>0) sc+=4; else sc+=2;
-  if(r.vid_count>0) sc+=5; else sc+=1;
-  if(r.char_count>3000) sc+=7; else if(r.char_count>1000) sc+=4; else sc+=1;
+  /* video removed — landings should not be penalized for not having video */
+  if(r.char_count>2000) sc+=7; else if(r.char_count>800) sc+=5; else sc+=2;
   r.score = Math.min(sc,100);
   r.title_status = ts; r.desc_status = ds;
 
@@ -829,7 +839,7 @@ async function generatePDF(data) {
 
   /* ── PAGE CONTEXT SUMMARY ── */
   content.push(secTitle("Page Context Summary"));
-  const ctxRows = [["Page URL", data.ctx?.url], ["Page title", data.ctx?.title], ["Topic", data.ctx?.topic], ["Owner", data.ctx?.owner], ["Goal", data.ctx?.goal], ["Industry", data.ctx?.industry], ["Region", data.ctx?.region], ["Competition", data.ctx?.competition], ["Core message", data.ctx?.message]];
+  const ctxRows = [["Page URL", data.ctx?.url], ["Page title", decodeHTML(data.ctx?.title)], ["Topic", decodeHTML(data.ctx?.topic)], ["Owner", decodeHTML(data.ctx?.owner)], ["Goal", decodeHTML(data.ctx?.goal)], ["Industry", decodeHTML(data.ctx?.industry)], ["Region", decodeHTML(data.ctx?.region)], ["Competition", data.ctx?.competition], ["Core message", decodeHTML(data.ctx?.message)]];
   const ctxBody = ctxRows.filter(([, v]) => v).map(([label, val]) => [
     { text: label, fontSize: 11, color: mt, margin: [4, 4, 4, 4] },
     { text: String(val).slice(0, 120), fontSize: 11, color: dk, margin: [4, 4, 4, 4] }
@@ -1177,7 +1187,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
   <BotNote text="Here's your full SEO audit. I'll walk you through each part — what's working, what needs fixing, and exactly how to fix it." />
   <div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}><ScoreRing score={data.score} /><div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}><span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>SEO Score</span><QM text="Your overall score based on title, description, headings, speed, mobile, links, robots.txt, and sitemap. Higher is better — aim for 80+." /></div><div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 4, wordBreak: "break-all" }}>{data.url}</div><div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.4 }}>{data.score >= 80 ? "Your page has a strong foundation. Let's fine-tune the details below." : "There's room for improvement — I'll show you exactly what to fix."}</div></div></div>
   <BotNote text="Let's start with how Google sees your page. This is what search engines understand about your content, topic, and purpose." />
-  <div className="reveal reveal-delay-1" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Page Context Summary</span><QM text="If something looks off here, it means Google may misunderstand your page's purpose." /></div><div className="iva-ctx-grid">{[{ l: "Page URL", v: data.ctx.url }, { l: "Page Title", v: data.ctx.title }, { l: "Topic", v: data.ctx.topic }, { l: "Owner / Creator", v: data.ctx.owner }, { l: "Goal", v: data.ctx.goal }, { l: "Industry", v: data.ctx.industry }, { l: "Region", v: data.ctx.region }, { l: "Topic Competition", v: null, badge: data.ctx.competition }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div>{x.badge ? <CompBadge level={x.badge} /> : <div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div>}</div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{data.ctx.message}</div></div></div></div>
+  <div className="reveal reveal-delay-1" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Page Context Summary</span><QM text="If something looks off here, it means Google may misunderstand your page's purpose." /></div><div className="iva-ctx-grid">{[{ l: "Page URL", v: data.ctx.url }, { l: "Page Title", v: decodeHTML(data.ctx.title) }, { l: "Topic", v: decodeHTML(data.ctx.topic) }, { l: "Owner / Creator", v: decodeHTML(data.ctx.owner) }, { l: "Goal", v: decodeHTML(data.ctx.goal) }, { l: "Industry", v: decodeHTML(data.ctx.industry) }, { l: "Region", v: decodeHTML(data.ctx.region) }, { l: "Topic Competition", v: null, badge: data.ctx.competition }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div>{x.badge ? <CompBadge level={x.badge} /> : <div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div>}</div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{decodeHTML(data.ctx.message)}</div></div></div></div>
   <BotNote text="These are the keywords Google currently associates with your page. All recommendations below are based on these topics." />
   {data.rankedKeywords?.length > 0 && <div className="reveal reveal-delay-2" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
