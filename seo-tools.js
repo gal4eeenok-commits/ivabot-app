@@ -1,4 +1,4 @@
-/* IvaBot seo-tools v89 — decode HTML entities (&amp; → &), score formula: video removed, content threshold lowered, title/desc/mobile rebalanced */
+/* IvaBot seo-tools v89 — decode HTML entities (&amp; → &), score formula: video removed, true max=100, landings get fairer scores */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] seo-tools.js v89 loaded");
@@ -354,15 +354,15 @@ function parseSEO(rawHtml, pageUrl) {
   let sc = 0;
   const ts = r.title_missing ? "missing" : r.title_too_short ? "too_short" : r.title_too_long ? "too_long" : r.title_has_repeated_brand ? "duplicate" : "good";
   const ds = r.desc_missing ? "missing" : r.desc_too_short ? "too_short" : r.desc_too_long ? "too_long" : "good";
-  /* v89 score formula — max=100, video removed, landings get fairer content scores */
-  if(ts==="good") sc+=17; else if(!r.title_missing) sc+=6;
-  if(ds==="good") sc+=11; else if(!r.desc_missing) sc+=4;
-  if(r.h1.length>0 && !r.h1_has_dups) sc+=10; else if(r.h1.length>0) sc+=6;
-  if(r.h2.length>0 && r.h3.length>0) sc+=8; else if(r.h2.length>0) sc+=5; else sc+=2;
-  if(int>3 && ext>0 && r.social.length>0) sc+=10; else if(int>0||ext>0) sc+=5;
-  if(r.has_cta) sc+=7;
-  if(r.has_mobile) sc+=12;
-  if(r.img_count>0 && r.all_alt) sc+=8; else if(r.img_count>0) sc+=4; else sc+=2;
+  /* v89.1 score formula — TRUE max=100, video removed, landings get fairer content scores */
+  if(ts==="good") sc+=18; else if(!r.title_missing) sc+=6;
+  if(ds==="good") sc+=12; else if(!r.desc_missing) sc+=4;
+  if(r.h1.length>0 && !r.h1_has_dups) sc+=11; else if(r.h1.length>0) sc+=7;
+  if(r.h2.length>0 && r.h3.length>0) sc+=10; else if(r.h2.length>0) sc+=6; else sc+=2;
+  if(int>3 && ext>0 && r.social.length>0) sc+=12; else if(int>0||ext>0) sc+=6;
+  if(r.has_cta) sc+=8;
+  if(r.has_mobile) sc+=13;
+  if(r.img_count>0 && r.all_alt) sc+=9; else if(r.img_count>0) sc+=4; else sc+=2;
   /* video removed — landings should not be penalized for not having video */
   if(r.char_count>2000) sc+=7; else if(r.char_count>800) sc+=5; else sc+=2;
   r.score = Math.min(sc,100);
