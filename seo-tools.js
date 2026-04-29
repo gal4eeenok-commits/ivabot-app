@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v89 — decode HTML entities (&amp; → &), score formula: video removed, true max=100, landings get fairer scores */
+/* IvaBot seo-tools v90 — Stripe Live mode price IDs (production launch) */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v89 loaded");
+console.log("[IvaBot] seo-tools.js v90 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -12,12 +12,12 @@ const C = {
 };
 const CHECKOUT_HOOK = "https://hook.eu2.make.com/3uenlk2qk3upaze45gdvwu9duhc39pq6";
 const PRICES = {
-  core_mini: "price_1TGicCCSobSUMDpsDODIPCiW", core_starter: "price_1TGieNCSobSUMDpsPHwKB9BH",
-  core_medium: "price_1TGieoCSobSUMDpshmKzy8ua", core_large: "price_1TGif3CSobSUMDpsG0XxviO5",
-  builder_mini: "price_1TGihoCSobSUMDpsVUIm8J0h", builder_starter: "price_1TGii3CSobSUMDps7iPabRNr",
-  builder_medium: "price_1TGiiGCSobSUMDpsAw0aQaJZ", builder_large: "price_1TGiiUCSobSUMDps54NiYv2k",
-  coverage_mini: "price_1TGik4CSobSUMDpsf3wSGnIF", coverage_starter: "price_1TGikLCSobSUMDpszHtKNaPu",
-  coverage_medium: "price_1TGikYCSobSUMDpsJI7pyw0q", coverage_large: "price_1TGikjCSobSUMDpsBgp9Pn9M"
+  core_mini: "price_1TRW63CSobSUMDpsb9WZX43S", core_starter: "price_1TRW64CSobSUMDpsj0fv4qcF",
+  core_medium: "price_1TRW65CSobSUMDps9FLZFeWr", core_large: "price_1TRW66CSobSUMDpssplRetEW",
+  builder_mini: "price_1TRW66CSobSUMDpsz0UdNHJe", builder_starter: "price_1TRW67CSobSUMDpsKzxfLS0Q",
+  builder_medium: "price_1TRW68CSobSUMDpsj0xSLn8V", builder_large: "price_1TRW69CSobSUMDpsciUhcixl",
+  coverage_mini: "price_1TRW69CSobSUMDpsiguRv6up", coverage_starter: "price_1TRW6ACSobSUMDpsJEm6EIIt",
+  coverage_medium: "price_1TRW6BCSobSUMDpsXHmnRn30", coverage_large: "price_1TRW6CCSobSUMDps7Nr1kYXp"
 };
 const SESSIONS_MAP = { mini: 5, starter: 15, medium: 30, large: 60 };
 const PACKS_NEW = [
