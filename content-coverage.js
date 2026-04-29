@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.7.1 — fixes &amp; entities + Content/Trust tooltips + official links per AI check + Twitter Card phrasing */
+/* IvaBot Content Coverage v6.8 — adds AI Readiness to PDF export + updated welcome message + 4-step placeholder */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.7.1 loaded");
+console.log("[IvaBot] content-coverage.js v6.8 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -995,11 +995,17 @@ async function generateCoveragePDF(data) {
       { text: item.title, fontSize: 13, bold: true, color: dk, width: "*" },
       { ...badge(item.priority), width: "auto", alignment: "right" }
     ], columnGap: 8, margin: [0, 0, 0, 4] });
-    if (item.why && typeof item.why === "string") stack.push({ text: item.why.slice(0, 300), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 });
+    if (item.why && typeof item.why === "string") stack.push({ text: item.why.replace(/\*\*/g, "").slice(0, 300), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 });
     if (item.suggestions?.length > 0) {
       stack.push({ text: "Suggested:", fontSize: 9, color: mt, bold: true, margin: [0, 4, 0, 2] });
       item.suggestions.forEach(s => {
         if (typeof s === "string") stack.push({ text: "\u2022 " + s, fontSize: 11, color: dk, margin: [0, 1, 0, 1] });
+      });
+    }
+    if (item.links?.length > 0) {
+      stack.push({ text: "Learn more:", fontSize: 9, color: mt, bold: true, margin: [0, 6, 0, 2] });
+      item.links.forEach(l => {
+        if (l && l.label && l.url) stack.push({ text: l.label, fontSize: 10, color: accentC, link: l.url, margin: [0, 1, 0, 1] });
       });
     }
     return {
@@ -1024,11 +1030,15 @@ async function generateCoveragePDF(data) {
 
   /* Build results */
   const { contentGood, contentBad, trustGood, trustBad } = buildCoverageResults(data);
-  const totalIssues = contentBad.length + trustBad.length;
+  const aiGood = data.aiReadiness?.aiGood || [];
+  const aiBad = data.aiReadiness?.aiBad || [];
+  const totalIssues = contentBad.length + trustBad.length + aiBad.length;
   const contentTotal = contentGood.length + contentBad.length;
   const trustTotal = trustGood.length + trustBad.length;
+  const aiTotal = aiGood.length + aiBad.length;
   const contentPct = contentTotal > 0 ? Math.round((contentGood.length / contentTotal) * 100) : 0;
   const trustPct = trustTotal > 0 ? Math.round((trustGood.length / trustTotal) * 100) : 0;
+  const aiPct = aiTotal > 0 ? Math.round((aiGood.length / aiTotal) * 100) : 0;
 
   const content = [];
 
@@ -1060,6 +1070,10 @@ async function generateCoveragePDF(data) {
         { text: [
           { text: "Trust & Conversion  ", fontSize: 10, color: mt },
           { text: trustGood.length + " / " + trustTotal + "  (" + trustPct + "%)", fontSize: 10, bold: true, color: "#D4A0E8" }
+        ], margin: [0, 0, 0, 6] },
+        { text: [
+          { text: "AI Readiness  ", fontSize: 10, color: mt },
+          { text: aiTotal > 0 ? (aiGood.length + " / " + aiTotal + "  (" + aiPct + "%)") : "—", fontSize: 10, bold: true, color: "#B89CF0" }
         ] }
       ], margin: [12, 14, 8, 14] }
     ]] },
@@ -1211,8 +1225,42 @@ async function generateCoveragePDF(data) {
     content.push(spacer(8));
   }
 
+  /* ── AI READINESS WORKING WELL ── */
+  if (aiGood.length > 0) {
+    content.push(secTitle("AI Search Optimization \u2014 Working Well"));
+    content.push(noteText(aiGood.length + " AI search signals are in place."));
+    content.push(spacer(6));
+
+    const aiExplains = {
+      "Schema.org markup": "Structured data tells AI tools (ChatGPT, Perplexity, Google AI) what your page is about.",
+      "FAQ schema": "FAQ schema makes your Q&A directly citable by AI search engines.",
+      "llms.txt file": "llms.txt is a new standard that tells AI tools how to read your site (like robots.txt for AI).",
+      "AI crawlers access": "Major AI crawlers (GPTBot, ClaudeBot, PerplexityBot) can read your page.",
+      "Question patterns": "Question-style headings match how users ask AI tools — your page gets cited more often.",
+      "Open Graph tags": "Open Graph tags control how your link previews on social media and AI search results.",
+      "Author information": "Clear authorship signals to AI that your content is trustworthy and citable.",
+      "Last updated date": "Date signals show AI tools that your content is fresh.",
+      "Authoritative citations": "Linking to .edu, .gov, and trusted sources signals real research to AI tools.",
+      "Statistics & data": "Concrete numbers and statistics make your content more useful for AI answers."
+    };
+    aiGood.forEach((g, idx) => {
+      content.push({ text: g.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 4] });
+      const explain = aiExplains[g.title] || "This AI readiness signal is present on your page.";
+      content.push({ text: explain, fontSize: 10, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+      if (idx < aiGood.length - 1) content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 4, 0, 4] });
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── AI READINESS NEEDS IMPROVEMENT ── */
+  if (aiBad.length > 0) {
+    content.push(secTitle("AI Search Optimization \u2014 Needs Improvement (" + aiBad.length + ")", accentC));
+    aiBad.forEach(item => content.push(lavCard(item)));
+    content.push(spacer(8));
+  }
+
   /* ── FINAL RECOMMENDATIONS ── */
-  const allBad = [...contentBad, ...trustBad];
+  const allBad = [...contentBad, ...trustBad, ...aiBad];
   if (allBad.length > 0) {
     content.push(secTitle("Final Recommendations"));
     content.push(noteText("Fix these and your rankings will improve."));
@@ -1326,9 +1374,9 @@ async function generateCoveragePDF(data) {
 const CoveragePlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
   <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(110,43,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
   <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 8 }}>Your content coverage report will appear here</div>
-  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, textAlign: "center", maxWidth: 340, marginBottom: 24 }}>I'll analyze your page and show you what's missing — so you know exactly what to fix to rank higher and convert more visitors.</div>
+  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, textAlign: "center", maxWidth: 340, marginBottom: 24 }}>I'll analyze your page and show you what's missing — so you know exactly what to fix to rank higher in Google, build user trust, and get cited by AI tools like ChatGPT.</div>
   <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 340 }}>
-    {[{ n: "1", t: "Keywords & context", d: "I check which keywords Google associates with your page" }, { n: "2", t: "Content & structure", d: "I analyze your title, headings, and body text for keyword coverage" }, { n: "3", t: "Trust & conversion", d: "I scan for social proof, CTAs, FAQ, and contact info" }].map((s, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.08)" }}><div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(155,122,230,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}><span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6" }}>{s.n}</span></div><div><div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{s.t}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.d}</div></div></div>)}
+    {[{ n: "1", t: "Keywords & context", d: "I check which keywords Google associates with your page" }, { n: "2", t: "Content & structure", d: "I analyze your title, headings, and body text for keyword coverage" }, { n: "3", t: "Trust & conversion", d: "I scan for social proof, CTAs, FAQ, and contact info" }, { n: "4", t: "AI search readiness", d: "I check schema, llms.txt, and other signals AI tools use to find you" }].map((s, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.08)" }}><div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(155,122,230,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}><span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6" }}>{s.n}</span></div><div><div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{s.t}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.d}</div></div></div>)}
   </div>
 </div>;
 
@@ -1369,7 +1417,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
   useEffect(() => {
     sTyp(true);
     setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); }, 1500);
-    setTimeout(() => { sTyp(false); add("b", <div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>I'll check how well your page covers target keywords, how deep and structured your content is, and whether your trust signals are strong enough. By fixing the gaps I find, you'll improve this page's visibility in Google.</div><div style={{fontWeight:600}}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 4000);
+    setTimeout(() => { sTyp(false); add("b", <div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>I'll check how well your page covers target keywords, how deep and structured your content is, whether your trust signals are strong enough, and how ready it is for AI search. By fixing the gaps I find, you'll improve this page's visibility in Google and AI tools like ChatGPT.</div><div style={{fontWeight:600}}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 4000);
   }, []);
 
   /* ═══ REAL AUDIT PIPELINE ═══ */
