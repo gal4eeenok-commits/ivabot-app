@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.6 — KD shows low/medium/high badge only (no numbers) */
+/* IvaBot Content Coverage v6.7 — adds AI Readiness module integration with adaptive scoring by page type */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.6 loaded");
+console.log("[IvaBot] content-coverage.js v6.7 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -23,6 +23,18 @@ const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",d
 /* ═══ PRIMITIVES (1:1 from seo-tools.js) ═══ */
 const Tip=({text,children})=>{const[s,setS]=useState(false);const ref=useRef(null);const[pos,setPos]=useState({above:true,alignRight:false});return(<span ref={ref} style={{position:"relative",display:"inline-flex",alignItems:"center"}} onMouseEnter={()=>{if(ref.current){const rect=ref.current.getBoundingClientRect();setPos({above:rect.top>160,alignRight:rect.left>window.innerWidth/2});}setS(true);}} onMouseLeave={()=>setS(false)}>{children}{s&&<span style={{position:"absolute",...(pos.above?{bottom:"calc(100% + 8px)"}:{top:"calc(100% + 8px)"}),...(pos.alignRight?{right:0}:{left:0}),background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:260,maxWidth:"85vw",zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal",wordBreak:"break-word",textAlign:"left"}}>{text}</span>}</span>);};
 const QM=({text})=>(<Tip text={text}><span style={{width:16,height:16,borderRadius:"50%",border:`1px solid ${C.borderMid}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,cursor:"help",marginLeft:4,flexShrink:0,verticalAlign:"top",position:"relative",top:-1}}>?</span></Tip>);
+/* Parse **bold** segments in text — returns React fragments */
+const renderBoldText = (text) => {
+  if (!text || typeof text !== "string") return text;
+  if (!text.includes("**")) return text;
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**")) {
+      return <strong key={i} style={{ fontWeight: 700, color: C.dark }}>{p.slice(2, -2)}</strong>;
+    }
+    return <React.Fragment key={i}>{p}</React.Fragment>;
+  });
+};
 const CopyBtn=({text})=>{const[c,setC]=useState(false);return(<button onClick={()=>{navigator.clipboard?.writeText(text);setC(true);setTimeout(()=>setC(false),1500);}} style={{fontSize:10,fontWeight:600,color:c?"#9B7AE6":C.accent,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"2px 6px"}}>{c?"Copied!":"Copy"}</button>);};
 const HoverCard=({children,style={}})=>(<div style={{borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,transition:"box-shadow 0.3s, border-color 0.3s",cursor:"default",...style}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.hoverBorder;e.currentTarget.style.boxShadow=C.hoverShadow;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}>{children}</div>);
 const SOCIAL_URLS={Facebook:"https://facebook.com",Instagram:"https://instagram.com",LinkedIn:"https://linkedin.com","X (Twitter)":"https://x.com",YouTube:"https://youtube.com",TikTok:"https://tiktok.com",Pinterest:"https://pinterest.com",Threads:"https://threads.net"};
@@ -35,7 +47,7 @@ const WorkingItem=({title,content})=>{const[o,setO]=useState(true);return(<div s
 const InfoBlock=({label,value,borderColor})=>{const renderLine=(line,i)=>{const hMatch=line.match(/^(H[1-3]):\s*(.*)/);if(hMatch){const lv=hMatch[1],text=hMatch[2];const hColorMap={H1:{color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},H2:{color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},H3:{color:"#B89CF0",bg:"rgba(184,156,240,0.12)"}};const hc=hColorMap[lv]||hColorMap.H2;const isBroken=text.includes("⚠");return(<div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:500,color:isBroken?C.accent:C.dark,padding:"2px 0"}}><span style={{fontSize:9,fontWeight:600,color:isBroken?C.accent:hc.color,background:isBroken?"rgba(110,43,255,0.08)":hc.bg,padding:"2px 5px",borderRadius:3,minWidth:22,textAlign:"center",flexShrink:0}}>{lv}</span><span>{text}</span></div>);}return<div key={i} style={{padding:"2px 0"}}>{line}</div>;};return(<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:`1px solid ${borderColor||C.border}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:3}}>{label}</div><div style={{fontSize:13,fontWeight:500,color:C.dark,lineHeight:1.5}}>{typeof value==="string"?value.split("\n").map(renderLine):value}</div></div>);};
 
 const PRIO={critical:{label:"Critical",color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},important:{label:"Important",color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},nice:{label:"Nice to have",color:"#B89CF0",bg:"rgba(184,156,240,0.08)"}};
-const ProblemCard=({title,why,currentLabel,current,suggestions,sugLabel,showCopy=true,links,serpSnippet,soft,priority})=>{const[o,setO]=useState(false);const pr=PRIO[priority]||PRIO.important;return(<div style={{borderRadius:12,border:soft?"1px solid rgba(110,43,255,0.12)":"1px solid rgba(110,43,255,0.25)",overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"13px 16px",background:C.surface,border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontFamily:"'DM Sans',sans-serif"}}><div style={{width:6,height:6,borderRadius:"50%",background:pr.color,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><span style={{fontSize:9,fontWeight:600,color:pr.color,background:pr.bg,padding:"3px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:"0.5px",flexShrink:0}}>{pr.label}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&(<div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:12}}>{serpSnippet&&<SerpSnippet {...serpSnippet}/>}{current&&(typeof current==="string"?<InfoBlock label={currentLabel||"Current"} value={current} borderColor="rgba(110,43,255,0.15)"/>:<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:"1px solid rgba(110,43,255,0.15)"}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{currentLabel||"Current"}</div>{current}</div>)}{why&&<div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"8px 12px",borderRadius:8,background:soft?"rgba(184,156,240,0.06)":"rgba(110,43,255,0.04)",border:`1px solid ${soft?"rgba(184,156,240,0.12)":"rgba(110,43,255,0.1)"}`}}><div style={{width:7,height:7,borderRadius:"50%",background:pr.color,flexShrink:0,marginTop:4}}/><span style={{fontSize:11.5,color:C.dark,lineHeight:1.5}}>{why}</span></div>}{suggestions?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{sugLabel||"Suggested"}</div><div style={{display:"flex",flexDirection:"column",gap:5}}>{suggestions.map((s,i)=>showCopy?(<HoverCard key={i} style={{padding:"9px 12px"}}><span style={{fontSize:12.5,color:C.dark,fontWeight:500,display:"block",marginBottom:4}}>{s}</span><CopyBtn text={s}/></HoverCard>):(<div key={i} style={{padding:"9px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,fontSize:12.5,color:C.dark,fontWeight:500}}>{s}</div>))}</div></div>}{links?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>Learn more</div>{links.map((l,i)=>(<a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:12,color:C.accent,marginBottom:4,textDecoration:"none"}}>{l.label} →</a>))}</div>}</div></div>)}</div>);};
+const ProblemCard=({title,why,currentLabel,current,suggestions,sugLabel,showCopy=true,links,serpSnippet,soft,priority})=>{const[o,setO]=useState(false);const pr=PRIO[priority]||PRIO.important;return(<div style={{borderRadius:12,border:soft?"1px solid rgba(110,43,255,0.12)":"1px solid rgba(110,43,255,0.25)",overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"13px 16px",background:C.surface,border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontFamily:"'DM Sans',sans-serif"}}><div style={{width:6,height:6,borderRadius:"50%",background:pr.color,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><span style={{fontSize:9,fontWeight:600,color:pr.color,background:pr.bg,padding:"3px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:"0.5px",flexShrink:0}}>{pr.label}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&(<div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:12}}>{serpSnippet&&<SerpSnippet {...serpSnippet}/>}{current&&(typeof current==="string"?<InfoBlock label={currentLabel||"Current"} value={current} borderColor="rgba(110,43,255,0.15)"/>:<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:"1px solid rgba(110,43,255,0.15)"}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{currentLabel||"Current"}</div>{current}</div>)}{why&&<div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"8px 12px",borderRadius:8,background:soft?"rgba(184,156,240,0.06)":"rgba(110,43,255,0.04)",border:`1px solid ${soft?"rgba(184,156,240,0.12)":"rgba(110,43,255,0.1)"}`}}><div style={{width:7,height:7,borderRadius:"50%",background:pr.color,flexShrink:0,marginTop:4}}/><span style={{fontSize:11.5,color:C.dark,lineHeight:1.5}}>{renderBoldText(why)}</span></div>}{suggestions?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{sugLabel||"Suggested"}</div><div style={{display:"flex",flexDirection:"column",gap:5}}>{suggestions.map((s,i)=>showCopy?(<HoverCard key={i} style={{padding:"9px 12px"}}><span style={{fontSize:12.5,color:C.dark,fontWeight:500,display:"block",marginBottom:4}}>{s}</span><CopyBtn text={s}/></HoverCard>):(<div key={i} style={{padding:"9px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,fontSize:12.5,color:C.dark,fontWeight:500}}>{s}</div>))}</div></div>}{links?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>Learn more</div>{links.map((l,i)=>(<a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:12,color:C.accent,marginBottom:4,textDecoration:"none"}}>{l.label} →</a>))}</div>}</div></div>)}</div>);};
 
 const SerpSnippet=({url,title,desc,hideDesc})=>{let displayUrl=url||"";try{const u=new URL(url);displayUrl=u.hostname+(u.pathname==="/"?"":u.pathname);}catch(e){}const truncTitle=title?(title.length>60?title.slice(0,57)+"...":title):"No title set";const truncDesc=desc?(desc.length>160?desc.slice(0,157)+"...":desc):"No description set";return(<div style={{padding:"14px 16px",borderRadius:10,background:C.surface,border:`1px solid ${C.cardBorder}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.5px"}}>Google Search Preview</div><div style={{padding:"12px 14px",borderRadius:8,background:"#fff",border:"1px solid rgba(21,20,21,0.06)"}}><div style={{fontSize:11,color:"#202124",marginBottom:2,display:"flex",alignItems:"center",gap:6}}><div style={{width:18,height:18,borderRadius:"50%",background:"rgba(21,20,21,0.06)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,fontWeight:700,color:C.muted}}>{(displayUrl[0]||"?").toUpperCase()}</span></div><span style={{color:"#4d5156",fontSize:11}}>{displayUrl}</span></div><div style={{fontSize:16,color:"#1a0dab",fontWeight:400,lineHeight:1.3,marginBottom:hideDesc?0:3,cursor:"pointer"}}>{truncTitle}</div>{!hideDesc&&<div style={{fontSize:12,color:"#4d5156",lineHeight:1.5}}>{truncDesc}</div>}</div></div>);};
 
@@ -365,6 +377,159 @@ function analyzeTrust(parsed, pageType) {
   return trust;
 }
 
+/* ═══ AI READINESS — wraps window.AIReadiness module + maps to good/bad ═══ */
+const AI_CHECK_LABELS = {
+  schema: "Schema.org markup",
+  faq: "FAQ schema",
+  llms: "llms.txt file",
+  bots: "AI crawlers access",
+  qa: "Question patterns",
+  og: "Open Graph tags",
+  author: "Author information",
+  dates: "Last updated date",
+  citations: "Authoritative citations",
+  statistics: "Statistics & data",
+};
+
+function analyzeAIReadiness(aiResult, pageType) {
+  /* aiResult comes from window.AIReadiness.parse() — has score, checks, weights_used */
+  const aiGood = [], aiBad = [];
+  if (!aiResult || !aiResult.checks) return { score: 0, total: 0, aiGood, aiBad, weights: null };
+
+  const checks = aiResult.checks;
+  const weights = aiResult.weights_used || {};
+
+  /* Helper: build "passed" boolean per check */
+  const isPassed = {
+    schema: checks.schema.found && checks.schema.malformed_blocks === 0,
+    faq: checks.faq_schema.status === "good" || checks.faq_schema.status === "partial_match",
+    llms: checks.llms_txt.found && checks.llms_txt.valid,
+    bots: checks.ai_bots.all_allowed === true,
+    qa: (checks.qa_patterns.total || 0) + (checks.qa_patterns.heading_questions || 0) >= 3,
+    og: checks.open_graph.status === "complete" || checks.open_graph.status === "good",
+    author: ["good", "partial", "org_only"].includes(checks.author.status),
+    dates: checks.dates.status === "fresh",
+    citations: (checks.citations.unique_hosts || 0) >= 1,
+    statistics: (checks.statistics.total || 0) >= 5,
+  };
+
+  /* Articles need Person markup, not just org_only */
+  if (pageType === "article" || pageType === "blog" || pageType === "blog_post") {
+    isPassed.author = checks.author.status === "good" || checks.author.status === "partial";
+  }
+
+  /* Iterate all 10 checks but only include those with weight > 0 for this page type */
+  const checkOrder = ["schema", "faq", "llms", "bots", "qa", "og", "author", "dates", "citations", "statistics"];
+  for (const checkName of checkOrder) {
+    const weight = weights[checkName] || 0;
+    if (weight === 0) continue; /* not relevant for this page type */
+
+    const passed = isPassed[checkName];
+    const label = AI_CHECK_LABELS[checkName];
+
+    if (passed) {
+      aiGood.push({
+        title: label,
+        check: checkName,
+        content: aiReadinessGoodContent(checkName, checks[mapCheckKey(checkName)]),
+      });
+    } else {
+      aiBad.push({
+        title: label,
+        check: checkName,
+        priority: aiReadinessPriority(checkName, weight),
+        why: aiReadinessWhy(checkName, pageType),
+        suggestions: aiReadinessSuggestions(checkName),
+        showCopy: false,
+      });
+    }
+  }
+
+  return {
+    score: aiResult.score,
+    status: aiResult.status,
+    pageType: aiResult.page_type,
+    total: aiGood.length + aiBad.length,
+    aiGood,
+    aiBad,
+    weights,
+    breakdown: aiResult.breakdown,
+  };
+}
+
+function mapCheckKey(checkName) {
+  const map = { schema: "schema", faq: "faq_schema", llms: "llms_txt", bots: "ai_bots", qa: "qa_patterns", og: "open_graph", author: "author", dates: "dates", citations: "citations", statistics: "statistics" };
+  return map[checkName] || checkName;
+}
+
+function aiReadinessPriority(checkName, weight) {
+  /* Critical if check has high weight (>= 15), important if moderate (>= 8), nice if low */
+  if (weight >= 15) return "critical";
+  if (weight >= 8) return "important";
+  return "nice";
+}
+
+function aiReadinessGoodContent(checkName, check) {
+  /* Short status line shown in "Working Well" expandable item */
+  switch (checkName) {
+    case "schema":
+      return <div style={{ fontSize: 12, color: C.muted }}>Found {check.valid_blocks} valid schema block{check.valid_blocks === 1 ? "" : "s"}: {(check.types || []).slice(0, 3).join(", ")}{check.types?.length > 3 ? "..." : ""}</div>;
+    case "faq":
+      return <div style={{ fontSize: 12, color: C.muted }}>FAQ schema matches {check.matched_questions} of {check.html_questions_count} questions on page</div>;
+    case "llms":
+      return <div style={{ fontSize: 12, color: C.muted }}>llms.txt found ({check.length} chars, {check.has_sections} sections)</div>;
+    case "bots":
+      return <div style={{ fontSize: 12, color: C.muted }}>All major AI crawlers can access this page (GPTBot, ClaudeBot, PerplexityBot, etc.)</div>;
+    case "qa":
+      return <div style={{ fontSize: 12, color: C.muted }}>Found {(check.total || 0) + (check.heading_questions || 0)} question patterns — AI tools love Q&A format</div>;
+    case "og":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.og_count} Open Graph tags + {check.twitter_count} Twitter Card tags</div>;
+    case "author":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.author_name ? `Author: ${check.author_name}` : "Author or organization markup found"}</div>;
+    case "dates":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.date_modified ? `Last updated: ${String(check.date_modified).slice(0, 10)}` : "Date signals found"}</div>;
+    case "citations":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.unique_hosts} unique authoritative source{check.unique_hosts === 1 ? "" : "s"} cited</div>;
+    case "statistics":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.total} numbers and statistics in content — strong factual signal</div>;
+  }
+  return null;
+}
+
+function aiReadinessWhy(checkName, pageType) {
+  /* Short "why this matters" — 1-2 sentences, with term definition in bold */
+  const why = {
+    schema: "**Schema.org is special code that tells AI what your page is about.** Without it, AI search tools may skip you when answering user questions.",
+    faq: "**FAQ schema marks Q&A pairs on your page so AI can find them.** Pages with FAQ schema are more likely to be quoted in ChatGPT or Perplexity answers.",
+    llms: "**llms.txt is a simple text file telling AI tools what's important on your site** (like robots.txt for AI). Adding it puts you ahead of 99% of websites.",
+    bots: "**AI crawlers are bots like GPTBot and ClaudeBot that read your site for AI search.** If your robots.txt blocks them, ChatGPT and Perplexity won't recommend you.",
+    qa: "**Question patterns are headings written as actual questions** (\"What is X?\", \"How to Y?\"). They match how users ask AI tools, so your page gets cited more often.",
+    og: "**Open Graph tags control how your link looks when shared online** — title, description, preview image. Without them, AI tools may skip your page.",
+    author: "**Author information is markup or visible text saying who wrote the page.** AI tools trust pages with clear authorship and rarely cite anonymous content.",
+    dates: "**A \"last updated\" date shows AI when the page was last edited.** AI prefers fresh content — without this, your page looks outdated even if it isn't.",
+    citations: "**Citations are external links to trusted sources** (.edu, .gov, well-known sites). They signal to AI that you do real research, increasing your chances of being cited.",
+    statistics: "**Statistics are concrete numbers in your content** (like \"60% of users\" or \"$5 to start\"). AI loves quoting specific numbers more than vague claims.",
+  };
+  return why[checkName] || "";
+}
+
+function aiReadinessSuggestions(checkName) {
+  /* Concrete actionable suggestions */
+  const sug = {
+    schema: ["Add Organization schema with your name, URL, logo, and description", "If you sell software/products, add SoftwareApplication or Product schema", "Add WebSite schema for your homepage", "Use Google's Rich Results Test to validate"],
+    faq: ["Add a FAQ section to your page with real questions users ask", "Wrap each Q&A pair in FAQPage JSON-LD schema", "Make sure schema text matches the visible text exactly", "Validate with Google Rich Results Test"],
+    llms: ["Create a /llms.txt file in your site root", "Format: # Site Name on first line, > Short description, then ## sections with key links", "See llmstxt.org for the spec and examples"],
+    bots: ["Check your robots.txt file at /robots.txt", "Make sure it doesn't block GPTBot, ClaudeBot, PerplexityBot, Google-Extended, anthropic-ai, ChatGPT-User, OAI-SearchBot, CCBot", "If you want maximum AI visibility, allow all of these"],
+    qa: ["Add 3+ heading-style questions to your page (e.g., \"What is X?\", \"How does Y work?\")", "Use H2 or H3 tags for questions", "Answer each question clearly in 1-3 sentences below"],
+    og: ["Add og:title, og:description, og:image, og:type, og:url meta tags", "Image should be 1200x630 px for best results", "Add Twitter Card tags too (twitter:card, twitter:title, twitter:description, twitter:image)"],
+    author: ["Add Person schema with author name, url, optional image", "Or add visible byline like \"By [Name]\" near the top of articles", "Link to author bio page if possible"],
+    dates: ["Add datePublished and dateModified to your Schema.org markup", "Update dateModified whenever you edit the page", "Show the date visibly on the page (\"Last updated: [date]\")"],
+    citations: ["Link to 2-3 authoritative external sources (.gov, .edu, well-known industry sites)", "Cite specific studies, official documentation, or reputable publications", "Use full URLs (not shortened)"],
+    statistics: ["Add at least 5 specific numbers, percentages, or stats to your content", "Use formats like \"60% of users\", \"$5 starts\", \"3x faster\", \"10,000 customers\"", "Cite the source for each statistic when possible"],
+  };
+  return sug[checkName] || [];
+}
+
 /* ═══ SEMANTIC FILTER — from Typebot single_semantic.js ═══ */
 function filterSemanticMissing(autocomplete, related, paa, visibleText) {
   const STOPWORDS = new Set(["a","an","the","and","or","but","if","for","from","to","of","in","on","at","by","with","as","is","are","was","were","be","been","being","it","its","so","not","no","very","can","could","should","would","may","might","must","do","does","did","have","has","had","you","your","we","our","they","their","he","she","him","her","his","them","i","me","my","s","t","re","ll","d","m","ve"]);
@@ -395,12 +560,14 @@ const hColors = { H1: { color: "#6E2BFF", bg: "rgba(110,43,255,0.08)" }, H2: { c
 const HL = ({ tags, lv }) => (<div style={{ display: "flex", flexDirection: "column", gap: 3 }}>{tags.map((h, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 500, color: C.dark }}><span style={{ fontSize: 9, fontWeight: 600, color: hColors[lv].color, background: hColors[lv].bg, padding: "2px 5px", borderRadius: 3, minWidth: 22, textAlign: "center" }}>{lv}</span>{typeof h === "string" ? h : h.text}</div>))}</div>);
 
 /* ═══ COVERAGE SCORE CARD ═══ */
-const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad }) => {
+const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad, aiGood, aiBad }) => {
   const contentTotal = contentGood.length + contentBad.length;
   const trustTotal = trustGood.length + trustBad.length;
-  const totalIssues = contentBad.length + trustBad.length;
+  const aiTotal = (aiGood?.length || 0) + (aiBad?.length || 0);
+  const totalIssues = contentBad.length + trustBad.length + (aiBad?.length || 0);
   const contentPct = contentTotal > 0 ? Math.round((contentGood.length / contentTotal) * 100) : 0;
   const trustPct = trustTotal > 0 ? Math.round((trustGood.length / trustTotal) * 100) : 0;
+  const aiPct = aiTotal > 0 ? Math.round(((aiGood?.length || 0) / aiTotal) * 100) : 0;
   return (<div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
     <div style={{ width: 92, height: 92, flexShrink: 0, borderRadius: 14, background: C.card, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: `1px solid ${C.cardBorder}` }}>
       <span style={{ fontSize: 28, fontWeight: 700, color: C.dark }}>{totalIssues}</span>
@@ -409,7 +576,7 @@ const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad }
     <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
         <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>Content Coverage Score</span>
-        <QM text="Your coverage score shows how many content and trust checks your page passes. Content & Keywords counts how well your target keywords appear in title, description, headings, and body text. Trust & Conversion checks for social proof, CTA, FAQ, contacts, and testimonials — these signals help you rank on Google and also boost visibility in AI search tools like ChatGPT." />
+        <QM text="Your coverage score shows how well your page is optimized across three areas: Content & Keywords (target keywords in title, headings, body), Trust & Conversion (social proof, CTA, FAQ, contacts), and AI Readiness (signals for AI search tools like ChatGPT and Perplexity). Each area has its own progress bar." />
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
       <div style={{ marginBottom: 8 }}>
@@ -421,13 +588,25 @@ const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad }
           <div style={{ height: "100%", width: `${contentPct}%`, background: "#9B7AE6", borderRadius: 100, transition: "width 0.8s ease" }} />
         </div>
       </div>
-      <div>
+      <div style={{ marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
           <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Trust & Conversion</span>
           <span style={{ fontSize: 10, fontWeight: 600, color: "#D4A0E8" }}>{trustGood.length} / {trustTotal}</span>
         </div>
         <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${trustPct}%`, background: "#D4A0E8", borderRadius: 100, transition: "width 0.8s ease" }} />
+        </div>
+      </div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>AI Readiness</span>
+            <QM text="AI Readiness shows how well your page is optimized for AI search tools like ChatGPT and Perplexity. The score is an estimate — what matters most depends on your page type. Also known as GEO (Generative Engine Optimization)." />
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#B89CF0" }}>{aiGood?.length || 0} / {aiTotal}</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${aiPct}%`, background: "#B89CF0", borderRadius: 100, transition: "width 0.8s ease" }} />
         </div>
       </div>
     </div>
@@ -596,18 +775,21 @@ function buildRankingGaps(d) {
 /* ═══ REPORT ═══ */
 const CoverageReport = ({ data }) => {
   const { contentGood, contentBad, trustGood, trustBad } = buildCoverageResults(data);
+  const aiGood = data.aiReadiness?.aiGood || [];
+  const aiBad = data.aiReadiness?.aiBad || [];
   const prioOrder = { critical: 0, important: 1, nice: 2 };
   const sortByPrio = (a, b) => (prioOrder[a.priority] ?? 1) - (prioOrder[b.priority] ?? 1);
   contentBad.sort(sortByPrio);
   trustBad.sort(sortByPrio);
-  const allBad = [...contentBad, ...trustBad].sort(sortByPrio);
+  aiBad.sort(sortByPrio);
+  const allBad = [...contentBad, ...trustBad, ...aiBad].sort(sortByPrio);
   const ukw = data.userKeywords || [];
 
   return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
     <BotNote text="Here's your full content coverage audit. I'll walk you through each part — what's working, what needs fixing, and exactly how to fix it." />
 
     {/* Coverage Score Card */}
-    <CoverageScoreCard url={data.url} contentGood={contentGood} contentBad={contentBad} trustGood={trustGood} trustBad={trustBad} />
+    <CoverageScoreCard url={data.url} contentGood={contentGood} contentBad={contentBad} trustGood={trustGood} trustBad={trustBad} aiGood={aiGood} aiBad={aiBad} />
 
     {/* Page Summary */}
     <BotNote text="This is how search engines interpret your page based on visible content and structure." />
@@ -673,6 +855,15 @@ const CoverageReport = ({ data }) => {
     {/* Trust Needs Improvement */}
     <BotNote text={trustBad.length > 0 ? `${trustBad.length} trust signals are missing.` : "All trust signals are in place!"} />
     {trustBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Trust & Conversion — Needs Improvement" count={trustBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{trustBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+
+    {/* AI Readiness — only show if module ran successfully */}
+    {data.aiReadiness && <>
+      <BotNote text={aiGood.length > 0 ? `${aiGood.length} AI search signals are in place.` : "Let's check how AI search tools see your page."} />
+      {aiGood.length > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={aiGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{aiGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+
+      <BotNote text={aiBad.length > 0 ? `${aiBad.length} AI readiness signals need improvement.` : "All AI readiness signals are in place!"} />
+      {aiBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="AI Search Optimization — Needs Improvement" count={aiBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+    </>}
 
     {/* Final Recommendations */}
     <BotNote text="Here's a summary of what to focus on. Fix these and your rankings will improve." />
@@ -1136,11 +1327,31 @@ function ContentCoverage({ onHome, memberName: mn }) {
     const setStepNum = (n) => setLS(prev => Math.max(prev, n));
 
     try {
-      // Step 0: Fetch HTML
+      // Step 0: Fetch HTML + robots.txt + llms.txt in parallel
       setStepNum(0);
-      const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-      if (!htmlRes.ok) throw new Error("Could not fetch page");
-      const rawHtml = await htmlRes.text();
+      let origin = "";
+      try { origin = new URL(url).origin; } catch(e) {}
+      const [htmlRes, robotsRes, llmsRes] = await Promise.allSettled([
+        fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) }),
+        origin ? fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: origin + "/robots.txt" }) }) : Promise.resolve(null),
+        origin ? fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: origin + "/llms.txt" }) }) : Promise.resolve(null),
+      ]);
+      if (htmlRes.status !== "fulfilled" || !htmlRes.value?.ok) throw new Error("Could not fetch page");
+      const rawHtml = await htmlRes.value.text();
+      let robotsContent = null, llmsContent = null;
+      try {
+        if (robotsRes.status === "fulfilled" && robotsRes.value?.ok) {
+          const t = await robotsRes.value.text();
+          if (t && !/<html|<!doctype/i.test(t.slice(0, 200))) robotsContent = t;
+        }
+      } catch(e) {}
+      try {
+        if (llmsRes.status === "fulfilled" && llmsRes.value?.ok) {
+          const t = await llmsRes.value.text();
+          if (t && !/<html|<!doctype/i.test(t.slice(0, 200))) llmsContent = t;
+        }
+      } catch(e) {}
+      console.log("[CC] Fetched: html=" + rawHtml.length + " robots=" + (robotsContent ? "yes" : "no") + " llms=" + (llmsContent ? "yes" : "no"));
 
       // Step 1: Parse HTML
       setStepNum(1);
@@ -1225,6 +1436,19 @@ function ContentCoverage({ onHome, memberName: mn }) {
       setStepNum(5);
       const pageType = gptData?.page_type || "other";
       const trust = analyzeTrust(parsed, pageType);
+
+      // Step 5b: AI Readiness (uses window.AIReadiness module loaded before this script)
+      let aiReadiness = null;
+      try {
+        if (window.AIReadiness && typeof window.AIReadiness.parse === "function") {
+          const aiResult = window.AIReadiness.parse(rawHtml, url, robotsContent, llmsContent, pageType);
+          aiReadiness = analyzeAIReadiness(aiResult, pageType);
+          console.log("[CC] AI Readiness:", aiReadiness.score + "/100", "type=" + aiReadiness.pageType, "good=" + aiReadiness.aiGood.length + "/" + aiReadiness.total);
+        } else {
+          console.warn("[CC] window.AIReadiness module not loaded — skipping AI Readiness");
+        }
+      } catch (e) { console.error("[CC] AI Readiness error:", e); }
+
       const semanticMissing = filterSemanticMissing(serpAutocomplete, serpRelated, serpPaa, parsed.visible_text);
       const titleAnalysis = analyzeTitleDescHeadings(parsed, finalKeywords);
 
@@ -1262,6 +1486,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         userKeywordMetrics,
         bodyEval,
         trust,
+        aiReadiness,
         semanticMissing,
         pageType,
         titleAnalysis,
