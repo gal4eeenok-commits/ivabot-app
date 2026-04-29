@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.7 — adds AI Readiness module integration with adaptive scoring by page type */
+/* IvaBot Content Coverage v6.7.1 — fixes &amp; entities + Content/Trust tooltips + official links per AI check + Twitter Card phrasing */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.7 loaded");
+console.log("[IvaBot] content-coverage.js v6.7.1 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -76,6 +76,13 @@ function valUrl(raw){let s=raw.trim();if(!s)return{ok:false,e:"Paste a URL to st
 
 /* ═══ HTML PARSER — extended from Core Audit parseSEO ═══ */
 function parseCoverage(rawHtml, pageUrl) {
+  const decodeHTML = (s) => {
+    if (typeof s !== "string" || !s) return s;
+    if (!s.includes("&")) return s;
+    const ta = document.createElement("textarea");
+    ta.innerHTML = s;
+    return ta.value;
+  };
   const r = {};
   let normalized = pageUrl.trim().replace(/\s+/g, "");
   if (!normalized.startsWith("http")) normalized = "https://" + normalized;
@@ -88,7 +95,7 @@ function parseCoverage(rawHtml, pageUrl) {
 
   // Title + Description
   const mt = html.match(/<title[^>]*>(.*?)<\/title>/i);
-  r.title = mt ? mt[1].trim() : "";
+  r.title = mt ? decodeHTML(mt[1].trim()) : "";
   r.title_missing = !r.title;
   r.title_length = r.title.length;
   r.title_too_short = r.title.length > 0 && r.title.length < 30;
@@ -98,13 +105,13 @@ function parseCoverage(rawHtml, pageUrl) {
 
   const md = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i)
     || html.match(/<meta[^>]*content=["']([\s\S]*?)["'][^>]*name=["']description["']/i);
-  r.desc = md ? md[1].trim() : "";
+  r.desc = md ? decodeHTML(md[1].trim()) : "";
   r.desc_missing = !r.desc;
   r.desc_length = r.desc.length;
 
   // Headings
   const isTemplate = (t) => /^\{.*\}$/.test(t) || /^\{\{.*\}\}$/.test(t) || /^\[.*\]$/.test(t);
-  const exH = (h, lv) => [...h.matchAll(new RegExp(`<h${lv}[^>]*>([\\s\\S]*?)<\\/h${lv}>`, 'gi'))].map(m => m[1].replace(/<[^>]+>/g,'').trim()).filter(t => t && t.length > 1);
+  const exH = (h, lv) => [...h.matchAll(new RegExp(`<h${lv}[^>]*>([\\s\\S]*?)<\\/h${lv}>`, 'gi'))].map(m => decodeHTML(m[1].replace(/<[^>]+>/g,'').trim())).filter(t => t && t.length > 1);
   r.h1 = exH(html,1).filter(t => !isTemplate(t));
   r.h1_broken = exH(html,1).filter(t => isTemplate(t));
   r.h2 = exH(html,2);
@@ -440,6 +447,7 @@ function analyzeAIReadiness(aiResult, pageType) {
         priority: aiReadinessPriority(checkName, weight),
         why: aiReadinessWhy(checkName, pageType),
         suggestions: aiReadinessSuggestions(checkName),
+        links: aiReadinessLinks(checkName),
         showCopy: false,
       });
     }
@@ -516,18 +524,62 @@ function aiReadinessWhy(checkName, pageType) {
 function aiReadinessSuggestions(checkName) {
   /* Concrete actionable suggestions */
   const sug = {
-    schema: ["Add Organization schema with your name, URL, logo, and description", "If you sell software/products, add SoftwareApplication or Product schema", "Add WebSite schema for your homepage", "Use Google's Rich Results Test to validate"],
+    schema: ["Add Organization schema with your name, URL, logo, and description", "If you sell software/products, add SoftwareApplication or Product schema", "Add WebSite schema for your homepage", "Validate your markup with Google's Rich Results Test"],
     faq: ["Add a FAQ section to your page with real questions users ask", "Wrap each Q&A pair in FAQPage JSON-LD schema", "Make sure schema text matches the visible text exactly", "Validate with Google Rich Results Test"],
     llms: ["Create a /llms.txt file in your site root", "Format: # Site Name on first line, > Short description, then ## sections with key links", "See llmstxt.org for the spec and examples"],
     bots: ["Check your robots.txt file at /robots.txt", "Make sure it doesn't block GPTBot, ClaudeBot, PerplexityBot, Google-Extended, anthropic-ai, ChatGPT-User, OAI-SearchBot, CCBot", "If you want maximum AI visibility, allow all of these"],
     qa: ["Add 3+ heading-style questions to your page (e.g., \"What is X?\", \"How does Y work?\")", "Use H2 or H3 tags for questions", "Answer each question clearly in 1-3 sentences below"],
-    og: ["Add og:title, og:description, og:image, og:type, og:url meta tags", "Image should be 1200x630 px for best results", "Add Twitter Card tags too (twitter:card, twitter:title, twitter:description, twitter:image)"],
+    og: ["Add og:title, og:description, og:image, og:type, og:url meta tags", "Image should be 1200×630 px for best preview results", "Also add Twitter Card tags (twitter:card, twitter:title, twitter:description, twitter:image) — they control previews on Slack, Discord, iMessage, LinkedIn, X, and other apps"],
     author: ["Add Person schema with author name, url, optional image", "Or add visible byline like \"By [Name]\" near the top of articles", "Link to author bio page if possible"],
     dates: ["Add datePublished and dateModified to your Schema.org markup", "Update dateModified whenever you edit the page", "Show the date visibly on the page (\"Last updated: [date]\")"],
     citations: ["Link to 2-3 authoritative external sources (.gov, .edu, well-known industry sites)", "Cite specific studies, official documentation, or reputable publications", "Use full URLs (not shortened)"],
     statistics: ["Add at least 5 specific numbers, percentages, or stats to your content", "Use formats like \"60% of users\", \"$5 starts\", \"3x faster\", \"10,000 customers\"", "Cite the source for each statistic when possible"],
   };
   return sug[checkName] || [];
+}
+
+function aiReadinessLinks(checkName) {
+  /* Official documentation + validators per check */
+  const links = {
+    schema: [
+      { label: "Schema.org — getting started", url: "https://schema.org/docs/gs.html" },
+      { label: "Google Rich Results Test (validator)", url: "https://search.google.com/test/rich-results" },
+    ],
+    faq: [
+      { label: "Google guide: FAQ schema", url: "https://developers.google.com/search/docs/appearance/structured-data/faqpage" },
+      { label: "Google Rich Results Test (validator)", url: "https://search.google.com/test/rich-results" },
+    ],
+    llms: [
+      { label: "llms.txt — official spec", url: "https://llmstxt.org" },
+    ],
+    bots: [
+      { label: "OpenAI: GPTBot crawler info", url: "https://platform.openai.com/docs/gptbot" },
+      { label: "Anthropic: ClaudeBot crawler info", url: "https://support.anthropic.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler" },
+    ],
+    qa: [
+      { label: "Google: how AI Overviews work", url: "https://blog.google/products/search/generative-ai-google-search-may-2024/" },
+    ],
+    og: [
+      { label: "Open Graph protocol — official", url: "https://ogp.me" },
+      { label: "Twitter Card validator", url: "https://cards-dev.twitter.com/validator" },
+      { label: "Facebook Sharing Debugger", url: "https://developers.facebook.com/tools/debug/" },
+    ],
+    author: [
+      { label: "Schema.org Person type", url: "https://schema.org/Person" },
+      { label: "Google E-E-A-T guidelines", url: "https://developers.google.com/search/docs/fundamentals/creating-helpful-content" },
+    ],
+    dates: [
+      { label: "Schema.org dateModified", url: "https://schema.org/dateModified" },
+      { label: "Google: freshness signals", url: "https://developers.google.com/search/docs/appearance/structured-data/article" },
+    ],
+    citations: [
+      { label: "Google E-E-A-T: trust signals", url: "https://developers.google.com/search/docs/fundamentals/creating-helpful-content" },
+    ],
+    statistics: [
+      { label: "Google: helpful content guidelines", url: "https://developers.google.com/search/docs/fundamentals/creating-helpful-content" },
+    ],
+  };
+  return links[checkName] || [];
 }
 
 /* ═══ SEMANTIC FILTER — from Typebot single_semantic.js ═══ */
@@ -581,7 +633,10 @@ const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad, 
       <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-          <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Content & Keywords</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Content & Keywords</span>
+            <QM text="Content & Keywords checks how well your target keywords appear in title, description, headings, and body text — these are the basics search engines use to understand what your page is about." />
+          </div>
           <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6" }}>{contentGood.length} / {contentTotal}</span>
         </div>
         <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
@@ -590,7 +645,10 @@ const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad, 
       </div>
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-          <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Trust & Conversion</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Trust & Conversion</span>
+            <QM text="Trust & Conversion checks for social proof, CTA, FAQ, contacts, and testimonials. These signals build trust with visitors and help convert them into customers." />
+          </div>
           <span style={{ fontSize: 10, fontWeight: 600, color: "#D4A0E8" }}>{trustGood.length} / {trustTotal}</span>
         </div>
         <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
