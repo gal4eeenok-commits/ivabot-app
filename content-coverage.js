@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.9 — geo/language detection for DataForSEO (TLD + html lang → location_code/language_code). Fixes Pos. = "—" for non-US sites. */
+/* IvaBot Content Coverage v6.91 — adds hreflang parsing for precise geo detection (site-declared target region). Priority: hreflang → TLD → html lang → US default. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.9 loaded");
+console.log("[IvaBot] content-coverage.js v6.91 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -78,7 +78,7 @@ function valUrl(raw){let s=raw.trim();if(!s)return{ok:false,e:"Paste a URL to st
    Detects target country + language from URL TLD + HTML lang attribute.
    This is CRITICAL — without it, DFS defaults to US/English and Pos. = "—" for non-US sites.
 */
-function detectLocale(url, htmlLang) {
+function detectLocale(url, htmlLang, hreflang) {
   // Mapping: TLD → DataForSEO location_code (Google country)
   // Full list: https://api.dataforseo.com/v3/serp/google/locations
   const tldToLoc = {
@@ -146,7 +146,40 @@ function detectLocale(url, htmlLang) {
   let location_code = 2840;  // United States default
   let language_code = "en";
   let source = "default";
+
+  /* v6.91: Step 0 — hreflang country code (most reliable signal — site self-declares target region) */
+  /* hreflang format: "ro-RO", "en-US", "de-AT", "x-default" — we extract the country code part */
+  const countryToLoc = {
+    "ro": { loc: 2642, lang: "ro" }, "de": { loc: 2276, lang: "de" }, "fr": { loc: 2250, lang: "fr" },
+    "es": { loc: 2724, lang: "es" }, "it": { loc: 2380, lang: "it" }, "nl": { loc: 2528, lang: "nl" },
+    "pl": { loc: 2616, lang: "pl" }, "pt": { loc: 2620, lang: "pt-PT" }, "br": { loc: 2076, lang: "pt-BR" },
+    "ru": { loc: 2643, lang: "ru" }, "ua": { loc: 2804, lang: "uk" }, "tr": { loc: 2792, lang: "tr" },
+    "se": { loc: 2752, lang: "sv" }, "no": { loc: 2578, lang: "no" }, "dk": { loc: 2208, lang: "da" },
+    "fi": { loc: 2246, lang: "fi" }, "cz": { loc: 2203, lang: "cs" }, "gr": { loc: 2300, lang: "el" },
+    "hu": { loc: 2348, lang: "hu" }, "at": { loc: 2040, lang: "de" }, "ch": { loc: 2756, lang: "de" },
+    "be": { loc: 2056, lang: "nl" }, "gb": { loc: 2826, lang: "en" }, "uk": { loc: 2826, lang: "en" },
+    "us": { loc: 2840, lang: "en" }, "au": { loc: 2036, lang: "en" }, "ca": { loc: 2124, lang: "en" },
+    "in": { loc: 2356, lang: "en" }, "ie": { loc: 2372, lang: "en" }, "nz": { loc: 2554, lang: "en" },
+    "za": { loc: 2710, lang: "en" }, "mx": { loc: 2484, lang: "es" }, "ar": { loc: 2032, lang: "es" },
+    "jp": { loc: 2392, lang: "ja" }, "kr": { loc: 2410, lang: "ko" }, "cn": { loc: 2156, lang: "zh-CN" },
+    "tw": { loc: 2158, lang: "zh-TW" },
+  };
+  if (hreflang) {
+    const hrParts = hreflang.toLowerCase().split(/[-_]/);
+    /* hreflang can be just "ro" (lang only) OR "ro-ro" (lang-country). Country is more reliable. */
+    if (hrParts.length >= 2 && countryToLoc[hrParts[1]]) {
+      location_code = countryToLoc[hrParts[1]].loc;
+      language_code = countryToLoc[hrParts[1]].lang;
+      source = "hreflang:" + hreflang;
+    } else if (hrParts.length === 1 && countryToLoc[hrParts[0]]) {
+      location_code = countryToLoc[hrParts[0]].loc;
+      language_code = countryToLoc[hrParts[0]].lang;
+      source = "hreflang-lang:" + hrParts[0];
+    }
+  }
+
   // Step 1: Try TLD (most reliable for ccTLDs)
+  if (source === "default") {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
     // Check 2-part TLD first (.co.uk, .co.jp, etc.)
@@ -160,12 +193,13 @@ function detectLocale(url, htmlLang) {
       if (tldToLoc[tld]) { location_code = tldToLoc[tld].loc; language_code = tldToLoc[tld].lang; source = "tld:" + tld; }
     }
   } catch(e){}
+  }
   // Step 2: HTML lang fallback (when TLD is .com/.net/.org/etc.)
   if (source === "default" && htmlLang) {
     const langKey = htmlLang.toLowerCase().split(/[-_]/)[0];
     if (langToLoc[langKey]) { location_code = langToLoc[langKey].loc; language_code = langToLoc[langKey].lang; source = "lang:" + langKey; }
   }
-  console.log(`[CC] detectLocale: url=${url} htmlLang=${htmlLang} → loc=${location_code} lang=${language_code} (source=${source})`);
+  console.log(`[CC] detectLocale: url=${url} htmlLang=${htmlLang} hreflang=${hreflang} → loc=${location_code} lang=${language_code} (source=${source})`);
   return { location_code, language_code };
 }
 
@@ -188,6 +222,42 @@ function parseCoverage(rawHtml, pageUrl) {
   // Detect HTML lang attribute (e.g. <html lang="ro">) — used for DataForSEO geo/lang targeting
   const langMatch = rawHtml.match(/<html[^>]*\blang\s*=\s*["']([a-zA-Z]{2,3}(?:[-_][a-zA-Z]{2,4})?)["']/i);
   r.html_lang = langMatch ? langMatch[1].toLowerCase().split(/[-_]/)[0] : null;
+
+  /* v6.91: Parse hreflang tags — most precise geo signal (site self-declares target region per page) */
+  /* Format: <link rel="alternate" hreflang="ro-RO" href="..." /> */
+  /* We find the hreflang whose href best matches the current pageUrl */
+  r.hreflang = null;
+  try {
+    const hreflangRegex = /<link[^>]*\brel\s*=\s*["']alternate["'][^>]*\bhreflang\s*=\s*["']([^"']+)["'][^>]*\bhref\s*=\s*["']([^"']+)["']/gi;
+    const hreflangRegex2 = /<link[^>]*\bhreflang\s*=\s*["']([^"']+)["'][^>]*\brel\s*=\s*["']alternate["'][^>]*\bhref\s*=\s*["']([^"']+)["']/gi;
+    const found = [];
+    let m;
+    while ((m = hreflangRegex.exec(rawHtml)) !== null) found.push({ lang: m[1], href: m[2] });
+    while ((m = hreflangRegex2.exec(rawHtml)) !== null) found.push({ lang: m[1], href: m[2] });
+    if (found.length > 0) {
+      const normalizedPage = normalized.replace(/\/$/, "").toLowerCase();
+      /* Try exact match first */
+      const exact = found.find(h => h.href.replace(/\/$/, "").toLowerCase() === normalizedPage);
+      if (exact && exact.lang.toLowerCase() !== "x-default") {
+        r.hreflang = exact.lang;
+      } else {
+        /* Try match by URL contains hreflang code (e.g. /ro/ in URL → match ro-RO) */
+        for (const h of found) {
+          if (h.lang.toLowerCase() === "x-default") continue;
+          const langCode = h.lang.toLowerCase().split(/[-_]/)[0];
+          if (normalizedPage.includes("/" + langCode + "/") || normalizedPage.endsWith("/" + langCode)) {
+            r.hreflang = h.lang;
+            break;
+          }
+        }
+        /* If still nothing — use first non-default hreflang (assumes single-region site) */
+        if (!r.hreflang) {
+          const firstReal = found.find(h => h.lang.toLowerCase() !== "x-default");
+          if (firstReal && found.length === 1) r.hreflang = firstReal.lang;
+        }
+      }
+    }
+  } catch(e) { console.log("[CC] hreflang parse error:", e); }
 
   let html = rawHtml.replace(/\\"/g,'"').replace(/\\</g,'<').replace(/\\>/g,'>').replace(/\\[nrt]/g,' ')
     .replace(/<svg[\s\S]*?<\/svg>/gi,'').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
@@ -1589,7 +1659,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       // Step 4: DFS — volume/KD + SERP (PAA, related, autocomplete)
       setStepNum(4);
       let dfsData = null;
-      const locale = detectLocale(url, parsed.html_lang);
+      const locale = detectLocale(url, parsed.html_lang, parsed.hreflang);
       try {
         const dfsRes = await fetch(DFS_PROXY, {
           method: "POST",
