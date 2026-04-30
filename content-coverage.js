@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.8 — adds AI Readiness to PDF export + updated welcome message + 4-step placeholder */
+/* IvaBot Content Coverage v6.9 — geo/language detection for DataForSEO (TLD + html lang → location_code/language_code). Fixes Pos. = "—" for non-US sites. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.8 loaded");
+console.log("[IvaBot] content-coverage.js v6.9 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -74,6 +74,101 @@ const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onCl
 
 function valUrl(raw){let s=raw.trim();if(!s)return{ok:false,e:"Paste a URL to start."};const m=s.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/i);if(m)s=m[0];else{const d=s.match(/[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}[^\s]*/);if(d)s="https://"+d[0];else return{ok:false,e:"Need a URL like https://example.com"};}s=s.replace(/\s+/g,"");if(!s.startsWith("http"))s="https://"+s;try{const u=new URL(s);if(!u.hostname.includes("."))return{ok:false,e:"Not valid."};return{ok:true,url:u.href};}catch{return{ok:false,e:"Not valid."};}}
 
+/* ═══ DataForSEO geo/language detection ═══
+   Detects target country + language from URL TLD + HTML lang attribute.
+   This is CRITICAL — without it, DFS defaults to US/English and Pos. = "—" for non-US sites.
+*/
+function detectLocale(url, htmlLang) {
+  // Mapping: TLD → DataForSEO location_code (Google country)
+  // Full list: https://api.dataforseo.com/v3/serp/google/locations
+  const tldToLoc = {
+    "ro": { loc: 2642, lang: "ro" },  // Romania
+    "de": { loc: 2276, lang: "de" },  // Germany
+    "fr": { loc: 2250, lang: "fr" },  // France
+    "es": { loc: 2724, lang: "es" },  // Spain
+    "it": { loc: 2380, lang: "it" },  // Italy
+    "nl": { loc: 2528, lang: "nl" },  // Netherlands
+    "pl": { loc: 2616, lang: "pl" },  // Poland
+    "pt": { loc: 2620, lang: "pt-PT" },  // Portugal
+    "br": { loc: 2076, lang: "pt-BR" },  // Brazil
+    "ru": { loc: 2643, lang: "ru" },  // Russia
+    "ua": { loc: 2804, lang: "uk" },  // Ukraine
+    "tr": { loc: 2792, lang: "tr" },  // Turkey
+    "se": { loc: 2752, lang: "sv" },  // Sweden
+    "no": { loc: 2578, lang: "no" },  // Norway
+    "dk": { loc: 2208, lang: "da" },  // Denmark
+    "fi": { loc: 2246, lang: "fi" },  // Finland
+    "cz": { loc: 2203, lang: "cs" },  // Czechia
+    "gr": { loc: 2300, lang: "el" },  // Greece
+    "hu": { loc: 2348, lang: "hu" },  // Hungary
+    "at": { loc: 2040, lang: "de" },  // Austria
+    "ch": { loc: 2756, lang: "de" },  // Switzerland (German default)
+    "be": { loc: 2056, lang: "nl" },  // Belgium (Dutch default)
+    "uk": { loc: 2826, lang: "en" },  // UK
+    "co.uk": { loc: 2826, lang: "en" },  // UK
+    "au": { loc: 2036, lang: "en" },  // Australia
+    "ca": { loc: 2124, lang: "en" },  // Canada
+    "in": { loc: 2356, lang: "en" },  // India
+    "ie": { loc: 2372, lang: "en" },  // Ireland
+    "nz": { loc: 2554, lang: "en" },  // New Zealand
+    "za": { loc: 2710, lang: "en" },  // South Africa
+    "mx": { loc: 2484, lang: "es" },  // Mexico
+    "ar": { loc: 2032, lang: "es" },  // Argentina
+    "jp": { loc: 2392, lang: "ja" },  // Japan
+    "kr": { loc: 2410, lang: "ko" },  // South Korea
+    "cn": { loc: 2156, lang: "zh-CN" },  // China
+    "tw": { loc: 2158, lang: "zh-TW" },  // Taiwan
+  };
+  // Lang code → DataForSEO location_code (used when TLD is .com/.net/.org but lang is set)
+  const langToLoc = {
+    "ro": { loc: 2642, lang: "ro" },
+    "de": { loc: 2276, lang: "de" },
+    "fr": { loc: 2250, lang: "fr" },
+    "es": { loc: 2724, lang: "es" },
+    "it": { loc: 2380, lang: "it" },
+    "nl": { loc: 2528, lang: "nl" },
+    "pl": { loc: 2616, lang: "pl" },
+    "pt": { loc: 2620, lang: "pt-PT" },
+    "ru": { loc: 2643, lang: "ru" },
+    "uk": { loc: 2804, lang: "uk" },
+    "tr": { loc: 2792, lang: "tr" },
+    "sv": { loc: 2752, lang: "sv" },
+    "no": { loc: 2578, lang: "no" },
+    "da": { loc: 2208, lang: "da" },
+    "fi": { loc: 2246, lang: "fi" },
+    "cs": { loc: 2203, lang: "cs" },
+    "el": { loc: 2300, lang: "el" },
+    "hu": { loc: 2348, lang: "hu" },
+    "ja": { loc: 2392, lang: "ja" },
+    "ko": { loc: 2410, lang: "ko" },
+    "zh": { loc: 2156, lang: "zh-CN" },
+  };
+  let location_code = 2840;  // United States default
+  let language_code = "en";
+  let source = "default";
+  // Step 1: Try TLD (most reliable for ccTLDs)
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    // Check 2-part TLD first (.co.uk, .co.jp, etc.)
+    const parts = hostname.split(".");
+    if (parts.length >= 3) {
+      const twoPart = parts.slice(-2).join(".");
+      if (tldToLoc[twoPart]) { location_code = tldToLoc[twoPart].loc; language_code = tldToLoc[twoPart].lang; source = "tld:" + twoPart; }
+    }
+    if (source === "default") {
+      const tld = parts[parts.length - 1];
+      if (tldToLoc[tld]) { location_code = tldToLoc[tld].loc; language_code = tldToLoc[tld].lang; source = "tld:" + tld; }
+    }
+  } catch(e){}
+  // Step 2: HTML lang fallback (when TLD is .com/.net/.org/etc.)
+  if (source === "default" && htmlLang) {
+    const langKey = htmlLang.toLowerCase().split(/[-_]/)[0];
+    if (langToLoc[langKey]) { location_code = langToLoc[langKey].loc; language_code = langToLoc[langKey].lang; source = "lang:" + langKey; }
+  }
+  console.log(`[CC] detectLocale: url=${url} htmlLang=${htmlLang} → loc=${location_code} lang=${language_code} (source=${source})`);
+  return { location_code, language_code };
+}
+
 /* ═══ HTML PARSER — extended from Core Audit parseSEO ═══ */
 function parseCoverage(rawHtml, pageUrl) {
   const decodeHTML = (s) => {
@@ -89,6 +184,10 @@ function parseCoverage(rawHtml, pageUrl) {
   r.url = normalized.replace(/\?.*$/, "");
   let hostname = ""; try { hostname = new URL(normalized).hostname.replace(/^www\./, ""); } catch(e){}
   r.hostname = hostname;
+
+  // Detect HTML lang attribute (e.g. <html lang="ro">) — used for DataForSEO geo/lang targeting
+  const langMatch = rawHtml.match(/<html[^>]*\blang\s*=\s*["']([a-zA-Z]{2,3}(?:[-_][a-zA-Z]{2,4})?)["']/i);
+  r.html_lang = langMatch ? langMatch[1].toLowerCase().split(/[-_]/)[0] : null;
 
   let html = rawHtml.replace(/\\"/g,'"').replace(/\\</g,'<').replace(/\\>/g,'>').replace(/\\[nrt]/g,' ')
     .replace(/<svg[\s\S]*?<\/svg>/gi,'').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
@@ -1490,11 +1589,12 @@ function ContentCoverage({ onHome, memberName: mn }) {
       // Step 4: DFS — volume/KD + SERP (PAA, related, autocomplete)
       setStepNum(4);
       let dfsData = null;
+      const locale = detectLocale(url, parsed.html_lang);
       try {
         const dfsRes = await fetch(DFS_PROXY, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
-          body: JSON.stringify({ mode: "content_builder", keywords: allKwUnique.slice(0, 6), page_url: url })
+          body: JSON.stringify({ mode: "content_builder", keywords: allKwUnique.slice(0, 6), page_url: url, location_code: locale.location_code, language_code: locale.language_code })
         });
         if (dfsRes.ok) dfsData = await dfsRes.json();
         console.log("[CC] DFS:", dfsData ? `metrics=${dfsData.keyword_metrics?.length} ranked=${dfsData.ranked_keywords?.length || 0} paa=${dfsData.people_also_ask?.length} related=${dfsData.related_searches?.length} ac=${dfsData.autocomplete?.length} organic=${dfsData.serp_organic?.length || 0} serpPos=${JSON.stringify(dfsData.serp_positions || {})}` : "failed");
