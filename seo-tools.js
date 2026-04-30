@@ -1,7 +1,7 @@
 /* IvaBot seo-tools v90 — Stripe Live mode price IDs (production launch) */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v91 loaded");
+console.log("[IvaBot] seo-tools.js v92 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -259,7 +259,8 @@ async function fetchCredits(userId) {
 
 /* ═══ SEO PARSER ═══ */
 /* v91: detectLocale — TLD + html lang → DataForSEO location_code/language_code */
-function detectLocale(url, htmlLang) {
+/* v92: + hreflang priority (most precise — site self-declares target region) */
+function detectLocale(url, htmlLang, hreflang) {
   const tldToLoc = {
     "ro": { loc: 2642, lang: "ro" }, "de": { loc: 2276, lang: "de" }, "fr": { loc: 2250, lang: "fr" },
     "es": { loc: 2724, lang: "es" }, "it": { loc: 2380, lang: "it" }, "nl": { loc: 2528, lang: "nl" },
@@ -284,6 +285,35 @@ function detectLocale(url, htmlLang) {
     "ja": { loc: 2392, lang: "ja" }, "ko": { loc: 2410, lang: "ko" }, "zh": { loc: 2156, lang: "zh-CN" },
   };
   let location_code = 2840, language_code = "en", source = "default";
+  /* v92: hreflang country mapping (highest priority signal) */
+  const countryToLoc = {
+    "ro": { loc: 2642, lang: "ro" }, "de": { loc: 2276, lang: "de" }, "fr": { loc: 2250, lang: "fr" },
+    "es": { loc: 2724, lang: "es" }, "it": { loc: 2380, lang: "it" }, "nl": { loc: 2528, lang: "nl" },
+    "pl": { loc: 2616, lang: "pl" }, "pt": { loc: 2620, lang: "pt-PT" }, "br": { loc: 2076, lang: "pt-BR" },
+    "ru": { loc: 2643, lang: "ru" }, "ua": { loc: 2804, lang: "uk" }, "tr": { loc: 2792, lang: "tr" },
+    "se": { loc: 2752, lang: "sv" }, "no": { loc: 2578, lang: "no" }, "dk": { loc: 2208, lang: "da" },
+    "fi": { loc: 2246, lang: "fi" }, "cz": { loc: 2203, lang: "cs" }, "gr": { loc: 2300, lang: "el" },
+    "hu": { loc: 2348, lang: "hu" }, "at": { loc: 2040, lang: "de" }, "ch": { loc: 2756, lang: "de" },
+    "be": { loc: 2056, lang: "nl" }, "gb": { loc: 2826, lang: "en" }, "uk": { loc: 2826, lang: "en" },
+    "us": { loc: 2840, lang: "en" }, "au": { loc: 2036, lang: "en" }, "ca": { loc: 2124, lang: "en" },
+    "in": { loc: 2356, lang: "en" }, "ie": { loc: 2372, lang: "en" }, "nz": { loc: 2554, lang: "en" },
+    "za": { loc: 2710, lang: "en" }, "mx": { loc: 2484, lang: "es" }, "ar": { loc: 2032, lang: "es" },
+    "jp": { loc: 2392, lang: "ja" }, "kr": { loc: 2410, lang: "ko" }, "cn": { loc: 2156, lang: "zh-CN" },
+    "tw": { loc: 2158, lang: "zh-TW" },
+  };
+  if (hreflang) {
+    const hrParts = hreflang.toLowerCase().split(/[-_]/);
+    if (hrParts.length >= 2 && countryToLoc[hrParts[1]]) {
+      location_code = countryToLoc[hrParts[1]].loc;
+      language_code = countryToLoc[hrParts[1]].lang;
+      source = "hreflang:" + hreflang;
+    } else if (hrParts.length === 1 && countryToLoc[hrParts[0]]) {
+      location_code = countryToLoc[hrParts[0]].loc;
+      language_code = countryToLoc[hrParts[0]].lang;
+      source = "hreflang-lang:" + hrParts[0];
+    }
+  }
+  if (source === "default") {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
     const parts = hostname.split(".");
@@ -296,11 +326,12 @@ function detectLocale(url, htmlLang) {
       if (tldToLoc[tld]) { location_code = tldToLoc[tld].loc; language_code = tldToLoc[tld].lang; source = "tld:" + tld; }
     }
   } catch(e){}
+  }
   if (source === "default" && htmlLang) {
     const langKey = htmlLang.toLowerCase().split(/[-_]/)[0];
     if (langToLoc[langKey]) { location_code = langToLoc[langKey].loc; language_code = langToLoc[langKey].lang; source = "lang:" + langKey; }
   }
-  console.log(`[IvaBot] detectLocale: url=${url} htmlLang=${htmlLang} → loc=${location_code} lang=${language_code} (source=${source})`);
+  console.log(`[IvaBot] detectLocale: url=${url} htmlLang=${htmlLang} hreflang=${hreflang} → loc=${location_code} lang=${language_code} (source=${source})`);
   return { location_code, language_code };
 }
 
@@ -315,6 +346,37 @@ function parseSEO(rawHtml, pageUrl) {
   /* v91: Detect HTML lang attribute for DFS geo-targeting */
   const langMatch = rawHtml.match(/<html[^>]*\blang\s*=\s*["']([a-zA-Z]{2,3}(?:[-_][a-zA-Z]{2,4})?)["']/i);
   r.html_lang = langMatch ? langMatch[1].toLowerCase().split(/[-_]/)[0] : null;
+
+  /* v92: Parse hreflang tags — most precise geo signal */
+  r.hreflang = null;
+  try {
+    const hreflangRegex = /<link[^>]*\brel\s*=\s*["']alternate["'][^>]*\bhreflang\s*=\s*["']([^"']+)["'][^>]*\bhref\s*=\s*["']([^"']+)["']/gi;
+    const hreflangRegex2 = /<link[^>]*\bhreflang\s*=\s*["']([^"']+)["'][^>]*\brel\s*=\s*["']alternate["'][^>]*\bhref\s*=\s*["']([^"']+)["']/gi;
+    const found = [];
+    let m;
+    while ((m = hreflangRegex.exec(rawHtml)) !== null) found.push({ lang: m[1], href: m[2] });
+    while ((m = hreflangRegex2.exec(rawHtml)) !== null) found.push({ lang: m[1], href: m[2] });
+    if (found.length > 0) {
+      const normalizedPage = normalized.replace(/\/$/, "").toLowerCase();
+      const exact = found.find(h => h.href.replace(/\/$/, "").toLowerCase() === normalizedPage);
+      if (exact && exact.lang.toLowerCase() !== "x-default") {
+        r.hreflang = exact.lang;
+      } else {
+        for (const h of found) {
+          if (h.lang.toLowerCase() === "x-default") continue;
+          const langCode = h.lang.toLowerCase().split(/[-_]/)[0];
+          if (normalizedPage.includes("/" + langCode + "/") || normalizedPage.endsWith("/" + langCode)) {
+            r.hreflang = h.lang;
+            break;
+          }
+        }
+        if (!r.hreflang) {
+          const firstReal = found.find(h => h.lang.toLowerCase() !== "x-default");
+          if (firstReal && found.length === 1) r.hreflang = firstReal.lang;
+        }
+      }
+    }
+  } catch(e) { console.log("[IvaBot] hreflang parse error:", e); }
 
   let html = rawHtml.replace(/\\"/g,'"').replace(/\\</g,'<').replace(/\\>/g,'>').replace(/\\[nrt]/g,' ')
     .replace(/<svg[\s\S]*?<\/svg>/gi,'').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
@@ -1462,7 +1524,7 @@ function IvaBotV6() {
           })(),
           (async () => {
             const DFS_PROXY = SUPABASE_URL + "/functions/v1/dataforseo-proxy";
-            const locale = detectLocale(url, parsed.html_lang);
+            const locale = detectLocale(url, parsed.html_lang, parsed.hreflang);
             const dfsRes = await fetch(DFS_PROXY, {
               method: "POST",
               headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
@@ -1498,7 +1560,7 @@ function IvaBotV6() {
         const gptKws = gpt?.keywords || [];
         if (gptKws.length > 0) {
           try {
-            const locale2 = detectLocale(url, parsed.html_lang);
+            const locale2 = detectLocale(url, parsed.html_lang, parsed.hreflang);
             const kvRes = await fetch(SUPABASE_URL + "/functions/v1/dataforseo-proxy", {
               method: "POST",
               headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
