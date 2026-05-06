@@ -1,21 +1,12 @@
-/* IvaBot Content Builder v71 — deep research from top-3 SERP + FAQ separate step + research_facts integration */
+/* IvaBot Content Builder v70 — brand guide upload (read file, 15K limit, send to GPT) */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v71 loaded");
+console.log("[IvaBot] content-builder.js v70 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
 const DFS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/dataforseo-proxy";
-const FETCH_PAGE_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/fetch-page";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
-
-/* ═══ FEATURE FLAGS — v71 ═══ */
-/* Set USE_DEEP_RESEARCH = false to instantly disable research and revert to v70 behavior. No re-deploy needed. */
-const USE_DEEP_RESEARCH = true;
-const RESEARCH_PAGE_COUNT = 3;        /* number of top SERP results to fetch */
-const RESEARCH_PAGE_TIMEOUT_MS = 12000; /* per-page timeout */
-const RESEARCH_TOTAL_TIMEOUT_MS = 30000; /* hard ceiling for whole research phase */
-const RESEARCH_MAX_CHARS_PER_PAGE = 8000;
 
 /* ═══ COLORS ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2),0 8px 32px rgba(110,43,255,0.1)"};
@@ -45,124 +36,6 @@ async function callGPT(step, data) {
     console.error("[CB] callGPT error:", e);
     return null;
   }
-}
-
-/* ═══ v71: Deep research helpers ═══ */
-/* Fetch a single page text via fetch-page Edge Function (mode=text). Returns null on any error. */
-async function fetchPageText(url, maxChars = RESEARCH_MAX_CHARS_PER_PAGE) {
-  if (!url || typeof url !== "string") return null;
-  try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), RESEARCH_PAGE_TIMEOUT_MS);
-    const res = await fetch(FETCH_PAGE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, mode: "text", max_chars: maxChars }),
-      signal: controller.signal,
-    });
-    clearTimeout(t);
-    if (!res.ok) {
-      console.warn("[CB] fetchPageText HTTP", res.status, "for", url);
-      return null;
-    }
-    const data = await res.json();
-    if (!data || !data.text || data.text.length < 200) {
-      console.warn("[CB] fetchPageText too short or empty for", url, "len:", data?.text?.length);
-      return null;
-    }
-    return { url: data.url || url, title: data.title || "", meta: data.meta || "", text: data.text };
-  } catch (e) {
-    console.warn("[CB] fetchPageText error for", url, e?.name || e);
-    return null;
-  }
-}
-
-/* Run deep research: fetch top-N SERP organic pages in parallel, then call extract_facts GPT.
- * Returns { research_facts, sources_used } or null if research did not produce usable output.
- * NEVER throws — failure is silent, caller falls back to no-research path. */
-async function runDeepResearch(serpOrganic, primaryKeyword, onProgress) {
-  if (!USE_DEEP_RESEARCH) {
-    console.log("[CB] research: USE_DEEP_RESEARCH=false, skipping");
-    return null;
-  }
-  if (!Array.isArray(serpOrganic) || serpOrganic.length === 0) {
-    console.log("[CB] research: no SERP organic data, skipping");
-    return null;
-  }
-
-  /* Pick top-N URLs, skip social/aggregators that block scrapers */
-  const SKIP_DOMAINS = ["facebook.com","instagram.com","twitter.com","x.com","youtube.com","linkedin.com","tiktok.com","pinterest.com","reddit.com"];
-  const candidates = serpOrganic.filter(item => {
-    if (!item?.url) return false;
-    try {
-      const host = new URL(item.url).hostname.replace(/^www\./, "").toLowerCase();
-      return !SKIP_DOMAINS.some(d => host.includes(d));
-    } catch (e) { return false; }
-  }).slice(0, RESEARCH_PAGE_COUNT);
-
-  if (candidates.length === 0) {
-    console.log("[CB] research: no usable SERP URLs (all filtered out)");
-    return null;
-  }
-
-  console.log("[CB] research: fetching", candidates.length, "pages:", candidates.map(c => c.url));
-  onProgress?.(`Researching top ${candidates.length} results...`, 0, candidates.length);
-
-  /* Fetch all in parallel with hard total timeout */
-  const totalTimeoutPromise = new Promise(resolve => setTimeout(() => resolve("TIMEOUT"), RESEARCH_TOTAL_TIMEOUT_MS));
-  const fetchPromise = Promise.allSettled(candidates.map((c, i) =>
-    fetchPageText(c.url).then(r => { onProgress?.(`Researching top results... (${i+1}/${candidates.length})`, i+1, candidates.length); return r; })
-  ));
-  const result = await Promise.race([fetchPromise, totalTimeoutPromise]);
-  if (result === "TIMEOUT") {
-    console.warn("[CB] research: total timeout reached, aborting research phase");
-    return null;
-  }
-
-  const fetchedPages = result.filter(r => r.status === "fulfilled" && r.value).map(r => r.value);
-  if (fetchedPages.length === 0) {
-    console.warn("[CB] research: all pages failed to fetch");
-    return null;
-  }
-  console.log("[CB] research: fetched", fetchedPages.length, "of", candidates.length, "pages, total chars:", fetchedPages.reduce((s,p) => s + p.text.length, 0));
-
-  /* Extract facts via GPT */
-  onProgress?.("Extracting facts from research...", fetchedPages.length, candidates.length);
-  const factsRes = await callGPT("extract_facts", {
-    pages: fetchedPages,
-    primary_keyword: primaryKeyword || "",
-  });
-  if (!factsRes || (typeof factsRes === "object" && factsRes.error)) {
-    console.warn("[CB] research: extract_facts failed", factsRes);
-    return null;
-  }
-  console.log("[CB] research: extract_facts done, summary:", factsRes.summary?.substring(0, 200));
-  return {
-    research_facts: factsRes,
-    sources_used: fetchedPages.map(p => ({ url: p.url, title: p.title })),
-  };
-}
-
-/* Generate FAQ as a separate step using PAA data + article context.
- * Returns FAQ HTML string or null on failure. */
-async function generateFAQ(topic, paaQuestions, articleSummary, researchFacts) {
-  if (!Array.isArray(paaQuestions) || paaQuestions.length === 0) {
-    console.log("[CB] FAQ: no PAA questions, skipping");
-    return null;
-  }
-  console.log("[CB] FAQ: generating with", paaQuestions.length, "PAA questions");
-  const res = await callGPT("generate_faq", {
-    topic: topic || "",
-    paa_questions: paaQuestions,
-    article_summary: articleSummary || "",
-    research_facts: researchFacts || null,
-  });
-  if (!res || res.error || !res.html) {
-    console.warn("[CB] FAQ: generation failed", res);
-    return null;
-  }
-  console.log("[CB] FAQ: generated, html length:", res.html.length, "questions:", res.question_count);
-  return res.html;
 }
 
 async function callDFS(keywords, locationCode = 2840, languageCode = "en") {
@@ -951,8 +824,6 @@ const gCnt=async()=>{
   try {
     const selKw=confirmedKeywords.length>0?confirmedKeywords.map(k=>k.keyword):kwData.filter(k=>skwRef.current.includes(k.keyword)).map(k=>k.keyword);
     let researchData=null;
-    let researchFactsData=null;
-    let researchSourcesUsed=[];
     /* Deep Research: fetch SERP organic results and analyze with GPT */
     try {
       console.log("[CB] deep research: fetching SERP for:", selKw[0]);
@@ -969,22 +840,6 @@ const gCnt=async()=>{
           researchData=resGpt;
           console.log("[CB] deep research: brief ready, names:", resGpt.real_names?.length||0);
         }
-      }
-      /* v71: Run new deep page research (fetch top-3 pages, extract facts) — runs after SERP-snippet research */
-      if(USE_DEEP_RESEARCH&&serpOrganic.length>0){
-        sPLoad("Researching top results...");
-        const r=await runDeepResearch(serpOrganic,selKw[0],(msg,done,total)=>{
-          sPLoad(msg);
-          console.log("[CB] research progress:",msg,done,"/",total);
-        });
-        if(r){
-          researchFactsData=r.research_facts;
-          researchSourcesUsed=r.sources_used||[];
-          console.log("[CB] v71 research: facts ready, sources:",researchSourcesUsed.length);
-        }else{
-          console.log("[CB] v71 research: skipped or failed, falling back to no-research path");
-        }
-        sPLoad("Writing your content...");
       }
     } catch(e){console.log("[CB] deep research skipped:",e);}
     const kwForContent=confirmedKeywords.length>0?confirmedKeywords:kwData.filter(k=>skwRef.current.includes(k.keyword));
@@ -1033,7 +888,7 @@ const gCnt=async()=>{
       page_type:ans.pt||"",goal:ans.gl||"",audience:ans.au||"",tone:ans.tn||"",
       market:ans.mk||"",brand_details:ans.me||"",brand_guide:ans.brandGuide||"",brand_name:brandName||null,
       title:confirmedTitleRef.current||bd?.title||"",
-      research:researchData,research_facts:researchFactsData,chat_history:buildChatHistory(msgs)
+      research:researchData,chat_history:buildChatHistory(msgs)
     });
     let html="";
     if(gptRes){html=gptRes.html||gptRes.content||gptRes.text||"";if(typeof html!=="string")html=JSON.stringify(html);}
@@ -1104,31 +959,6 @@ const gCnt=async()=>{
           console.log("[CB] keyword density OK, no spam detected");
         }
       }catch(spamErr){console.log("[CB] spam check error (non-blocking):",spamErr);}
-    }
-    /* v71: FAQ generation as separate step using PAA + research_facts */
-    try {
-      const paaForFaq=dfsExtraRef.current?.paa||[];
-      if(paaForFaq.length>0){
-        sPLoad("Adding FAQ section...");
-        const articleSummary=html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().substring(0,800);
-        const faqHtml=await generateFAQ(
-          selKw[0]||"",
-          paaForFaq,
-          articleSummary,
-          researchFactsData
-        );
-        if(faqHtml&&typeof faqHtml==="string"&&faqHtml.length>100){
-          /* Append FAQ at the end of article content (before any closing CTA paragraph if present) */
-          html=html+"\n"+faqHtml;
-          console.log("[CB] v71 FAQ: appended, total html length:",html.length);
-        }else{
-          console.log("[CB] v71 FAQ: skipped (no html or too short)");
-        }
-      }else{
-        console.log("[CB] v71 FAQ: no PAA data, skipping");
-      }
-    } catch(faqErr) {
-      console.log("[CB] FAQ generation error (non-blocking):",faqErr);
     }
     sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);setStep("cr");
     if(isMobile)sMTab("panel");
