@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v90 — Stripe Live mode price IDs (production launch) */
+/* IvaBot seo-tools v93 — Content Coverage renamed to "Content Coverage & AI Readiness" in Stripe products, PDF footer, and tool selection card */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v92 loaded");
+console.log("[IvaBot] seo-tools.js v93 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -27,7 +27,7 @@ const PACKS_NEW = [
     { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
     { n: "Large", p: "34", sessions: 60, tier: "large", save: "43%" }
   ]},
-  { instrument: "coverage", label: "Content Coverage", packs: [
+  { instrument: "coverage", label: "Content Coverage & AI Readiness", packs: [
     { n: "Mini", p: "5", sessions: 5, tier: "mini" },
     { n: "Starter", p: "12", sessions: 15, tier: "starter", popular: true, save: "20%" },
     { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
@@ -1202,7 +1202,7 @@ async function generatePDF(data) {
         { text: [
           { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
 { text: "  \u2022  ", color: mt },
-{ text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" },
+{ text: "Content Coverage & AI Readiness", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" },
 { text: "  \u2022  ", color: mt },
 { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" }
         ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
@@ -1788,7 +1788,7 @@ function IvaBotV6() {
         <div style={{ flex: 1, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px", gap: 36, maxWidth: 780, width: "100%" }}>
             <div style={{ textAlign: "center" }}><div className="iva-seo-title" style={{ fontWeight: 400, color: C.dark, letterSpacing: "-0.2px", lineHeight: 1, marginBottom: 16, background: "linear-gradient(116deg, rgba(21,20,21,0.25) 8%, #151415 35%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>SEO Tools</div><p style={{ fontSize: 20, color: "rgba(21,20,21,0.5)", maxWidth: 460, margin: "0 auto", lineHeight: 1.1, letterSpacing: "-0.2px", fontWeight: 400 }}>Analyze pages, build content, and find gaps — powered by AI with real Google data.</p></div>
-            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} onBuy={() => setSB(true)} /><TCard title="Content Coverage" desc="Find keyword gaps and trust signals that help you rank on Google and get cited by AI tools." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} onBuy={() => setSB(true)} /><TCard title="Content Builder" desc="Finds low-competition keywords, builds SEO page structure, and writes full content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} onBuy={() => setSB(true)} /></div>
+            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} onBuy={() => setSB(true)} /><TCard title="Content Coverage & AI Readiness" desc="Find keyword gaps, trust signals, and AI extraction signals that help you rank on Google and get cited by ChatGPT, Perplexity, Claude, and Google AI." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} onBuy={() => setSB(true)} /><TCard title="Content Builder" desc="Finds low-competition keywords, builds SEO page structure, and writes full content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} onBuy={() => setSB(true)} /></div>
           </div>
         </div>
       ) : tool === "builder" && window.ContentBuilder ? (
