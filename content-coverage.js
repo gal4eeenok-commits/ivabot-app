@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage v6.91 — adds hreflang parsing for precise geo detection (site-declared target region). Priority: hreflang → TLD → html lang → US default. */
+/* IvaBot Content Coverage & AI Readiness v6.92 — adds 4 new AI extractability checks (extractable passages, TL;DR, comparison tables, HowTo schema) + Distribution Tips block. Renamed module: "Content Coverage" → "Content Coverage & AI Readiness". Requires ai-readiness-v4.js (14 checks). */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.91 loaded");
+console.log("[IvaBot] content-coverage.js v6.92 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -50,6 +50,41 @@ const PRIO={critical:{label:"Critical",color:"#6E2BFF",bg:"rgba(110,43,255,0.08)
 const ProblemCard=({title,why,currentLabel,current,suggestions,sugLabel,showCopy=true,links,serpSnippet,soft,priority})=>{const[o,setO]=useState(false);const pr=PRIO[priority]||PRIO.important;return(<div style={{borderRadius:12,border:soft?"1px solid rgba(110,43,255,0.12)":"1px solid rgba(110,43,255,0.25)",overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"13px 16px",background:C.surface,border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontFamily:"'DM Sans',sans-serif"}}><div style={{width:6,height:6,borderRadius:"50%",background:pr.color,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><span style={{fontSize:9,fontWeight:600,color:pr.color,background:pr.bg,padding:"3px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:"0.5px",flexShrink:0}}>{pr.label}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&(<div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:12}}>{serpSnippet&&<SerpSnippet {...serpSnippet}/>}{current&&(typeof current==="string"?<InfoBlock label={currentLabel||"Current"} value={current} borderColor="rgba(110,43,255,0.15)"/>:<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:"1px solid rgba(110,43,255,0.15)"}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{currentLabel||"Current"}</div>{current}</div>)}{why&&<div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"8px 12px",borderRadius:8,background:soft?"rgba(184,156,240,0.06)":"rgba(110,43,255,0.04)",border:`1px solid ${soft?"rgba(184,156,240,0.12)":"rgba(110,43,255,0.1)"}`}}><div style={{width:7,height:7,borderRadius:"50%",background:pr.color,flexShrink:0,marginTop:4}}/><span style={{fontSize:11.5,color:C.dark,lineHeight:1.5}}>{renderBoldText(why)}</span></div>}{suggestions?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{sugLabel||"Suggested"}</div><div style={{display:"flex",flexDirection:"column",gap:5}}>{suggestions.map((s,i)=>showCopy?(<HoverCard key={i} style={{padding:"9px 12px"}}><span style={{fontSize:12.5,color:C.dark,fontWeight:500,display:"block",marginBottom:4}}>{s}</span><CopyBtn text={s}/></HoverCard>):(<div key={i} style={{padding:"9px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,fontSize:12.5,color:C.dark,fontWeight:500}}>{s}</div>))}</div></div>}{links?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>Learn more</div>{links.map((l,i)=>(<a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:12,color:C.accent,marginBottom:4,textDecoration:"none"}}>{l.label} →</a>))}</div>}</div></div>)}</div>);};
 
 const SerpSnippet=({url,title,desc,hideDesc})=>{let displayUrl=url||"";try{const u=new URL(url);displayUrl=u.hostname+(u.pathname==="/"?"":u.pathname);}catch(e){}const truncTitle=title?(title.length>60?title.slice(0,57)+"...":title):"No title set";const truncDesc=desc?(desc.length>160?desc.slice(0,157)+"...":desc):"No description set";return(<div style={{padding:"14px 16px",borderRadius:10,background:C.surface,border:`1px solid ${C.cardBorder}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.5px"}}>Google Search Preview</div><div style={{padding:"12px 14px",borderRadius:8,background:"#fff",border:"1px solid rgba(21,20,21,0.06)"}}><div style={{fontSize:11,color:"#202124",marginBottom:2,display:"flex",alignItems:"center",gap:6}}><div style={{width:18,height:18,borderRadius:"50%",background:"rgba(21,20,21,0.06)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,fontWeight:700,color:C.muted}}>{(displayUrl[0]||"?").toUpperCase()}</span></div><span style={{color:"#4d5156",fontSize:11}}>{displayUrl}</span></div><div style={{fontSize:16,color:"#1a0dab",fontWeight:400,lineHeight:1.3,marginBottom:hideDesc?0:3,cursor:"pointer"}}>{truncTitle}</div>{!hideDesc&&<div style={{fontSize:12,color:"#4d5156",lineHeight:1.5}}>{truncDesc}</div>}</div></div>);};
+
+/* DistributionTipsBlock — advice block per page_type, NOT a check */
+const DistributionTipsBlock = ({ tips }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ borderRadius: 12, border: `1px solid ${C.cardBorder}`, overflow: "hidden", background: C.surface }}>
+      <button onClick={() => setOpen(!open)} style={{ width: "100%", padding: "14px 16px", background: "rgba(184,156,240,0.08)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Where to mention this page</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6", background: "rgba(155,122,230,0.12)", padding: "3px 8px", borderRadius: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>Tips</span>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{ transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.3s ease", flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", opacity: open ? 1 : 0, transition: "grid-template-rows 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.4s ease" }}>
+        <div style={{ overflow: "hidden" }}>
+          <div style={{ padding: "0 16px 16px", borderTop: `1px solid ${C.cardBorder}` }}>
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, padding: "12px 0 10px" }}>
+              AI engines cite pages that have mentions across the web. Based on your page type, here's where to start building those mentions:
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {(tips || []).map((tip, i) => (
+                <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(184,156,240,0.05)", border: "1px solid rgba(184,156,240,0.15)", fontSize: 12.5, color: C.dark, lineHeight: 1.5 }}>
+                  {renderBoldText(tip)}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 10, fontWeight: 600, color: C.muted, marginBottom: 6 }}>Learn more</div>
+            <a href="https://ivabot.xyz/blog/where-do-ai-engines-get-information" target="_blank" rel="noopener noreferrer" style={{ display: "block", fontSize: 12, color: C.accent, textDecoration: "none" }}>How AI engines source citations (2026 study) →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 /* Bot bubbles */
 const BL=({s=16})=>(<svg width={s} height={Math.round(s*0.81)} viewBox="0 0 66 58" fill="none" style={{flexShrink:0,opacity:0.35}}><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill="#6E2BFF"/><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill="#6E2BFF"/></svg>);
@@ -565,6 +600,10 @@ const AI_CHECK_LABELS = {
   dates: "Last updated date",
   citations: "Authoritative citations",
   statistics: "Statistics & data",
+  extractable: "Extractable passages",
+  tldr: "TL;DR or quick summary",
+  tables: "Comparison tables",
+  howto: "HowTo schema",
 };
 
 function analyzeAIReadiness(aiResult, pageType) {
@@ -587,6 +626,10 @@ function analyzeAIReadiness(aiResult, pageType) {
     dates: checks.dates.status === "fresh",
     citations: (checks.citations.unique_hosts || 0) >= 1,
     statistics: (checks.statistics.total || 0) >= 5,
+    extractable: checks.extractable && checks.extractable.status === "good",
+    tldr: checks.tldr && checks.tldr.status === "good",
+    tables: checks.tables && checks.tables.status === "good",
+    howto: checks.howto && (checks.howto.status === "good" || checks.howto.status === "not_applicable"),
   };
 
   /* Articles need Person markup, not just org_only */
@@ -594,11 +637,14 @@ function analyzeAIReadiness(aiResult, pageType) {
     isPassed.author = checks.author.status === "good" || checks.author.status === "partial";
   }
 
-  /* Iterate all 10 checks but only include those with weight > 0 for this page type */
-  const checkOrder = ["schema", "faq", "llms", "bots", "qa", "og", "author", "dates", "citations", "statistics"];
+  /* Iterate all 14 checks but only include those with weight > 0 for this page type */
+  const checkOrder = ["schema", "faq", "llms", "bots", "qa", "og", "author", "dates", "citations", "statistics", "extractable", "tldr", "tables", "howto"];
   for (const checkName of checkOrder) {
     const weight = weights[checkName] || 0;
     if (weight === 0) continue; /* not relevant for this page type */
+
+    /* Special: hide HowTo check entirely if page has no step content (not_applicable) */
+    if (checkName === "howto" && checks.howto && checks.howto.status === "not_applicable") continue;
 
     const passed = isPassed[checkName];
     const label = AI_CHECK_LABELS[checkName];
@@ -635,7 +681,7 @@ function analyzeAIReadiness(aiResult, pageType) {
 }
 
 function mapCheckKey(checkName) {
-  const map = { schema: "schema", faq: "faq_schema", llms: "llms_txt", bots: "ai_bots", qa: "qa_patterns", og: "open_graph", author: "author", dates: "dates", citations: "citations", statistics: "statistics" };
+  const map = { schema: "schema", faq: "faq_schema", llms: "llms_txt", bots: "ai_bots", qa: "qa_patterns", og: "open_graph", author: "author", dates: "dates", citations: "citations", statistics: "statistics", extractable: "extractable", tldr: "tldr", tables: "tables", howto: "howto" };
   return map[checkName] || checkName;
 }
 
@@ -669,6 +715,14 @@ function aiReadinessGoodContent(checkName, check) {
       return <div style={{ fontSize: 12, color: C.muted }}>{check.unique_hosts} unique authoritative source{check.unique_hosts === 1 ? "" : "s"} cited</div>;
     case "statistics":
       return <div style={{ fontSize: 12, color: C.muted }}>{check.total} numbers and statistics in content — strong factual signal</div>;
+    case "extractable":
+      return <div style={{ fontSize: 12, color: C.muted }}>Found {check.count} paragraph{check.count === 1 ? "" : "s"} in the 100–180 word range — strong extraction signal for AI engines</div>;
+    case "tldr":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.type === "explicit_marker" ? "Summary section detected near the top of the page" : "Strong intro paragraph found after H1 — works as a summary for AI engines"}</div>;
+    case "tables":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.count} comparison table{check.count === 1 ? "" : "s"} with structured data — AI engines extract these cleanly</div>;
+    case "howto":
+      return <div style={{ fontSize: 12, color: C.muted }}>Page has step-by-step content and HowTo schema is in place</div>;
   }
   return null;
 }
@@ -686,6 +740,10 @@ function aiReadinessWhy(checkName, pageType) {
     dates: "**A \"last updated\" date shows AI when the page was last edited.** AI prefers fresh content — without this, your page looks outdated even if it isn't.",
     citations: "**Citations are external links to trusted sources** (.edu, .gov, well-known sites). They signal to AI that you do real research, increasing your chances of being cited.",
     statistics: "**Statistics are concrete numbers in your content** (like \"60% of users\" or \"$5 to start\"). AI loves quoting specific numbers more than vague claims.",
+    extractable: "**Extractable passages are paragraphs 100-180 words long that answer one clear question.** AI search engines like ChatGPT and Perplexity pull these chunks directly into their answers — pages without them get summarised, not quoted.",
+    tldr: "**A TL;DR or quick summary near the top helps AI engines understand your page in one read.** Pages with a clear summary section get cited 28% more often by ChatGPT and Google AI Overviews.",
+    tables: "**Comparison tables get cited 2x more often by AI engines than prose.** Tables let AI tools extract structured comparisons cleanly — especially Perplexity and Google AI.",
+    howto: "**HowTo schema marks step-by-step instructions so AI engines and Google can show them directly.** Pages with steps but no HowTo schema get summarised; pages with proper schema get cited verbatim.",
   };
   return why[checkName] || "";
 }
@@ -703,6 +761,10 @@ function aiReadinessSuggestions(checkName) {
     dates: ["Add datePublished and dateModified to your Schema.org markup", "Update dateModified whenever you edit the page", "Show the date visibly on the page (\"Last updated: [date]\")"],
     citations: ["Link to 2-3 authoritative external sources (.gov, .edu, well-known industry sites)", "Cite specific studies, official documentation, or reputable publications", "Use full URLs (not shortened)"],
     statistics: ["Add at least 5 specific numbers, percentages, or stats to your content", "Use formats like \"60% of users\", \"$5 starts\", \"3x faster\", \"10,000 customers\"", "Cite the source for each statistic when possible"],
+    extractable: ["Aim for 3+ paragraphs in the 100-180 word range across the page", "Each paragraph should answer one specific question or cover one clear point", "Avoid very short paragraphs (under 50 words) for key explanations"],
+    tldr: ["Add a short summary section (50-200 words) right after your H1", "Label it \"TL;DR\", \"Quick summary\", \"In short\", or similar", "Include the main answer to the page's core question in those first lines"],
+    tables: ["Add a comparison table for any \"X vs Y\" or \"best of\" content", "Use proper <table> HTML with at least 2 columns and 3 rows", "Add a clear header row so AI knows what each column represents"],
+    howto: ["Add HowTo JSON-LD schema if your page has numbered steps or instructions", "Each step should have a name and text inside the schema", "Validate with Google's Rich Results Test"],
   };
   return sug[checkName] || [];
 }
@@ -747,8 +809,70 @@ function aiReadinessLinks(checkName) {
     statistics: [
       { label: "Google: helpful content guidelines", url: "https://developers.google.com/search/docs/fundamentals/creating-helpful-content" },
     ],
+    extractable: [
+      { label: "Princeton GEO research: passage extraction", url: "https://arxiv.org/abs/2311.09735" },
+    ],
+    tldr: [
+      { label: "Why direct answers win AI citations", url: "https://blog.google/products/search/generative-ai-google-search-may-2024/" },
+    ],
+    tables: [
+      { label: "Structured data in AI search", url: "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data" },
+    ],
+    howto: [
+      { label: "Google: HowTo structured data", url: "https://developers.google.com/search/docs/appearance/structured-data/how-to" },
+    ],
   };
   return links[checkName] || [];
+}
+
+/* ═══ DISTRIBUTION TIPS — page-type-aware advice for AI citations (v4 addition) ═══ */
+function distributionTipsForPageType(pageType) {
+  const tipsByType = {
+    homepage: [
+      "**ChatGPT visibility:** Get listed on G2, Capterra, or your industry's main directories.",
+      "**Perplexity visibility:** Engage in relevant subreddits where your target audience already discusses problems you solve.",
+      "**Google AI visibility:** Create a short YouTube video explaining what you do — even a 2-minute screen recording counts.",
+      "**Claude visibility:** Write one long-form explainer (2000+ words) about the problem you solve.",
+    ],
+    product: [
+      "**G2 / Capterra / AlternativeTo:** List your product so AI engines find structured info about features and pricing.",
+      "**Reddit:** Genuine comments in subreddits where users discuss similar tools (don't post about your own product directly).",
+      "**YouTube:** A tutorial or demo video gives Google AI rich content to cite.",
+      "**Wikipedia:** If your product has notable coverage in independent sources, consider a Wikipedia entry.",
+    ],
+    article: [
+      "**Reddit:** Share the article in 1-2 relevant subreddits where it answers a real question.",
+      "**Quora:** Answer 2-3 related questions and link to your article as a source.",
+      "**YouTube:** Repurpose the article as a 5-10 minute video — Google AI heavily weights YouTube.",
+      "**Industry newsletters:** Pitch the article to 2-3 newsletters in your niche.",
+    ],
+    about: [
+      "**LinkedIn:** Connect your About page to your founder profile and post about the company regularly.",
+      "**Crunchbase:** Ensure your company has a complete Crunchbase profile.",
+      "**Industry interviews / podcasts:** Reach out to 3-5 small podcasts in your space.",
+    ],
+    pricing: [
+      "**Comparison articles:** Reach out to bloggers writing \"Best X tools\" listicles in your niche.",
+      "**G2 / Capterra:** Make sure pricing info is up-to-date on review sites.",
+      "**Reddit:** Answer pricing questions in relevant communities (honestly, without overselling).",
+    ],
+    docs: [
+      "**Stack Overflow / dev forums:** Answer related questions and link back to relevant docs sections.",
+      "**GitHub discussions:** Engage where developers ask integration questions.",
+      "**YouTube tutorials:** A walkthrough video gets your docs surfaced by Google AI.",
+    ],
+    contact: [
+      "**LinkedIn:** Keep founder profiles current and link to your contact page.",
+      "**Local business directories:** If location matters for your business, claim those listings.",
+    ],
+    other: [
+      "**Get listed:** On 3-5 directories relevant to your niche (G2, Capterra, AlternativeTo, industry-specific).",
+      "**Reddit:** Find 2-3 subreddits where your audience hangs out and engage genuinely.",
+      "**YouTube:** Even one explainer video creates a strong AI citation signal.",
+      "**Original data:** Publish one piece of original research or stats — it's the highest-leverage signal for AI citations.",
+    ],
+  };
+  return tipsByType[pageType] || tipsByType.other;
 }
 
 /* ═══ SEMANTIC FILTER — from Typebot single_semantic.js ═══ */
@@ -796,7 +920,7 @@ const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad, 
     </div>
     <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>Content Coverage Score</span>
+        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>Content Coverage & AI Readiness Score</span>
         <QM text="Your coverage score shows how well your page is optimized across three areas: Content & Keywords (target keywords in title, headings, body), Trust & Conversion (social proof, CTA, FAQ, contacts), and AI Readiness (signals for AI search tools like ChatGPT and Perplexity). Each area has its own progress bar." />
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
@@ -1090,6 +1214,12 @@ const CoverageReport = ({ data }) => {
 
       <BotNote text={aiBad.length > 0 ? `${aiBad.length} AI readiness signals need improvement.` : "All AI readiness signals are in place!"} />
       {aiBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="AI Search Optimization — Needs Improvement" count={aiBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+
+      {/* Distribution Tips — page-type-aware advice for AI citations (v4 addition) */}
+      <BotNote text="Here are some tips on where to mention this page to build AI citation signals." />
+      <div className="reveal" style={{ marginBottom: 20 }}>
+        <DistributionTipsBlock tips={distributionTipsForPageType(data.aiReadiness?.pageType || "other")} />
+      </div>
     </>}
 
     {/* Final Recommendations */}
@@ -1111,7 +1241,7 @@ const CoverageReport = ({ data }) => {
             </div>
           </div>
         </div>)})}
-        <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-audit after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Run another Content Coverage to measure your progress.</div></div></div></div>
+        <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-audit after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Run another Content Coverage & AI Readiness audit to measure your progress.</div></div></div></div>
       </div>
     </div>
   </div>);
@@ -1218,7 +1348,7 @@ async function generateCoveragePDF(data) {
     { text: dateString, fontSize: 10, color: mt, alignment: "right" }
   ], margin: [0, 0, 0, 2] });
   content.push({ columns: [
-    { text: "Content Coverage Report", fontSize: 10, color: mt, margin: [28, 0, 0, 0] },
+    { text: "Content Coverage & AI Readiness Report", fontSize: 10, color: mt, margin: [28, 0, 0, 0] },
     { text: data.url || "", fontSize: data.url?.length > 60 ? 8 : 10, color: mt, alignment: "right", link: data.url }
   ], margin: [0, 0, 0, 6] });
   content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
@@ -1456,7 +1586,7 @@ async function generateCoveragePDF(data) {
     content.push({ table: { widths: ["*"], body: [[{
       stack: [
         { text: [{ text: "-  ", color: accentC, fontSize: 10, bold: true }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
-        { text: "Run another Content Coverage to measure your progress.", fontSize: 10, color: mt }
+        { text: "Run another Content Coverage & AI Readiness audit to measure your progress.", fontSize: 10, color: mt }
       ], margin: [10, 8, 10, 8]
     }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr }, margin: [0, 0, 0, 6] });
     content.push(spacer(8));
@@ -1474,7 +1604,7 @@ async function generateCoveragePDF(data) {
         { text: "  \u2022  ", color: mt },
         { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
         { text: "  \u2022  ", color: mt },
-        { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
+        { text: "Content Coverage & AI Readiness", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
       ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
       { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
     ], margin: [16, 16, 16, 16]
@@ -1595,7 +1725,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     const mid = getMemberId();
     const creditCheck = await checkCoverageCredits(mid);
     if (!creditCheck.ok) {
-      bot(<div><div style={{marginBottom:6}}>You've used all your Content Coverage credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
+      bot(<div><div style={{marginBottom:6}}>You've used all your Content Coverage & AI Readiness credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
       return;
     }
     setSR(false); setAuditData(null); sPLoad("Analyzing your page..."); setLS(0);
@@ -1965,11 +2095,11 @@ function ContentCoverage({ onHome, memberName: mn }) {
             const u = rows[0] || {};
             const left = Math.max(0, (u.coverage_limit || 0) - (u.coverage_used || 0));
             if (left <= 0) {
-              bot(<div>You're out of Content Coverage credits. <a href="/dashboard#buy-credits" style={{ color: C.accent, fontWeight: 600, textDecoration: "underline" }}>Buy more credits</a> to continue.</div>);
+              bot(<div>You're out of Content Coverage & AI Readiness credits. <a href="/dashboard#buy-credits" style={{ color: C.accent, fontWeight: 600, textDecoration: "underline" }}>Buy more credits</a> to continue.</div>);
               return;
             }
             bot(<div>
-              <div style={{ marginBottom: 10 }}>You have <strong>{left}</strong> Content Coverage credit{left !== 1 ? "s" : ""} left. Run audit on <strong>{v.url}</strong>?</div>
+              <div style={{ marginBottom: 10 }}>You have <strong>{left}</strong> Content Coverage & AI Readiness credit{left !== 1 ? "s" : ""} left. Run audit on <strong>{v.url}</strong>?</div>
             </div>);
             setStep("confirm_reaudit");
             setPageUrl(v.url);
@@ -2009,7 +2139,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
   return (<div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
     <div style={{ padding: isMobile ? "0 12px 6px" : "0 24px 10px", display: "flex", alignItems: "center", gap: 6, maxWidth: 1224, margin: "0 auto", width: "100%" }}>
       <button onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button>
-      <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>Content Coverage</span>
+      <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>Content Coverage & AI Readiness</span>
       {showR && <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6", background: "rgba(155,122,230,0.08)", padding: "3px 8px", borderRadius: 10, marginLeft: 4 }}>Done</span>}
     </div>
 
