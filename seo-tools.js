@@ -27,7 +27,7 @@ const PACKS_NEW = [
     { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
     { n: "Large", p: "34", sessions: 60, tier: "large", save: "43%" }
   ]},
-  { instrument: "coverage", label: "Content Coverage & AI Readiness", packs: [
+  { instrument: "coverage", label: "Coverage & AI Readiness", packs: [
     { n: "Mini", p: "5", sessions: 5, tier: "mini" },
     { n: "Starter", p: "12", sessions: 15, tier: "starter", popular: true, save: "20%" },
     { n: "Medium", p: "21", sessions: 30, tier: "medium", save: "30%" },
