@@ -10,7 +10,7 @@
 (function() {
 "use strict";
 
-console.log("[IvaBot] ai-readiness.js v3 loaded");
+console.log("[IvaBot] ai-readiness.js v4 loaded");
 
 /* ═══ ADAPTIVE WEIGHTS BY PAGE TYPE ═══
    Each row sums to exactly 100. Used by calculateScore() based on pageType param.
