@@ -1,4 +1,4 @@
-/* IvaBot seo-tools v94 — expanded parsed_data for Core Audit: H2/H3 lists, body excerpt 5000, language, hreflang, CTA text, all flags */
+/* IvaBot seo-tools v95 — expanded parsed_data for Core Audit: H2/H3 lists, body excerpt 5000, language, hreflang, CTA text, all flags */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] seo-tools.js v94 loaded");
