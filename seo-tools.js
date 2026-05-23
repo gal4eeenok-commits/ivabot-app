@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v93 — Content Coverage renamed to "Content Coverage & AI Readiness" in Stripe products, PDF footer, and tool selection card */
+/* IvaBot seo-tools v94 — expanded parsed_data for Core Audit: H2/H3 lists, body excerpt 5000, language, hreflang, CTA text, all flags */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v93 loaded");
+console.log("[IvaBot] seo-tools.js v94 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -425,6 +425,7 @@ function parseSEO(rawHtml, pageUrl) {
 
   const vis = html.replace(/<!--[\s\S]*?-->/g,'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/\s+/g,' ').trim();
   r.char_count = vis.length;
+  r.body_text = vis.slice(0, 5000);
 
   r.has_mobile = /<meta[^>]*name=["']viewport["'][^>]*>/i.test(html) && /width\s*=\s*device-width/i.test(html);
 
@@ -480,8 +481,44 @@ function parseSEO(rawHtml, pageUrl) {
   r.score = Math.min(sc,100);
   r.title_status = ts; r.desc_status = ds;
 
-  r.summary = `URL: ${r.url}\nTitle: ${r.title}\nDescription: ${r.desc}\nH1: ${r.h1.join(", ")||"missing"}\nH2 count: ${r.h2.length}\nH3 count: ${r.h3.length}\nInternal links: ${int}\nExternal links: ${ext}\nImages: ${r.img_count}\nVideos: ${r.vid_count}\nHas CTA: ${r.has_cta}\nMobile: ${r.has_mobile}\nSocial: ${r.social.map(s=>s.name).join(", ")||"none"}\nScore: ${r.score}/100`;
-  return r;
+  r.summary = `URL: ${r.url}
+Title: ${r.title} (${r.title_length} chars)
+Description: ${r.desc} (${r.desc.length} chars)
+Language: ${r.html_lang || "unknown"}
+Hreflang: ${r.hreflang || "none"}
+H1: ${r.h1.join(" | ") || "missing"}
+H1 broken: ${r.h1_broken.join(" | ") || "none"}
+H2 list: ${r.h2.slice(0,15).join(" | ") || "missing"}
+H3 list: ${r.h3.slice(0,15).join(" | ") || "missing"}
+Body excerpt (first 5000 chars): ${r.body_text}
+Body char count: ${r.char_count}
+Internal links: ${int}
+External links: ${ext}
+Images: ${r.img_count}
+Images all have alt: ${r.all_alt}
+Videos: ${r.vid_count}
+Has CTA: ${r.has_cta}${r.cta_text ? ` ("${r.cta_text}")` : ""}
+Mobile: ${r.has_mobile}
+Social: ${r.social.map(s=>s.name).join(", ") || "none"}
+Score: ${r.score}/100
+=== FLAGS ===
+title_missing: ${r.title_missing}
+title_too_short: ${r.title_too_short}
+title_slightly_long: ${r.title_slightly_long}
+title_too_long: ${r.title_too_long}
+title_has_duplicates: ${r.title_has_duplicates}
+title_has_repeated_brand: ${r.title_has_repeated_brand}
+desc_missing: ${r.desc_missing}
+desc_too_short: ${r.desc_too_short}
+desc_too_long: ${r.desc_too_long}
+h1_missing: ${r.h1_missing}
+h1_has_dups: ${r.h1_has_dups}
+h1_has_broken_template: ${r.h1_has_broken_template}
+h2_missing: ${r.h2_missing}
+h2_has_dups: ${r.h2_has_dups}
+h3_missing: ${r.h3_missing}
+h3_has_dups: ${r.h3_has_dups}
+page_is_long: ${r.char_count > 800}`;
 }
 
 /* Transform parsed + GPT + DataForSEO data into report format */
