@@ -519,6 +519,7 @@ h2_has_dups: ${r.h2_has_dups}
 h3_missing: ${r.h3_missing}
 h3_has_dups: ${r.h3_has_dups}
 page_is_long: ${r.char_count > 800}`;
+  return r;
 }
 
 /* Transform parsed + GPT + DataForSEO data into report format */
