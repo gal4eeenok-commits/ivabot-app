@@ -1515,6 +1515,7 @@ function IvaBotV6() {
         await new Promise(res => setTimeout(res, STEPS.length * 800));
         var reportData = A;
       } else {
+        /* ── STEP 1: Fetch + parse page ── */
         setStep(0);
         const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
         if (!htmlRes.ok) throw new Error("Could not fetch page");
@@ -1525,101 +1526,105 @@ function IvaBotV6() {
         setStep(2);
         const parsed = parseSEO(rawHtml, url);
 
-        setStep(3);
-        await new Promise(r => setTimeout(r, 300));
-        setStep(4);
-        let gpt = null;
-        let dfsSeo = null;
         const domain = new URL(url).hostname.replace(/^www\./, "");
         const cleanKw = (v) => v && v.length > 2 && !/^\{.*\}$/.test(v) && !/^[^a-zA-Z]*$/.test(v) ? v : null;
-        const primaryKw = cleanKw(parsed.h1?.[0]) || cleanKw(parsed.title) || "";
+        const fallbackKw = cleanKw(parsed.h1?.[0]) || cleanKw(parsed.title) || "";
+        const locale = detectLocale(url, parsed.html_lang, parsed.hreflang);
 
-        const [makeResult, dfsResult] = await Promise.allSettled([
-          (async () => {
-            const makeRes = await fetch(WEBHOOK_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ member_id: memberId || "UNKNOWN", parsed_data: parsed.summary, domain, primary_keyword: primaryKw })
-            });
-            if (!makeRes.ok) throw new Error("Make HTTP " + makeRes.status);
-            const raw = await makeRes.text();
-            console.log("[IvaBot] Make raw length:", raw.length, "first 300:", raw.substring(0, 300));
-            let parsed_gpt = null;
-            try { parsed_gpt = JSON.parse(raw); } catch(e) {
-              console.log("[IvaBot] GPT JSON parse failed:", e.message);
-              const m = raw.match(/\{[\s\S]*\}/);
-              if (m) try { parsed_gpt = JSON.parse(m[0]); } catch(e2) {}
-            }
-            if (parsed_gpt?.gpt_raw) {
-              const gr = parsed_gpt.gpt_raw;
-              parsed_gpt = typeof gr === "string" ? JSON.parse(gr) : gr;
-            }
-            if (parsed_gpt?.gpt) {
-              const gr = parsed_gpt.gpt;
-              parsed_gpt = typeof gr === "string" ? JSON.parse(gr) : gr;
-            }
-            return parsed_gpt;
-          })(),
-          (async () => {
-            const DFS_PROXY = SUPABASE_URL + "/functions/v1/dataforseo-proxy";
-            const locale = detectLocale(url, parsed.html_lang, parsed.hreflang);
-            const dfsRes = await fetch(DFS_PROXY, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
-              body: JSON.stringify({ domain, keyword: primaryKw, page_url: url, location_code: locale.location_code, language_code: locale.language_code })
-            });
-            if (!dfsRes.ok) { console.log("[IvaBot] DFS proxy HTTP", dfsRes.status); return null; }
-            const dfsData = await dfsRes.json();
-            console.log("[IvaBot] DFS proxy response keys:", Object.keys(dfsData || {}));
-            return dfsData;
-          })()
+        /* ── STEP 2: GPT first (Make) — get page_context + keywords ── */
+        setStep(3);
+        let gpt = null;
+        try {
+          const makeRes = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ member_id: memberId || "UNKNOWN", parsed_data: parsed.summary, domain, primary_keyword: fallbackKw })
+          });
+          if (!makeRes.ok) throw new Error("Make HTTP " + makeRes.status);
+          const raw = await makeRes.text();
+          console.log("[IvaBot] Make raw length:", raw.length, "first 300:", raw.substring(0, 300));
+          let parsed_gpt = null;
+          try { parsed_gpt = JSON.parse(raw); } catch(e) {
+            console.log("[IvaBot] GPT JSON parse failed:", e.message);
+            const m = raw.match(/\{[\s\S]*\}/);
+            if (m) try { parsed_gpt = JSON.parse(m[0]); } catch(e2) {}
+          }
+          if (parsed_gpt?.gpt_raw) {
+            const gr = parsed_gpt.gpt_raw;
+            parsed_gpt = typeof gr === "string" ? JSON.parse(gr) : gr;
+          }
+          if (parsed_gpt?.gpt) {
+            const gr = parsed_gpt.gpt;
+            parsed_gpt = typeof gr === "string" ? JSON.parse(gr) : gr;
+          }
+          gpt = parsed_gpt;
+          console.log("[IvaBot] GPT OK, keys:", gpt ? Object.keys(gpt) : "null");
+        } catch(e) {
+          console.log("[IvaBot] GPT failed:", e.message);
+        }
+
+        /* ── Determine SERP keyword: use gpt.keywords[0] if available, else fallback ── */
+        const gptKws = gpt?.keywords || [];
+        const serpKeyword = (gptKws[0] && cleanKw(gptKws[0])) || fallbackKw;
+        console.log("[IvaBot] SERP keyword:", serpKeyword, "(source:", gptKws[0] ? "gpt" : "fallback", ")");
+
+        /* ── STEP 3: Three DFS calls in parallel after GPT ── */
+        setStep(4);
+        let dfsSeo = null;
+        const DFS_PROXY = SUPABASE_URL + "/functions/v1/dataforseo-proxy";
+
+        const [rankedRes, serpRes, kvRes] = await Promise.allSettled([
+          /* a) ranked_keywords + backlinks for the page */
+          fetch(DFS_PROXY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            body: JSON.stringify({ mode: "ranked_only", domain, page_url: url, location_code: locale.location_code, language_code: locale.language_code })
+          }).then(r => r.ok ? r.json() : null),
+          /* b) SERP competitors by the right keyword (gpt.keywords[0]) */
+          serpKeyword ? fetch(DFS_PROXY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            body: JSON.stringify({ mode: "serp_only", serp_keyword: serpKeyword, location_code: locale.location_code, language_code: locale.language_code })
+          }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
+          /* c) keyword_volume for the 3 GPT keywords */
+          gptKws.length > 0 ? fetch(DFS_PROXY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            body: JSON.stringify({ mode: "keyword_volume", keywords: gptKws, location_code: locale.location_code, language_code: locale.language_code })
+          }).then(r => r.ok ? r.json() : null) : Promise.resolve(null)
         ]);
 
-        if (makeResult.status === "fulfilled" && makeResult.value) {
-          gpt = makeResult.value;
-          console.log("[IvaBot] GPT OK, keys:", Object.keys(gpt));
+        dfsSeo = { ranked_keywords: [], serp_competitors: [], total_ranked: 0 };
+
+        if (rankedRes.status === "fulfilled" && rankedRes.value) {
+          const rd = rankedRes.value;
+          dfsSeo.ranked_keywords = rd.ranked_keywords || [];
+          dfsSeo.total_ranked = rd.total_ranked || 0;
+          dfsSeo.backlinksCount = rd.backlinksCount ?? null;
+          dfsSeo.referringDomains = rd.referringDomains ?? null;
+          console.log("[IvaBot] DFS ranked OK — ranked:", dfsSeo.ranked_keywords.length, "total:", dfsSeo.total_ranked);
         } else {
-          console.log("[IvaBot] GPT failed:", makeResult.reason?.message || "unknown");
+          console.log("[IvaBot] DFS ranked failed:", rankedRes.reason?.message || "no data");
         }
 
-        if (dfsResult.status === "fulfilled" && dfsResult.value) {
-          const dfs = dfsResult.value;
-          dfsSeo = {
-            ranked_keywords: dfs.ranked_keywords || [],
-            serp_competitors: dfs.serp_competitors || [],
-            total_ranked: dfs.total_ranked || 0,
-          };
-          console.log("[IvaBot] DFS OK — ranked:", dfsSeo.ranked_keywords.length, "serp:", dfsSeo.serp_competitors.length);
+        if (serpRes.status === "fulfilled" && serpRes.value) {
+          dfsSeo.serp_competitors = serpRes.value.serp_competitors || [];
+          console.log("[IvaBot] DFS SERP OK — competitors:", dfsSeo.serp_competitors.length, "by keyword:", serpKeyword);
         } else {
-          console.log("[IvaBot] DFS failed:", dfsResult.reason?.message || "no data");
+          console.log("[IvaBot] DFS SERP failed:", serpRes.reason?.message || "no data");
         }
 
-        /* v83: fetch real Vol/KD for GPT-suggested keywords */
-        const gptKws = gpt?.keywords || [];
-        if (gptKws.length > 0) {
-          try {
-            const locale2 = detectLocale(url, parsed.html_lang, parsed.hreflang);
-            const kvRes = await fetch(SUPABASE_URL + "/functions/v1/dataforseo-proxy", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
-              body: JSON.stringify({ mode: "keyword_volume", keywords: gptKws, location_code: locale2.location_code, language_code: locale2.language_code })
-            });
-            if (kvRes.ok) {
-              const kvData = await kvRes.json();
-              if (Array.isArray(kvData?.keyword_metrics)) {
-                dfsSeo = dfsSeo || { ranked_keywords: [], serp_competitors: [], total_ranked: 0 };
-                dfsSeo.gpt_keyword_metrics = kvData.keyword_metrics;
-                console.log("[IvaBot] DFS keyword_volume OK:", kvData.keyword_metrics.length);
-              }
-            } else {
-              console.log("[IvaBot] DFS keyword_volume HTTP", kvRes.status);
-            }
-          } catch(e) { console.log("[IvaBot] DFS keyword_volume error:", e.message); }
+        if (kvRes.status === "fulfilled" && kvRes.value && Array.isArray(kvRes.value.keyword_metrics)) {
+          dfsSeo.gpt_keyword_metrics = kvRes.value.keyword_metrics;
+          console.log("[IvaBot] DFS keyword_volume OK:", dfsSeo.gpt_keyword_metrics.length);
+        } else {
+          console.log("[IvaBot] DFS keyword_volume failed:", kvRes.reason?.message || "no data");
         }
 
         setStep(5);
         var reportData = buildReportData(parsed, gpt, dfsSeo);
 
+        /* ── robots.txt + sitemap checks ── */
         try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
         try { const sm = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.sitemap_url }) }); if (sm.ok) { const smt = await sm.text(); reportData.sitemapStatus = (smt.includes("<urlset") || smt.includes("<sitemapindex") || smt.includes("<url>")) ? "good" : "bad"; } else { reportData.sitemapStatus = "bad"; } } catch(e){ reportData.sitemapStatus = "bad"; }
       }
@@ -1630,7 +1635,6 @@ function IvaBotV6() {
       setAuditData(reportData);
       if (!USE_MOCK) {
         setCredits(prev => ({ ...prev, core: Math.max(0, prev.core - 1) }));
-        /* ── Decrement credit in DB & record run ── */
         const isUUID = memberId && /^[0-9a-f]{8}-/.test(memberId);
         const rpcBody = isUUID ? { p_user_id: memberId } : { p_member_id: memberId };
         try {
