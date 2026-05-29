@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v95 — expanded parsed_data for Core Audit: H2/H3 lists, body excerpt 5000, language, hreflang, CTA text, all flags */
+/* IvaBot seo-tools v96 — UI: disclaimer in Needs Improvement section (recommendations based on found keywords), "1 run = 1 credit" subtitle on /app SEO Tools page */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v94 loaded");
+console.log("[IvaBot] seo-tools.js v96 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -1361,7 +1361,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
   </div>
   <BotNote text={good.length > 0 ? `Good news — ${good.length} things are already working well on your page.` : "Let's look at what needs attention."} />
   {good.length > 0 && <div className="reveal reveal-delay-3" style={{ marginBottom: 12 }}><Fold title="What's Working" count={good.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{good.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
-  <BotNote text={bad.length > 0 ? `I found ${bad.length} areas that need attention. Each card has a clear fix — tap to see what to do.` : "Everything looks great! No major issues found."} />
+  <BotNote text={bad.length > 0 ? `I found ${bad.length} areas that need attention. My recommendations below are personalized based on the keywords I found in your content — this is how Google sees your page and what it thinks you're trying to rank for. If you plan to target different keywords, update your content first, then come back for a fresh audit. Each card has a clear fix — tap to see what to do.` : "Everything looks great! No major issues found."} />
   {bad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Needs Improvement" count={bad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{bad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
   <BotNote text="Want to go deeper? See how your competitors rank and where to earn backlinks." />
   <div className="reveal" style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
@@ -1829,7 +1829,7 @@ function IvaBotV6() {
       {view === "select" ? (
         <div style={{ flex: 1, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px", gap: 36, maxWidth: 780, width: "100%" }}>
-            <div style={{ textAlign: "center" }}><div className="iva-seo-title" style={{ fontWeight: 400, color: C.dark, letterSpacing: "-0.2px", lineHeight: 1, marginBottom: 16, background: "linear-gradient(116deg, rgba(21,20,21,0.25) 8%, #151415 35%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>SEO Tools</div><p style={{ fontSize: 20, color: "rgba(21,20,21,0.5)", maxWidth: 460, margin: "0 auto", lineHeight: 1.1, letterSpacing: "-0.2px", fontWeight: 400 }}>Analyze pages, build content, and find gaps — powered by AI with real Google data.</p></div>
+            <div style={{ textAlign: "center" }}><div className="iva-seo-title" style={{ fontWeight: 400, color: C.dark, letterSpacing: "-0.2px", lineHeight: 1, marginBottom: 16, background: "linear-gradient(116deg, rgba(21,20,21,0.25) 8%, #151415 35%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>SEO Tools</div><p style={{ fontSize: 20, color: "rgba(21,20,21,0.5)", maxWidth: 460, margin: "0 auto", lineHeight: 1.1, letterSpacing: "-0.2px", fontWeight: 400 }}>Analyze pages, build content, and find gaps — powered by AI with real Google data.</p><p style={{ fontSize: 13, color: C.muted, margin: "12px auto 0", fontWeight: 500, letterSpacing: "-0.1px" }}>1 run = 1 credit</p></div>
             <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} onBuy={() => setSB(true)} /><TCard title="Content Coverage & AI Readiness" desc="Find keyword gaps, trust signals, and AI extraction signals that help you rank on Google and get cited by ChatGPT, Perplexity, Claude, and Google AI." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} onBuy={() => setSB(true)} /><TCard title="Content Builder" desc="Finds low-competition keywords, builds SEO page structure, and writes full content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} onBuy={() => setSB(true)} /></div>
           </div>
         </div>
