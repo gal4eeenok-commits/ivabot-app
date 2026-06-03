@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v96 — UI: disclaimer in Needs Improvement section (recommendations based on found keywords), "1 run = 1 credit" subtitle on /app SEO Tools page */
+/* IvaBot seo-tools v97 — UI: disclaimer in Needs Improvement section (recommendations based on found keywords), "1 run = 1 credit" subtitle on /app SEO Tools page */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v96 loaded");
+console.log("[IvaBot] seo-tools.js v97 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -260,78 +260,63 @@ async function fetchCredits(userId) {
 /* ═══ SEO PARSER ═══ */
 /* v91: detectLocale — TLD + html lang → DataForSEO location_code/language_code */
 /* v92: + hreflang priority (most precise — site self-declares target region) */
-function detectLocale(url, htmlLang, hreflang) {
-  const tldToLoc = {
-    "ro": { loc: 2642, lang: "ro" }, "de": { loc: 2276, lang: "de" }, "fr": { loc: 2250, lang: "fr" },
-    "es": { loc: 2724, lang: "es" }, "it": { loc: 2380, lang: "it" }, "nl": { loc: 2528, lang: "nl" },
-    "pl": { loc: 2616, lang: "pl" }, "pt": { loc: 2620, lang: "pt-PT" }, "br": { loc: 2076, lang: "pt-BR" },
-    "ru": { loc: 2643, lang: "ru" }, "ua": { loc: 2804, lang: "uk" }, "tr": { loc: 2792, lang: "tr" },
-    "se": { loc: 2752, lang: "sv" }, "no": { loc: 2578, lang: "no" }, "dk": { loc: 2208, lang: "da" },
-    "fi": { loc: 2246, lang: "fi" }, "cz": { loc: 2203, lang: "cs" }, "gr": { loc: 2300, lang: "el" },
-    "hu": { loc: 2348, lang: "hu" }, "at": { loc: 2040, lang: "de" }, "ch": { loc: 2756, lang: "de" },
-    "be": { loc: 2056, lang: "nl" }, "uk": { loc: 2826, lang: "en" }, "co.uk": { loc: 2826, lang: "en" },
-    "au": { loc: 2036, lang: "en" }, "ca": { loc: 2124, lang: "en" }, "in": { loc: 2356, lang: "en" },
-    "ie": { loc: 2372, lang: "en" }, "nz": { loc: 2554, lang: "en" }, "za": { loc: 2710, lang: "en" },
-    "mx": { loc: 2484, lang: "es" }, "ar": { loc: 2032, lang: "es" }, "jp": { loc: 2392, lang: "ja" },
-    "kr": { loc: 2410, lang: "ko" }, "cn": { loc: 2156, lang: "zh-CN" }, "tw": { loc: 2158, lang: "zh-TW" },
+/* ═══ geo signal helpers (currency / phone / script) — non-English locale detection ═══ */
+function scanCurrencies(text){ if(!text) return []; var t=(" "+text+" ").toLowerCase().slice(0,8000); var CUR={ "\u20b4":"ua","\u0433\u0440\u043d":"ua","uah":"ua","\u20bd":"ru","\u0440\u0443\u0431":"ru","rub":"ru","\u20b8":"kz","\u0442\u04a3\u0433":"kz","kzt":"kz","byn":"by","z\u0142":"pl","pln":"pl","\u043b\u0432":"bg","bgn":"bg","\u20be":"ge","gel":"ge","\u0586":"am","amd":"am","\u20bc":"az","azn":"az","uzs":"uz","\u0441\u045e\u043c":"uz","\u20ba":"tr","try":"tr","lei":"ro","ron":"ro","k\u010d":"cz","czk":"cz","huf":"hu","\u20aa":"il","ils":"il","\ufdfc":"sa","sar":"sa","aed":"ae","r$":"br","brl":"br","\u20b9":"in","inr":"in","\u20a9":"kr","krw":"kr" }; var out={}; for(var k in CUR){ if(t.indexOf(k)>=0) out[CUR[k]]=1; } return Object.keys(out); }
+function scanPhones(text){ if(!text) return []; var t=text.slice(0,8000); var P=[[/\+380/,"ua"],[/\+375/,"by"],[/\+77\d{2}/,"kz"],[/\+7[\s\-(]*[489]\d{2}/,"ru"],[/\+48/,"pl"],[/\+40/,"ro"],[/\+359/,"bg"],[/\+90/,"tr"],[/\+995/,"ge"],[/\+374/,"am"],[/\+994/,"az"],[/\+998/,"uz"],[/\+370/,"lt"],[/\+371/,"lv"],[/\+372/,"ee"],[/\+972/,"il"],[/\+971/,"ae"],[/\+966/,"sa"],[/\+420/,"cz"],[/\+351/,"pt"],[/\+30\d/,"gr"],[/\+49/,"de"],[/\+33/,"fr"],[/\+34/,"es"],[/\+39/,"it"],[/\+44/,"gb"],[/\+81/,"jp"],[/\+82/,"kr"],[/\+86/,"cn"],[/\+55/,"br"],[/\+36/,"hu"],[/\+31/,"nl"]]; var out=[]; for(var i=0;i<P.length;i++){ if(P[i][0].test(t)){ if(out.indexOf(P[i][1])<0) out.push(P[i][1]); } } return out; }
+function scriptLang(text){ if(!text) return null; var t=text.slice(0,4000); var cyr=0,greek=0,kana=0,hangul=0,han=0,arab=0,hebrew=0; for(var i=0;i<t.length;i++){ var c=t.charCodeAt(i); if(c>=0x0400&&c<=0x04FF)cyr++; else if(c>=0x0370&&c<=0x03FF)greek++; else if(c>=0x3040&&c<=0x30FF)kana++; else if(c>=0xAC00&&c<=0xD7A3)hangul++; else if(c>=0x4E00&&c<=0x9FFF)han++; else if(c>=0x0600&&c<=0x06FF)arab++; else if(c>=0x0590&&c<=0x05FF)hebrew++; } var nl=cyr+greek+kana+hangul+han+arab+hebrew; if(nl<8) return null; if(kana>0) return "ja"; if(hangul>0) return "ko"; if(cyr>=greek&&cyr>=arab&&cyr>=hebrew&&cyr>=han){ if(/[\u0456\u0457\u0454\u0491]/i.test(t)) return "uk"; return "ru"; } if(greek>0) return "el"; if(arab>0) return "ar"; if(hebrew>0) return "he"; if(han>0) return "zh"; return null; }
+
+function detectLocale(url, htmlLang, hreflang, opts) {
+  opts = opts || {};
+  var text = opts.text || "";
+  var gptCountry = (opts.gptCountry||"").toString().toLowerCase().trim();
+  var gptLang = (opts.gptLang||"").toString().toLowerCase().split(/[-_]/)[0].trim();
+  var gptConf = (opts.gptConfidence||"").toString().toLowerCase().trim();
+
+  var countryToLoc = {
+    ro:{loc:2642,lang:"ro"}, de:{loc:2276,lang:"de"}, fr:{loc:2250,lang:"fr"},
+    es:{loc:2724,lang:"es"}, it:{loc:2380,lang:"it"}, nl:{loc:2528,lang:"nl"},
+    pl:{loc:2616,lang:"pl"}, pt:{loc:2620,lang:"pt-PT"}, br:{loc:2076,lang:"pt-BR"},
+    ru:{loc:2643,lang:"ru"}, ua:{loc:2804,lang:"uk"}, tr:{loc:2792,lang:"tr"},
+    se:{loc:2752,lang:"sv"}, no:{loc:2578,lang:"no"}, dk:{loc:2208,lang:"da"},
+    fi:{loc:2246,lang:"fi"}, cz:{loc:2203,lang:"cs"}, gr:{loc:2300,lang:"el"},
+    hu:{loc:2348,lang:"hu"}, at:{loc:2040,lang:"de"}, ch:{loc:2756,lang:"de"},
+    be:{loc:2056,lang:"nl"}, gb:{loc:2826,lang:"en"}, uk:{loc:2826,lang:"en"},
+    us:{loc:2840,lang:"en"}, au:{loc:2036,lang:"en"}, ca:{loc:2124,lang:"en"},
+    in:{loc:2356,lang:"en"}, ie:{loc:2372,lang:"en"}, nz:{loc:2554,lang:"en"},
+    za:{loc:2710,lang:"en"}, mx:{loc:2484,lang:"es"}, ar:{loc:2032,lang:"es"},
+    jp:{loc:2392,lang:"ja"}, kr:{loc:2410,lang:"ko"}, cn:{loc:2156,lang:"zh-CN"},
+    tw:{loc:2158,lang:"zh-TW"}, kz:{loc:2398,lang:"ru"}, by:{loc:2112,lang:"ru"},
+    rs:{loc:2688,lang:"sr"}, bg:{loc:2100,lang:"bg"}, ge:{loc:2268,lang:"ka"},
+    am:{loc:2051,lang:"hy"}, az:{loc:2031,lang:"az"}, uz:{loc:2860,lang:"uz"},
+    il:{loc:2376,lang:"he"}, ae:{loc:2784,lang:"ar"}, sa:{loc:2682,lang:"ar"},
+    lt:{loc:2440,lang:"lt"}, lv:{loc:2428,lang:"lv"}, ee:{loc:2233,lang:"et"}
   };
-  const langToLoc = {
-    "ro": { loc: 2642, lang: "ro" }, "de": { loc: 2276, lang: "de" }, "fr": { loc: 2250, lang: "fr" },
-    "es": { loc: 2724, lang: "es" }, "it": { loc: 2380, lang: "it" }, "nl": { loc: 2528, lang: "nl" },
-    "pl": { loc: 2616, lang: "pl" }, "pt": { loc: 2620, lang: "pt-PT" }, "ru": { loc: 2643, lang: "ru" },
-    "uk": { loc: 2804, lang: "uk" }, "tr": { loc: 2792, lang: "tr" }, "sv": { loc: 2752, lang: "sv" },
-    "no": { loc: 2578, lang: "no" }, "da": { loc: 2208, lang: "da" }, "fi": { loc: 2246, lang: "fi" },
-    "cs": { loc: 2203, lang: "cs" }, "el": { loc: 2300, lang: "el" }, "hu": { loc: 2348, lang: "hu" },
-    "ja": { loc: 2392, lang: "ja" }, "ko": { loc: 2410, lang: "ko" }, "zh": { loc: 2156, lang: "zh-CN" },
-  };
-  let location_code = 2840, language_code = "en", source = "default";
-  /* v92: hreflang country mapping (highest priority signal) */
-  const countryToLoc = {
-    "ro": { loc: 2642, lang: "ro" }, "de": { loc: 2276, lang: "de" }, "fr": { loc: 2250, lang: "fr" },
-    "es": { loc: 2724, lang: "es" }, "it": { loc: 2380, lang: "it" }, "nl": { loc: 2528, lang: "nl" },
-    "pl": { loc: 2616, lang: "pl" }, "pt": { loc: 2620, lang: "pt-PT" }, "br": { loc: 2076, lang: "pt-BR" },
-    "ru": { loc: 2643, lang: "ru" }, "ua": { loc: 2804, lang: "uk" }, "tr": { loc: 2792, lang: "tr" },
-    "se": { loc: 2752, lang: "sv" }, "no": { loc: 2578, lang: "no" }, "dk": { loc: 2208, lang: "da" },
-    "fi": { loc: 2246, lang: "fi" }, "cz": { loc: 2203, lang: "cs" }, "gr": { loc: 2300, lang: "el" },
-    "hu": { loc: 2348, lang: "hu" }, "at": { loc: 2040, lang: "de" }, "ch": { loc: 2756, lang: "de" },
-    "be": { loc: 2056, lang: "nl" }, "gb": { loc: 2826, lang: "en" }, "uk": { loc: 2826, lang: "en" },
-    "us": { loc: 2840, lang: "en" }, "au": { loc: 2036, lang: "en" }, "ca": { loc: 2124, lang: "en" },
-    "in": { loc: 2356, lang: "en" }, "ie": { loc: 2372, lang: "en" }, "nz": { loc: 2554, lang: "en" },
-    "za": { loc: 2710, lang: "en" }, "mx": { loc: 2484, lang: "es" }, "ar": { loc: 2032, lang: "es" },
-    "jp": { loc: 2392, lang: "ja" }, "kr": { loc: 2410, lang: "ko" }, "cn": { loc: 2156, lang: "zh-CN" },
-    "tw": { loc: 2158, lang: "zh-TW" },
-  };
-  if (hreflang) {
-    const hrParts = hreflang.toLowerCase().split(/[-_]/);
-    if (hrParts.length >= 2 && countryToLoc[hrParts[1]]) {
-      location_code = countryToLoc[hrParts[1]].loc;
-      language_code = countryToLoc[hrParts[1]].lang;
-      source = "hreflang:" + hreflang;
-    } else if (hrParts.length === 1 && countryToLoc[hrParts[0]]) {
-      location_code = countryToLoc[hrParts[0]].loc;
-      language_code = countryToLoc[hrParts[0]].lang;
-      source = "hreflang-lang:" + hrParts[0];
-    }
-  }
-  if (source === "default") {
-  try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    const parts = hostname.split(".");
-    if (parts.length >= 3) {
-      const twoPart = parts.slice(-2).join(".");
-      if (tldToLoc[twoPart]) { location_code = tldToLoc[twoPart].loc; language_code = tldToLoc[twoPart].lang; source = "tld:" + twoPart; }
-    }
-    if (source === "default") {
-      const tld = parts[parts.length - 1];
-      if (tldToLoc[tld]) { location_code = tldToLoc[tld].loc; language_code = tldToLoc[tld].lang; source = "tld:" + tld; }
-    }
-  } catch(e){}
-  }
-  if (source === "default" && htmlLang) {
-    const langKey = htmlLang.toLowerCase().split(/[-_]/)[0];
-    if (langToLoc[langKey]) { location_code = langToLoc[langKey].loc; language_code = langToLoc[langKey].lang; source = "lang:" + langKey; }
-  }
-  console.log(`[IvaBot] detectLocale: url=${url} htmlLang=${htmlLang} hreflang=${hreflang} → loc=${location_code} lang=${language_code} (source=${source})`);
+  var TLD_TO_COUNTRY = { ro:"ro",de:"de",fr:"fr",es:"es",it:"it",nl:"nl",pl:"pl",pt:"pt",br:"br",ru:"ru",ua:"ua",tr:"tr",se:"se",no:"no",dk:"dk",fi:"fi",cz:"cz",gr:"gr",hu:"hu",at:"at",ch:"ch",be:"be",au:"au",ca:"ca",in:"in",ie:"ie",nz:"nz",za:"za",mx:"mx",ar:"ar",jp:"jp",kr:"kr",cn:"cn",tw:"tw",kz:"kz",by:"by",rs:"rs",bg:"bg",ge:"ge",am:"am",az:"az",uz:"uz",il:"il",ae:"ae",sa:"sa",lt:"lt",lv:"lv",ee:"ee","co.uk":"gb",uk:"gb" };
+  var langToDfs = { ro:"ro",de:"de",fr:"fr",es:"es",it:"it",nl:"nl",pl:"pl",pt:"pt-PT",ru:"ru",uk:"uk",tr:"tr",sv:"sv",no:"no",da:"da",fi:"fi",cs:"cs",el:"el",hu:"hu",ja:"ja",ko:"ko",zh:"zh-CN",en:"en",sr:"sr",bg:"bg",ka:"ka",hy:"hy",az:"az",uz:"uz",lt:"lt",lv:"lv",et:"et",he:"he",ar:"ar" };
+  var LANG_DOMINANT_LOC = { ru:2643,uk:2804,en:2840,de:2276,fr:2250,es:2724,it:2380,pl:2616,"pt-PT":2620,"pt-BR":2076,pt:2076,tr:2792,ro:2642,bg:2100,el:2300,ja:2392,ko:2410,"zh-CN":2156,zh:2156,ar:2682,he:2376,nl:2528,sr:2688,cs:2203,hu:2348,sv:2752,ka:2268,hy:2051,az:2031,uz:2860,lt:2440,lv:2428,et:2233 };
+
+  var country = null, source = "default";
+
+  if (hreflang) { var hp = hreflang.toLowerCase().split(/[-_]/); if (hp.length>=2 && countryToLoc[hp[1]]) { country=hp[1]; source="hreflang:"+hreflang; } else if (countryToLoc[hp[0]]) { country=hp[0]; source="hreflang-lang:"+hp[0]; } }
+  if (!country) { try { var host=new URL(url).hostname.toLowerCase(); var pr=host.split("."); if (pr.length>=3){ var two=pr.slice(-2).join("."); if (TLD_TO_COUNTRY[two]){ country=TLD_TO_COUNTRY[two]; source="tld:"+two; } } if (!country){ var t1=pr[pr.length-1]; if (TLD_TO_COUNTRY[t1]){ country=TLD_TO_COUNTRY[t1]; source="tld:"+t1; } } } catch(e){} }
+  if (!country) { var cur=scanCurrencies(text); if (cur.length===1 && countryToLoc[cur[0]]) { country=cur[0]; source="currency:"+cur[0]; } else if (cur.length>1 && gptCountry && cur.indexOf(gptCountry)>=0) { country=gptCountry; source="currency+gpt:"+gptCountry; } }
+  if (!country) { var ph=scanPhones(text); if (ph.length>=1 && countryToLoc[ph[0]]) { country=ph[0]; source="phone:"+ph[0]; } }
+  if (!country && gptCountry && countryToLoc[gptCountry] && gptConf!=="low") { country=gptCountry; source="gpt:"+gptCountry; }
+
+  var langCode = null;
+  var sl = scriptLang(text); if (sl) langCode = sl;
+  if (!langCode && htmlLang) { var hk=htmlLang.toLowerCase().split(/[-_]/)[0]; langCode = langToDfs[hk] || hk; }
+  if (!langCode && gptLang) { langCode = langToDfs[gptLang] || gptLang; }
+  if (!langCode && country) langCode = countryToLoc[country].lang;
+  if (!langCode) langCode = "en";
+  if (langCode === "zh") langCode = "zh-CN";
+
+  var location_code, language_code = langCode;
+  if (country) { location_code = countryToLoc[country].loc; }
+  else if (LANG_DOMINANT_LOC[langCode]) { location_code = LANG_DOMINANT_LOC[langCode]; source = source + "|lang-dominant:" + langCode; }
+  else { location_code = 2840; }
+
+  console.log(`[IvaBot] detectLocale: url=${url} htmlLang=${htmlLang} hreflang=${hreflang} country=${country} → loc=${location_code} lang=${language_code} (source=${source})`);
   return { location_code, language_code };
 }
 
@@ -1530,7 +1515,7 @@ function IvaBotV6() {
         const domain = new URL(url).hostname.replace(/^www\./, "");
         const cleanKw = (v) => v && v.length > 2 && !/^\{.*\}$/.test(v) && !/^[^a-zA-Z]*$/.test(v) ? v : null;
         const fallbackKw = cleanKw(parsed.h1?.[0]) || cleanKw(parsed.title) || "";
-        const locale = detectLocale(url, parsed.html_lang, parsed.hreflang);
+        const locale = detectLocale(url, parsed.html_lang, parsed.hreflang, { text: (((parsed.title||"")+" "+(parsed.body_text||"")).slice(0,8000)) });
 
         /* ── STEP 2: GPT first (Make) — get page_context + keywords ── */
         setStep(3);
