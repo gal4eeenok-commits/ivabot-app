@@ -1,7 +1,7 @@
-/* IvaBot Content Builder v71 — brand guide upload (read file, 15K limit, send to GPT) */
+/* IvaBot Content Builder v72 — brand guide upload (read file, 15K limit, send to GPT) */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v71 loaded");
+console.log("[IvaBot] content-builder.js v72 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -678,11 +678,16 @@ const showKeywords=(enriched,extras,adjustsLeft)=>{
   </div>);
 };
 
+/* ═══ ASK MARKET (upfront, before any DataForSEO call) ═══ */
+const askMarket=(route)=>{
+  sAns(p=>({...p,_route:route}));mk("e");setStep("mkq");
+  bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>First, let's set your market — this decides keyword search volumes and language.</div><div style={{fontWeight:600,marginBottom:6}}>What country or market are you targeting?</div><ExBox items={["United States","UK","Germany","Ukraine","Global"]}/></div>);
+};
 /* ═══ KEYWORD DONE → Phase 1 continues ═══ */
 const kwDone=()=>{
   mk("kw");
   setStep("gl");
-  bot(<div><div style={{marginBottom:8}}>Great keywords! Now let's shape your content.</div><div style={{fontWeight:600,marginBottom:6}}>Step 1 of 4 — What should this page achieve?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This shapes the content strategy and call-to-action.</div><ExBox items={["Sell a product","Get leads through a contact form","Educate visitors and build trust","Explain a service","Get sign-ups or bookings"]}/></div>);
+  bot(<div><div style={{marginBottom:8}}>Great keywords! Now let's shape your content.</div><div style={{fontWeight:600,marginBottom:6}}>Step 1 of 3 — What should this page achieve?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This shapes the content strategy and call-to-action.</div><ExBox items={["Sell a product","Get leads through a contact form","Educate visitors and build trust","Explain a service","Get sign-ups or bookings"]}/></div>);
 };
 
 /* ═══ KEYWORD ADJUST (up to 5 rounds) ═══ */
@@ -1435,9 +1440,19 @@ const send=()=>{
 
   if(step==="ec"){
     const tl=t.toLowerCase().trim();
-    if(/\b(find|search|suggest|help|generate)\b/i.test(tl)){mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>);return;}
-    if(/\b(my|own|have|paste|use)\b/i.test(tl)||t.includes(",")){mk("e");setStep("ok");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Type your keyword phrases below, separated by commas.</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Use 2–3 word phrases. Up to 7 phrases max.</div><ExBox items={["brazilian coffee beans, vegan coffee, organic roast","handmade silver rings, custom jewelry, boho rings","yoga for beginners, morning stretches, home yoga"]}/></div>);return;}
+    if(/\b(find|search|suggest|help|generate)\b/i.test(tl)){askMarket("find");return;}
+    if(/\b(my|own|have|paste|use)\b/i.test(tl)||t.includes(",")){askMarket("own");return;}
     bot(<div>Please choose: do you want me to find keywords, or do you have your own?</div>);return;
+  }
+
+if(step==="mkq"){
+    sAns(p=>({...p,mk:t}));mk("mkq");
+    if(ans._route==="own"){
+      setStep("ok");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Type your keyword phrases below, separated by commas.</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Use 2–3 word phrases. Up to 7 phrases max.</div><ExBox items={["brazilian coffee beans, vegan coffee, organic roast","handmade silver rings, custom jewelry, boho rings","yoga for beginners, morning stretches, home yoga"]}/></div>);
+    } else {
+      setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>);
+    }
+    return;
   }
 
   if(step==="ok"){
@@ -1473,11 +1488,11 @@ const send=()=>{
 
   if(step==="ka"){doAdjust(t);return;}
 
-  if(step==="gl"){sAns(p=>({...p,gl:t}));mk("gl");setStep("au");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 2 of 4 — Who is your target audience?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects tone, word choice, and how the content speaks to visitors.</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids","Tech professionals"]}/></div>);return;}
+  if(step==="gl"){sAns(p=>({...p,gl:t}));mk("gl");setStep("au");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 2 of 3 — Who is your target audience?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects tone, word choice, and how the content speaks to visitors.</div><ExBox items={["Women 25-40","Young travelers","Small business owners","Parents with kids","Tech professionals"]}/></div>);return;}
 
-  if(step==="au"){sAns(p=>({...p,au:t}));mk("au");setStep("tn");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 3 of 4 — How should the content sound?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>The right tone makes your page feel authentic to your audience.</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal","Bold and confident"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={(f,text)=>{add("u",`Uploaded: ${f.name} (${Math.round(text.length/1000)}K chars)`);if(text&&text.length>50){sAns(p=>({...p,brandGuide:text}));bot(<div><div style={{color:C.accent,fontSize:12,fontWeight:600,marginBottom:4}}>Brand guide loaded ({Math.round(text.length/1000)}K characters).</div><div style={{color:C.muted,fontSize:12}}>Now type your preferred tone of voice below (e.g. "Confident and direct") — I'll combine it with your brand guide.</div></div>,400);}else{bot(<div><div style={{color:C.muted,fontSize:12}}>Could not extract enough text from this file. Try a .txt or .pdf with selectable text.</div></div>,400);}}}/></div></div>);return;}
+  if(step==="au"){sAns(p=>({...p,au:t}));mk("au");setStep("tn");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 3 of 3 — How should the content sound?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>The right tone makes your page feel authentic to your audience.</div><ExBox items={["Professional and clear","Friendly and casual","Fun and playful","Warm and personal","Bold and confident"]}/><div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}><UBtn onUpload={(f,text)=>{add("u",`Uploaded: ${f.name} (${Math.round(text.length/1000)}K chars)`);if(text&&text.length>50){sAns(p=>({...p,brandGuide:text}));bot(<div><div style={{color:C.accent,fontSize:12,fontWeight:600,marginBottom:4}}>Brand guide loaded ({Math.round(text.length/1000)}K characters).</div><div style={{color:C.muted,fontSize:12}}>Now type your preferred tone of voice below (e.g. "Confident and direct") — I'll combine it with your brand guide.</div></div>,400);}else{bot(<div><div style={{color:C.muted,fontSize:12}}>Could not extract enough text from this file. Try a .txt or .pdf with selectable text.</div></div>,400);}}}/></div></div>);return;}
 
-  if(step==="tn"){sAns(p=>({...p,tn:t}));mk("tn");setStep("mk");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Step 4 of 4 — What country or market are you targeting?</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>This affects keyword data and language.</div><ExBox items={["US","UK","Germany","Global","Online"]}/></div>);return;}
+  if(step==="tn"){sAns(p=>({...p,tn:t}));mk("tn");genTitles(ans.mk);return;}
 
   if(step==="mk"){sAns(p=>({...p,mk:t}));mk("mk");genTitles(t);return;}
 
@@ -1577,7 +1592,7 @@ const startKwGeneration=async(pageDesc)=>{
 /* ═══ RENDER ═══ */
 const lastBotIdx=msgs.reduce((acc,m,i)=>m.f==="b"?i:acc,-1);
 const phase2=step==="sr"||step==="cr";
-const chatMessages=<React.Fragment><style>{`.cb-past-msg{opacity:0.75}.cb-past-msg button:not(.bot-tip-expand){pointer-events:none!important;cursor:default!important;opacity:0.5}.cb-past-msg [onclick]{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand,.cb-past-msg details>summary{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>{add("u","Find Keywords");mk("e");setStep("pt");bot(<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>To find the right keywords, I need to understand your page.</div><div style={{fontWeight:600,marginBottom:6}}>What type of page are you working on?</div><ExBox items={HINTS.page_type}/></div>);}}/><Btn text="Use My Keywords" onClick={()=>{add("u","Use My Keywords");mk("e");setStep("ok");bot(<div><div style={{fontWeight:600,marginBottom:6}}>Type your keyword phrases below, separated by commas.</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>Use 2–3 word phrases. Up to 7 phrases max.</div><ExBox items={["brazilian coffee beans, vegan coffee, organic roast","handmade silver rings, custom jewelry, boho rings","yoga for beginners, morning stretches, home yoga"]}/></div>);}}/></div>}</React.Fragment>;
+const chatMessages=<React.Fragment><style>{`.cb-past-msg{opacity:0.75}.cb-past-msg button:not(.bot-tip-expand){pointer-events:none!important;cursor:default!important;opacity:0.5}.cb-past-msg [onclick]{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand,.cb-past-msg details>summary{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>{add("u","Find Keywords");askMarket("find");}}/><Btn text="Use My Keywords" onClick={()=>{add("u","Use My Keywords");askMarket("own");}}/></div>}</React.Fragment>;
 
 const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd} kwData={kwData}/></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={contentHtml} d={bd} kwData={kwData}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
 
