@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage & AI Readiness v6.92 — adds 4 new AI extractability checks (extractable passages, TL;DR, comparison tables, HowTo schema) + Distribution Tips block. Renamed module: "Content Coverage" → "Content Coverage & AI Readiness". Requires ai-readiness-v4.js (14 checks). */
+/* IvaBot Content Coverage & AI Readiness v6.93 — adds 4 new AI extractability checks (extractable passages, TL;DR, comparison tables, HowTo schema) + Distribution Tips block. Renamed module: "Content Coverage" → "Content Coverage & AI Readiness". Requires ai-readiness-v4.js (14 checks). */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.92 loaded");
+console.log("[IvaBot] content-coverage.js v6.93 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -113,129 +113,79 @@ function valUrl(raw){let s=raw.trim();if(!s)return{ok:false,e:"Paste a URL to st
    Detects target country + language from URL TLD + HTML lang attribute.
    This is CRITICAL — without it, DFS defaults to US/English and Pos. = "—" for non-US sites.
 */
-function detectLocale(url, htmlLang, hreflang) {
-  // Mapping: TLD → DataForSEO location_code (Google country)
-  // Full list: https://api.dataforseo.com/v3/serp/google/locations
-  const tldToLoc = {
-    "ro": { loc: 2642, lang: "ro" },  // Romania
-    "de": { loc: 2276, lang: "de" },  // Germany
-    "fr": { loc: 2250, lang: "fr" },  // France
-    "es": { loc: 2724, lang: "es" },  // Spain
-    "it": { loc: 2380, lang: "it" },  // Italy
-    "nl": { loc: 2528, lang: "nl" },  // Netherlands
-    "pl": { loc: 2616, lang: "pl" },  // Poland
-    "pt": { loc: 2620, lang: "pt-PT" },  // Portugal
-    "br": { loc: 2076, lang: "pt-BR" },  // Brazil
-    "ru": { loc: 2643, lang: "ru" },  // Russia
-    "ua": { loc: 2804, lang: "uk" },  // Ukraine
-    "tr": { loc: 2792, lang: "tr" },  // Turkey
-    "se": { loc: 2752, lang: "sv" },  // Sweden
-    "no": { loc: 2578, lang: "no" },  // Norway
-    "dk": { loc: 2208, lang: "da" },  // Denmark
-    "fi": { loc: 2246, lang: "fi" },  // Finland
-    "cz": { loc: 2203, lang: "cs" },  // Czechia
-    "gr": { loc: 2300, lang: "el" },  // Greece
-    "hu": { loc: 2348, lang: "hu" },  // Hungary
-    "at": { loc: 2040, lang: "de" },  // Austria
-    "ch": { loc: 2756, lang: "de" },  // Switzerland (German default)
-    "be": { loc: 2056, lang: "nl" },  // Belgium (Dutch default)
-    "uk": { loc: 2826, lang: "en" },  // UK
-    "co.uk": { loc: 2826, lang: "en" },  // UK
-    "au": { loc: 2036, lang: "en" },  // Australia
-    "ca": { loc: 2124, lang: "en" },  // Canada
-    "in": { loc: 2356, lang: "en" },  // India
-    "ie": { loc: 2372, lang: "en" },  // Ireland
-    "nz": { loc: 2554, lang: "en" },  // New Zealand
-    "za": { loc: 2710, lang: "en" },  // South Africa
-    "mx": { loc: 2484, lang: "es" },  // Mexico
-    "ar": { loc: 2032, lang: "es" },  // Argentina
-    "jp": { loc: 2392, lang: "ja" },  // Japan
-    "kr": { loc: 2410, lang: "ko" },  // South Korea
-    "cn": { loc: 2156, lang: "zh-CN" },  // China
-    "tw": { loc: 2158, lang: "zh-TW" },  // Taiwan
-  };
-  // Lang code → DataForSEO location_code (used when TLD is .com/.net/.org but lang is set)
-  const langToLoc = {
-    "ro": { loc: 2642, lang: "ro" },
-    "de": { loc: 2276, lang: "de" },
-    "fr": { loc: 2250, lang: "fr" },
-    "es": { loc: 2724, lang: "es" },
-    "it": { loc: 2380, lang: "it" },
-    "nl": { loc: 2528, lang: "nl" },
-    "pl": { loc: 2616, lang: "pl" },
-    "pt": { loc: 2620, lang: "pt-PT" },
-    "ru": { loc: 2643, lang: "ru" },
-    "uk": { loc: 2804, lang: "uk" },
-    "tr": { loc: 2792, lang: "tr" },
-    "sv": { loc: 2752, lang: "sv" },
-    "no": { loc: 2578, lang: "no" },
-    "da": { loc: 2208, lang: "da" },
-    "fi": { loc: 2246, lang: "fi" },
-    "cs": { loc: 2203, lang: "cs" },
-    "el": { loc: 2300, lang: "el" },
-    "hu": { loc: 2348, lang: "hu" },
-    "ja": { loc: 2392, lang: "ja" },
-    "ko": { loc: 2410, lang: "ko" },
-    "zh": { loc: 2156, lang: "zh-CN" },
-  };
-  let location_code = 2840;  // United States default
-  let language_code = "en";
-  let source = "default";
+/* ═══ geo signal helpers (currency / phone / script) — non-English locale detection ═══ */
+function scanCurrencies(text){ if(!text) return []; var t=(" "+text+" ").toLowerCase().slice(0,8000); var CUR={ "\u20b4":"ua","\u0433\u0440\u043d":"ua","uah":"ua","\u20bd":"ru","\u0440\u0443\u0431":"ru","rub":"ru","\u20b8":"kz","\u0442\u04a3\u0433":"kz","kzt":"kz","byn":"by","z\u0142":"pl","pln":"pl","\u043b\u0432":"bg","bgn":"bg","\u20be":"ge","gel":"ge","\u0586":"am","amd":"am","\u20bc":"az","azn":"az","uzs":"uz","\u0441\u045e\u043c":"uz","\u20ba":"tr","try":"tr","lei":"ro","ron":"ro","k\u010d":"cz","czk":"cz","huf":"hu","\u20aa":"il","ils":"il","\ufdfc":"sa","sar":"sa","aed":"ae","r$":"br","brl":"br","\u20b9":"in","inr":"in","\u20a9":"kr","krw":"kr" }; var out={}; for(var k in CUR){ if(t.indexOf(k)>=0) out[CUR[k]]=1; } return Object.keys(out); }
+function scanPhones(text){ if(!text) return []; var t=text.slice(0,8000); var P=[[/\+380/,"ua"],[/\+375/,"by"],[/\+77\d{2}/,"kz"],[/\+7[\s\-(]*[489]\d{2}/,"ru"],[/\+48/,"pl"],[/\+40/,"ro"],[/\+359/,"bg"],[/\+90/,"tr"],[/\+995/,"ge"],[/\+374/,"am"],[/\+994/,"az"],[/\+998/,"uz"],[/\+370/,"lt"],[/\+371/,"lv"],[/\+372/,"ee"],[/\+972/,"il"],[/\+971/,"ae"],[/\+966/,"sa"],[/\+420/,"cz"],[/\+351/,"pt"],[/\+30\d/,"gr"],[/\+49/,"de"],[/\+33/,"fr"],[/\+34/,"es"],[/\+39/,"it"],[/\+44/,"gb"],[/\+81/,"jp"],[/\+82/,"kr"],[/\+86/,"cn"],[/\+55/,"br"],[/\+36/,"hu"],[/\+31/,"nl"]]; var out=[]; for(var i=0;i<P.length;i++){ if(P[i][0].test(t)){ if(out.indexOf(P[i][1])<0) out.push(P[i][1]); } } return out; }
+function scriptLang(text){ if(!text) return null; var t=text.slice(0,4000); var cyr=0,greek=0,kana=0,hangul=0,han=0,arab=0,hebrew=0; for(var i=0;i<t.length;i++){ var c=t.charCodeAt(i); if(c>=0x0400&&c<=0x04FF)cyr++; else if(c>=0x0370&&c<=0x03FF)greek++; else if(c>=0x3040&&c<=0x30FF)kana++; else if(c>=0xAC00&&c<=0xD7A3)hangul++; else if(c>=0x4E00&&c<=0x9FFF)han++; else if(c>=0x0600&&c<=0x06FF)arab++; else if(c>=0x0590&&c<=0x05FF)hebrew++; } var nl=cyr+greek+kana+hangul+han+arab+hebrew; if(nl<8) return null; if(kana>0) return "ja"; if(hangul>0) return "ko"; if(cyr>=greek&&cyr>=arab&&cyr>=hebrew&&cyr>=han){ if(/[\u0456\u0457\u0454\u0491]/i.test(t)) return "uk"; return "ru"; } if(greek>0) return "el"; if(arab>0) return "ar"; if(hebrew>0) return "he"; if(han>0) return "zh"; return null; }
 
-  /* v6.91: Step 0 — hreflang country code (most reliable signal — site self-declares target region) */
-  /* hreflang format: "ro-RO", "en-US", "de-AT", "x-default" — we extract the country code part */
-  const countryToLoc = {
-    "ro": { loc: 2642, lang: "ro" }, "de": { loc: 2276, lang: "de" }, "fr": { loc: 2250, lang: "fr" },
-    "es": { loc: 2724, lang: "es" }, "it": { loc: 2380, lang: "it" }, "nl": { loc: 2528, lang: "nl" },
-    "pl": { loc: 2616, lang: "pl" }, "pt": { loc: 2620, lang: "pt-PT" }, "br": { loc: 2076, lang: "pt-BR" },
-    "ru": { loc: 2643, lang: "ru" }, "ua": { loc: 2804, lang: "uk" }, "tr": { loc: 2792, lang: "tr" },
-    "se": { loc: 2752, lang: "sv" }, "no": { loc: 2578, lang: "no" }, "dk": { loc: 2208, lang: "da" },
-    "fi": { loc: 2246, lang: "fi" }, "cz": { loc: 2203, lang: "cs" }, "gr": { loc: 2300, lang: "el" },
-    "hu": { loc: 2348, lang: "hu" }, "at": { loc: 2040, lang: "de" }, "ch": { loc: 2756, lang: "de" },
-    "be": { loc: 2056, lang: "nl" }, "gb": { loc: 2826, lang: "en" }, "uk": { loc: 2826, lang: "en" },
-    "us": { loc: 2840, lang: "en" }, "au": { loc: 2036, lang: "en" }, "ca": { loc: 2124, lang: "en" },
-    "in": { loc: 2356, lang: "en" }, "ie": { loc: 2372, lang: "en" }, "nz": { loc: 2554, lang: "en" },
-    "za": { loc: 2710, lang: "en" }, "mx": { loc: 2484, lang: "es" }, "ar": { loc: 2032, lang: "es" },
-    "jp": { loc: 2392, lang: "ja" }, "kr": { loc: 2410, lang: "ko" }, "cn": { loc: 2156, lang: "zh-CN" },
-    "tw": { loc: 2158, lang: "zh-TW" },
-  };
-  if (hreflang) {
-    const hrParts = hreflang.toLowerCase().split(/[-_]/);
-    /* hreflang can be just "ro" (lang only) OR "ro-ro" (lang-country). Country is more reliable. */
-    if (hrParts.length >= 2 && countryToLoc[hrParts[1]]) {
-      location_code = countryToLoc[hrParts[1]].loc;
-      language_code = countryToLoc[hrParts[1]].lang;
-      source = "hreflang:" + hreflang;
-    } else if (hrParts.length === 1 && countryToLoc[hrParts[0]]) {
-      location_code = countryToLoc[hrParts[0]].loc;
-      language_code = countryToLoc[hrParts[0]].lang;
-      source = "hreflang-lang:" + hrParts[0];
-    }
-  }
+function detectLocale(url, htmlLang, hreflang, opts) {
+  opts = opts || {};
+  var text = opts.text || "";
+  var gptCountry = (opts.gptCountry||"").toString().toLowerCase().trim();
+  var gptLang = (opts.gptLang||"").toString().toLowerCase().split(/[-_]/)[0].trim();
+  var gptConf = (opts.gptConfidence||"").toString().toLowerCase().trim();
 
-  // Step 1: Try TLD (most reliable for ccTLDs)
-  if (source === "default") {
-  try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    // Check 2-part TLD first (.co.uk, .co.jp, etc.)
-    const parts = hostname.split(".");
-    if (parts.length >= 3) {
-      const twoPart = parts.slice(-2).join(".");
-      if (tldToLoc[twoPart]) { location_code = tldToLoc[twoPart].loc; language_code = tldToLoc[twoPart].lang; source = "tld:" + twoPart; }
-    }
-    if (source === "default") {
-      const tld = parts[parts.length - 1];
-      if (tldToLoc[tld]) { location_code = tldToLoc[tld].loc; language_code = tldToLoc[tld].lang; source = "tld:" + tld; }
-    }
-  } catch(e){}
-  }
-  // Step 2: HTML lang fallback (when TLD is .com/.net/.org/etc.)
-  if (source === "default" && htmlLang) {
-    const langKey = htmlLang.toLowerCase().split(/[-_]/)[0];
-    if (langToLoc[langKey]) { location_code = langToLoc[langKey].loc; language_code = langToLoc[langKey].lang; source = "lang:" + langKey; }
-  }
-  console.log(`[CC] detectLocale: url=${url} htmlLang=${htmlLang} hreflang=${hreflang} → loc=${location_code} lang=${language_code} (source=${source})`);
+  var countryToLoc = {
+    ro:{loc:2642,lang:"ro"}, de:{loc:2276,lang:"de"}, fr:{loc:2250,lang:"fr"},
+    es:{loc:2724,lang:"es"}, it:{loc:2380,lang:"it"}, nl:{loc:2528,lang:"nl"},
+    pl:{loc:2616,lang:"pl"}, pt:{loc:2620,lang:"pt-PT"}, br:{loc:2076,lang:"pt-BR"},
+    ru:{loc:2643,lang:"ru"}, ua:{loc:2804,lang:"uk"}, tr:{loc:2792,lang:"tr"},
+    se:{loc:2752,lang:"sv"}, no:{loc:2578,lang:"no"}, dk:{loc:2208,lang:"da"},
+    fi:{loc:2246,lang:"fi"}, cz:{loc:2203,lang:"cs"}, gr:{loc:2300,lang:"el"},
+    hu:{loc:2348,lang:"hu"}, at:{loc:2040,lang:"de"}, ch:{loc:2756,lang:"de"},
+    be:{loc:2056,lang:"nl"}, gb:{loc:2826,lang:"en"}, uk:{loc:2826,lang:"en"},
+    us:{loc:2840,lang:"en"}, au:{loc:2036,lang:"en"}, ca:{loc:2124,lang:"en"},
+    in:{loc:2356,lang:"en"}, ie:{loc:2372,lang:"en"}, nz:{loc:2554,lang:"en"},
+    za:{loc:2710,lang:"en"}, mx:{loc:2484,lang:"es"}, ar:{loc:2032,lang:"es"},
+    jp:{loc:2392,lang:"ja"}, kr:{loc:2410,lang:"ko"}, cn:{loc:2156,lang:"zh-CN"},
+    tw:{loc:2158,lang:"zh-TW"}, kz:{loc:2398,lang:"ru"}, by:{loc:2112,lang:"ru"},
+    rs:{loc:2688,lang:"sr"}, bg:{loc:2100,lang:"bg"}, ge:{loc:2268,lang:"ka"},
+    am:{loc:2051,lang:"hy"}, az:{loc:2031,lang:"az"}, uz:{loc:2860,lang:"uz"},
+    il:{loc:2376,lang:"he"}, ae:{loc:2784,lang:"ar"}, sa:{loc:2682,lang:"ar"},
+    lt:{loc:2440,lang:"lt"}, lv:{loc:2428,lang:"lv"}, ee:{loc:2233,lang:"et"}
+  };
+  var TLD_TO_COUNTRY = { ro:"ro",de:"de",fr:"fr",es:"es",it:"it",nl:"nl",pl:"pl",pt:"pt",br:"br",ru:"ru",ua:"ua",tr:"tr",se:"se",no:"no",dk:"dk",fi:"fi",cz:"cz",gr:"gr",hu:"hu",at:"at",ch:"ch",be:"be",au:"au",ca:"ca",in:"in",ie:"ie",nz:"nz",za:"za",mx:"mx",ar:"ar",jp:"jp",kr:"kr",cn:"cn",tw:"tw",kz:"kz",by:"by",rs:"rs",bg:"bg",ge:"ge",am:"am",az:"az",uz:"uz",il:"il",ae:"ae",sa:"sa",lt:"lt",lv:"lv",ee:"ee","co.uk":"gb",uk:"gb" };
+  var langToDfs = { ro:"ro",de:"de",fr:"fr",es:"es",it:"it",nl:"nl",pl:"pl",pt:"pt-PT",ru:"ru",uk:"uk",tr:"tr",sv:"sv",no:"no",da:"da",fi:"fi",cs:"cs",el:"el",hu:"hu",ja:"ja",ko:"ko",zh:"zh-CN",en:"en",sr:"sr",bg:"bg",ka:"ka",hy:"hy",az:"az",uz:"uz",lt:"lt",lv:"lv",et:"et",he:"he",ar:"ar" };
+  var LANG_DOMINANT_LOC = { ru:2643,uk:2804,en:2840,de:2276,fr:2250,es:2724,it:2380,pl:2616,"pt-PT":2620,"pt-BR":2076,pt:2076,tr:2792,ro:2642,bg:2100,el:2300,ja:2392,ko:2410,"zh-CN":2156,zh:2156,ar:2682,he:2376,nl:2528,sr:2688,cs:2203,hu:2348,sv:2752,ka:2268,hy:2051,az:2031,uz:2860,lt:2440,lv:2428,et:2233 };
+
+  var country = null, source = "default";
+
+  if (hreflang) { var hp = hreflang.toLowerCase().split(/[-_]/); if (hp.length>=2 && countryToLoc[hp[1]]) { country=hp[1]; source="hreflang:"+hreflang; } else if (countryToLoc[hp[0]]) { country=hp[0]; source="hreflang-lang:"+hp[0]; } }
+  if (!country) { try { var host=new URL(url).hostname.toLowerCase(); var pr=host.split("."); if (pr.length>=3){ var two=pr.slice(-2).join("."); if (TLD_TO_COUNTRY[two]){ country=TLD_TO_COUNTRY[two]; source="tld:"+two; } } if (!country){ var t1=pr[pr.length-1]; if (TLD_TO_COUNTRY[t1]){ country=TLD_TO_COUNTRY[t1]; source="tld:"+t1; } } } catch(e){} }
+  if (!country) { var cur=scanCurrencies(text); if (cur.length===1 && countryToLoc[cur[0]]) { country=cur[0]; source="currency:"+cur[0]; } else if (cur.length>1 && gptCountry && cur.indexOf(gptCountry)>=0) { country=gptCountry; source="currency+gpt:"+gptCountry; } }
+  if (!country) { var ph=scanPhones(text); if (ph.length>=1 && countryToLoc[ph[0]]) { country=ph[0]; source="phone:"+ph[0]; } }
+  if (!country && gptCountry && countryToLoc[gptCountry] && gptConf!=="low") { country=gptCountry; source="gpt:"+gptCountry; }
+
+  var langCode = null;
+  var sl = scriptLang(text); if (sl) langCode = sl;
+  if (!langCode && htmlLang) { var hk=htmlLang.toLowerCase().split(/[-_]/)[0]; langCode = langToDfs[hk] || hk; }
+  if (!langCode && gptLang) { langCode = langToDfs[gptLang] || gptLang; }
+  if (!langCode && country) langCode = countryToLoc[country].lang;
+  if (!langCode) langCode = "en";
+  if (langCode === "zh") langCode = "zh-CN";
+
+  var location_code, language_code = langCode;
+  if (country) { location_code = countryToLoc[country].loc; }
+  else if (LANG_DOMINANT_LOC[langCode]) { location_code = LANG_DOMINANT_LOC[langCode]; source = source + "|lang-dominant:" + langCode; }
+  else { location_code = 2840; }
+
+  console.log(`[CC] detectLocale: url=${url} htmlLang=${htmlLang} hreflang=${hreflang} country=${country} → loc=${location_code} lang=${language_code} (source=${source})`);
   return { location_code, language_code };
+}
+
+function extractGeoSignals(parsed) {
+  var text = (((parsed&&parsed.title)||"")+" "+((parsed&&(parsed.body_text||parsed.visible_text))||"")).slice(0,8000);
+  var tld = "unknown";
+  try { if (parsed && parsed.hostname) { var h = parsed.hostname.toLowerCase().split("."); tld = h.slice(-2).join("."); } } catch(e){}
+  var cur=scanCurrencies(text), ph=scanPhones(text), sl=scriptLang(text);
+  var lines=[];
+  lines.push("Domain TLD: "+tld);
+  lines.push("Currencies on page: "+(cur.length?cur.join(", "):"none detected"));
+  lines.push("Phone country prefixes: "+(ph.length?ph.join(", "):"none detected"));
+  lines.push("HTML lang attribute: "+((parsed&&parsed.html_lang)||"none"));
+  lines.push("hreflang: "+((parsed&&parsed.hreflang)||"none"));
+  lines.push("Dominant script language: "+(sl||"latin/undetermined"));
+  return lines.join("\n");
 }
 
 /* ═══ HTML PARSER — extended from Core Audit parseSEO ═══ */
@@ -1769,7 +1719,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         const gptRes = await fetch(COVERAGE_GPT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword })
+          body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) })
         });
         if (gptRes.ok) gptData = await gptRes.json();
         console.log("[CC] GPT context:", gptData ? Object.keys(gptData) : "failed");
@@ -1789,7 +1739,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       // Step 4: DFS — volume/KD + SERP (PAA, related, autocomplete)
       setStepNum(4);
       let dfsData = null;
-      const locale = detectLocale(url, parsed.html_lang, parsed.hreflang);
+      const locale = detectLocale(url, parsed.html_lang, parsed.hreflang, { text: (((parsed.title||"")+" "+(parsed.body_text||parsed.visible_text||"")).slice(0,8000)), gptCountry: (gptData&&gptData.page_context&&gptData.page_context.country_code)||null, gptLang: (gptData&&gptData.page_context&&gptData.page_context.lang)||null, gptConfidence: (gptData&&gptData.page_context&&gptData.page_context.country_confidence)||null });
       try {
         const dfsRes = await fetch(DFS_PROXY, {
           method: "POST",
@@ -1980,7 +1930,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
           const gptRes = await fetch(COVERAGE_GPT, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword })
+            body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) })
           });
           let kw = [parsed.primary_keyword].filter(Boolean);
           let topic = "";
@@ -2129,7 +2079,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
             </div>
           </div>); }} /></div>}
     {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change — replace a keyword, add something, or describe what you're looking for."); }} /></div>}
-    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setChatCount(0); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
+    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setChatCount(0); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
   </React.Fragment>;
 
   const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><CoverageReport data={auditData} /></div> : <CoveragePlaceholder />}</React.Fragment>;
