@@ -1,7 +1,7 @@
-/* IvaBot Content Builder v70 — brand guide upload (read file, 15K limit, send to GPT) */
+/* IvaBot Content Builder v71 — brand guide upload (read file, 15K limit, send to GPT) */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v70 loaded");
+console.log("[IvaBot] content-builder.js v71 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -38,13 +38,14 @@ async function callGPT(step, data) {
   }
 }
 
-async function callDFS(keywords, locationCode = 2840, languageCode = "en") {
+async function callDFS(keywords, locationCode = 2840, languageCode = null) {
+  const lang = languageCode || detectKwLanguage(keywords, locationCode);
   console.log("[CB] callDFS keywords:", keywords);
   try {
     const res = await fetch(DFS_PROXY, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
-      body: JSON.stringify({ mode: "content_builder", keywords, location_code: locationCode, language_code: languageCode })
+      body: JSON.stringify({ mode: "content_builder", keywords, location_code: locationCode, language_code: lang })
     });
     if (!res.ok) { console.log("[CB] DFS HTTP", res.status); return null; }
     const data = await res.json();
@@ -211,7 +212,7 @@ function getPageConfig(pt) {
   return null;
 }
 
-/* Location codes for common markets */
+/* Location codes for common markets — value = DataForSEO location_code */
 const LOCATION_CODES = {
   "us": 2840, "usa": 2840, "united states": 2840,
   "uk": 2826, "united kingdom": 2826, "england": 2826,
@@ -223,29 +224,99 @@ const LOCATION_CODES = {
   "spain": 2724, "es": 2724,
   "italy": 2380, "it": 2380,
   "ukraine": 2804, "ua": 2804, "україна": 2804, "украина": 2804,
+  "russia": 2643, "ru": 2643, "россия": 2643, "рф": 2643,
+  "kazakhstan": 2398, "kz": 2398, "казахстан": 2398, "қазақстан": 2398,
+  "belarus": 2112, "by": 2112, "беларусь": 2112, "белоруссия": 2112,
   "poland": 2616, "pl": 2616, "polska": 2616,
   "romania": 2642, "ro": 2642,
-  "czech": 2203, "czechia": 2203,
+  "czech": 2203, "czechia": 2203, "cz": 2203,
   "portugal": 2620, "pt": 2620,
   "sweden": 2752, "se": 2752,
   "norway": 2578, "no": 2578,
   "denmark": 2208, "dk": 2208,
   "finland": 2246, "fi": 2246,
   "ireland": 2372, "ie": 2372,
+  "austria": 2040, "at": 2040,
+  "switzerland": 2756, "ch": 2756,
+  "belgium": 2056, "be": 2056,
+  "greece": 2300, "gr": 2300, "греция": 2300,
+  "hungary": 2348, "hu": 2348,
+  "turkey": 2792, "tr": 2792, "турция": 2792,
+  "serbia": 2688, "rs": 2688, "сербия": 2688,
+  "bulgaria": 2100, "bg": 2100, "болгария": 2100,
+  "georgia": 2268, "ge": 2268, "грузия": 2268,
+  "armenia": 2051, "am": 2051, "армения": 2051,
+  "azerbaijan": 2031, "az": 2031, "азербайджан": 2031,
+  "uzbekistan": 2860, "uz": 2860, "узбекистан": 2860,
+  "lithuania": 2440, "lt": 2440,
+  "latvia": 2428, "lv": 2428,
+  "estonia": 2233, "ee": 2233,
   "japan": 2392, "jp": 2392,
+  "korea": 2410, "south korea": 2410, "kr": 2410,
+  "china": 2156, "cn": 2156, "китай": 2156,
   "india": 2356, "in": 2356,
   "brazil": 2076, "br": 2076,
   "mexico": 2484, "mx": 2484,
+  "argentina": 2032,
   "israel": 2376, "il": 2376,
-  "global": 2840
+  "uae": 2784, "emirates": 2784, "united arab emirates": 2784, "ae": 2784,
+  "saudi": 2682, "saudi arabia": 2682, "sa": 2682,
+  "global": 2840, "worldwide": 2840, "online": 2840
 };
+/* Multiword market names — matched as substrings (specific enough to be safe) */
+const LOCATION_MULTIWORD = [
+  ["united states", 2840], ["united kingdom", 2826], ["south korea", 2410],
+  ["saudi arabia", 2682], ["united arab emirates", 2784]
+];
+/* Resolve a DataForSEO location_code from the user's free-text market answer.
+   Whole-word (token) match for single words/codes; substring only for multiword names.
+   Token match avoids false hits like "ceramics" -> "am" or "marketing" -> "in". */
 function parseLocationCode(text) {
   if (!text) return 2840;
   const t = text.toLowerCase().trim();
-  for (const [key, code] of Object.entries(LOCATION_CODES)) {
-    if (t.includes(key)) return code;
-  }
+  for (const [name, code] of LOCATION_MULTIWORD) { if (t.includes(name)) return code; }
+  const tokens = t.split(/[^\p{L}]+/u).filter(Boolean);
+  for (const tok of tokens) { if (LOCATION_CODES[tok] != null) return LOCATION_CODES[tok]; }
   return 2840;
+}
+/* Default search language per location_code — used only when keyword script is Latin
+   (i.e. we cannot infer language from the keywords themselves). */
+const LOC_TO_LANG = {
+  2840:"en",2826:"en",2276:"de",2250:"fr",2124:"en",2036:"en",2528:"nl",2724:"es",
+  2380:"it",2804:"uk",2643:"ru",2398:"ru",2112:"ru",2616:"pl",2642:"ro",2203:"cs",
+  2620:"pt-PT",2752:"sv",2578:"no",2208:"da",2246:"fi",2372:"en",2040:"de",2756:"de",
+  2056:"nl",2300:"el",2348:"hu",2792:"tr",2688:"sr",2100:"bg",2268:"ka",2051:"hy",
+  2031:"az",2860:"uz",2440:"lt",2428:"lv",2233:"et",2392:"ja",2410:"ko",2156:"zh-CN",
+  2356:"en",2076:"pt-BR",2484:"es",2032:"es",2376:"he",2784:"ar",2682:"ar"
+};
+/* Detect the SEARCH language from the keyword phrases themselves (not the page chrome).
+   Script of the keywords decides the language; country comes separately from the user's market.
+   Cyrillic: Kazakh-specific letters -> kk, Ukrainian-specific -> uk, otherwise ru. */
+function detectKwLanguage(keywords, locationCode) {
+  const text = (Array.isArray(keywords) ? keywords.join(" ") : String(keywords || "")).slice(0, 4000);
+  let cyr=0, greek=0, kana=0, hangul=0, han=0, arab=0, hebrew=0;
+  for (let i=0;i<text.length;i++){
+    const c=text.charCodeAt(i);
+    if(c>=0x0400&&c<=0x04FF)cyr++; else if(c>=0x0370&&c<=0x03FF)greek++;
+    else if(c>=0x3040&&c<=0x30FF)kana++; else if(c>=0xAC00&&c<=0xD7A3)hangul++;
+    else if(c>=0x4E00&&c<=0x9FFF)han++; else if(c>=0x0600&&c<=0x06FF)arab++;
+    else if(c>=0x0590&&c<=0x05FF)hebrew++;
+  }
+  const nonLatin = cyr+greek+kana+hangul+han+arab+hebrew;
+  if (nonLatin >= 4) {
+    if (kana>0) return "ja";
+    if (hangul>0) return "ko";
+    if (cyr>=greek&&cyr>=arab&&cyr>=hebrew&&cyr>=han) {
+      if (/[әқңұүөғһ]/i.test(text)) return "kk";
+      if (/[іїєґ]/i.test(text)) return "uk";
+      return "ru";
+    }
+    if (greek>0) return "el";
+    if (arab>0) return "ar";
+    if (hebrew>0) return "he";
+    if (han>0) return "zh-CN";
+  }
+  return LOC_TO_LANG[locationCode] || "en";
 }
 
 /* Build chat history string from messages array */
