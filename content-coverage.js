@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage & AI Readiness v6.93 — adds 4 new AI extractability checks (extractable passages, TL;DR, comparison tables, HowTo schema) + Distribution Tips block. Renamed module: "Content Coverage" → "Content Coverage & AI Readiness". Requires ai-readiness-v4.js (14 checks). */
+/* IvaBot Content Coverage & AI Readiness v6.94 — adds 4 new AI extractability checks (extractable passages, TL;DR, comparison tables, HowTo schema) + Distribution Tips block. Renamed module: "Content Coverage" → "Content Coverage & AI Readiness". Requires ai-readiness-v4.js (14 checks). */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.93 loaded");
+console.log("[IvaBot] content-coverage.js v6.94 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -289,12 +289,14 @@ function parseCoverage(rawHtml, pageUrl) {
   });
 
   // CTA detection (from Core Audit)
-  const CTA_TOKENS = ["buy","add to cart","checkout","contact","sign up","get started","book","subscribe","download","learn more","shop now","order now","request","pricing","try","start"];
+  const CTA_TOKENS = ["buy","add to cart","checkout","contact","sign up","get started","book","subscribe","download","learn more","shop now","order now","request","pricing","try","start","quote","free quote","get a quote","request a quote","estimate","free estimate","schedule","call now","consultation"];
   r.has_cta = false; r.cta_text = "";
-  for (const m of html.matchAll(/<(a|button)([^>]*)>([\s\S]*?)<\/\1>/gi)) {
+  const htmlForCta = html.replace(/<nav[\s\S]*?<\/nav>/gi, " ");
+  for (const m of htmlForCta.matchAll(/<(a|button)([^>]*)>([\s\S]*?)<\/\1>/gi)) {
     let v = (m[3]||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
     if(!v || v.length > 60 || v.length < 2 || /[{}<>\[\]="]/i.test(v)) continue;
-    if(CTA_TOKENS.some(k=>v.toLowerCase().includes(k)) || /\b(btn|button|cta)\b/i.test(m[2]||"")) { r.has_cta=true; r.cta_text=v; break; }
+    if(/menu-item|nav-link|nav__|navbar/i.test(m[2]||"")) continue;
+    if(CTA_TOKENS.some(k=>new RegExp("(?:^|[^a-z])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?:[^a-z]|$)","i").test(v)) || /(?:^|[^a-z])(btn|button|cta)(?:[^a-z]|$)/i.test(m[2]||"")) { r.has_cta=true; r.cta_text=v; break; }
   }
 
   // Trust signals detection (from Typebot single_trust.js)
@@ -637,6 +639,7 @@ function mapCheckKey(checkName) {
 
 function aiReadinessPriority(checkName, weight) {
   /* Critical if check has high weight (>= 15), important if moderate (>= 8), nice if low */
+  if (checkName === "llms") return "nice";
   if (weight >= 15) return "critical";
   if (weight >= 8) return "important";
   return "nice";
