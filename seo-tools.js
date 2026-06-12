@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v101 — UI polish: "Export CSV" button restyled to match Export PDF (icon + hover); PR & Backlink numbers (Backlinks / Referring Domains / Ranked Keywords) surfaced above the fold so they show without expanding. Prior v100: per-keyword etv → "Estimated monthly traffic" + est_organic_traffic in snapshot + CSV export. */
+/* IvaBot seo-tools v102 — PR & Backlink numbers moved inside the (now open-by-default) PR block under the pink header; PDF "How Your Page Ranks" exports the full ranked list with an Est. Traffic column; CSV gains a Ranking URL column (which page ranks per keyword, from proxy v52). Prior v101: Export CSV restyled + PR numbers surfaced. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v101 loaded");
+console.log("[IvaBot] seo-tools.js v102 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -741,8 +741,8 @@ const downloadKeywordsCSV = (data) => {
     const rows = (Array.isArray(data._allRanked) && data._allRanked.length) ? data._allRanked : (data.rankedKeywords || []);
     if (!rows.length) return;
     const esc = (v) => { const s = (v == null ? "" : String(v)); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    const header = ["Keyword", "Position", "Volume", "Difficulty", "Est. Traffic"];
-    const body = rows.map(r => [esc(r.keyword), r.position != null ? r.position : "", r.volume != null ? r.volume : "", r.difficulty != null ? r.difficulty : "", r.etv != null ? Math.round(r.etv) : ""].join(","));
+    const header = ["Keyword", "Position", "Volume", "Difficulty", "Est. Traffic", "Ranking URL"];
+    const body = rows.map(r => [esc(r.keyword), r.position != null ? r.position : "", r.volume != null ? r.volume : "", r.difficulty != null ? r.difficulty : "", r.etv != null ? Math.round(r.etv) : "", esc(r.url || "")].join(","));
     const csv = "\ufeff" + [header.join(",")].concat(body).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -880,25 +880,28 @@ async function generatePDF(data) {
   const logoImg = await makeLogo();
 
   /* ── Keyword table builder ── */
-  const kwTable = (rows, highlight) => {
+  const kwTable = (rows, highlight, showTraffic) => {
     const head = [
       { text: "Keyword", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
       { text: "Pos.", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
       { text: "Volume", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
       { text: "KD", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] }
     ];
+    if (showTraffic) head.push({ text: "Est. Traffic", fontSize: 9, color: mt, bold: false, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] });
     const body = rows.map(r => {
       const pos = r.position != null ? String(r.position) : "100+";
       const isTop3 = r.position >= 1 && r.position <= 3;
-      return [
+      const row = [
         { text: r.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
         { text: pos, fontSize: 11, color: isTop3 ? accentC : dk, bold: isTop3, alignment: "center", fillColor: isTop3 ? "#ede4ff" : null, margin: [4, 6, 4, 6] },
         { text: fV(r.volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
         { text: fKD(r.difficulty), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] }
       ];
+      if (showTraffic) row.push({ text: r.etv != null ? fV(Math.round(r.etv)) : "\u2014", fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] });
+      return row;
     });
     return {
-      table: { headerRows: 1, widths: ["*", 45, 55, 45], body: [head, ...body] },
+      table: { headerRows: 1, widths: showTraffic ? ["*", 38, 50, 38, 55] : ["*", 45, 55, 45], body: [head, ...body] },
       layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
       margin: [0, 4, 0, 8]
     };
@@ -1016,7 +1019,7 @@ async function generatePDF(data) {
   if (data.rankedKeywords?.length > 0) {
     content.push(secTitle("How Your Page Ranks in Google"));
     content.push(noteText("Real positions from the Google search index."));
-    content.push(kwTable(data.rankedKeywords));
+    content.push(kwTable((data._allRanked && data._allRanked.length) ? data._allRanked : data.rankedKeywords, false, true));
     content.push(...kwNotes);
     content.push(spacer(16));
   }
@@ -1388,7 +1391,8 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
       {c.description && !c.tactics && <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 32, marginBottom: 4, lineHeight: 1.4 }}>{c.description.length > 120 ? c.description.slice(0, 117) + "..." : c.description}</div>}
       {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.accent, textDecoration: "none", paddingLeft: 32, display: "block" }}>{c.url.length > 55 ? c.url.slice(0, 52) + "..." : c.url} →</a>}
     </div>))}</div><BotNote inline text="Study their titles, descriptions, and content structure. What are they doing that you're not? Use their strengths as inspiration to improve your own page." /></Fold>
-    {data.backlinksCount != null && <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+    <Fold title="PR & Backlink Opportunities" open borderColor={C.cardBorder} headerBg={C.card}>
+      {data.backlinksCount != null && <div style={{ display: "flex", gap: 8, marginBottom: 8, marginTop: 4 }}>
         <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${data.backlinksCount < 10 ? "rgba(110,43,255,0.25)" : C.cardBorder}`, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{data.backlinksCount.toLocaleString()}</div>
           <div style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Backlinks</div>
@@ -1402,7 +1406,6 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
           <div style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Ranked Keywords</div>
         </div>
       </div>}
-    <Fold title="PR & Backlink Opportunities" borderColor={C.cardBorder} headerBg={C.card}>
       {(data.backlinksCount != null && data.backlinksCount < 10) && <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.15)", marginBottom: 8 }}><div style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: 2 }}>{data.backlinksCount === 0 ? "No backlinks detected" : "Low backlink count"}</div><div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>Backlinks are one of Google's top 3 ranking factors. {data.backlinksCount === 0 ? "Without them, it's very hard to rank on page one — even with perfect on-page SEO." : "With fewer than 10 backlinks, you're likely losing rankings to competitors with stronger link profiles."} Start with directories, guest posts, and industry publications.</div></div>}
       <BotNote inline text="Every quality link from another website is a 'vote of confidence' for Google. Reach out to these sites — offer a guest post, suggest a resource mention, or propose a collaboration. Even 2–3 strong backlinks can make a real difference." />
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.backlinks.map((b, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{b.name}</span></div><div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 28 }}>{b.desc}</div></div>))}</div>
