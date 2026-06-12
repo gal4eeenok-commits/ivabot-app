@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v102 — PR & Backlink numbers moved inside the (now open-by-default) PR block under the pink header; PDF "How Your Page Ranks" exports the full ranked list with an Est. Traffic column; CSV gains a Ranking URL column (which page ranks per keyword, from proxy v52). Prior v101: Export CSV restyled + PR numbers surfaced. */
+/* IvaBot seo-tools v103 — Backlinks are now page-level: labeled "Backlinks to this page" with tooltip (proxy v53 targets the audited URL, not the domain's top page), so the number matches the page being audited. Prior v102: PR numbers inside open PR block; PDF full ranked list + Est. Traffic; CSV Ranking URL column. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v102 loaded");
+console.log("[IvaBot] seo-tools.js v103 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -1395,7 +1395,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
       {data.backlinksCount != null && <div style={{ display: "flex", gap: 8, marginBottom: 8, marginTop: 4 }}>
         <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${data.backlinksCount < 10 ? "rgba(110,43,255,0.25)" : C.cardBorder}`, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{data.backlinksCount.toLocaleString()}</div>
-          <div style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Backlinks</div>
+          <div style={{ fontSize: 10, fontWeight: 500, color: C.muted, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>Backlinks to this page <QM text="Links from other websites pointing to the exact page you audited. This is free page-level data — your full domain backlink profile is larger." /></div>
         </div>
         <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{data.referringDomains?.toLocaleString() || "—"}</div>
