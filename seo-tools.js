@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v97 — UI: disclaimer in Needs Improvement section (recommendations based on found keywords), "1 run = 1 credit" subtitle on /app SEO Tools page */
+/* IvaBot seo-tools v98 — Core Audit writes a tracking snapshot via insert_snapshot RPC right after insert_core_run (non-blocking, never breaks credits/run/report). Prior v97: disclaimer in Needs Improvement section (recommendations based on found keywords), "1 run = 1 credit" subtitle on /app SEO Tools page */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v97 loaded");
+console.log("[IvaBot] seo-tools.js v98 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -1609,6 +1609,9 @@ function IvaBotV6() {
 
         setStep(5);
         var reportData = buildReportData(parsed, gpt, dfsSeo);
+        /* v98: прокидываем полный список ранжируемых + чистый домен для снимка трекинга */
+        reportData._allRanked = Array.isArray(dfsSeo?.ranked_keywords) ? dfsSeo.ranked_keywords : [];
+        reportData._domain = domain;
 
         /* ── robots.txt + sitemap checks ── */
         try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
@@ -1623,6 +1626,7 @@ function IvaBotV6() {
         setCredits(prev => ({ ...prev, core: Math.max(0, prev.core - 1) }));
         const isUUID = memberId && /^[0-9a-f]{8}-/.test(memberId);
         const rpcBody = isUUID ? { p_user_id: memberId } : { p_member_id: memberId };
+        let createdRunId = null;
         try {
           const incRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/increment_core_used", {
             method: "POST",
@@ -1640,8 +1644,39 @@ function IvaBotV6() {
             body: JSON.stringify(runBody)
           });
           const runData = await runRes.json();
+          createdRunId = runData?.run_id || null;
           console.log("[IvaBot] insert_core_run:", runData);
         } catch(e) { console.warn("[IvaBot] insert_core_run error:", e); }
+        /* ── v1 снимок трекинга (non-blocking; не ломает кредиты/прогон/отчёт) ── */
+        try {
+          const allRk = Array.isArray(reportData._allRanked) ? reportData._allRanked : [];
+          const positions = allRk.map(rk => rk.position).filter(p => typeof p === "number" && p > 0);
+          const top3 = positions.filter(p => p <= 3).length;
+          const top10 = positions.filter(p => p <= 10).length;
+          const avgPos = positions.length ? Math.round((positions.reduce((a, b) => a + b, 0) / positions.length) * 10) / 10 : null;
+          const snapBody = {
+            p_domain: reportData._domain || "",
+            p_email: null,
+            p_flow_type: "core",
+            p_run_id: createdRunId,
+            p_ranked_keywords_count: reportData.totalRanked ?? null,
+            p_top3_count: top3,
+            p_top10_count: top10,
+            p_avg_position: avgPos,
+            p_backlinks_count: reportData.backlinksCount ?? null,
+            p_referring_domains_count: reportData.referringDomains ?? null,
+            p_audit_score: reportData.score ?? null,
+            p_ranked_keywords: allRk
+          };
+          if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
+          const snapRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_snapshot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY },
+            body: JSON.stringify(snapBody)
+          });
+          const snapData = await snapRes.json();
+          console.log("[IvaBot] insert_snapshot:", snapData);
+        } catch(e) { console.warn("[IvaBot] insert_snapshot error:", e); }
       }
       if (isMobile) sMTab("report");
 
