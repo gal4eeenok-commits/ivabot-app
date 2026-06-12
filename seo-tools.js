@@ -1,4 +1,4 @@
-/* IvaBot seo-tools v100 — pulls per-keyword etv from proxy: shows "Est. traffic potential" in the rankings card, fills est_organic_traffic in the snapshot, adds "Download keywords (CSV)" (keyword, position, volume, KD, etv). Prior v99: snapshot stores location_code + language_code. */
+/* IvaBot seo-tools v100 — pulls per-keyword etv from proxy: shows "Estimated monthly traffic" in the rankings card, fills est_organic_traffic in the snapshot, adds "Download keywords (CSV)" (keyword, position, volume, KD, etv). Prior v99: snapshot stores location_code + language_code. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] seo-tools.js v100 loaded");
@@ -1355,7 +1355,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
     </div>
     <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>Keywords your page actually ranks for in Google right now — with real positions from the search index.</div>
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-      {data.estTraffic != null && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{fmtVol(data.estTraffic)}</span><span style={{ fontSize: 11, color: C.muted }}>Est. traffic potential</span><QM text="An estimate based on your ranking positions and search volumes — not real analytics traffic. Use it to compare potential over time, not as exact monthly visits." /></div>}
+      {data.estTraffic != null && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{fmtVol(data.estTraffic)}</span><span style={{ fontSize: 11, color: C.muted }}>Estimated monthly traffic</span><QM text="An estimate based on your ranking positions and search volumes — not real analytics traffic. Use it to compare potential over time, not as exact monthly visits." /></div>}
       <button onClick={() => downloadKeywordsCSV(data)} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: C.accent, background: "transparent", border: `1px solid ${C.accent}`, borderRadius: 8, padding: "6px 14px", cursor: "pointer", whiteSpace: "nowrap" }}>Download keywords (CSV)</button>
     </div>
     <RankingsTable rows={data.rankedKeywords} />
