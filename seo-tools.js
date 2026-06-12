@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v99 — Core Audit snapshot now also stores location_code + language_code (locale basis for cross-snapshot comparison). Prior v98: writes tracking snapshot via insert_snapshot RPC right after insert_core_run (non-blocking). */
+/* IvaBot seo-tools v100 — pulls per-keyword etv from proxy: shows "Est. traffic potential" in the rankings card, fills est_organic_traffic in the snapshot, adds "Download keywords (CSV)" (keyword, position, volume, KD, etv). Prior v99: snapshot stores location_code + language_code. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v99 loaded");
+console.log("[IvaBot] seo-tools.js v100 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -544,6 +544,10 @@ function buildReportData(parsed, gpt, dfs) {
   /* For "How Your Page Ranks" table — show top 7 by volume (DFS already sorts by volume desc) */
   const rankedKeywords = allRankedKeywords.slice(0, 7);
 
+  /* Estimated traffic potential: sum of per-keyword etv (DataForSEO estimate by positions, NOT real analytics traffic) */
+  const estTrafficSum = allRankedKeywords.reduce((a, rk) => a + (typeof rk.etv === "number" ? rk.etv : 0), 0);
+  const estTraffic = estTrafficSum > 0 ? Math.round(estTrafficSum) : null;
+
   const backlinksCount = dfs?.backlinksCount || null;
   const referringDomains = dfs?.referringDomains || null;
 
@@ -587,6 +591,7 @@ function buildReportData(parsed, gpt, dfs) {
     backlinks: gpt?.backlinks || [{ name: "Industry Blog", desc: "Guest posts and mentions" }, { name: "Directory", desc: "Business listing" }, { name: "Social Platform", desc: "Brand presence" }],
     rankedKeywords,
     keywordMetrics,
+    estTraffic,
     backlinksCount,
     referringDomains,
     totalRanked,
@@ -731,6 +736,23 @@ const SerpSnippet = ({ url, title, desc, hideDesc }) => {
 
 /* ═══ RANKINGS TABLE ═══ */
 const fmtVol = (v) => { if (!v) return "—"; if (v >= 1000000) return (v/1000000).toFixed(1).replace(/\.0$/,"") + "M"; if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,"") + "K"; return v.toLocaleString(); };
+const downloadKeywordsCSV = (data) => {
+  try {
+    const rows = (Array.isArray(data._allRanked) && data._allRanked.length) ? data._allRanked : (data.rankedKeywords || []);
+    if (!rows.length) return;
+    const esc = (v) => { const s = (v == null ? "" : String(v)); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const header = ["Keyword", "Position", "Volume", "Difficulty", "Est. Traffic"];
+    const body = rows.map(r => [esc(r.keyword), r.position != null ? r.position : "", r.volume != null ? r.volume : "", r.difficulty != null ? r.difficulty : "", r.etv != null ? Math.round(r.etv) : ""].join(","));
+    const csv = "\ufeff" + [header.join(",")].concat(body).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const fname = ((data._domain || data.url || "keywords") + "").replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/[^\w.-]+/g, "_") + "_keywords.csv";
+    const a = document.createElement("a");
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch (e) { console.warn("[IvaBot] CSV download error:", e); }
+};
 const NicheBadge = () => <span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>&lt; 10</span>;
 const KdBadge = ({ d }) => { const label = d == null ? "low" : d < 30 ? "low" : d < 60 ? "medium" : "high"; return <span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>{label}</span>; };
 const LowBadge = () => <KdBadge d={null} />;
@@ -1332,6 +1354,10 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
       <span style={{ fontSize: 10, color: C.accent, background: "rgba(110,43,255,0.06)", padding: "3px 10px", borderRadius: 10, fontWeight: 500 }}>real data</span>
     </div>
     <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>Keywords your page actually ranks for in Google right now — with real positions from the search index.</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+      {data.estTraffic != null && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{fmtVol(data.estTraffic)}</span><span style={{ fontSize: 11, color: C.muted }}>Est. traffic potential</span><QM text="An estimate based on your ranking positions and search volumes — not real analytics traffic. Use it to compare potential over time, not as exact monthly visits." /></div>}
+      <button onClick={() => downloadKeywordsCSV(data)} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: C.accent, background: "transparent", border: `1px solid ${C.accent}`, borderRadius: 8, padding: "6px 14px", cursor: "pointer", whiteSpace: "nowrap" }}>Download keywords (CSV)</button>
+    </div>
     <RankingsTable rows={data.rankedKeywords} />
     <BotNote inline text="Positions 1–3 mean strong visibility. 4–10 is page one but below the fold. 11+ means page two or deeper — most users never scroll there." />
     <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page — they bring niche traffic with less competition." />
@@ -1655,6 +1681,7 @@ function IvaBotV6() {
           const top3 = positions.filter(p => p <= 3).length;
           const top10 = positions.filter(p => p <= 10).length;
           const avgPos = positions.length ? Math.round((positions.reduce((a, b) => a + b, 0) / positions.length) * 10) / 10 : null;
+          const etvSum = allRk.reduce((a, rk) => a + (typeof rk.etv === "number" ? rk.etv : 0), 0);
           const snapBody = {
             p_domain: reportData._domain || "",
             p_email: null,
@@ -1664,6 +1691,7 @@ function IvaBotV6() {
             p_top3_count: top3,
             p_top10_count: top10,
             p_avg_position: avgPos,
+            p_est_organic_traffic: etvSum > 0 ? Math.round(etvSum) : null,
             p_backlinks_count: reportData.backlinksCount ?? null,
             p_referring_domains_count: reportData.referringDomains ?? null,
             p_audit_score: reportData.score ?? null,
