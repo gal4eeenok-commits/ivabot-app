@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v98 — Core Audit writes a tracking snapshot via insert_snapshot RPC right after insert_core_run (non-blocking, never breaks credits/run/report). Prior v97: disclaimer in Needs Improvement section (recommendations based on found keywords), "1 run = 1 credit" subtitle on /app SEO Tools page */
+/* IvaBot seo-tools v99 — Core Audit snapshot now also stores location_code + language_code (locale basis for cross-snapshot comparison). Prior v98: writes tracking snapshot via insert_snapshot RPC right after insert_core_run (non-blocking). */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v98 loaded");
+console.log("[IvaBot] seo-tools.js v99 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -1612,6 +1612,7 @@ function IvaBotV6() {
         /* v98: прокидываем полный список ранжируемых + чистый домен для снимка трекинга */
         reportData._allRanked = Array.isArray(dfsSeo?.ranked_keywords) ? dfsSeo.ranked_keywords : [];
         reportData._domain = domain;
+        reportData._locale = locale;
 
         /* ── robots.txt + sitemap checks ── */
         try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
@@ -1666,6 +1667,8 @@ function IvaBotV6() {
             p_backlinks_count: reportData.backlinksCount ?? null,
             p_referring_domains_count: reportData.referringDomains ?? null,
             p_audit_score: reportData.score ?? null,
+            p_location_code: reportData._locale?.location_code ?? null,
+            p_language_code: reportData._locale?.language_code ?? null,
             p_ranked_keywords: allRk
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
