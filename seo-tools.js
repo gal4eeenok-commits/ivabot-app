@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v100 — pulls per-keyword etv from proxy: shows "Estimated monthly traffic" in the rankings card, fills est_organic_traffic in the snapshot, adds "Download keywords (CSV)" (keyword, position, volume, KD, etv). Prior v99: snapshot stores location_code + language_code. */
+/* IvaBot seo-tools v101 — UI polish: "Export CSV" button restyled to match Export PDF (icon + hover); PR & Backlink numbers (Backlinks / Referring Domains / Ranked Keywords) surfaced above the fold so they show without expanding. Prior v100: per-keyword etv → "Estimated monthly traffic" + est_organic_traffic in snapshot + CSV export. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v100 loaded");
+console.log("[IvaBot] seo-tools.js v101 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -1356,7 +1356,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
     <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>Keywords your page actually ranks for in Google right now — with real positions from the search index.</div>
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
       {data.estTraffic != null && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{fmtVol(data.estTraffic)}</span><span style={{ fontSize: 11, color: C.muted }}>Estimated monthly traffic</span><QM text="An estimate based on your ranking positions and search volumes — not real analytics traffic. Use it to compare potential over time, not as exact monthly visits." /></div>}
-      <button onClick={() => downloadKeywordsCSV(data)} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: C.accent, background: "transparent", border: `1px solid ${C.accent}`, borderRadius: 8, padding: "6px 14px", cursor: "pointer", whiteSpace: "nowrap" }}>Download keywords (CSV)</button>
+      <button onClick={() => downloadKeywordsCSV(data)} style={{ marginLeft: "auto", height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export CSV</button>
     </div>
     <RankingsTable rows={data.rankedKeywords} />
     <BotNote inline text="Positions 1–3 mean strong visibility. 4–10 is page one but below the fold. 11+ means page two or deeper — most users never scroll there." />
@@ -1388,8 +1388,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
       {c.description && !c.tactics && <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 32, marginBottom: 4, lineHeight: 1.4 }}>{c.description.length > 120 ? c.description.slice(0, 117) + "..." : c.description}</div>}
       {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.accent, textDecoration: "none", paddingLeft: 32, display: "block" }}>{c.url.length > 55 ? c.url.slice(0, 52) + "..." : c.url} →</a>}
     </div>))}</div><BotNote inline text="Study their titles, descriptions, and content structure. What are they doing that you're not? Use their strengths as inspiration to improve your own page." /></Fold>
-    <Fold title="PR & Backlink Opportunities" borderColor={C.cardBorder} headerBg={C.card}>
-      {data.backlinksCount != null && <div style={{ display: "flex", gap: 8, marginBottom: 8, marginTop: 4 }}>
+    {data.backlinksCount != null && <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${data.backlinksCount < 10 ? "rgba(110,43,255,0.25)" : C.cardBorder}`, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{data.backlinksCount.toLocaleString()}</div>
           <div style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Backlinks</div>
@@ -1403,6 +1402,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
           <div style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Ranked Keywords</div>
         </div>
       </div>}
+    <Fold title="PR & Backlink Opportunities" borderColor={C.cardBorder} headerBg={C.card}>
       {(data.backlinksCount != null && data.backlinksCount < 10) && <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.15)", marginBottom: 8 }}><div style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: 2 }}>{data.backlinksCount === 0 ? "No backlinks detected" : "Low backlink count"}</div><div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>Backlinks are one of Google's top 3 ranking factors. {data.backlinksCount === 0 ? "Without them, it's very hard to rank on page one — even with perfect on-page SEO." : "With fewer than 10 backlinks, you're likely losing rankings to competitors with stronger link profiles."} Start with directories, guest posts, and industry publications.</div></div>}
       <BotNote inline text="Every quality link from another website is a 'vote of confidence' for Google. Reach out to these sites — offer a guest post, suggest a resource mention, or propose a collaboration. Even 2–3 strong backlinks can make a real difference." />
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.backlinks.map((b, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{b.name}</span></div><div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 28 }}>{b.desc}</div></div>))}</div>
