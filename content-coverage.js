@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage & AI Readiness v6.94 — adds 4 new AI extractability checks (extractable passages, TL;DR, comparison tables, HowTo schema) + Distribution Tips block. Renamed module: "Content Coverage" → "Content Coverage & AI Readiness". Requires ai-readiness-v4.js (14 checks). */
+/* IvaBot Content Coverage & AI Readiness v6.95 — writes a tracking snapshot (flow_type='coverage') via insert_snapshot RPC after recordCoverageRun (non-blocking): 3 user keywords with metrics, AI readiness score, content/trust/ai area %, 14-check breakdown, locale. Prior v6.94: 4 new AI extractability checks + Distribution Tips. Requires ai-readiness-v4.js (14 checks). */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.94 loaded");
+console.log("[IvaBot] content-coverage.js v6.95 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -15,7 +15,7 @@ const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 function getMemberId(){if(window.__memberId)return window.__memberId;if(window.__userId)return window.__userId;try{const sb=window.__supabase;if(sb){const key=Object.keys(localStorage).find(k=>k.includes('auth-token'));if(key){const data=JSON.parse(localStorage.getItem(key));if(data?.user?.id)return data.user.id;}}}catch(e){}return null;}
 async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{let res=await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});let rows=res.ok?await res.json():[];if(rows.length===0){res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});rows=res.ok?await res.json():[];}if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
 async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const rpcBody=isUUID?{p_user_id:memberId}:{p_member_id:memberId};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify(rpcBody)});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
-async function recordCoverageRun(memberId,url){try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const runBody=isUUID?{p_user_id:memberId,p_source_url:url||null}:{p_member_id:memberId,p_source_url:url||null};await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify(runBody)});console.log("[CC] run recorded");}catch(e){console.error("[CC] run record error:",e);}}
+async function recordCoverageRun(memberId,url){try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const runBody=isUUID?{p_user_id:memberId,p_source_url:url||null}:{p_member_id:memberId,p_source_url:url||null};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify(runBody)});let runId=null;try{const d=await res.json();runId=d&&d.run_id?d.run_id:null;}catch(_){}console.log("[CC] run recorded:",runId);return runId;}catch(e){console.error("[CC] run record error:",e);return null;}}
 
 /* ═══ COLORS (identical to Core Audit + CB) ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
@@ -1862,11 +1862,51 @@ function ContentCoverage({ onHome, memberName: mn }) {
 
       /* Deduct 1 credit + record run */
       try{const r=await trackCoverageUsage(mid);if(r&&r.success)console.log("[CC] credit deducted:",r.used+"/"+r.limit);}catch(e){}
-      try{await recordCoverageRun(mid,url);}catch(e){}
+      let coverageRunId = null;
+      try{coverageRunId = await recordCoverageRun(mid,url);}catch(e){}
 
       // Summary chat message
-      const { contentBad: cBad, trustBad: tBad } = buildCoverageResults(reportData);
+      const { contentGood: cGood, contentBad: cBad, trustGood: tGood, trustBad: tBad } = buildCoverageResults(reportData);
       const totalIssues = cBad.length + tBad.length;
+
+      /* ── tracking snapshot (coverage, non-blocking; never breaks credits/run/report) ── */
+      try {
+        const isUUID = mid && /^[0-9a-f]{8}-/.test(mid);
+        const ai = reportData.aiReadiness || {};
+        const aiTotal = ai.total || ((ai.aiGood?.length || 0) + (ai.aiBad?.length || 0));
+        const contentTotal = cGood.length + cBad.length;
+        const trustTotal = tGood.length + tBad.length;
+        const coverageDetail = {
+          page_type: reportData.pageType || null,
+          word_count: reportData.wordCount ?? null,
+          ai_status: ai.status || null,
+          ai_score: ai.score ?? null,
+          content_pct: contentTotal > 0 ? Math.round((cGood.length / contentTotal) * 100) : null,
+          trust_pct: trustTotal > 0 ? Math.round((tGood.length / trustTotal) * 100) : null,
+          ai_pct: aiTotal > 0 ? Math.round(((ai.aiGood?.length || 0) / aiTotal) * 100) : null,
+          checks_passed: ai.aiGood?.length ?? null,
+          checks_total: aiTotal || null,
+          breakdown: ai.breakdown ?? null
+        };
+        const snapBody = {
+          p_domain: reportData.hostname || "",
+          p_flow_type: "coverage",
+          p_run_id: coverageRunId,
+          p_audit_score: reportData.aiReadiness?.score ?? null,
+          p_location_code: locale?.location_code ?? null,
+          p_language_code: locale?.language_code ?? null,
+          p_keywords_checked: reportData.userKeywordMetrics || null,
+          p_coverage: coverageDetail
+        };
+        if (isUUID) snapBody.p_user_id = mid; else snapBody.p_member_id = mid;
+        const snapRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_snapshot`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY, "apikey": SUPABASE_KEY },
+          body: JSON.stringify(snapBody)
+        });
+        const snapData = await snapRes.json();
+        console.log("[CC] insert_snapshot:", JSON.stringify(snapData));
+      } catch(e) { console.warn("[CC] insert_snapshot error:", e); }
       sTyp(true);
       setTimeout(() => {
         sTyp(false);
