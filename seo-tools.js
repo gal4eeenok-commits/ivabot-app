@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v105 — Ranked Keywords moved to a chip in "How your page ranks"; backlinks shown as an approximate site-wide estimate (count +10%) as a chip inside the PR Backlink Opportunities pink header (Fold gains headerExtra), text + site list in collapsible body. Prior v104: site-level backlinks + row-gate fix. */
+/* IvaBot seo-tools v106 — Export CSV button moved to the bottom-right of the "How your page ranks" card (was crowding the top). Backlinks header chip requires proxy v54 (domain-level) to be deployed. Prior v105: Ranked Keywords chip + approximate-links chip in PR header. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v105 loaded");
+console.log("[IvaBot] seo-tools.js v106 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -1360,11 +1360,11 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
       {data.estTraffic != null && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{fmtVol(data.estTraffic)}</span><span style={{ fontSize: 11, color: C.muted }}>Estimated monthly traffic</span><QM text="An estimate based on your ranking positions and search volumes — not real analytics traffic. Use it to compare potential over time, not as exact monthly visits." /></div>}
       {data.totalRanked != null && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{fmtVol(data.totalRanked)}</span><span style={{ fontSize: 11, color: C.muted }}>Ranked keywords</span><QM text="Total search queries your site ranks for in Google, from the search index." /></div>}
-      <button onClick={() => downloadKeywordsCSV(data)} style={{ marginLeft: "auto", height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export CSV</button>
     </div>
     <RankingsTable rows={data.rankedKeywords} />
     <BotNote inline text="Positions 1–3 mean strong visibility. 4–10 is page one but below the fold. 11+ means page two or deeper — most users never scroll there." />
     <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page — they bring niche traffic with less competition." />
+    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button onClick={() => downloadKeywordsCSV(data)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export CSV</button></div>
   </div>}
   <div className="reveal reveal-delay-2" style={{ marginBottom: 20, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
