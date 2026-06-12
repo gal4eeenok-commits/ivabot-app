@@ -1,7 +1,7 @@
-/* IvaBot Content Coverage & AI Readiness v6.96 — AI Readiness now previews the top-3 "Passages AI is most likely to quote" above the section (from ai-readiness-v4.js checkExtractablePassages.passages). Prior v6.95: writes a tracking snapshot (flow_type='coverage') via insert_snapshot RPC after recordCoverageRun (non-blocking): 3 user keywords with metrics, AI readiness score, content/trust/ai area %, 14-check breakdown, locale. Prior v6.94: 4 new AI extractability checks + Distribution Tips. Requires ai-readiness-v4.js (14 checks). */
+/* IvaBot Content Coverage & AI Readiness v6.97 — "Passages AI is most likely to quote" moved INSIDE the "AI Search Optimization — Working Well" fold (first item, expanded). Working Well now also renders when only passages exist. Prior v6.96: passages preview above the section (from ai-readiness-v4.js checkExtractablePassages.passages). Prior v6.95: writes a tracking snapshot (flow_type='coverage') via insert_snapshot RPC after recordCoverageRun (non-blocking): 3 user keywords with metrics, AI readiness score, content/trust/ai area %, 14-check breakdown, locale. Prior v6.94: 4 new AI extractability checks + Distribution Tips. Requires ai-readiness-v4.js (14 checks). */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.96 loaded");
+console.log("[IvaBot] content-coverage.js v6.97 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -1163,25 +1163,8 @@ const CoverageReport = ({ data }) => {
 
     {/* AI Readiness — only show if module ran successfully */}
     {data.aiReadiness && <>
-      {data.aiReadiness.extractablePassages?.length > 0 ? (
-        <div className="reveal" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Passages AI is most likely to quote</span><QM text="The strongest self-contained paragraphs on your page (roughly 100–180 words). AI search tools like ChatGPT and Perplexity tend to pull chunks like these straight into their answers." /></div>
-          <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>AI search engines lift self-contained passages into their answers. These are the strongest candidates on your page right now.</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{data.aiReadiness.extractablePassages.map((p, i) => (
-            <div key={i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}>
-              <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div>
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div>
-            </div>
-          ))}</div>
-        </div>
-      ) : (
-        <div className="reveal" style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.15)" }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: 2 }}>No strong quotable passages yet</div>
-          <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>AI search tools quote self-contained paragraphs of roughly 100–180 words that answer one clear question. Add a few and your page becomes much easier to cite.</div>
-        </div>
-      )}
       <BotNote text={aiGood.length > 0 ? `${aiGood.length} AI search signals are in place.` : "Let's check how AI search tools see your page."} />
-      {aiGood.length > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={aiGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{aiGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+      {(aiGood.length > 0 || data.aiReadiness.extractablePassages?.length > 0) && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={aiGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{data.aiReadiness.extractablePassages?.length > 0 && <div style={{ marginBottom: 6 }}><div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}><span style={{ fontSize: 12.5, fontWeight: 700, color: C.dark }}>Passages AI is most likely to quote</span><QM text="The strongest self-contained paragraphs on your page (roughly 100–180 words). AI search tools like ChatGPT and Perplexity tend to pull chunks like these straight into their answers." /></div><div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{data.aiReadiness.extractablePassages.map((p, i) => (<div key={"pq" + i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div></div>))}</div></div>}{aiGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
 
       <BotNote text={aiBad.length > 0 ? `${aiBad.length} AI readiness signals need improvement.` : "All AI readiness signals are in place!"} />
       {aiBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="AI Search Optimization — Needs Improvement" count={aiBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
