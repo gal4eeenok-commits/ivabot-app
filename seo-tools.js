@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v103 — Backlinks are now page-level: labeled "Backlinks to this page" with tooltip (proxy v53 targets the audited URL, not the domain's top page), so the number matches the page being audited. Prior v102: PR numbers inside open PR block; PDF full ranked list + Est. Traffic; CSV Ranking URL column. */
+/* IvaBot seo-tools v105 — Ranked Keywords moved to a chip in "How your page ranks"; backlinks shown as an approximate site-wide estimate (count +10%) as a chip inside the PR Backlink Opportunities pink header (Fold gains headerExtra), text + site list in collapsible body. Prior v104: site-level backlinks + row-gate fix. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v103 loaded");
+console.log("[IvaBot] seo-tools.js v105 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -89,12 +89,12 @@ const CopyBtn = ({ text }) => { const [c, setC] = useState(false); return (<butt
 /* Hover card wrapper */
 const HoverCard = ({ children, style = {} }) => (<div style={{ borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, transition: "box-shadow 0.3s, border-color 0.3s", cursor: "default", ...style }} onMouseEnter={e => { e.currentTarget.style.borderColor = C.hoverBorder; e.currentTarget.style.boxShadow = C.hoverShadow; }} onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}>{children}</div>);
 
-const Fold = ({ title, children, open: d = false, borderColor, headerBg, titleColor, count }) => {
+const Fold = ({ title, children, open: d = false, borderColor, headerBg, titleColor, count, headerExtra }) => {
   const [o, setO] = useState(d);
   return (<div style={{ borderRadius: 12, border: `1px solid ${borderColor || C.border}`, overflow: "hidden", background: C.surface }}>
     <button onClick={() => setO(!o)} style={{ width: "100%", padding: "14px 16px", background: headerBg || "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 14, fontWeight: 700, color: titleColor || C.dark }}>{title}</span>{count != null && <span style={{ fontSize: 11, fontWeight: 600, color: titleColor ? "rgba(255,255,255,0.7)" : C.muted, background: titleColor ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", padding: "2px 8px", borderRadius: 10 }}>{count}</span>}</div>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={titleColor || C.muted} strokeWidth="2" strokeLinecap="round" style={{ transform: o ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.3s ease", flexShrink: 0 }}><polyline points="6 9 12 15 18 9" /></svg>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>{headerExtra && <span onClick={e => e.stopPropagation()} style={{ cursor: "default" }}>{headerExtra}</span>}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={titleColor || C.muted} strokeWidth="2" strokeLinecap="round" style={{ transform: o ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.3s ease", flexShrink: 0 }}><polyline points="6 9 12 15 18 9" /></svg></div>
     </button>
     <div style={{ display: "grid", gridTemplateRows: o ? "1fr" : "0fr", opacity: o ? 1 : 0, transition: "grid-template-rows 0.7s cubic-bezier(0.16,1,0.3,1), opacity 0.5s ease" }}>
       <div style={{ overflow: "hidden" }}>
@@ -1359,6 +1359,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
     <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>Keywords your page actually ranks for in Google right now — with real positions from the search index.</div>
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
       {data.estTraffic != null && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{fmtVol(data.estTraffic)}</span><span style={{ fontSize: 11, color: C.muted }}>Estimated monthly traffic</span><QM text="An estimate based on your ranking positions and search volumes — not real analytics traffic. Use it to compare potential over time, not as exact monthly visits." /></div>}
+      {data.totalRanked != null && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{fmtVol(data.totalRanked)}</span><span style={{ fontSize: 11, color: C.muted }}>Ranked keywords</span><QM text="Total search queries your site ranks for in Google, from the search index." /></div>}
       <button onClick={() => downloadKeywordsCSV(data)} style={{ marginLeft: "auto", height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export CSV</button>
     </div>
     <RankingsTable rows={data.rankedKeywords} />
@@ -1391,21 +1392,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
       {c.description && !c.tactics && <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 32, marginBottom: 4, lineHeight: 1.4 }}>{c.description.length > 120 ? c.description.slice(0, 117) + "..." : c.description}</div>}
       {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.accent, textDecoration: "none", paddingLeft: 32, display: "block" }}>{c.url.length > 55 ? c.url.slice(0, 52) + "..." : c.url} →</a>}
     </div>))}</div><BotNote inline text="Study their titles, descriptions, and content structure. What are they doing that you're not? Use their strengths as inspiration to improve your own page." /></Fold>
-    <Fold title="PR & Backlink Opportunities" open borderColor={C.cardBorder} headerBg={C.card}>
-      {data.backlinksCount != null && <div style={{ display: "flex", gap: 8, marginBottom: 8, marginTop: 4 }}>
-        <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${data.backlinksCount < 10 ? "rgba(110,43,255,0.25)" : C.cardBorder}`, textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{data.backlinksCount.toLocaleString()}</div>
-          <div style={{ fontSize: 10, fontWeight: 500, color: C.muted, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>Backlinks to this page <QM text="Links from other websites pointing to the exact page you audited. This is free page-level data — your full domain backlink profile is larger." /></div>
-        </div>
-        <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{data.referringDomains?.toLocaleString() || "—"}</div>
-          <div style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Referring Domains</div>
-        </div>
-        <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{data.totalRanked?.toLocaleString() || "—"}</div>
-          <div style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Ranked Keywords</div>
-        </div>
-      </div>}
+    <Fold title="PR & Backlink Opportunities" borderColor={C.cardBorder} headerBg={C.card} headerExtra={data.backlinksCount != null ? <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>~{Math.round(data.backlinksCount * 1.1).toLocaleString()}</span><span style={{ fontSize: 11, color: C.muted }}>approximate links to your site</span><QM text="A rough estimate of the links pointing to your whole site, based on free ranking data with a small adjustment. Not exact — full backlink data needs a paid backlinks plan." /></div> : null}>
       {(data.backlinksCount != null && data.backlinksCount < 10) && <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.15)", marginBottom: 8 }}><div style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: 2 }}>{data.backlinksCount === 0 ? "No backlinks detected" : "Low backlink count"}</div><div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>Backlinks are one of Google's top 3 ranking factors. {data.backlinksCount === 0 ? "Without them, it's very hard to rank on page one — even with perfect on-page SEO." : "With fewer than 10 backlinks, you're likely losing rankings to competitors with stronger link profiles."} Start with directories, guest posts, and industry publications.</div></div>}
       <BotNote inline text="Every quality link from another website is a 'vote of confidence' for Google. Reach out to these sites — offer a guest post, suggest a resource mention, or propose a collaboration. Even 2–3 strong backlinks can make a real difference." />
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.backlinks.map((b, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{b.name}</span></div><div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 28 }}>{b.desc}</div></div>))}</div>
