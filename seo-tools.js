@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v106 — Export CSV button moved to the bottom-right of the "How your page ranks" card (was crowding the top). Backlinks header chip requires proxy v54 (domain-level) to be deployed. Prior v105: Ranked Keywords chip + approximate-links chip in PR header. */
+/* IvaBot seo-tools v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v106 loaded");
+console.log("[IvaBot] seo-tools.js v107 loaded");
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -1019,7 +1019,7 @@ async function generatePDF(data) {
   if (data.rankedKeywords?.length > 0) {
     content.push(secTitle("How Your Page Ranks in Google"));
     content.push(noteText("Real positions from the Google search index."));
-    content.push(kwTable((data._allRanked && data._allRanked.length) ? data._allRanked : data.rankedKeywords, false, true));
+    content.push(kwTable(data.rankedKeywords));
     content.push(...kwNotes);
     content.push(spacer(16));
   }
