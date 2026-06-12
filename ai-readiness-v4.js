@@ -5,6 +5,7 @@
    Use: window.AIReadiness.parse(rawHtml, pageUrl, robotsTxt, llmsTxt, pageType) → returns { checks, score, summary, weights_used }
    pageType is optional — falls back to "other" weights if not provided or unknown.
    v4 additions: extractable (passages 100-180 words), tldr (summary near top), tables (comparison tables), howto (HowTo schema when step content exists)
+   v4.1: checkExtractablePassages also returns top-3 passage texts (passages[]) for the "quotable passages" preview — count/status/score unchanged.
    Loaded BEFORE content-coverage.js. Exposes window.AIReadiness namespace.
 */
 (function() {
@@ -564,6 +565,7 @@ function checkExtractablePassages(html) {
   let count = 0;
   let totalWords = 0;
   const wordCounts = [];
+  const passages = [];
 
   for (const p of paragraphs) {
     /* Strip inner HTML tags + decode &nbsp; etc */
@@ -585,6 +587,7 @@ function checkExtractablePassages(html) {
     /* Sweet spot: 100-180 words */
     if (words >= 100 && words <= 180) {
       count++;
+      if (passages.length < 3) passages.push({ text: text.length > 300 ? text.slice(0, 300).trim() + "\u2026" : text, words });
     }
   }
 
@@ -592,6 +595,7 @@ function checkExtractablePassages(html) {
 
   return {
     count,
+    passages,
     total_paragraphs: wordCounts.length,
     avg_words: avgWords,
     /* Status */
