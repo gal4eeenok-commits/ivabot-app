@@ -8,6 +8,11 @@ const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt
 const DFS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/dataforseo-proxy";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
 
+/* IvaBot security step 1: send the logged-in user's session token instead of the anon key.
+   Falls back to the anon key if no session, so this change is non-breaking on its own. */
+async function ivaAuthToken(){try{if(window.__supabase){const{data:{session}}=await window.__supabase.auth.getSession();if(session&&session.access_token)return session.access_token;}}catch(e){}return SUPABASE_KEY;}
+
+
 /* ═══ COLORS ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2),0 8px 32px rgba(110,43,255,0.1)"};
 const FC={HV:{bg:"rgba(110,43,255,0.12)",color:"#6E2BFF"},MV:{bg:"rgba(155,122,230,0.1)",color:"#9B7AE6"},LV:{bg:"rgba(184,156,240,0.12)",color:"#B89CF0"}};
@@ -21,7 +26,7 @@ async function callGPT(step, data) {
     const payload = { step, ...(typeof data === "string" ? { data } : data) };
     const res = await fetch(CB_GPT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
       body: JSON.stringify(payload)
     });
     if (!res.ok) {
@@ -44,7 +49,7 @@ async function callDFS(keywords, locationCode = 2840, languageCode = null) {
   try {
     const res = await fetch(DFS_PROXY, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
       body: JSON.stringify({ mode: "content_builder", keywords, location_code: locationCode, language_code: lang })
     });
     if (!res.ok) { console.log("[CB] DFS HTTP", res.status); return null; }
@@ -62,7 +67,7 @@ async function callChat(context, chatHistory, question) {
   try {
     const res = await fetch(CB_GPT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
       body: JSON.stringify({ step: "chat", context, chat_history: chatHistory, question })
     });
     if (!res.ok) throw new Error("Chat HTTP " + res.status);
@@ -90,7 +95,7 @@ async function trackBuilderUsage(memberId) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Authorization": "Bearer " + (await ivaAuthToken()),
         "apikey": SUPABASE_KEY
       },
       body: JSON.stringify(rpcBody)
@@ -115,12 +120,12 @@ async function checkBuilderCredits(memberId) {
   try {
     /* Try user_id first (Supabase Auth UUID), then member_id */
     let res = await fetch(`https://empuzslozakbicmenxfo.supabase.co/rest/v1/usage?user_id=eq.${memberId}&select=builder_used,builder_limit`, {
-      headers: { "Authorization": "Bearer " + SUPABASE_KEY, "apikey": SUPABASE_KEY }
+      headers: { "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY }
     });
     let rows = res.ok ? await res.json() : [];
     if (rows.length === 0) {
       res = await fetch(`https://empuzslozakbicmenxfo.supabase.co/rest/v1/usage?member_id=eq.${memberId}&select=builder_used,builder_limit`, {
-        headers: { "Authorization": "Bearer " + SUPABASE_KEY, "apikey": SUPABASE_KEY }
+        headers: { "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY }
       });
       rows = res.ok ? await res.json() : [];
     }
@@ -883,7 +888,7 @@ const gStr=async()=>{
       const runBody=isUUID2?{p_user_id:memberId,p_title:title}:{p_member_id:memberId,p_title:title};
       await fetch("https://empuzslozakbicmenxfo.supabase.co/rest/v1/rpc/insert_cb_run",{
         method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},
         body:JSON.stringify(runBody)
       });
       console.log("[CB] run recorded");
