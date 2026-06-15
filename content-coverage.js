@@ -7,15 +7,20 @@ console.log("[IvaBot] content-coverage.js v6.98 loaded");
 const USE_MOCK=false;
 const SUPABASE_URL="https://empuzslozakbicmenxfo.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
+
+/* IvaBot security step 1: send the logged-in user's session token instead of the anon key.
+   Falls back to the anon key if no session, so this change is non-breaking on its own. */
+async function ivaAuthToken(){try{if(window.__supabase){const{data:{session}}=await window.__supabase.auth.getSession();if(session&&session.access_token)return session.access_token;}}catch(e){}return SUPABASE_KEY;}
+
 const CORS_PROXY=SUPABASE_URL+"/functions/v1/fetch-page";
 const DFS_PROXY=SUPABASE_URL+"/functions/v1/dataforseo-proxy";
 const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 
 /* ═══ MEMBER ID + CREDITS ═══ */
 function getMemberId(){if(window.__memberId)return window.__memberId;if(window.__userId)return window.__userId;try{const sb=window.__supabase;if(sb){const key=Object.keys(localStorage).find(k=>k.includes('auth-token'));if(key){const data=JSON.parse(localStorage.getItem(key));if(data?.user?.id)return data.user.id;}}}catch(e){}return null;}
-async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{let res=await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});let rows=res.ok?await res.json():[];if(rows.length===0){res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY}});rows=res.ok?await res.json():[];}if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
-async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const rpcBody=isUUID?{p_user_id:memberId}:{p_member_id:memberId};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify(rpcBody)});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
-async function recordCoverageRun(memberId,url){try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const runBody=isUUID?{p_user_id:memberId,p_source_url:url||null}:{p_member_id:memberId,p_source_url:url||null};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_KEY,"apikey":SUPABASE_KEY},body:JSON.stringify(runBody)});let runId=null;try{const d=await res.json();runId=d&&d.run_id?d.run_id:null;}catch(_){}console.log("[CC] run recorded:",runId);return runId;}catch(e){console.error("[CC] run record error:",e);return null;}}
+async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{let res=await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY}});let rows=res.ok?await res.json():[];if(rows.length===0){res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY}});rows=res.ok?await res.json():[];}if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
+async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const rpcBody=isUUID?{p_user_id:memberId}:{p_member_id:memberId};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},body:JSON.stringify(rpcBody)});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
+async function recordCoverageRun(memberId,url){try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const runBody=isUUID?{p_user_id:memberId,p_source_url:url||null}:{p_member_id:memberId,p_source_url:url||null};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},body:JSON.stringify(runBody)});let runId=null;try{const d=await res.json();runId=d&&d.run_id?d.run_id:null;}catch(_){}console.log("[CC] run recorded:",runId);return runId;}catch(e){console.error("[CC] run record error:",e);return null;}}
 
 /* ═══ COLORS (identical to Core Audit + CB) ═══ */
 const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
@@ -1722,7 +1727,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       try {
         const gptRes = await fetch(COVERAGE_GPT, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
           body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) })
         });
         if (gptRes.ok) gptData = await gptRes.json();
@@ -1747,7 +1752,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       try {
         const dfsRes = await fetch(DFS_PROXY, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
           body: JSON.stringify({ mode: "content_builder", keywords: allKwUnique.slice(0, 6), page_url: url, location_code: locale.location_code, language_code: locale.language_code })
         });
         if (dfsRes.ok) dfsData = await dfsRes.json();
@@ -1779,7 +1784,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         try {
           const serpGptRes = await fetch(COVERAGE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify({ step: "serp_suggestions", keywords: finalKeywords, page_summary: gptData?.page_context?.topic || parsed.summary.slice(0, 300) })
           });
           if (serpGptRes.ok) {
@@ -1818,7 +1823,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       try {
         const sugRes = await fetch(COVERAGE_GPT, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
           body: JSON.stringify({ step: "generate_suggestions", title: parsed.title, description: parsed.description, h1: parsed.h1, h2: parsed.h2, h3: parsed.h3, keywords: finalKeywords, page_context: gptData?.page_context })
         });
         if (sugRes.ok) gptSuggestions = await sugRes.json();
@@ -1902,7 +1907,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         if (isUUID) snapBody.p_user_id = mid; else snapBody.p_member_id = mid;
         const snapRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_snapshot`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY, "apikey": SUPABASE_KEY },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY },
           body: JSON.stringify(snapBody)
         });
         const snapData = await snapRes.json();
@@ -1938,7 +1943,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       const history = msgs.filter(m => typeof m.c === "string").slice(-10).map(m => `${m.f === "b" ? "IvaBot" : "User"}: ${m.c}`).join("\n");
       const res = await fetch(COVERAGE_GPT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
         body: JSON.stringify({
           step: "chat",
           audit_context: `Page: ${d?.url}\nTitle: "${d?.title}"\nKeywords: ${(d?.extractedKeywords || []).join(", ")}\nBody status: ${d?.bodyEval?.status || "unknown"}\nTrust: contacts=${d?.trust?.contacts?.found}, socials=${d?.trust?.socials?.found}, faq=${d?.trust?.faq?.found}, cta=${d?.trust?.cta?.found}`,
@@ -1973,7 +1978,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
 
           const gptRes = await fetch(COVERAGE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) })
           });
           let kw = [parsed.primary_keyword].filter(Boolean);
@@ -2011,7 +2016,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         try {
           const res = await fetch(COVERAGE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify({ step: "confirm_keywords", initial_keywords: extractedKw || [], user_feedback: cleanedInput, page_topic: pageTopic || "" })
           });
           const data = await res.json();
@@ -2047,7 +2052,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
         try {
           const res = await fetch(COVERAGE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify({ step: "confirm_keywords", initial_keywords: pendingKw || extractedKw || [], user_feedback: text, page_topic: pageTopic || "" })
           });
           const data = await res.json();
@@ -2077,12 +2082,12 @@ function ContentCoverage({ onHome, memberName: mn }) {
             const mid = getMemberId();
             if (!mid) { bot("Could not verify your account. Please refresh and try again."); return; }
             let uRes = await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${mid}&select=*`, {
-              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+              headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${await ivaAuthToken()}` }
             });
             let rows = uRes.ok ? await uRes.json() : [];
             if (rows.length === 0) {
               uRes = await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${mid}&select=*`, {
-                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${await ivaAuthToken()}` }
               });
               rows = uRes.ok ? await uRes.json() : [];
             }
@@ -2123,7 +2128,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
             </div>
           </div>); }} /></div>}
     {step === "confirm_own" && pendingKw && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Confirm Keywords" onClick={() => { add("u", "Confirm"); setUserKw(pendingKw); setStep("running"); runAudit(pageUrl, pendingKw); }} /><Btn text="Adjust" onClick={() => { setStep("adjust_keywords"); bot("Tell me what to change — replace a keyword, add something, or describe what you're looking for."); }} /></div>}
-    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setChatCount(0); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
+    {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setChatCount(0); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
   </React.Fragment>;
 
   const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><CoverageReport data={auditData} /></div> : <CoveragePlaceholder />}</React.Fragment>;
