@@ -181,6 +181,11 @@ const CORS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/fetch-
 const SUPABASE_URL = "https://empuzslozakbicmenxfo.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
 
+/* IvaBot security step 1: send the logged-in user's session token instead of the anon key.
+   Falls back to the anon key if no session, so this change is non-breaking on its own. */
+async function ivaAuthToken(){try{if(window.__supabase){const{data:{session}}=await window.__supabase.auth.getSession();if(session&&session.access_token)return session.access_token;}}catch(e){}return SUPABASE_KEY;}
+
+
 /* Get user info — Supabase Auth (with fallback to window globals set by Dashboard) */
 function getMemberInfo() {
   return new Promise(async (resolve) => {
@@ -235,13 +240,13 @@ async function fetchCredits(userId) {
   try {
     /* Try user_id (UUID from Supabase Auth) */
     let res = await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${userId}&select=*`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${await ivaAuthToken()}` }
     });
     let rows = res.ok ? await res.json() : [];
     /* Fallback to member_id for backward compat */
     if (rows.length === 0) {
       res = await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${userId}&select=*`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${await ivaAuthToken()}` }
       });
       rows = res.ok ? await res.json() : [];
     }
@@ -1579,19 +1584,19 @@ function IvaBotV6() {
           /* a) ranked_keywords + backlinks for the page */
           fetch(DFS_PROXY, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify({ mode: "ranked_only", domain, page_url: url, location_code: locale.location_code, language_code: locale.language_code })
           }).then(r => r.ok ? r.json() : null),
           /* b) SERP competitors by the right keyword (gpt.keywords[0]) */
           serpKeyword ? fetch(DFS_PROXY, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify({ mode: "serp_only", serp_keyword: serpKeyword, location_code: locale.location_code, language_code: locale.language_code })
           }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
           /* c) keyword_volume for the 3 GPT keywords */
           gptKws.length > 0 ? fetch(DFS_PROXY, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify({ mode: "keyword_volume", keywords: gptKws, location_code: locale.location_code, language_code: locale.language_code })
           }).then(r => r.ok ? r.json() : null) : Promise.resolve(null)
         ]);
@@ -1647,7 +1652,7 @@ function IvaBotV6() {
         try {
           const incRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/increment_core_used", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify(rpcBody)
           });
           const incData = await incRes.json();
@@ -1657,7 +1662,7 @@ function IvaBotV6() {
           const runBody = isUUID ? { p_user_id: memberId, p_source_url: reportData.url || "" } : { p_member_id: memberId, p_source_url: reportData.url || "" };
           const runRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_core_run", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify(runBody)
           });
           const runData = await runRes.json();
@@ -1692,7 +1697,7 @@ function IvaBotV6() {
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
           const snapRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_snapshot", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY },
+            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify(snapBody)
           });
           const snapData = await snapRes.json();
