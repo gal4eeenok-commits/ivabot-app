@@ -1,7 +1,7 @@
 /* IvaBot Content Builder v73 — brand guide upload (read file, 15K limit, send to GPT) */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v73 loaded");
+console.log("[IvaBot] content-builder.js v74 loaded");
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -11,6 +11,21 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 /* IvaBot security step 1: send the logged-in user's session token instead of the anon key.
    Falls back to the anon key if no session, so this change is non-breaking on its own. */
 async function ivaAuthToken(){try{if(window.__supabase){const{data:{session}}=await window.__supabase.auth.getSession();if(session&&session.access_token)return session.access_token;}}catch(e){}return SUPABASE_KEY;}
+
+/* Phase 2: save generated Builder article to builder_articles (free; user_id from token server-side) */
+let _cbSavedArticleId = null;
+async function saveBuilderArticle(o){
+  try{
+    const r = await fetch("https://empuzslozakbicmenxfo.supabase.co/rest/v1/rpc/save_builder_article",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},
+      body:JSON.stringify({p_id:o.id||null,p_run_id:o.run_id||null,p_title:o.title||null,p_html:o.html||null,p_meta:o.meta||null})
+    });
+    if(!r.ok){console.error("[CB] save article HTTP",r.status);return null;}
+    const j=await r.json().catch(()=>null);
+    return (typeof j==="string")?j:(Array.isArray(j)?j[0]:(j&&j.save_builder_article)||null);
+  }catch(e){console.error("[CB] save article error:",e);return null;}
+}
 
 
 /* ═══ COLORS ═══ */
@@ -1042,6 +1057,13 @@ const gCnt=async()=>{
       }catch(spamErr){console.log("[CB] spam check error (non-blocking):",spamErr);}
     }
     sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);setStep("cr");
+    /* Phase 2: persist the generated article (non-blocking, free) */
+    try{
+      const _plain=html.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
+      const _meta={word_count:_plain?_plain.split(" ").length:0,keywords:exactKeywords.map(k=>k.keyword),page_type:ans.pt||"",market:ans.mk||""};
+      const _sid=await saveBuilderArticle({title:(confirmedTitleRef.current||bd?.title||"Untitled"),html:html,meta:_meta});
+      if(_sid){_cbSavedArticleId=_sid;console.log("[CB] article saved:",_sid);}
+    }catch(e){console.error("[CB] article save skipped:",e);}
     if(isMobile)sMTab("panel");
     bot(<div><div style={{marginBottom:6}}>Your full content is ready!</div><div style={{color:C.muted,fontSize:12,marginBottom:6}}>I slightly adjusted some headings to distribute your keywords evenly across the page — this helps with SEO.</div><div style={{color:C.muted,fontSize:12}}>Want changes? Just describe what to fix.</div></div>);
   } catch(err){console.error("[CB] gCnt error:",err);stopLoading();sTyp(false);sPLoad(null);bot("Something went wrong. Please try again.");}
@@ -1084,7 +1106,7 @@ const handleContentTweak=async(text)=>{
     sTyp(false);
     if(gptRes){
       const newHtml=gptRes.html||gptRes.content||gptRes.text||contentHtml;
-      if(typeof newHtml==="string"&&newHtml.length>50){sContentHtml(newHtml);add("b","Done! Content updated.");}
+      if(typeof newHtml==="string"&&newHtml.length>50){sContentHtml(newHtml);add("b","Done! Content updated.");if(_cbSavedArticleId){try{await saveBuilderArticle({id:_cbSavedArticleId,html:newHtml});}catch(e){}}}
       else{add("b","I made some adjustments. Check the content panel.");}
     } else {add("b","Couldn't process that. Try describing the change differently.");}
   } catch(err){console.error("[CB] tweak:",err);sTyp(false);add("b","Something went wrong. Try again.");}
