@@ -1,7 +1,24 @@
 /* IvaBot Content Builder v73 — brand guide upload (read file, 15K limit, send to GPT) */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-builder.js v74 loaded");
+console.log("[IvaBot] content-builder.js v75 loaded");
+
+/* Phase 3: persist the finished Builder result so a reload restores it (no re-run, no credit).
+   bd (brief) and contentHtml (article HTML) are plain JSON; the JSX is built at render time. */
+var _BLD_REPORT_TTL = 24 * 60 * 60 * 1000;
+function _bldReportKey(mid){ return "iva_builder_report_" + (mid || "anon"); }
+function _bldStripEls(k, v){ if (v && typeof v === "object" && v.$$typeof) return undefined; return v; }
+function saveBuilderReport(mid, data){ try { localStorage.setItem(_bldReportKey(mid), JSON.stringify({ savedAt: Date.now(), data: data }, _bldStripEls)); } catch(e){ console.warn("[CB] saveBuilderReport failed", e); } }
+function loadBuilderReport(mid){ try { var raw = localStorage.getItem(_bldReportKey(mid)); if(!raw) return null; var o = JSON.parse(raw); if(!o || !o.data) return null; if(Date.now() - (o.savedAt||0) > _BLD_REPORT_TTL){ localStorage.removeItem(_bldReportKey(mid)); return null; } return o.data; } catch(e){ return null; } }
+function clearBuilderReport(mid){ try { localStorage.removeItem(_bldReportKey(mid)); } catch(e){} }
+function _bldIsReload(){ try { var nav = (performance.getEntriesByType && performance.getEntriesByType("navigation")) || []; if (nav[0] && nav[0].type) return nav[0].type === "reload"; } catch(e){} try { return !!(performance.navigation && performance.navigation.type === 1); } catch(e){} return false; }
+/* Safety net: a restored panel should never white-screen the app. */
+class _BldErrorBoundary extends React.Component {
+  constructor(props){ super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err){ return { err: err }; }
+  componentDidCatch(err, info){ console.error("[CB] panel render error:", err, info && info.componentStack); try { clearBuilderReport(getMemberId()); } catch(e){} }
+  render(){ if (this.state.err) return this.props.fallback || null; return this.props.children; }
+}
 
 /* ═══ CONFIG — single Edge Function endpoint ═══ */
 const CB_GPT_URL = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/cb-gpt";
@@ -615,6 +632,13 @@ const handleAiChat=useCallback(async(text)=>{
 useEffect(()=>{
   const mid=getMemberId();
   console.log("[CB] INIT memberId:", mid);
+  var _bldSaved = loadBuilderReport(mid);
+  if (_bldSaved && _bldIsReload() && _bldSaved.bd) {
+    sBd(_bldSaved.bd); sContentHtml(_bldSaved.contentHtml || null); sKwData(_bldSaved.kwData || []); sRp(_bldSaved.rp || "ct"); setStep(_bldSaved.rp === "br" ? "sr" : "cr");
+    add("b", "Here's your latest content. Ask me anything about it, or start a New Page.");
+    if (isMobile) sMTab("panel");
+    return;
+  }
   sTyp(true);setTimeout(()=>{sTyp(false);add("b",mn?`Hey ${mn}!`:"Hey!");sTyp(true);},1500);
   setTimeout(()=>{sTyp(false);add("b",<div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>I'll guide you step by step to build SEO content for your page. First we'll find the right keywords, then build a structure and full content. After the structure is ready, you can edit and adjust everything freely.</div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);setStep("ec");},3500);
 },[]);
@@ -894,6 +918,7 @@ const gStr=async()=>{
         related:dfsExtraRef.current.related||[],paa:dfsExtraRef.current.paa||[],autocomplete:dfsExtraRef.current.autocomplete||[],contentLength:defaultLen};
     }
     sBd(briefData);sRp("br");sPLoad(null);stopLoading();sTyp(false);setStep("sr");
+    try{saveBuilderReport(getMemberId(),{rp:"br",bd:briefData,contentHtml:null,kwData:kwData});}catch(e){}
     if(isMobile)sMTab("panel");
     /* Deduct 1 credit after successful structure generation */
     try{const r=await trackBuilderUsage(memberId);if(r&&r.success)console.log("[CB] credit deducted:",r.used+"/"+r.limit);}catch(e){}
@@ -1057,6 +1082,7 @@ const gCnt=async()=>{
       }catch(spamErr){console.log("[CB] spam check error (non-blocking):",spamErr);}
     }
     sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);setStep("cr");
+    try{saveBuilderReport(getMemberId(),{rp:"ct",bd:bd,contentHtml:html,kwData:kwData});}catch(e){}
     /* Phase 2: persist the generated article (non-blocking, free) */
     try{
       const _plain=html.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
@@ -1106,7 +1132,7 @@ const handleContentTweak=async(text)=>{
     sTyp(false);
     if(gptRes){
       const newHtml=gptRes.html||gptRes.content||gptRes.text||contentHtml;
-      if(typeof newHtml==="string"&&newHtml.length>50){sContentHtml(newHtml);add("b","Done! Content updated.");if(_cbSavedArticleId){try{await saveBuilderArticle({id:_cbSavedArticleId,html:newHtml});}catch(e){}}}
+      if(typeof newHtml==="string"&&newHtml.length>50){sContentHtml(newHtml);try{saveBuilderReport(getMemberId(),{rp:"ct",bd:bd,contentHtml:newHtml,kwData:kwData});}catch(e){}add("b","Done! Content updated.");if(_cbSavedArticleId){try{await saveBuilderArticle({id:_cbSavedArticleId,html:newHtml});}catch(e){}}}
       else{add("b","I made some adjustments. Check the content panel.");}
     } else {add("b","Couldn't process that. Try describing the change differently.");}
   } catch(err){console.error("[CB] tweak:",err);sTyp(false);add("b","Something went wrong. Try again.");}
@@ -1451,7 +1477,7 @@ async function generateCBPDF(briefData, contentHtml, panelMode) {
 
 /* ═══ RESET ═══ */
 const reset=()=>{
-  setStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);skwRef.current=[];sStit(null);confirmedTitleRef.current=null;sConfirmedKeywords([]);sBrandName(null);sCleanedBrand("");sSavedTitles([]);sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sAdjustRound(0);
+  setStep("init");sMsgs([]);sTyp(false);sAns({});sKwData([]);sDfsExtra({});dfsExtraRef.current={};sSkw([]);skwRef.current=[];sStit(null);confirmedTitleRef.current=null;sConfirmedKeywords([]);sBrandName(null);sCleanedBrand("");sSavedTitles([]);clearBuilderReport(getMemberId());sBd(null);sContentHtml(null);sRp("ph");sLs(-1);sLst([]);sDn({});sMTab("chat");sPLoad(null);sTweakCount(0);sAdjustRound(0);
   setTimeout(()=>{sTyp(true);setTimeout(()=>{sTyp(false);add("b",mn?`Hey ${mn}!`:"Hey!");sTyp(true);},1000);setTimeout(()=>{sTyp(false);add("b",<div><div style={{fontWeight:600}}>Do you have keywords or should I find them?</div></div>);setStep("ec");},2500);},100);
 };
 
@@ -1559,7 +1585,7 @@ if(step==="mkq"){
         if(!crd.ok){
           bot(<div><div style={{marginBottom:6}}>You've used all your Content Builder credits ({crd.used}/{crd.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue building content.</div></div>);
         }else{
-          bot(<div><div style={{marginBottom:6}}>You have <strong>{crd.limit-crd.used}</strong> Content Builder credits remaining.</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Starting a new content session will use 2 credits.</div><div style={{display:"flex",gap:8}}><Btn text="Start New Content" primary onClick={()=>{add("u","Start new");setStep("ec");sRp(null);sBd(null);sStit("");confirmedTitleRef.current="";sAns({});sKwData([]);skwRef.current=[];sConfirmedKw([]);dfsExtraRef.current={};sMsgs([]);sPLoad(null);setContentHtml("");bot(<div><div style={{marginBottom:6}}>Hey! Let's build new SEO content.</div><div style={{fontWeight:600,marginBottom:6}}>Do you have keywords or should I find them?</div></div>);}}/><Btn text="Stay Here" onClick={()=>{bot("No problem! You can keep editing your current content.");}}/></div></div>);
+          bot(<div><div style={{marginBottom:6}}>You have <strong>{crd.limit-crd.used}</strong> Content Builder credits remaining.</div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>Starting a new content session will use 2 credits.</div><div style={{display:"flex",gap:8}}><Btn text="Start New Content" primary onClick={()=>{add("u","Start new");clearBuilderReport(getMemberId());setStep("ec");sRp(null);sBd(null);sStit("");confirmedTitleRef.current="";sAns({});sKwData([]);skwRef.current=[];sConfirmedKw([]);dfsExtraRef.current={};sMsgs([]);sPLoad(null);setContentHtml("");bot(<div><div style={{marginBottom:6}}>Hey! Let's build new SEO content.</div><div style={{fontWeight:600,marginBottom:6}}>Do you have keywords or should I find them?</div></div>);}}/><Btn text="Stay Here" onClick={()=>{bot("No problem! You can keep editing your current content.");}}/></div></div>);
         }
       }catch(e){sTyp(false);bot("Something went wrong checking credits. Try again.");}
     })();
@@ -1621,7 +1647,7 @@ const lastBotIdx=msgs.reduce((acc,m,i)=>m.f==="b"?i:acc,-1);
 const phase2=step==="sr"||step==="cr";
 const chatMessages=<React.Fragment><style>{`.cb-past-msg{opacity:0.75}.cb-past-msg button:not(.bot-tip-expand){pointer-events:none!important;cursor:default!important;opacity:0.5}.cb-past-msg [onclick]{pointer-events:none!important;cursor:default!important}.cb-past-msg .bot-tip-expand,.cb-past-msg details>summary{pointer-events:auto!important;cursor:pointer!important}`}</style>{msgs.map((m,i)=>m.f==="b"?<div key={m.id} className={i<lastBotIdx?"cb-past-msg":undefined}><BB>{typeof m.c==="string"?m.c.split("\n").map((line,j)=><span key={j}>{j>0&&<br/>}{line}</span>):m.c}</BB></div>:<UB key={m.id} n={mn}>{m.c}</UB>)}{ls>=0&&lst.length>0&&<div style={{maxWidth:"95%",alignSelf:"flex-start"}}><LB step={ls} total={lst.length} text={lst[ls]} waiting={lsWaiting}/></div>}{typ&&<div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`}}><div className="typing-dots"><span/><span/><span/></div></div></div>}{step==="ec"&&!dn.e&&<div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}><Btn text="Find Keywords" onClick={()=>{add("u","Find Keywords");askMarket("find");}}/><Btn text="Use My Keywords" onClick={()=>{add("u","Use My Keywords");askMarket("own");}}/></div>}</React.Fragment>;
 
-const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><BriefPanel d={bd} kwData={kwData}/></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><ContentPanel html={contentHtml} d={bd} kwData={kwData}/></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
+const panelContent=<React.Fragment>{pLoad?<LoadingPanel text={pLoad}/>:rp==="br"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><_BldErrorBoundary fallback={<div style={{padding:"24px",color:C.muted,fontSize:13,lineHeight:1.6}}>Couldn't display the saved brief. Please start a New Page.</div>}><BriefPanel d={bd} kwData={kwData}/></_BldErrorBoundary></div>:rp==="ct"&&bd?<div style={{animation:"fadeIn 0.5s ease"}}><_BldErrorBoundary fallback={<div style={{padding:"24px",color:C.muted,fontSize:13,lineHeight:1.6}}>Couldn't display the saved content. Please start a New Page.</div>}><ContentPanel html={contentHtml} d={bd} kwData={kwData}/></_BldErrorBoundary></div>:<Placeholder/>}<style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style></React.Fragment>;
 
 const inputPlaceholder=step==="kw"?"Select keywords above, or click Adjust":step==="ti"?"Pick a title above, or click buttons below":phase2?(step==="cr"?"Describe changes or ask a question...":"Edit structure or ask a question..."):"Type your answer...";
 const inputDisabled=step==="kw"||step==="ti";
