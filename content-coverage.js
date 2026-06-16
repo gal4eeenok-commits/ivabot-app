@@ -1,14 +1,7 @@
 /* IvaBot Content Coverage & AI Readiness v6.98 — "Passages AI is most likely to quote" is now the FIRST WorkingItem inside the "AI Search Optimization — Working Well" fold (before Schema markup), styled like the other signals. Working Well now also renders when only passages exist. Prior v6.96: passages preview above the section (from ai-readiness-v4.js checkExtractablePassages.passages). Prior v6.95: writes a tracking snapshot (flow_type='coverage') via insert_snapshot RPC after recordCoverageRun (non-blocking): 3 user keywords with metrics, AI readiness score, content/trust/ai area %, 14-check breakdown, locale. Prior v6.94: 4 new AI extractability checks + Distribution Tips. Requires ai-readiness-v4.js (14 checks). */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.99 loaded");
-
-/* Phase 3: persist the finished Coverage result so a page reload restores it (no re-run, no credit charge). */
-var _COV_REPORT_TTL = 24 * 60 * 60 * 1000;
-function _covReportKey(mid){ return "iva_coverage_report_" + (mid || "anon"); }
-function saveCoverageReport(mid, data){ try { localStorage.setItem(_covReportKey(mid), JSON.stringify({ savedAt: Date.now(), data: data })); } catch(e){ console.warn("[CC] saveCoverageReport failed", e); } }
-function loadCoverageReport(mid){ try { var raw = localStorage.getItem(_covReportKey(mid)); if(!raw) return null; var o = JSON.parse(raw); if(!o || !o.data) return null; if(Date.now() - (o.savedAt||0) > _COV_REPORT_TTL){ localStorage.removeItem(_covReportKey(mid)); return null; } return o.data; } catch(e){ return null; } }
-function clearCoverageReport(mid){ try { localStorage.removeItem(_covReportKey(mid)); } catch(e){} }
+console.log("[IvaBot] content-coverage.js v6.98 loaded");
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -1680,8 +1673,6 @@ function ContentCoverage({ onHome, memberName: mn }) {
   const bot = (c) => add("b", c);
 
   useEffect(() => {
-    var _savedCov = loadCoverageReport(getMemberId());
-    if (_savedCov) { setAuditData(_savedCov); setSR(true); setStep("done"); add("b", "Here's your latest check. Ask me anything about it, or start a New Audit."); if (isMobile) sMTab("report"); return; }
     sTyp(true);
     setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); }, 1500);
     setTimeout(() => { sTyp(false); add("b", <div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>I'll check how well your page covers target keywords, how deep and structured your content is, whether your trust signals are strong enough, and how ready it is for AI search. By fixing the gaps I find, you'll improve this page's visibility in Google and AI tools like ChatGPT.</div><div style={{fontWeight:600}}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 4000);
@@ -1696,7 +1687,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       bot(<div><div style={{marginBottom:6}}>You've used all your Content Coverage & AI Readiness credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
       return;
     }
-    clearCoverageReport(getMemberId()); setSR(false); setAuditData(null); sPLoad("Analyzing your page..."); setLS(0);
+    setSR(false); setAuditData(null); sPLoad("Analyzing your page..."); setLS(0);
     const setStepNum = (n) => setLS(prev => Math.max(prev, n));
 
     try {
@@ -1873,7 +1864,6 @@ function ContentCoverage({ onHome, memberName: mn }) {
       sPLoad(null);
       setSR(true);
       setAuditData(reportData);
-      try { saveCoverageReport(getMemberId(), reportData); } catch(e){}
       if (isMobile) sMTab("report");
 
       /* Deduct 1 credit + record run */
