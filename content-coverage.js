@@ -1,7 +1,7 @@
 /* IvaBot Content Coverage & AI Readiness v6.98 — "Passages AI is most likely to quote" is now the FIRST WorkingItem inside the "AI Search Optimization — Working Well" fold (before Schema markup), styled like the other signals. Working Well now also renders when only passages exist. Prior v6.96: passages preview above the section (from ai-readiness-v4.js checkExtractablePassages.passages). Prior v6.95: writes a tracking snapshot (flow_type='coverage') via insert_snapshot RPC after recordCoverageRun (non-blocking): 3 user keywords with metrics, AI readiness score, content/trust/ai area %, 14-check breakdown, locale. Prior v6.94: 4 new AI extractability checks + Distribution Tips. Requires ai-readiness-v4.js (14 checks). */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.100 loaded");
+console.log("[IvaBot] content-coverage.js v6.101 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit). */
 var _COV_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -9,12 +9,23 @@ function _covReportKey(mid){ return "iva_coverage_report_" + (mid || "anon"); }
 function saveCoverageReport(mid, data){ try { localStorage.setItem(_covReportKey(mid), JSON.stringify({ savedAt: Date.now(), data: data })); } catch(e){ console.warn("[CC] saveCoverageReport failed", e); } }
 function loadCoverageReport(mid){ try { var raw = localStorage.getItem(_covReportKey(mid)); if(!raw) return null; var o = JSON.parse(raw); if(!o || !o.data) return null; if(Date.now() - (o.savedAt||0) > _COV_REPORT_TTL){ localStorage.removeItem(_covReportKey(mid)); return null; } return o.data; } catch(e){ return null; } }
 function clearCoverageReport(mid){ try { localStorage.removeItem(_covReportKey(mid)); } catch(e){} }
+function _covIsReload(){ try { var nav = (performance.getEntriesByType && performance.getEntriesByType("navigation")) || []; if (nav[0] && nav[0].type) return nav[0].type === "reload"; } catch(e){} try { return !!(performance.navigation && performance.navigation.type === 1); } catch(e){} return false; }
 /* Safety net: if a restored (or any) report fails to render, show a fallback instead of white-screening, log the error, and clear the bad save. */
 class _CovErrorBoundary extends React.Component {
-  constructor(props){ super(props); this.state = { err: null }; }
+  constructor(props){ super(props); this.state = { err: null, stack: "" }; }
   static getDerivedStateFromError(err){ return { err: err }; }
-  componentDidCatch(err, info){ console.error("[CC] report render error:", err, info && info.componentStack); try { clearCoverageReport(getMemberId()); } catch(e){} }
-  render(){ if (this.state.err) return this.props.fallback || null; return this.props.children; }
+  componentDidCatch(err, info){ console.error("[CC] report render error:", err, info && info.componentStack); this.setState({ stack: (info && info.componentStack) || "" }); }
+  render(){
+    if (this.state.err) {
+      var msg = (this.state.err && (this.state.err.message || String(this.state.err))) || "Unknown error";
+      var st = (this.state.stack || "").split("\n").map(function(s){ return s.trim(); }).filter(Boolean).slice(0,5).join("\n");
+      return React.createElement("div", { style: { padding: "24px", fontSize: 13, lineHeight: 1.6, color: C.muted } },
+        React.createElement("div", { style: { marginBottom: 10, color: C.dark, fontWeight: 600 } }, "Couldn't display the saved audit."),
+        React.createElement("pre", { style: { whiteSpace: "pre-wrap", fontSize: 11, color: "#c0392b", background: "rgba(0,0,0,0.04)", padding: "10px 12px", borderRadius: 8, overflowX: "auto", margin: 0 } }, "DEBUG:\n" + msg + "\n\n" + st)
+      );
+    }
+    return this.props.children;
+  }
 }
 
 /* ═══ CONFIG ═══ */
@@ -1688,7 +1699,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
 
   useEffect(() => {
     var _savedCov = loadCoverageReport(getMemberId());
-    if (_savedCov) {
+    if (_savedCov && _covIsReload()) {
       setAuditData(_savedCov); setSR(true); setStep("done");
       setPageUrl(_savedCov.url || null);
       setExtractedKw(_savedCov.extractedKeywords || null);
