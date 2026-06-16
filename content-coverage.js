@@ -1,7 +1,21 @@
 /* IvaBot Content Coverage & AI Readiness v6.98 — "Passages AI is most likely to quote" is now the FIRST WorkingItem inside the "AI Search Optimization — Working Well" fold (before Schema markup), styled like the other signals. Working Well now also renders when only passages exist. Prior v6.96: passages preview above the section (from ai-readiness-v4.js checkExtractablePassages.passages). Prior v6.95: writes a tracking snapshot (flow_type='coverage') via insert_snapshot RPC after recordCoverageRun (non-blocking): 3 user keywords with metrics, AI readiness score, content/trust/ai area %, 14-check breakdown, locale. Prior v6.94: 4 new AI extractability checks + Distribution Tips. Requires ai-readiness-v4.js (14 checks). */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] content-coverage.js v6.98 loaded");
+console.log("[IvaBot] content-coverage.js v6.100 loaded");
+
+/* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit). */
+var _COV_REPORT_TTL = 24 * 60 * 60 * 1000;
+function _covReportKey(mid){ return "iva_coverage_report_" + (mid || "anon"); }
+function saveCoverageReport(mid, data){ try { localStorage.setItem(_covReportKey(mid), JSON.stringify({ savedAt: Date.now(), data: data })); } catch(e){ console.warn("[CC] saveCoverageReport failed", e); } }
+function loadCoverageReport(mid){ try { var raw = localStorage.getItem(_covReportKey(mid)); if(!raw) return null; var o = JSON.parse(raw); if(!o || !o.data) return null; if(Date.now() - (o.savedAt||0) > _COV_REPORT_TTL){ localStorage.removeItem(_covReportKey(mid)); return null; } return o.data; } catch(e){ return null; } }
+function clearCoverageReport(mid){ try { localStorage.removeItem(_covReportKey(mid)); } catch(e){} }
+/* Safety net: if a restored (or any) report fails to render, show a fallback instead of white-screening, log the error, and clear the bad save. */
+class _CovErrorBoundary extends React.Component {
+  constructor(props){ super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err){ return { err: err }; }
+  componentDidCatch(err, info){ console.error("[CC] report render error:", err, info && info.componentStack); try { clearCoverageReport(getMemberId()); } catch(e){} }
+  render(){ if (this.state.err) return this.props.fallback || null; return this.props.children; }
+}
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
@@ -1673,6 +1687,17 @@ function ContentCoverage({ onHome, memberName: mn }) {
   const bot = (c) => add("b", c);
 
   useEffect(() => {
+    var _savedCov = loadCoverageReport(getMemberId());
+    if (_savedCov) {
+      setAuditData(_savedCov); setSR(true); setStep("done");
+      setPageUrl(_savedCov.url || null);
+      setExtractedKw(_savedCov.extractedKeywords || null);
+      setUserKw(_savedCov.userKeywords || null);
+      setPageTopic((_savedCov.ctx && _savedCov.ctx.topic) || "");
+      add("b", "Here's your latest check. Ask me anything about it, or start a New Audit.");
+      if (isMobile) sMTab("report");
+      return;
+    }
     sTyp(true);
     setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); }, 1500);
     setTimeout(() => { sTyp(false); add("b", <div><div style={{color:C.muted,fontSize:12,marginBottom:8}}>I'll check how well your page covers target keywords, how deep and structured your content is, whether your trust signals are strong enough, and how ready it is for AI search. By fixing the gaps I find, you'll improve this page's visibility in Google and AI tools like ChatGPT.</div><div style={{fontWeight:600}}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 4000);
@@ -1687,7 +1712,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       bot(<div><div style={{marginBottom:6}}>You've used all your Content Coverage & AI Readiness credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
       return;
     }
-    setSR(false); setAuditData(null); sPLoad("Analyzing your page..."); setLS(0);
+    clearCoverageReport(getMemberId()); setSR(false); setAuditData(null); sPLoad("Analyzing your page..."); setLS(0);
     const setStepNum = (n) => setLS(prev => Math.max(prev, n));
 
     try {
@@ -1864,6 +1889,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
       sPLoad(null);
       setSR(true);
       setAuditData(reportData);
+      try { saveCoverageReport(getMemberId(), reportData); } catch(e){}
       if (isMobile) sMTab("report");
 
       /* Deduct 1 credit + record run */
@@ -2131,7 +2157,7 @@ function ContentCoverage({ onHome, memberName: mn }) {
     {step === "confirm_reaudit" && <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}><Btn text="Yes, run audit" primary onClick={() => { add("u", "Yes, run audit"); setSR(false); setAuditData(null); sPLoad(null); setExtractedKw(null); setUserKw(null); setPendingKw(null); setPageTopic(""); setChatCount(0); sTyp(true); setStep("parsing"); (async () => { try { const htmlRes = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: pageUrl }) }); if (!htmlRes.ok) throw new Error("Could not fetch page"); const rawHtml = await htmlRes.text(); const parsed = parseCoverage(rawHtml, pageUrl); const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) }) }); let kw = [parsed.primary_keyword].filter(Boolean); let topic = ""; if (gptRes.ok) { const gpt = await gptRes.json(); if (gpt.keywords?.length > 0) kw = gpt.keywords; topic = gpt.page_context?.topic || ""; } setExtractedKw(kw); setPageTopic(topic); sTyp(false); bot(<div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I analyzed your page's title, headings, and content.</div><div style={{ fontWeight: 600, marginBottom: 6 }}>Keywords I found on your page:</div><div style={{ marginBottom: 10, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.border}` }}>{kw.map((k, i) => <div key={i} style={{ fontSize: 12, fontWeight: 400, color: C.dark, padding: "2px 0" }}>• {k}</div>)}</div><div style={{ fontWeight: 600 }}>Do these keywords match what you want to rank for?</div></div>); setStep("keywords"); } catch (e) { sTyp(false); bot("Could not analyze this page: " + e.message); setStep("done"); } })(); }} /><Btn text="No, cancel" onClick={() => { add("u", "Cancel"); bot("No problem! You can keep chatting about your current audit or paste another URL whenever you're ready."); setStep("done"); }} /></div>}
   </React.Fragment>;
 
-  const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><CoverageReport data={auditData} /></div> : <CoveragePlaceholder />}</React.Fragment>;
+  const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><_CovErrorBoundary fallback={<div style={{ padding: "24px", color: C.muted, fontSize: 13, lineHeight: 1.6 }}>Couldn't display the saved audit. Please start a New Audit.</div>}><CoverageReport data={auditData} /></_CovErrorBoundary></div> : <CoveragePlaceholder />}</React.Fragment>;
   const placeholder = step === "url" ? "Paste your URL here..." : step === "own_keywords" ? "Type your keywords separated by commas..." : step === "adjust_keywords" ? "Describe what to change..." : "Ask me anything about your coverage...";
   const inputDisabled = step === "keywords" || step === "confirm_own" || step === "confirm_reaudit" || step === "parsing" || step === "running";
 
