@@ -1,7 +1,14 @@
 /* IvaBot seo-tools v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v107 loaded");
+console.log("[IvaBot] seo-tools.js v108 loaded");
+
+/* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
+var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
+function _coreReportKey(mid){ return "iva_core_report_" + (mid || "anon"); }
+function saveCoreReport(mid, data){ try { localStorage.setItem(_coreReportKey(mid), JSON.stringify({ savedAt: Date.now(), data: data })); } catch(e){ console.warn("[IvaBot] saveCoreReport failed", e); } }
+function loadCoreReport(mid){ try { var raw = localStorage.getItem(_coreReportKey(mid)); if(!raw) return null; var o = JSON.parse(raw); if(!o || !o.data) return null; if(Date.now() - (o.savedAt||0) > _CORE_REPORT_TTL){ localStorage.removeItem(_coreReportKey(mid)); return null; } return o.data; } catch(e){ return null; } }
+function clearCoreReport(mid){ try { localStorage.removeItem(_coreReportKey(mid)); } catch(e){} }
 
 const C = {
   bg: "#FBF5FF", surface: "#ffffff", accent: "#6E2BFF", accentLight: "#f3f0fd",
@@ -1438,7 +1445,10 @@ function IvaBotV6() {
     /* URL routing: ?tool=core|builder|coverage */
     const p = new URLSearchParams(window.location.search);
     const t = p.get("tool");
-    if (t && ["core","builder","coverage"].includes(t) && ((t === "core" && cr.core > 0) || (t === "builder" && cr.builder > 0) || (t === "coverage" && cr.coverage > 0))) {
+    const savedCore = (t === "core") ? loadCoreReport(info.id) : null;
+    if (savedCore) {
+      setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Restored your last audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
+    } else if (t && ["core","builder","coverage"].includes(t) && ((t === "core" && cr.core > 0) || (t === "builder" && cr.builder > 0) || (t === "coverage" && cr.coverage > 0))) {
       setTimeout(() => start(t), 100);
     }
   })(); }, []);
@@ -1514,7 +1524,7 @@ function IvaBotV6() {
       ));
       return;
     }
-    setSR(false); setAuditData(null); sPLoad("Analyzing your page...");
+    clearCoreReport(memberId); setSR(false); setAuditData(null); sPLoad("Analyzing your page...");
     setLS(0);
     const setStep = (s) => setLS(prev => Math.max(prev, s));
 
@@ -1645,6 +1655,7 @@ function IvaBotV6() {
       sPLoad(null);
       setSR(true);
       setAuditData(reportData);
+      try { saveCoreReport(memberId, reportData); } catch(e){}
       if (!USE_MOCK) {
         setCredits(prev => ({ ...prev, core: Math.max(0, prev.core - 1) }));
         const isUUID = memberId && /^[0-9a-f]{8}-/.test(memberId);
