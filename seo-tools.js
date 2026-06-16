@@ -179,6 +179,7 @@ const WEBHOOK_URL = "https://hook.eu2.make.com/la0f5jggl23gkearytvw7xjhagwd3ibc"
 const CHAT_WEBHOOK_URL = "https://hook.eu2.make.com/it65d8rtzws93lsnl1jncrcmcwx14xyj";
 const CORS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/fetch-page";
 const SUPABASE_URL = "https://empuzslozakbicmenxfo.supabase.co";
+const CORE_GPT = SUPABASE_URL + "/functions/v1/core-gpt"; /* migrated from Make WEBHOOK_URL (audit) + CHAT_WEBHOOK_URL (chat); old consts kept for rollback */
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
 
 /* IvaBot security step 1: send the logged-in user's session token instead of the anon key.
@@ -1542,10 +1543,10 @@ function IvaBotV6() {
         setStep(3);
         let gpt = null;
         try {
-          const makeRes = await fetch(WEBHOOK_URL, {
+          const makeRes = await fetch(CORE_GPT, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ member_id: memberId || "UNKNOWN", parsed_data: parsed.summary, domain, primary_keyword: fallbackKw })
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
+            body: JSON.stringify({ step: "audit", member_id: memberId || "UNKNOWN", parsed_data: parsed.summary, domain, primary_keyword: fallbackKw })
           });
           if (!makeRes.ok) throw new Error("Make HTTP " + makeRes.status);
           const raw = await makeRes.text();
@@ -1767,10 +1768,11 @@ function IvaBotV6() {
       try {
         const d = auditData || A;
         const history = msgs.filter(m => typeof m.content === "string").slice(-10).map(m => `${m.from === "bot" ? "IvaBot" : "User"}: ${m.content}`).join("\n");
-        const res = await fetch(CHAT_WEBHOOK_URL, {
+        const res = await fetch(CORE_GPT, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
           body: JSON.stringify({
+            step: "chat",
             audit_context: `Page: ${d.url}\nScore: ${d.score}/100\nTitle: "${d.title}"\nDescription: "${d.desc}"\nKeywords: ${d.keywords?.join(", ") || "N/A"}\nH1: ${d.headings?.filter(h=>h.level==="H1").map(h=>h.text).join(", ") || "none"}\nH2: ${d.headings?.filter(h=>h.level==="H2").map(h=>h.text).join(", ") || "none"}\nInternal links: ${d.links?.internal || 0}\nExternal links: ${d.links?.external || 0}\nSocial: ${d.links?.social?.map(s => typeof s === "string" ? s : s.name).join(", ") || "none"}\nHas CTA: ${d.ux?.cta?.found || false}\nMobile: ${d.ux?.mobile || false}\nrobots.txt: ${d.robotsStatus || "unknown"}\nsitemap: ${d.sitemapStatus || "unknown"}`,
             chat_history: history,
             question: text
