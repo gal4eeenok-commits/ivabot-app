@@ -1447,7 +1447,7 @@ function IvaBotV6() {
     const t = p.get("tool");
     const savedCore = (t === "core") ? loadCoreReport(info.id) : null;
     if (savedCore) {
-      setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Restored your last audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
+      setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Here's your latest audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
     } else if (t && ["core","builder","coverage"].includes(t) && ((t === "core" && cr.core > 0) || (t === "builder" && cr.builder > 0) || (t === "coverage" && cr.coverage > 0))) {
       setTimeout(() => start(t), 100);
     }
