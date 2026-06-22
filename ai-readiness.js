@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v1.5 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v1.6 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v1.5 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v1.6 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1955,48 +1955,27 @@ const DownloadLink = ({ onClick, label }) => (
   <button onClick={onClick || (() => {})} style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 4, padding: 0, flexShrink: 0 }}>{label || "Download"}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>
 );
 
-const TrackLink = ({ tracking, onTrack, onOpen }) => (
-  tracking
-    ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "#9B7AE6" }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>Tracking <span style={{ color: "rgba(21,20,21,0.3)", fontWeight: 600 }}>·</span> <button onClick={onOpen} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>Open dashboard</button></span>
-    : <span style={{ display: "inline-flex", alignItems: "center", gap: 14 }}><button onClick={onTrack} className="bot-tip-expand" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 4 }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></svg>Track in dashboard</button><button onClick={onOpen} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>Open dashboard</button></span>
-);
-
-const TrustRow = ({ row, first }) => {
-  const [open, setOpen] = useState(false);
-  const [tracking, setTracking] = useState(false);
-  const low = row.status === "low";
-  return (
-    <div style={{ padding: "14px 0", borderTop: first ? "none" : "1px solid rgba(21,20,21,0.06)" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{row.label}</span>
-            <QM text={row.tip} />
-          </div>
-          {row.sub && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{row.sub}</div>}
-        </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, whiteSpace: "nowrap" }}>{row.value}</div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{row.period}</div>
-        </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: 10, color: low ? C.accent : "#9B7AE6", background: low ? "rgba(110,43,255,0.08)" : "rgba(155,122,230,0.12)" }}>{low ? "Needs work" : "Looks good"}</span>
-        <button onClick={() => setOpen(!open)} className="bot-tip-expand" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 4 }}>{low ? "Why and how to improve" : "What this tells you"}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}><polyline points="6 9 12 15 18 9" /></svg></button>
-        <span style={{ flex: 1, minWidth: 8 }} />
-        <DownloadLink onClick={row.onDownload} />
-        <TrackLink tracking={tracking} onTrack={() => setTracking(true)} onOpen={() => { window.location.href = DASHBOARD_URL; }} />
-      </div>
-      {open && <div style={{ marginTop: 10, padding: "12px 14px", borderRadius: 10, background: C.accentLight, fontSize: 12, color: C.dark, lineHeight: 1.6 }}>{row.detail}</div>}
+const TrustTable = ({ rows, dashHref }) => (
+  <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
+    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Trust and authority</span>
+      <a href={dashHref || DASHBOARD_URL} title="Open in dashboard" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, color: C.accent, textDecoration: "none", flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.background = "rgba(110,43,255,0.08)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>
+      </a>
     </div>
-  );
-};
-
-const TrustTable = ({ rows }) => (
-  <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, overflow: "hidden", border: `1px solid ${C.cardBorder}`, background: C.surface }}>
-    <div style={{ background: C.card, padding: "12px 16px", fontSize: 14, fontWeight: 700, color: C.dark }}>Trust and authority</div>
-    <div style={{ padding: "2px 16px 10px" }}>
-      {(rows || []).map((r, i) => <TrustRow key={i} row={r} first={i === 0} />)}
+    <div style={{ padding: "2px 16px 8px" }}>
+      {(rows || []).map((r, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "13px 0", borderTop: i ? "1px solid rgba(21,20,21,0.06)" : "none" }}>
+          <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{r.label}</span>
+            <QM text={r.tip} />
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: C.dark, whiteSpace: "nowrap" }}>{r.value}</span>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{r.period}</div>
+          </div>
+        </div>
+      ))}
     </div>
   </div>
 );
@@ -2005,12 +1984,12 @@ const TrustTable = ({ rows }) => (
 const DASHBOARD_URL = "/dashboard";
 
 /* Example rows so the layout is visible before live data is connected.
-   AI citations is set to 0 on purpose, to show the "Needs work" state next to healthy rows. */
+   AI citations is 0 on purpose, to show the "needs work" path into the folds. */
 const DEMO_TRUST_ROWS = [
-  { label: "AI citations of your page", sub: "Times an AI answer linked to this page", value: "0", period: "last 30 days", status: "low", tip: "How many times AI answers (ChatGPT, Perplexity, Google AI) linked directly to this exact page in the last 30 days. The dashboard keeps the full history over time.", detail: "Citations are the strongest AI signal — they mean an AI answer sent users to your page. Zero is normal for newer pages. To earn them: give the page clear, self-contained answers AI can lift, add FAQ and schema, and get the page mentioned on sites AI tools read. The \"Where to mention this page\" tips below are the fastest lever." },
-  { label: "AI mentions of your brand", sub: "Brand named in AI answers, no link", value: "47", period: "last 30 days", status: "ok", tip: "How often AI answers named your brand without linking, in the last 30 days. Full history lives in the dashboard.", detail: "Mentions mean AI tools know your brand even when they don't link it. To grow them, get named in the places listed under \"Where to mention this page\" below — that is the same lever that turns mentions into citations over time." },
-  { label: "Web mentions of your brand", sub: "84% positive sentiment", value: "89", period: "last 30 days", status: "ok", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment. The dashboard tracks the trend over time.", detail: "Web mentions feed both SEO and AI trust. Keep the share of positive mentions high, and where a site names you without linking, ask for the link." },
-  { label: "Backlinks to your page", sub: "312 referring domains", value: "1,240", period: "total · +18 new", status: "ok", tip: "Total links from other sites to this page, all-time, plus how many arrived recently. The dashboard shows growth over time.", detail: "Backlinks are cumulative, so the number is a running total with new links called out. Favour links from relevant, higher-authority domains over raw volume." },
+  { key: "citations", label: "AI citations of your page", value: "0", period: "last 30 days", status: "low", tip: "How many times AI answers (ChatGPT, Perplexity, Google AI) linked directly to this exact page in the last 30 days. The dashboard keeps the full history over time.", badTitle: "No AI citations yet", why: "Citations are the strongest AI signal \u2014 an AI answer pointed users straight to your page. Zero is normal for newer pages.", fix: ["Give the page clear, self-contained answers AI can lift word for word", "Add FAQ and schema so AI can parse the page", "Get the page mentioned on the sites AI tools read most: Reddit, industry blogs, and \"best of\" listicles"] },
+  { key: "mentions", label: "AI mentions of your brand", value: "47", period: "last 30 days", status: "ok", tip: "How often AI answers named your brand without linking, in the last 30 days. Full history lives in the dashboard.", goodNote: "AI tools name your brand even without linking. Keep earning mentions and some turn into citations over time.", badTitle: "Few AI mentions of your brand", why: "Mentions mean AI tools recognise your brand. Few mentions means you are not yet on the sources AI reads.", fix: ["Get named in roundups, comparisons, and \"best of\" lists in your niche", "Answer questions on Reddit and Quora where your topic comes up", "Publish on third-party blogs and directories AI tools crawl"] },
+  { key: "web", label: "Web mentions of your brand", value: "89", period: "last 30 days", status: "ok", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment. The dashboard tracks the trend over time.", goodNote: "84% positive sentiment across the open web. Where a site names you without a link, ask for the link.", badTitle: "Few web mentions of your brand", why: "Web mentions feed both SEO and AI trust. Few of them means limited third-party validation.", fix: ["Pitch short guest posts or expert quotes to sites in your niche", "List the brand in relevant directories and communities", "Turn unlinked mentions into links by reaching out"] },
+  { key: "backlinks", label: "Backlinks to your page", value: "1,240", period: "total \u00b7 +18 new", status: "ok", tip: "Total links from other sites to this page, all-time, plus how many arrived recently. The dashboard shows growth over time.", goodNote: "312 referring domains. Favour links from relevant, higher-authority sites over raw volume.", badTitle: "Few backlinks to your page", why: "Backlinks remain a strong trust signal for both Google and AI search.", fix: ["Earn links with original data, tools, or guides worth citing", "Pitch guest posts and digital PR to relevant sites", "Get listed on resource pages and from partners you already work with"] },
 ];
 
 const AIReadinessPlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
@@ -2036,27 +2015,32 @@ const AIReadinessReport = ({ data }) => {
   const score = typeof ai.score === "number" ? Math.round(ai.score) : 0;
   const t = data.trust || {};
 
+  const trustRows = (t.rows && t.rows.length) ? t.rows : DEMO_TRUST_ROWS;
+  const trustGood = trustRows.filter(r => r.status !== "low");
+  const trustBad = trustRows.filter(r => r.status === "low");
+  const extractableBad = aiBad.some(p => p.title === "Extractable passages");
+  const showPassages = ai.extractablePassages && ai.extractablePassages.length > 0 && !extractableBad;
+  const wwCount = aiGood.length + trustGood.length + (showPassages ? 1 : 0);
+  const niCount = aiBad.length + trustBad.length;
+  let _host = ""; try { _host = new URL(data.url).hostname; } catch (e) {}
+  const dashHref = DASHBOARD_URL + (_host ? "?domain=" + encodeURIComponent(_host) : "");
+
   return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
-    <BotNote text="Here's how ready your page is for AI search. I'll show what's already working, what to fix first, and where to mention the page to earn citations." />
+    <BotNote text="Here's how ready your page is for AI search. The table gives your trust signals at a glance, then everything is sorted into what's working and what to fix first." />
 
     <AIReadinessScoreCard url={data.url} score={score} passed={passed} total={total} />
 
     {TRUST_PREVIEW && <>
-      <BotNote text="Trust and authority. The numbers below are an example to show the layout \u2014 live data connects after the new data sources are added." />
-      <TrustTable rows={(t.rows && t.rows.length) ? t.rows : DEMO_TRUST_ROWS} />
+      <BotNote text="Trust and authority at a glance. The numbers below are an example \u2014 live data connects after the new data sources are added. The icon opens this domain in your dashboard, where history is tracked automatically." />
+      <TrustTable rows={trustRows} dashHref={dashHref} />
       {t.hasLocalBusiness && <RatingBlock rating={t.rating} count={t.reviewCount} positive={t.positiveCount} critical={t.criticalCount} dist={t.reviewDist} />}
     </>}
 
-    <BotNote text={aiGood.length > 0 ? `${aiGood.length} AI search signals are in place.` : "Let's check how AI search tools see your page."} />
-    {(aiGood.length > 0 || (ai.extractablePassages && ai.extractablePassages.length > 0)) && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={aiGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{ai.extractablePassages && ai.extractablePassages.length > 0 && <WorkingItem title="Passages AI is most likely to quote" content={(<><BotNote inline text="AI search tools like ChatGPT and Perplexity tend to pull self-contained passages (roughly 100–180 words) straight into their answers. These are the strongest candidates on your page right now." /><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>{ai.extractablePassages.map((p, i) => (<div key={"pq" + i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div></div>))}</div></>)} />}{aiGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+    <BotNote text={wwCount > 0 ? `${wwCount} signal${wwCount !== 1 ? "s" : ""} working in your favour.` : "Let's see how AI search reads your page."} />
+    {wwCount > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={wwCount} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{showPassages && <WorkingItem title="Passages AI is most likely to quote" content={(<><BotNote inline text="AI search tools like ChatGPT and Perplexity tend to pull self-contained passages (roughly 100–180 words) straight into their answers. These are the strongest candidates on your page right now." /><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>{ai.extractablePassages.map((p, i) => (<div key={"pq" + i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div></div>))}</div></>)} />}{aiGood.map((g, i) => <WorkingItem key={"ag" + i} title={g.title} content={g.content} />)}{trustGood.map((r, i) => <WorkingItem key={"tg" + i} title={r.label} content={(<div><div style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: 4 }}>{r.value} <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>· {r.period}</span></div><div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{r.goodNote}</div></div>)} />)}</div></Fold></div>}
 
-    <BotNote text={aiBad.length > 0 ? `${aiBad.length} AI readiness signals need improvement.` : "All AI readiness signals are in place!"} />
-    {aiBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="AI Search Optimization — Needs Improvement" count={aiBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
-
-    <BotNote text="Here are some tips on where to mention this page to build AI citation signals." />
-    <div className="reveal" style={{ marginBottom: 20 }}>
-      <DistributionTipsBlock tips={distributionTipsForPageType(data.pageType || "other")} />
-    </div>
+    <BotNote text={niCount > 0 ? `${niCount} signal${niCount !== 1 ? "s" : ""} to improve. Each card opens with what to do.` : "All signals are in place!"} />
+    {niCount > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="AI Search Optimization — Needs Improvement" count={niCount} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={"ab" + i} {...p} />)}{trustBad.map((r, i) => <ProblemCard key={"tb" + i} title={r.badTitle || r.label} why={r.why} current={r.value} currentLabel="Currently" suggestions={r.fix} sugLabel="How to improve" showCopy={false} priority="important" />)}</div></Fold></div>}
   </div>);
 };
 
