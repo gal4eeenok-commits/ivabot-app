@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v1.6 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v1.9 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v1.6 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v1.9 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1980,16 +1980,58 @@ const TrustTable = ({ rows, dashHref }) => (
   </div>
 );
 
+const Chip = ({ children, color }) => <span style={{ fontSize: 11, fontWeight: 600, color: color || C.accent, background: "rgba(110,43,255,0.08)", padding: "3px 9px", borderRadius: 8, display: "inline-block" }}>{children}</span>;
+
+const TrustDetail = ({ row }) => {
+  if (row.key === "mentions") {
+    return (<div>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>{row.goodNote}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Named by</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>{(row.engines || []).map((e, i) => <Chip key={i}>{e.name} · {e.n}</Chip>)}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Appeared for these prompts</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{(row.queries || []).map((q, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "7px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}>“{q}”</div>)}</div>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 10 }}>Sentiment: {row.sentiment}</div>
+    </div>);
+  }
+  if (row.key === "web") {
+    const s = row.sentimentSplit || {};
+    return (<div>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>{row.goodNote}</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}><Chip color="#9B7AE6">{s.pos} positive</Chip><Chip color={C.muted}>{s.neu} neutral</Chip><Chip color="#B89CF0">{s.neg} negative</Chip></div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Top domains mentioning you</div>
+      <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.9 }}>{(row.topDomains || []).join(" · ")}</div>
+    </div>);
+  }
+  if (row.key === "backlinks") {
+    return (<div>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>{row.goodNote}</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}><Chip color="#9B7AE6">+{row.newCount} new</Chip><Chip color="#B89CF0">−{row.lostCount} lost</Chip></div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Top anchors</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>{(row.anchors || []).map((a, i) => <Chip key={i} color={C.dark}>{a.a} · {a.n}</Chip>)}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Top referring domains</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>{(row.refDomains || []).map((d, i) => <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.dark }}><span>{d.d}</span><span style={{ color: C.muted }}>DR {d.dr}</span></div>)}</div>
+    </div>);
+  }
+  return <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{row.goodNote}</div>;
+};
+
+const AIOverviewDemo = () => (<div>
+  <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>Whether your tracked queries trigger a Google AI Overview, and whether your page is cited inside it. Connects to live data after the new sources are added.</div>
+  <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}><Chip color="#9B7AE6">Cited in 2 of 5</Chip><Chip color={C.muted}>3 trigger an AI Overview</Chip></div>
+  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{[{ q: "best collagen supplement", cited: true }, { q: "collagen for joints", cited: true }, { q: "marine collagen benefits", cited: false }].map((r, i) => <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: C.dark, padding: "7px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span>“{r.q}”</span><span style={{ fontSize: 11, fontWeight: 600, color: r.cited ? "#9B7AE6" : C.muted }}>{r.cited ? "You're cited" : "Not cited"}</span></div>)}</div>
+</div>);
 /* Dashboard route — confirm the real path and update here once. */
 const DASHBOARD_URL = "/dashboard";
 
 /* Example rows so the layout is visible before live data is connected.
    AI citations is 0 on purpose, to show the "needs work" path into the folds. */
+const DEMO_RATING = { rating: 4.6, count: 128, positive: 112, critical: 9, dist: [ { label: "5\u2605", n: 92, pct: 72 }, { label: "4\u2605", n: 20, pct: 16 }, { label: "3\u2605", n: 7, pct: 5 }, { label: "2\u2605", n: 4, pct: 3, bad: true }, { label: "1\u2605", n: 5, pct: 4, bad: true } ] };
+
 const DEMO_TRUST_ROWS = [
-  { key: "citations", label: "AI citations of your page", value: "0", period: "last 30 days", status: "low", tip: "How many times AI answers (ChatGPT, Perplexity, Google AI) linked directly to this exact page in the last 30 days. The dashboard keeps the full history over time.", badTitle: "No AI citations yet", why: "Citations are the strongest AI signal \u2014 an AI answer pointed users straight to your page. Zero is normal for newer pages.", fix: ["Give the page clear, self-contained answers AI can lift word for word", "Add FAQ and schema so AI can parse the page", "Get the page mentioned on the sites AI tools read most: Reddit, industry blogs, and \"best of\" listicles"] },
-  { key: "mentions", label: "AI mentions of your brand", value: "47", period: "last 30 days", status: "ok", tip: "How often AI answers named your brand without linking, in the last 30 days. Full history lives in the dashboard.", goodNote: "AI tools name your brand even without linking. Keep earning mentions and some turn into citations over time.", badTitle: "Few AI mentions of your brand", why: "Mentions mean AI tools recognise your brand. Few mentions means you are not yet on the sources AI reads.", fix: ["Get named in roundups, comparisons, and \"best of\" lists in your niche", "Answer questions on Reddit and Quora where your topic comes up", "Publish on third-party blogs and directories AI tools crawl"] },
-  { key: "web", label: "Web mentions of your brand", value: "89", period: "last 30 days", status: "ok", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment. The dashboard tracks the trend over time.", goodNote: "84% positive sentiment across the open web. Where a site names you without a link, ask for the link.", badTitle: "Few web mentions of your brand", why: "Web mentions feed both SEO and AI trust. Few of them means limited third-party validation.", fix: ["Pitch short guest posts or expert quotes to sites in your niche", "List the brand in relevant directories and communities", "Turn unlinked mentions into links by reaching out"] },
-  { key: "backlinks", label: "Backlinks to your page", value: "1,240", period: "total \u00b7 +18 new", status: "ok", tip: "Total links from other sites to this page, all-time, plus how many arrived recently. The dashboard shows growth over time.", goodNote: "312 referring domains. Favour links from relevant, higher-authority sites over raw volume.", badTitle: "Few backlinks to your page", why: "Backlinks remain a strong trust signal for both Google and AI search.", fix: ["Earn links with original data, tools, or guides worth citing", "Pitch guest posts and digital PR to relevant sites", "Get listed on resource pages and from partners you already work with"] },
+  { key: "citations", label: "AI citations of your page", value: "0", period: "last 30 days", status: "low", tip: "How many times AI answers (ChatGPT, Perplexity, Google AI) linked directly to this exact page in the last 30 days. When you earn them, we show which engine cited you and for which prompt. The dashboard keeps the full history.", badTitle: "No AI citations yet", why: "Citations are the strongest AI signal \u2014 an AI answer pointed users straight to your page. Zero is normal for newer pages.", fix: ["Give the page clear, self-contained answers AI can lift word for word", "Add FAQ and schema so AI can parse the page", "Get the page mentioned on the sites AI tools read most: Reddit, industry blogs, and \"best of\" listicles"] },
+  { key: "mentions", label: "AI mentions of your brand", value: "47", period: "last 30 days", status: "ok", tip: "How often AI answers named your brand without linking, in the last 30 days, broken down by engine and prompt. Full history lives in the dashboard.", goodNote: "AI tools know your brand even without linking, and mentions turn into citations over time.", engines: [{ name: "ChatGPT", n: 21 }, { name: "Perplexity", n: 14 }, { name: "Google AI Overviews", n: 12 }], queries: ["best collagen supplement", "collagen for joints", "is marine collagen worth it"], sentiment: "84% positive", badTitle: "Few AI mentions of your brand", why: "Mentions mean AI tools recognise your brand. Few mentions means you are not yet on the sources AI reads.", fix: ["Get named in roundups, comparisons, and \"best of\" lists in your niche", "Answer questions on Reddit and Quora where your topic comes up", "Publish on third-party blogs and directories AI tools crawl"] },
+  { key: "web", label: "Web mentions of your brand", value: "89", period: "last 30 days", status: "ok", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment and the domains writing about you. The dashboard tracks the trend over time.", goodNote: "Web mentions feed both SEO and AI trust. Where a site names you without a link, ask for the link.", sentimentSplit: { pos: 75, neu: 11, neg: 3 }, topDomains: ["reddit.com", "healthline.com", "wellnessmag.co", "nutritiondaily.net"], badTitle: "Few web mentions of your brand", why: "Web mentions feed both SEO and AI trust. Few of them means limited third-party validation.", fix: ["Pitch short guest posts or expert quotes to sites in your niche", "List the brand in relevant directories and communities", "Turn unlinked mentions into links by reaching out"] },
+  { key: "backlinks", label: "Backlinks to your page", value: "1,240", period: "total \u00b7 +18 new", status: "ok", tip: "Total links to this page, all-time, with new and lost links, top anchors, and the authority of the sites linking. The dashboard shows growth over time.", goodNote: "Favour links from relevant, higher-authority sites over raw volume.", newCount: 18, lostCount: 3, anchors: [{ a: "marine collagen", n: 42 }, { a: "collagen powder", n: 28 }, { a: "VitaBoost", n: 19 }], refDomains: [{ d: "healthline-style-blog.com", dr: 71 }, { d: "supplementreviews.io", dr: 52 }, { d: "wellnessmag.co", dr: 40 }], badTitle: "Few backlinks to your page", why: "Backlinks remain a strong trust signal for both Google and AI search.", fix: ["Earn links with original data, tools, or guides worth citing", "Pitch guest posts and digital PR to relevant sites", "Get listed on resource pages and from partners you already work with"] },
 ];
 
 const AIReadinessPlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
@@ -2033,14 +2075,39 @@ const AIReadinessReport = ({ data }) => {
     {TRUST_PREVIEW && <>
       <BotNote text="Trust and authority at a glance. The numbers below are an example \u2014 live data connects after the new data sources are added. The icon opens this domain in your dashboard, where history is tracked automatically." />
       <TrustTable rows={trustRows} dashHref={dashHref} />
-      {t.hasLocalBusiness && <RatingBlock rating={t.rating} count={t.reviewCount} positive={t.positiveCount} critical={t.criticalCount} dist={t.reviewDist} />}
+      {(t.hasLocalBusiness || TRUST_PREVIEW) && <div style={{ marginBottom: 20 }}>
+        <BotNote text="Google reviews. This block shows only for pages tied to a local business profile. Numbers below are an example. Critical reviews are in lavender, not red \u2014 a calm public reply to a bad review builds more trust than hiding it." />
+        <RatingBlock rating={t.rating != null ? t.rating : DEMO_RATING.rating} count={t.reviewCount != null ? t.reviewCount : DEMO_RATING.count} positive={t.positiveCount != null ? t.positiveCount : DEMO_RATING.positive} critical={t.criticalCount != null ? t.criticalCount : DEMO_RATING.critical} dist={t.reviewDist || DEMO_RATING.dist} />
+      </div>}
     </>}
 
     <BotNote text={wwCount > 0 ? `${wwCount} signal${wwCount !== 1 ? "s" : ""} working in your favour.` : "Let's see how AI search reads your page."} />
-    {wwCount > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={wwCount} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{showPassages && <WorkingItem title="Passages AI is most likely to quote" content={(<><BotNote inline text="AI search tools like ChatGPT and Perplexity tend to pull self-contained passages (roughly 100–180 words) straight into their answers. These are the strongest candidates on your page right now." /><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>{ai.extractablePassages.map((p, i) => (<div key={"pq" + i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div></div>))}</div></>)} />}{aiGood.map((g, i) => <WorkingItem key={"ag" + i} title={g.title} content={g.content} />)}{trustGood.map((r, i) => <WorkingItem key={"tg" + i} title={r.label} content={(<div><div style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: 4 }}>{r.value} <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>· {r.period}</span></div><div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{r.goodNote}</div></div>)} />)}</div></Fold></div>}
+    {wwCount > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={wwCount} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{showPassages && <WorkingItem title="Passages AI is most likely to quote" content={(<><BotNote inline text="AI search tools like ChatGPT and Perplexity tend to pull self-contained passages (roughly 100–180 words) straight into their answers. These are the strongest candidates on your page right now." /><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>{ai.extractablePassages.map((p, i) => (<div key={"pq" + i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div></div>))}</div></>)} />}{aiGood.map((g, i) => <WorkingItem key={"ag" + i} title={g.title} content={g.content} />)}{trustGood.map((r, i) => <WorkingItem key={"tg" + i} title={r.label + " · " + r.value} content={<TrustDetail row={r} />} />)}{TRUST_PREVIEW && <WorkingItem title="AI Overview presence (Google)" content={<AIOverviewDemo />} />}</div></Fold></div>}
 
     <BotNote text={niCount > 0 ? `${niCount} signal${niCount !== 1 ? "s" : ""} to improve. Each card opens with what to do.` : "All signals are in place!"} />
     {niCount > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="AI Search Optimization — Needs Improvement" count={niCount} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={"ab" + i} {...p} />)}{trustBad.map((r, i) => <ProblemCard key={"tb" + i} title={r.badTitle || r.label} why={r.why} current={r.value} currentLabel="Currently" suggestions={r.fix} sugLabel="How to improve" showCopy={false} priority="important" />)}</div></Fold></div>}
+    {(aiBad.length + trustBad.length) > 0 && <>
+      <BotNote text="In short — fix these first, starting with anything marked critical." />
+      <div className="reveal" style={{ marginBottom: 8, padding: 20, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 12 }}>Final recommendations</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[...aiBad, ...trustBad.map(r => ({ title: r.badTitle || r.label, why: r.why, suggestions: r.fix, priority: "important" }))]
+            .sort((a, b) => (({ critical: 0, important: 1, nice: 2 }[a.priority]) ?? 1) - (({ critical: 0, important: 1, nice: 2 }[b.priority]) ?? 1))
+            .slice(0, 5)
+            .map((item, i) => { const pr = PRIO[item.priority] || PRIO.important; return (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <span style={{ color: pr.color, fontSize: 10, marginTop: 4 }}>●</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{item.title}</span><span style={{ fontSize: 9, fontWeight: 600, color: pr.color, background: pr.bg, padding: "2px 7px", borderRadius: 5, textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0 }}>{pr.label}</span></div>
+                  {item.why && typeof item.why === "string" && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions && item.suggestions[0] ? 6 : 0 }}>{item.why.length > 150 ? item.why.slice(0, 147) + "..." : item.why}</div>}
+                  {item.suggestions && item.suggestions.length > 0 && typeof item.suggestions[0] === "string" && <div style={{ padding: "8px 10px", borderRadius: 6, background: C.bg }}><div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>Start with:</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, padding: "2px 0" }}>{item.suggestions[0]}</div></div>}
+                </div>
+              </div>
+            </div>); })}
+          <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-check after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Run AI Readiness again to watch your score move.</div></div></div></div>
+        </div>
+      </div>
+    </>}
   </div>);
 };
 
