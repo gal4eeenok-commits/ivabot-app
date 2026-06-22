@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v1.3 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v1.4 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v1.3 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v1.4 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -573,7 +573,7 @@ const AI_CHECK_LABELS = {
   og: "Open Graph tags",
   author: "Author information",
   dates: "Last updated date",
-  citations: "Authoritative citations",
+  citations: "Outbound links",
   statistics: "Statistics & data",
   extractable: "Extractable passages",
   tldr: "TL;DR or quick summary",
@@ -664,6 +664,7 @@ function mapCheckKey(checkName) {
 function aiReadinessPriority(checkName, weight) {
   /* Critical if check has high weight (>= 15), important if moderate (>= 8), nice if low */
   if (checkName === "llms") return "nice";
+  if (checkName === "citations") return "nice";
   if (weight >= 15) return "critical";
   if (weight >= 8) return "important";
   return "nice";
@@ -709,13 +710,13 @@ function aiReadinessWhy(checkName, pageType) {
   const why = {
     schema: "**Schema.org is special code that tells AI what your page is about.** Without it, AI search tools may skip you when answering user questions.",
     faq: "**FAQ schema marks Q&A pairs on your page so AI can find them.** Pages with FAQ schema are more likely to be quoted in ChatGPT or Perplexity answers.",
-    llms: "**llms.txt is a simple text file telling AI tools what's important on your site** (like robots.txt for AI). Adding it puts you ahead of 99% of websites.",
+    llms: "**llms.txt is a simple text file telling AI tools what's important on your site** (like robots.txt for AI). It is optional \u2014 even if it shows up here, your page is completely fine without it. Adding it simply puts you ahead of most websites.",
     bots: "**AI crawlers are bots like GPTBot and ClaudeBot that read your site for AI search.** If your robots.txt blocks them, ChatGPT and Perplexity won't recommend you.",
     qa: "**Question patterns are headings written as actual questions** (\"What is X?\", \"How to Y?\"). They match how users ask AI tools, so your page gets cited more often.",
     og: "**Open Graph tags control how your link looks when shared online** — title, description, preview image. Without them, AI tools may skip your page.",
     author: "**Author information is markup or visible text saying who wrote the page.** AI tools trust pages with clear authorship and rarely cite anonymous content.",
     dates: "**A \"last updated\" date shows AI when the page was last edited.** AI prefers fresh content — without this, your page looks outdated even if it isn't.",
-    citations: "**Citations are external links to trusted sources** (.edu, .gov, well-known sites). They signal to AI that you do real research, increasing your chances of being cited.",
+    citations: "**Outbound links are links from your page out to other websites.** Linking to relevant, trustworthy sources can complement your content, but it is optional and not a ranking factor on its own \u2014 your page is fine without them.",
     statistics: "**Statistics are concrete numbers in your content** (like \"60% of users\" or \"$5 to start\"). AI loves quoting specific numbers more than vague claims.",
     extractable: "**Extractable passages are paragraphs 100-180 words long that answer one clear question.** AI search engines like ChatGPT and Perplexity pull these chunks directly into their answers — pages without them get summarised, not quoted.",
     tldr: "**A TL;DR or quick summary near the top helps AI engines understand your page in one read.** Pages with a clear summary section get cited 28% more often by ChatGPT and Google AI Overviews.",
@@ -736,7 +737,7 @@ function aiReadinessSuggestions(checkName) {
     og: ["Add og:title, og:description, og:image, og:type, og:url meta tags", "Image should be 1200×630 px for best preview results", "Also add Twitter Card tags (twitter:card, twitter:title, twitter:description, twitter:image) — they control previews on Slack, Discord, iMessage, LinkedIn, X, and other apps"],
     author: ["Add Person schema with author name, url, optional image", "Or add visible byline like \"By [Name]\" near the top of articles", "Link to author bio page if possible"],
     dates: ["Add datePublished and dateModified to your Schema.org markup", "Update dateModified whenever you edit the page", "Show the date visibly on the page (\"Last updated: [date]\")"],
-    citations: ["Link to 2-3 authoritative external sources (.gov, .edu, well-known industry sites)", "Cite specific studies, official documentation, or reputable publications", "Use full URLs (not shortened)"],
+    citations: ["Optional: where it genuinely helps the reader, link out to 1-2 relevant, trustworthy sources", "Cite specific studies or official documentation when you reference them", "Don't add links just for SEO \u2014 only when they help the reader"],
     statistics: ["Add at least 5 specific numbers, percentages, or stats to your content", "Use formats like \"60% of users\", \"$5 starts\", \"3x faster\", \"10,000 customers\"", "Cite the source for each statistic when possible"],
     extractable: ["Aim for 3+ paragraphs in the 100-180 word range across the page", "Each paragraph should answer one specific question or cover one clear point", "Avoid very short paragraphs (under 50 words) for key explanations"],
     tldr: ["Add a short summary section (50-200 words) right after your H1", "Label it \"TL;DR\", \"Quick summary\", \"In short\", or similar", "Include the main answer to the page's core question in those first lines"],
@@ -1775,7 +1776,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
     {typ && <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}><div style={{ marginBottom: 3, marginLeft: 2 }}><BL s={16} /></div><div style={{ padding: "10px 14px", borderRadius: "4px 12px 12px 12px", background: C.surface, border: `1px solid ${C.border}` }}><div className="typing-dots"><span /><span /><span /></div></div></div>}
   </React.Fragment>;
 
-  const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><AIReadinessReport data={auditData} /></div> : <CoveragePlaceholder />}</React.Fragment>;
+  const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><AIReadinessReport data={auditData} /></div> : <AIReadinessPlaceholder />}</React.Fragment>;
   const placeholder = step === "url" ? "Paste your URL here..." : "Ask me anything about AI readiness...";
   const inputDisabled = step === "parsing";
 
@@ -1889,7 +1890,7 @@ const BacklinksBlock = ({ total, domains, rows, onDownload }) => (
 
 const RatingBlock = ({ rating, count, positive, critical, dist }) => {
   const [o, setO] = useState(false);
-  const goodC = "#9B7AE6", badC = C.accent;
+  const goodC = "#9B7AE6", badC = "#B89CF0";
   const stars = Math.round(rating || 0);
   return (
     <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", background: C.surface, marginBottom: 20 }}>
@@ -1950,6 +1951,48 @@ const AIReadinessScoreCard = ({ url, score, passed, total }) => {
 };
 
 /* Trust & Authority blocks are drafted now; numbers connect to live data after the new data sources are added. */
+const DownloadLink = ({ onClick, label }) => (
+  <button onClick={onClick || (() => {})} style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 4, padding: 0, flexShrink: 0 }}>{label || "Download"}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>
+);
+
+const TrustTable = ({ rows }) => (
+  <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, overflow: "hidden", border: `1px solid ${C.cardBorder}`, background: C.surface }}>
+    <div style={{ background: C.card, padding: "12px 16px", fontSize: 14, fontWeight: 700, color: C.dark }}>Trust and authority</div>
+    <div style={{ padding: "2px 16px 8px" }}>
+      {(rows || []).map((r, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "13px 0", borderTop: i ? "1px solid rgba(21,20,21,0.06)" : "none" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{r.label}</div>
+            {r.sub && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{r.sub}</div>}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: C.dark, whiteSpace: "nowrap" }}>{r.value}</span>
+            <DownloadLink onClick={r.onDownload} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/* Example rows so the layout is visible before live data is connected. */
+const DEMO_TRUST_ROWS = [
+  { label: "AI citations of your page", sub: "Times an AI answer linked to this page", value: "12" },
+  { label: "AI mentions of your brand", sub: "Brand named in AI answers, no link", value: "47" },
+  { label: "Web mentions of your brand", sub: "84% positive sentiment", value: "89" },
+  { label: "Backlinks to your page", sub: "312 referring domains", value: "1,240" },
+];
+
+const AIReadinessPlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
+  <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(110,43,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
+  <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 8 }}>Your AI readiness report will appear here</div>
+  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, textAlign: "center", maxWidth: 340, marginBottom: 24 }}>I'll check how ready your page is for AI search — so you know exactly what to fix to get cited by tools like ChatGPT, Perplexity, and Google AI.</div>
+  <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 340 }}>
+    {[{ n: "1", t: "Page type", d: "I detect what kind of page this is, since AI weighs signals differently per type" }, { n: "2", t: "AI search signals", d: "I check schema, FAQ, question patterns, dates, author, and extractable passages" }, { n: "3", t: "Trust & authority", d: "I look at citations, mentions, backlinks, and reviews that build authority" }, { n: "4", t: "Where to get cited", d: "Tips on where to mention this page to earn AI citations" }].map((s, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.08)" }}><div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(155,122,230,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}><span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6" }}>{s.n}</span></div><div><div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{s.t}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.d}</div></div></div>)}
+  </div>
+</div>;
+
+
 const TRUST_PREVIEW = true;
 
 const AIReadinessReport = ({ data }) => {
@@ -1969,16 +2012,9 @@ const AIReadinessReport = ({ data }) => {
     <AIReadinessScoreCard url={data.url} score={score} passed={passed} total={total} />
 
     {TRUST_PREVIEW && <>
-      <BotNote text="Trust and authority. These metrics fill in with live data once the new data sources are connected." />
-      <div className="reveal" style={{ marginBottom: 11 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 11, marginBottom: 11 }}>
-          <TrustCard label="AI citations of your page" total={t.aiCitations} unit="times cited" sourcesLabel="By platform" sources={t.aiCitationsBy} />
-          <TrustCard label="AI mentions of your brand" total={t.aiMentions} unit="named, no link" sourcesLabel="By platform" sources={t.aiMentionsBy} />
-          <TrustCard label="Web mentions of your brand" total={t.webMentions} unit={t.webPositivePct != null ? t.webPositivePct + "% positive" : ""} sourcesLabel="Top domains" sources={t.webMentionsBy} />
-        </div>
-        <BacklinksBlock total={t.backlinks} domains={t.referringDomains} rows={t.backlinkRows} />
-        <RatingBlock rating={t.rating} count={t.reviewCount} positive={t.positiveCount} critical={t.criticalCount} dist={t.reviewDist} />
-      </div>
+      <BotNote text="Trust and authority. The numbers below are an example to show the layout \u2014 live data connects after the new data sources are added." />
+      <TrustTable rows={(t.rows && t.rows.length) ? t.rows : DEMO_TRUST_ROWS} />
+      {t.hasLocalBusiness && <RatingBlock rating={t.rating} count={t.reviewCount} positive={t.positiveCount} critical={t.criticalCount} dist={t.reviewDist} />}
     </>}
 
     <BotNote text={aiGood.length > 0 ? `${aiGood.length} AI search signals are in place.` : "Let's check how AI search tools see your page."} />
