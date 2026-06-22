@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v1.4 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v1.5 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v1.4 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v1.5 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1955,32 +1955,62 @@ const DownloadLink = ({ onClick, label }) => (
   <button onClick={onClick || (() => {})} style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 4, padding: 0, flexShrink: 0 }}>{label || "Download"}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>
 );
 
+const TrackLink = ({ tracking, onTrack, onOpen }) => (
+  tracking
+    ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "#9B7AE6" }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>Tracking <span style={{ color: "rgba(21,20,21,0.3)", fontWeight: 600 }}>·</span> <button onClick={onOpen} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>Open dashboard</button></span>
+    : <span style={{ display: "inline-flex", alignItems: "center", gap: 14 }}><button onClick={onTrack} className="bot-tip-expand" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 4 }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></svg>Track in dashboard</button><button onClick={onOpen} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>Open dashboard</button></span>
+);
+
+const TrustRow = ({ row, first }) => {
+  const [open, setOpen] = useState(false);
+  const [tracking, setTracking] = useState(false);
+  const low = row.status === "low";
+  return (
+    <div style={{ padding: "14px 0", borderTop: first ? "none" : "1px solid rgba(21,20,21,0.06)" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{row.label}</span>
+            <QM text={row.tip} />
+          </div>
+          {row.sub && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{row.sub}</div>}
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, whiteSpace: "nowrap" }}>{row.value}</div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{row.period}</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: 10, color: low ? C.accent : "#9B7AE6", background: low ? "rgba(110,43,255,0.08)" : "rgba(155,122,230,0.12)" }}>{low ? "Needs work" : "Looks good"}</span>
+        <button onClick={() => setOpen(!open)} className="bot-tip-expand" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: C.muted, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 4 }}>{low ? "Why and how to improve" : "What this tells you"}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}><polyline points="6 9 12 15 18 9" /></svg></button>
+        <span style={{ flex: 1, minWidth: 8 }} />
+        <DownloadLink onClick={row.onDownload} />
+        <TrackLink tracking={tracking} onTrack={() => setTracking(true)} onOpen={() => { window.location.href = DASHBOARD_URL; }} />
+      </div>
+      {open && <div style={{ marginTop: 10, padding: "12px 14px", borderRadius: 10, background: C.accentLight, fontSize: 12, color: C.dark, lineHeight: 1.6 }}>{row.detail}</div>}
+    </div>
+  );
+};
+
 const TrustTable = ({ rows }) => (
   <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, overflow: "hidden", border: `1px solid ${C.cardBorder}`, background: C.surface }}>
     <div style={{ background: C.card, padding: "12px 16px", fontSize: 14, fontWeight: 700, color: C.dark }}>Trust and authority</div>
-    <div style={{ padding: "2px 16px 8px" }}>
-      {(rows || []).map((r, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "13px 0", borderTop: i ? "1px solid rgba(21,20,21,0.06)" : "none" }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{r.label}</div>
-            {r.sub && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{r.sub}</div>}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: C.dark, whiteSpace: "nowrap" }}>{r.value}</span>
-            <DownloadLink onClick={r.onDownload} />
-          </div>
-        </div>
-      ))}
+    <div style={{ padding: "2px 16px 10px" }}>
+      {(rows || []).map((r, i) => <TrustRow key={i} row={r} first={i === 0} />)}
     </div>
   </div>
 );
 
-/* Example rows so the layout is visible before live data is connected. */
+/* Dashboard route — confirm the real path and update here once. */
+const DASHBOARD_URL = "/dashboard";
+
+/* Example rows so the layout is visible before live data is connected.
+   AI citations is set to 0 on purpose, to show the "Needs work" state next to healthy rows. */
 const DEMO_TRUST_ROWS = [
-  { label: "AI citations of your page", sub: "Times an AI answer linked to this page", value: "12" },
-  { label: "AI mentions of your brand", sub: "Brand named in AI answers, no link", value: "47" },
-  { label: "Web mentions of your brand", sub: "84% positive sentiment", value: "89" },
-  { label: "Backlinks to your page", sub: "312 referring domains", value: "1,240" },
+  { label: "AI citations of your page", sub: "Times an AI answer linked to this page", value: "0", period: "last 30 days", status: "low", tip: "How many times AI answers (ChatGPT, Perplexity, Google AI) linked directly to this exact page in the last 30 days. The dashboard keeps the full history over time.", detail: "Citations are the strongest AI signal — they mean an AI answer sent users to your page. Zero is normal for newer pages. To earn them: give the page clear, self-contained answers AI can lift, add FAQ and schema, and get the page mentioned on sites AI tools read. The \"Where to mention this page\" tips below are the fastest lever." },
+  { label: "AI mentions of your brand", sub: "Brand named in AI answers, no link", value: "47", period: "last 30 days", status: "ok", tip: "How often AI answers named your brand without linking, in the last 30 days. Full history lives in the dashboard.", detail: "Mentions mean AI tools know your brand even when they don't link it. To grow them, get named in the places listed under \"Where to mention this page\" below — that is the same lever that turns mentions into citations over time." },
+  { label: "Web mentions of your brand", sub: "84% positive sentiment", value: "89", period: "last 30 days", status: "ok", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment. The dashboard tracks the trend over time.", detail: "Web mentions feed both SEO and AI trust. Keep the share of positive mentions high, and where a site names you without linking, ask for the link." },
+  { label: "Backlinks to your page", sub: "312 referring domains", value: "1,240", period: "total · +18 new", status: "ok", tip: "Total links from other sites to this page, all-time, plus how many arrived recently. The dashboard shows growth over time.", detail: "Backlinks are cumulative, so the number is a running total with new links called out. Favour links from relevant, higher-authority domains over raw volume." },
 ];
 
 const AIReadinessPlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
