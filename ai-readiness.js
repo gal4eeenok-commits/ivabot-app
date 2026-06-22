@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v1.1 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v1.3 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v1.1 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v1.3 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1841,6 +1841,117 @@ function AIReadinessTool({ onHome, memberName: mn }) {
   </div>);
 }
 
+const NumBadge = ({ n }) => { const colors = ["#9B7AE6", "#B89CF0", "#D4A0E8"]; const c = colors[(n - 1) % colors.length]; return (<span style={{ width: 22, height: 22, borderRadius: "50%", background: `${c}18`, color: c, fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</span>); };
+
+const DownloadBtn = ({ label, onClick }) => (
+  <button onClick={onClick || (() => {})} style={{ marginTop: "auto", alignSelf: "flex-start", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, height: 34, padding: "0 14px", border: `1px solid ${C.borderMid}`, borderRadius: 9, background: C.surface, color: C.dark, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>{label || "Download"}
+  </button>
+);
+
+const TrustCard = ({ label, total, unit, sourcesLabel, sources, onDownload }) => (
+  <div style={{ border: `1px solid ${C.cardBorder}`, borderRadius: 12, overflow: "hidden", background: C.surface, display: "flex", flexDirection: "column" }}>
+    <div style={{ background: C.card, padding: "12px 14px" }}>
+      <div style={{ fontSize: 12, color: C.dark, marginBottom: 6 }}>{label}</div>
+      <div><span style={{ fontSize: 24, fontWeight: 700, color: C.dark }}>{total != null ? total.toLocaleString() : "—"}</span> <span style={{ fontSize: 12, color: C.muted }}>{unit}</span></div>
+    </div>
+    <div style={{ padding: "8px 14px 12px", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", padding: "6px 0 2px" }}>{sourcesLabel}</div>
+      {(sources || []).map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid rgba(21,20,21,0.06)", fontSize: 12.5 }}><span>{s.name}</span><span style={{ fontWeight: 700, color: C.dark }}>{s.count != null ? s.count.toLocaleString() : "—"}</span></div>
+      ))}
+      <DownloadBtn label="Download all" onClick={onDownload} />
+    </div>
+  </div>
+);
+
+const BacklinksBlock = ({ total, domains, rows, onDownload }) => (
+  <div style={{ border: `1px solid ${C.cardBorder}`, borderRadius: 12, overflow: "hidden", background: C.surface, marginBottom: 20 }}>
+    <div style={{ background: C.card, padding: "13px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Backlinks to your page</span>
+      <span style={{ background: C.surface, borderRadius: 8, padding: "5px 11px", fontSize: 13, fontWeight: 700, color: C.dark }}>{(total != null ? total.toLocaleString() : "—")} links<span style={{ color: C.muted, fontWeight: 600 }}> · </span>{(domains != null ? domains.toLocaleString() : "—")} domains</span>
+    </div>
+    <div style={{ padding: "12px 16px 16px" }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", padding: "4px 0 8px" }}>Top links</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {(rows || []).map((b, i) => (
+          <div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{b.anchor || "(no anchor)"}</span>{b.rank != null && <span style={{ fontSize: 10, fontWeight: 600, color: C.accent, background: "rgba(110,43,255,0.08)", padding: "2px 7px", borderRadius: 6 }}>rank {b.rank}</span>}</div>
+            <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 30 }}>{b.source}{b.date ? ", " + b.date : ""}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "10px 0 0" }}>The full list with every link and its anchor is in the download.</div>
+      <DownloadBtn label="Download" onClick={onDownload} />
+    </div>
+  </div>
+);
+
+const RatingBlock = ({ rating, count, positive, critical, dist }) => {
+  const [o, setO] = useState(false);
+  const goodC = "#9B7AE6", badC = C.accent;
+  const stars = Math.round(rating || 0);
+  return (
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", background: C.surface, marginBottom: 20 }}>
+      <button onClick={() => setO(!o)} style={{ width: "100%", padding: "14px 16px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, fontFamily: "'DM Sans',sans-serif" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <span style={{ fontSize: 30, fontWeight: 700, color: C.dark, lineHeight: 1 }}>{(rating != null ? rating.toFixed(1) : "—")}</span>
+          <span style={{ textAlign: "left" }}>
+            <span style={{ fontSize: 16, letterSpacing: 2, color: C.accent }}>{"★".repeat(stars)}<span style={{ color: "rgba(110,43,255,0.22)" }}>{"★".repeat(Math.max(0, 5 - stars))}</span></span>
+            <span style={{ display: "block", fontSize: 12, color: C.muted, marginTop: 3 }}>{(count != null ? count.toLocaleString() : "—")} Google reviews</span>
+          </span>
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: goodC, background: "rgba(155,122,230,0.12)", padding: "5px 11px", borderRadius: 8 }}>{positive != null ? positive : "—"} positive</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: badC, background: "rgba(110,43,255,0.10)", padding: "5px 11px", borderRadius: 8 }}>{critical != null ? critical : "—"} critical</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{ transform: o ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}><polyline points="6 9 12 15 18 9" /></svg>
+        </span>
+      </button>
+      {o && (
+        <div style={{ padding: "0 16px 16px", borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "12px 0" }}>
+            {(dist || []).map((d, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 11, color: C.muted, width: 36 }}>{d.label}</span><div style={{ flex: 1, height: 6, background: "rgba(21,20,21,0.06)", borderRadius: 100, overflow: "hidden" }}><div style={{ width: d.pct + "%", height: "100%", background: d.bad ? badC : goodC }} /></div><span style={{ fontSize: 11, color: C.muted, width: 28, textAlign: "right" }}>{d.n}</span></div>
+            ))}
+          </div>
+          <BotNote inline text="Reply to critical reviews promptly and publicly. A calm, helpful response to a bad review builds more trust than a wall of five-star ratings, and AI engines increasingly factor review responses into local reputation." />
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 8, borderTop: "1px solid rgba(21,20,21,0.06)", paddingTop: 10 }}>Shown only for pages tied to a local business profile.</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* AI readiness score card — same style as the Coverage score card */
+const AIReadinessScoreCard = ({ url, score, passed, total }) => {
+  const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+  return (<div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+    <div style={{ width: 92, height: 92, flexShrink: 0, borderRadius: 14, background: C.card, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: `1px solid ${C.cardBorder}` }}>
+      <span style={{ fontSize: 28, fontWeight: 700, color: C.dark }}>{score}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>/ 100</span>
+    </div>
+    <div style={{ flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>AI Readiness Score</span>
+        <QM text="How ready your page is to be cited by AI search tools like ChatGPT, Perplexity, and Google AI. The score is an estimate — what matters most depends on your page type. Also known as GEO (Generative Engine Optimization)." />
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Signals passed</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#B89CF0" }}>{passed} / {total}</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pct}%`, background: "#B89CF0", borderRadius: 100, transition: "width 0.8s ease" }} />
+        </div>
+      </div>
+    </div>
+  </div>);
+};
+
+/* Trust & Authority blocks are drafted now; numbers connect to live data after the new data sources are added. */
+const TRUST_PREVIEW = true;
+
 const AIReadinessReport = ({ data }) => {
   const ai = data.aiReadiness || {};
   const aiGood = ai.aiGood || [];
@@ -1849,35 +1960,33 @@ const AIReadinessReport = ({ data }) => {
   aiBad.sort((a, b) => (prioOrder[a.priority] != null ? prioOrder[a.priority] : 1) - (prioOrder[b.priority] != null ? prioOrder[b.priority] : 1));
   const passed = aiGood.length;
   const total = ai.total || (aiGood.length + aiBad.length);
-  const score = typeof ai.score === "number" ? ai.score : 0;
-  const pageTypeLabel = (data.pageType || "other").replace(/_/g, " ");
+  const score = typeof ai.score === "number" ? Math.round(ai.score) : 0;
+  const t = data.trust || {};
 
   return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
     <BotNote text="Here's how ready your page is for AI search. I'll show what's already working, what to fix first, and where to mention the page to earn citations." />
 
-    {/* AI readiness score card */}
-    <div className="reveal" style={{ marginBottom: 16, padding: 20, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}`, display: "flex", alignItems: "center", gap: 20 }}>
-      <div style={{ textAlign: "center", flexShrink: 0 }}>
-        <div style={{ fontSize: 52, fontWeight: 800, color: C.accent, lineHeight: 1 }}>{score}</div>
-        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>out of 100</div>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 2 }}>AI readiness score</div>
-        <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>{passed} of {total} signals passed</div>
-        <div style={{ height: 8, borderRadius: 6, background: "rgba(110,43,255,0.12)", overflow: "hidden", marginBottom: 10 }}><div style={{ height: "100%", width: Math.max(0, Math.min(100, score)) + "%", background: C.accent, borderRadius: 6 }} /></div>
-        <span style={{ fontSize: 11, fontWeight: 600, color: C.accent, background: "rgba(110,43,255,0.08)", padding: "4px 10px", borderRadius: 10 }}>Page type: {pageTypeLabel}</span>
-      </div>
-    </div>
+    <AIReadinessScoreCard url={data.url} score={score} passed={passed} total={total} />
 
-    {/* Working Well */}
+    {TRUST_PREVIEW && <>
+      <BotNote text="Trust and authority. These metrics fill in with live data once the new data sources are connected." />
+      <div className="reveal" style={{ marginBottom: 11 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 11, marginBottom: 11 }}>
+          <TrustCard label="AI citations of your page" total={t.aiCitations} unit="times cited" sourcesLabel="By platform" sources={t.aiCitationsBy} />
+          <TrustCard label="AI mentions of your brand" total={t.aiMentions} unit="named, no link" sourcesLabel="By platform" sources={t.aiMentionsBy} />
+          <TrustCard label="Web mentions of your brand" total={t.webMentions} unit={t.webPositivePct != null ? t.webPositivePct + "% positive" : ""} sourcesLabel="Top domains" sources={t.webMentionsBy} />
+        </div>
+        <BacklinksBlock total={t.backlinks} domains={t.referringDomains} rows={t.backlinkRows} />
+        <RatingBlock rating={t.rating} count={t.reviewCount} positive={t.positiveCount} critical={t.criticalCount} dist={t.reviewDist} />
+      </div>
+    </>}
+
     <BotNote text={aiGood.length > 0 ? `${aiGood.length} AI search signals are in place.` : "Let's check how AI search tools see your page."} />
     {(aiGood.length > 0 || (ai.extractablePassages && ai.extractablePassages.length > 0)) && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={aiGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{ai.extractablePassages && ai.extractablePassages.length > 0 && <WorkingItem title="Passages AI is most likely to quote" content={(<><BotNote inline text="AI search tools like ChatGPT and Perplexity tend to pull self-contained passages (roughly 100–180 words) straight into their answers. These are the strongest candidates on your page right now." /><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>{ai.extractablePassages.map((p, i) => (<div key={"pq" + i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div></div>))}</div></>)} />}{aiGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
 
-    {/* Needs Improvement */}
     <BotNote text={aiBad.length > 0 ? `${aiBad.length} AI readiness signals need improvement.` : "All AI readiness signals are in place!"} />
     {aiBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="AI Search Optimization — Needs Improvement" count={aiBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
 
-    {/* Distribution tips */}
     <BotNote text="Here are some tips on where to mention this page to build AI citation signals." />
     <div className="reveal" style={{ marginBottom: 20 }}>
       <DistributionTipsBlock tips={distributionTipsForPageType(data.pageType || "other")} />
