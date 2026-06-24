@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v2.2 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v2.4 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v2.2 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v2.4 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1662,6 +1662,105 @@ const LoadingPanel = ({ text }) => <div style={{ minHeight: "calc(100vh - 130px)
 const STEPS = ["Fetching page...", "Analyzing structure...", "Extracting keywords...", "Checking keyword coverage...", "Fetching search data...", "Scanning trust signals...", "Building your report..."];
 
 /* ═══ MAIN COMPONENT ═══ */
+async function generateAIReadinessPDF(data) {
+  try {
+    const loadScript = (url) => new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${url}"]`);
+      if (existing && window.pdfMake) { resolve(); return; }
+      if (existing) existing.remove();
+      const s = document.createElement("script"); s.src = url; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load " + url));
+      document.head.appendChild(s);
+    });
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");
+    if (window.pdfMake && window.pdfMake.fonts) { window.pdfMake.fonts = { Roboto: { normal: "Roboto-Regular.ttf", bold: "Roboto-Medium.ttf", italics: "Roboto-Italic.ttf", bolditalics: "Roboto-MediumItalic.ttf" } }; }
+
+    const dk = "#151415", mt = "#928E95", accentC = "#6E2BFF";
+    const lavCardBg = "#fcfaff", lavCardBdr = "#dcd2f0", cardBg = "#F0EAFF", cardBdr = "#e6def8";
+    const PRIO_PDF = { critical: { label: "Critical", color: "#6E2BFF", bg: "#ede4ff" }, important: { label: "Important", color: "#9B7AE6", bg: "#f1ebfc" }, nice: { label: "Nice to have", color: "#B89CF0", bg: "#f5f0fd" } };
+    const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch (e) { return "page"; } })();
+
+    const secTitle = (t) => ({ text: t, fontSize: 18, bold: true, color: dk, margin: [0, 22, 0, 6] });
+    const noteText = (t) => ({ text: t, fontSize: 11, color: mt, margin: [0, 0, 0, 8], lineHeight: 1.3 });
+    const badge = (prio) => { const pr = PRIO_PDF[prio] || PRIO_PDF.important; return { table: { body: [[{ text: pr.label, fontSize: 8, bold: true, color: pr.color, margin: [6, 2, 6, 2] }]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => pr.bg } }; };
+    const lavCard = (item) => { const stack = []; stack.push({ columns: [{ text: item.title, fontSize: 13, bold: true, color: dk, width: "*" }, { ...badge(item.priority), width: "auto", alignment: "right" }], columnGap: 8, margin: [0, 0, 0, 4] }); if (item.why && typeof item.why === "string") stack.push({ text: item.why.replace(/\*\*/g, "").slice(0, 300), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 }); if (item.suggestions && item.suggestions.length > 0) { stack.push({ text: "Suggested:", fontSize: 9, color: mt, bold: true, margin: [0, 4, 0, 2] }); item.suggestions.forEach(x => { if (typeof x === "string") stack.push({ text: "\u2022 " + x, fontSize: 11, color: dk, margin: [0, 1, 0, 1] }); }); } if (item.links && item.links.length > 0) { stack.push({ text: "Learn more:", fontSize: 9, color: mt, bold: true, margin: [0, 6, 0, 2] }); item.links.forEach(l => { if (l && l.label && l.url) stack.push({ text: l.label, fontSize: 10, color: accentC, link: l.url, margin: [0, 1, 0, 1] }); }); } return { table: { widths: ["*"], body: [[{ stack, margin: [10, 10, 10, 10] }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] }; };
+    const makeLogo = () => new Promise(resolve => { const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116; const ctx = cvs.getContext("2d"); ctx.fillStyle = "#6E2BFF"; ctx.scale(2, 2); ctx.fill(new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z")); ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z")); ctx.globalCompositeOperation = "destination-out"; ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill(); resolve(cvs.toDataURL("image/png")); });
+    const logoImg = await makeLogo();
+
+    const ai = data.aiReadiness || {};
+    const aiGood = ai.aiGood || [];
+    const aiBad = (ai.aiBad || []).slice().sort((a, b) => (({ critical: 0, important: 1, nice: 2 }[a.priority]) ?? 1) - (({ critical: 0, important: 1, nice: 2 }[b.priority]) ?? 1));
+    const passages = ai.extractablePassages || [];
+    const score = typeof ai.score === "number" ? Math.round(ai.score) : 0;
+    const passed = aiGood.length;
+    const total = ai.total || (aiGood.length + aiBad.length);
+
+    const content = [];
+    content.push({ columns: [{ image: logoImg, width: 28 }, { text: "IvaBot", fontSize: 16, bold: true, color: dk, margin: [6, 5, 0, 0] }], columnGap: 4 });
+    content.push({ text: "AI Readiness Report", fontSize: 26, bold: true, color: dk, margin: [0, 14, 0, 2] });
+    content.push({ text: data.url || "", fontSize: 11, color: accentC, margin: [0, 0, 0, 2] });
+    content.push({ text: dateString + (data.pageType ? "  \u00b7  Page type: " + String(data.pageType).replace(/_/g, " ") : ""), fontSize: 10, color: mt, margin: [0, 0, 0, 14] });
+
+    content.push({ table: { widths: ["auto", "*"], body: [[{ text: String(score), fontSize: 40, bold: true, color: accentC, margin: [16, 14, 16, 14] }, { stack: [{ text: "AI readiness score", fontSize: 13, bold: true, color: dk, margin: [0, 16, 0, 2] }, { text: passed + " of " + total + " on-page signals passed", fontSize: 11, color: mt }] }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => cardBdr, vLineColor: () => cardBdr, fillColor: () => cardBg }, margin: [0, 0, 0, 8] });
+
+    content.push(secTitle("AI citations & authority"));
+    content.push(noteText("Live tracking of AI citations, brand mentions, web mentions, backlinks, Google reviews, and AI Overview presence \u2014 plus prompt visibility across ChatGPT, Perplexity, and Google AI \u2014 is available in your IvaBot dashboard for this domain."));
+
+    content.push(secTitle("On-page AI signals \u2014 Working Well"));
+    if (passages.length > 0) { content.push({ text: "Passages AI is most likely to quote", fontSize: 12, bold: true, color: dk, margin: [0, 2, 0, 4] }); passages.forEach(p => { content.push({ table: { widths: ["*"], body: [[{ stack: [{ text: p.text, fontSize: 10, color: dk, lineHeight: 1.3 }, { text: (p.words || 0) + " words", fontSize: 8, color: mt, margin: [0, 3, 0, 0] }], margin: [8, 8, 8, 8] }]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => "#f8f5ff" }, margin: [0, 0, 0, 6] }); }); }
+    if (aiGood.length > 0) { aiGood.forEach(g => { content.push({ text: "\u2713 " + g.title, fontSize: 11, color: dk, margin: [0, 2, 0, 2] }); }); }
+    else if (passages.length === 0) { content.push(noteText("No on-page signals detected yet.")); }
+
+    content.push(secTitle("On-page AI signals \u2014 Needs Improvement"));
+    if (aiBad.length > 0) aiBad.forEach(item => content.push(lavCard(item)));
+    else content.push(noteText("All on-page AI signals are in place."));
+
+    if (aiBad.length > 0) {
+      content.push(secTitle("Final recommendations"));
+      content.push(noteText("Fix these first, starting with anything marked critical."));
+      aiBad.slice(0, 5).forEach((item, i) => { const pr = PRIO_PDF[item.priority] || PRIO_PDF.important; content.push({ columns: [{ text: (i + 1) + ".", fontSize: 11, bold: true, color: pr.color, width: 14 }, { stack: [{ text: item.title, fontSize: 11, bold: true, color: dk }, (item.suggestions && item.suggestions[0] && typeof item.suggestions[0] === "string") ? { text: item.suggestions[0], fontSize: 10, color: mt, margin: [0, 1, 0, 0] } : { text: "" }], width: "*" }], columnGap: 4, margin: [0, 0, 0, 6] }); });
+    }
+
+    content.push({ text: "Generated by IvaBot \u00b7 ivabot.xyz", fontSize: 9, color: mt, margin: [0, 26, 0, 0], alignment: "center" });
+
+    const docDefinition = { content, pageMargins: [40, 40, 40, 50], defaultStyle: { font: "Roboto", color: dk }, footer: (cp, pc) => ({ text: cp + " / " + pc, fontSize: 8, color: mt, alignment: "center", margin: [0, 10, 0, 0] }) };
+
+    const fileName = "IvaBot-AI-Readiness-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
+    const pdfDocGen = pdfMake.createPdf(docDefinition);
+    const pdfBtn = document.getElementById("export-air-pdf-btn");
+    const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
+
+    pdfDocGen.getBlob(async (pdfBlob) => {
+      try {
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const a = document.createElement("a"); a.href = blobUrl; a.download = fileName; a.style.display = "none";
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
+        console.log("[AIR] PDF downloaded:", fileName);
+        if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = dk; }
+
+        let upMemberId = window.__memberId || window.__userId;
+        if (!upMemberId && window.__supabase) { try { const { data: { session } } = await window.__supabase.auth.getSession(); upMemberId = session?.user?.id; } catch (me) {} }
+        if (upMemberId && pdfBlob) {
+          if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = mt; }
+          const form = new FormData();
+          form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+          form.append("member_id", upMemberId);
+          form.append("source_url", data.url || "");
+          form.append("flow_type", "ai_readiness");
+          fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", { method: "POST", body: form }).then(r => r.json()).then(res => {
+            if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = dk; } }
+            else if (res?.url) { console.log("[AIR] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = dk; } }
+            else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = dk; } }
+            setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+          }).catch(e => { console.warn("[AIR] PDF upload failed:", e); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = dk; } setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000); });
+        } else { setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000); }
+      } catch (ue) { console.warn("[AIR] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+    });
+  } catch (err) { console.error("[AIR] PDF error:", err); alert("PDF export failed: " + err.message); }
+}
+
 function AIReadinessTool({ onHome, memberName: mn }) {
   const isMobile = useIsMobile();
   const [mTab, sMTab] = useState("chat");
@@ -1837,6 +1936,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
 
     {showR && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: isMobile ? "8px 12px 16px" : "8px 24px 16px", maxWidth: isMobile ? "100%" : 1224, margin: "0 auto", width: "100%", alignItems: "center" }}>
       <button onClick={newCheck} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Check</button>
+      <button id="export-air-pdf-btn" onClick={() => generateAIReadinessPDF(auditData)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
       {!isMobile && <button onClick={onHome} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }} onMouseEnter={e => { e.currentTarget.style.background = C.accentLight; }} onMouseLeave={e => { e.currentTarget.style.background = C.surface; }}>Back to Tools</button>}
     </div>}
   </div>);
@@ -2065,7 +2165,7 @@ const PromptVisibility = ({ prompts, dashHref }) => (
           </div>
         ))}
       </div>
-      <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, height: 40, padding: "0 18px", borderRadius: 10, background: C.accent, color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}>Check these prompts in your dashboard<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
+      <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 14, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Check these prompts in your dashboard<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
     </div>
   </div>
 );
@@ -2109,14 +2209,15 @@ const AIReadinessReport = ({ data }) => {
     {TRUST_PREVIEW && <>
       <BotNote text="How AI and the web cite you right now. Numbers are an example for layout \u2014 live data and full history connect in your dashboard." />
       <TrustTable rows={trustRows} dashHref={dashHref} />
+      <BotNote text="Where to get this page mentioned so AI tools pick it up. This is how the citations and mentions above grow." />
+      <div className="reveal" style={{ marginBottom: 20 }}>
+        <DistributionTipsBlock tips={distributionTipsForPageType(data.pageType || "other")} />
+      </div>
+      <BotNote text="Track where you actually appear for the questions your buyers ask, across ChatGPT, Perplexity, and Google AI." />
       <PromptVisibility prompts={DEMO_PROMPTS} dashHref={dashHref} />
       <div style={{ marginBottom: 16 }}>
         <BotNote text="Google reviews. Shows only for pages tied to a local business profile. Example below; critical reviews are in lavender, not red \u2014 a calm public reply builds more trust than hiding them." />
         <RatingBlock rating={t.rating != null ? t.rating : DEMO_RATING.rating} count={t.reviewCount != null ? t.reviewCount : DEMO_RATING.count} positive={t.positiveCount != null ? t.positiveCount : DEMO_RATING.positive} critical={t.criticalCount != null ? t.criticalCount : DEMO_RATING.critical} dist={t.reviewDist || DEMO_RATING.dist} />
-      </div>
-      <BotNote text="Where to get this page mentioned so AI tools pick it up. This is how citations and mentions grow over time." />
-      <div className="reveal" style={{ marginBottom: 22 }}>
-        <DistributionTipsBlock tips={distributionTipsForPageType(data.pageType || "other")} />
       </div>
     </>}
 
