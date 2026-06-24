@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v2.8 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v2.9 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v2.8 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v2.9 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -2128,11 +2128,37 @@ const TrustDetail = ({ row }) => {
   return <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{row.goodNote}</div>;
 };
 
-const AIOverviewDemo = () => (<div>
-  <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>Whether your tracked queries trigger a Google AI Overview, and whether your page is cited inside it. Connects to live data after the new sources are added.</div>
-  <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}><Chip color="#9B7AE6">Cited in 2 of 5</Chip><Chip color={C.muted}>3 trigger an AI Overview</Chip></div>
-  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{[{ q: "best collagen supplement", cited: true }, { q: "collagen for joints", cited: true }, { q: "marine collagen benefits", cited: false }].map((r, i) => <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: C.dark, padding: "7px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span>“{r.q}”</span><span style={{ fontSize: 11, fontWeight: 600, color: r.cited ? "#9B7AE6" : C.muted }}>{r.cited ? "You're cited" : "Not cited"}</span></div>)}</div>
-</div>);
+const DEMO_AIO = [
+  { q: "best collagen supplement", triggers: true, cited: true },
+  { q: "collagen for joints", triggers: true, cited: true },
+  { q: "marine collagen benefits", triggers: true, cited: false },
+  { q: "is marine collagen worth it", triggers: false, cited: false },
+  { q: "collagen powder reviews", triggers: false, cited: false },
+];
+
+const AIOverviewBlock = ({ items, dashHref }) => {
+  const rows = items || DEMO_AIO;
+  const triggered = rows.filter(r => r.triggers).length;
+  const cited = rows.filter(r => r.cited).length;
+  const total = rows.length;
+  return (
+  <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
+    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Google AI Overview</span><QM text="For the questions your buyers ask, whether Google shows an AI Overview and whether your page is cited inside it. A query can trigger an AI Overview without citing you. You pick the queries and run the check in the dashboard." /></span>
+      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
+    </div>
+    <div style={{ padding: "4px 16px 14px" }}>
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "8px 0 10px" }}>Across your tracked queries, {triggered} of {total} show a Google AI Overview and you're cited in {cited}.</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}><Chip color="#9B7AE6">Cited in {cited} of {total}</Chip><Chip color={C.muted}>{triggered} of {total} trigger an AI Overview</Chip></div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{rows.map((r, i) => {
+        const label = r.cited ? "You're cited" : (r.triggers ? "Shows an overview, not cited" : "No AI Overview");
+        const col = r.cited ? "#9B7AE6" : C.muted;
+        return (<div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: C.dark, padding: "8px 11px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ minWidth: 0 }}>“{r.q}”</span><span style={{ fontSize: 11, fontWeight: 600, color: col, flexShrink: 0 }}>{label}</span></div>);
+      })}</div>
+    </div>
+  </div>);
+};
+
 /* Dashboard route — confirm the real path and update here once. */
 const DASHBOARD_URL = "/dashboard";
 
@@ -2224,6 +2250,8 @@ const AIReadinessReport = ({ data }) => {
       </div>
       <BotNote text="Track where you actually appear for the questions your buyers ask, across ChatGPT, Perplexity, and Google AI." />
       <PromptVisibility prompts={DEMO_PROMPTS} dashHref={dashHref} />
+      <BotNote text="Google AI Overview. For your tracked queries: does Google show an AI Overview, and are you cited inside it." />
+      <AIOverviewBlock dashHref={dashHref} />
       <div style={{ marginBottom: 16 }}>
         <BotNote text="Google reviews. Shows only for pages tied to a local business profile. Example below; critical reviews are in lavender, not red \u2014 a calm public reply builds more trust than hiding them." />
         <RatingBlock rating={t.rating != null ? t.rating : DEMO_RATING.rating} count={t.reviewCount != null ? t.reviewCount : DEMO_RATING.count} positive={t.positiveCount != null ? t.positiveCount : DEMO_RATING.positive} critical={t.criticalCount != null ? t.criticalCount : DEMO_RATING.critical} dist={t.reviewDist || DEMO_RATING.dist} />
