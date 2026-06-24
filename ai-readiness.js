@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v2.5 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v2.6 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v2.5 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v2.6 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -33,6 +33,7 @@ async function ivaAuthToken(){try{if(window.__supabase){const{data:{session}}=aw
 const CORS_PROXY=SUPABASE_URL+"/functions/v1/fetch-page";
 const DFS_PROXY=SUPABASE_URL+"/functions/v1/dataforseo-proxy";
 const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
+const AIR_GPT=SUPABASE_URL+"/functions/v1/air-gpt";
 
 /* ═══ MEMBER ID + CREDITS ═══ */
 function getMemberId(){if(window.__memberId)return window.__memberId;if(window.__userId)return window.__userId;try{const sb=window.__supabase;if(sb){const key=Object.keys(localStorage).find(k=>k.includes('auth-token'));if(key){const data=JSON.parse(localStorage.getItem(key));if(data?.user?.id)return data.user.id;}}}catch(e){}return null;}
@@ -1840,7 +1841,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
       const d = auditData;
       const history = msgs.filter(m => typeof m.c === "string").slice(-10).map(m => `${m.f === "b" ? "IvaBot" : "User"}: ${m.c}`).join("\n");
       const issues = ((d && d.aiReadiness && d.aiReadiness.aiBad) || []).map(b => b.title).join("; ");
-      const res = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "chat", audit_context: `AI Readiness check.\nPage: ${d && d.url}\nTitle: "${d && d.title}"\nPage type: ${d && d.pageType}\nAI readiness score: ${d && d.aiReadiness && d.aiReadiness.score}/100\nSignals passed: ${((d && d.aiReadiness && d.aiReadiness.aiGood) || []).length}/${d && d.aiReadiness && d.aiReadiness.total}\nSignals to improve: ${issues}`, chat_history: history, question: text, credits_left: null }) });
+      const res = await fetch(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "air_chat", audit_context: `AI Readiness check.\nPage: ${d && d.url}\nTitle: "${d && d.title}"\nPage type: ${d && d.pageType}\nAI readiness score: ${d && d.aiReadiness && d.aiReadiness.score}/100\nSignals passed: ${((d && d.aiReadiness && d.aiReadiness.aiGood) || []).length}/${d && d.aiReadiness && d.aiReadiness.total}\nSignals to improve: ${issues}`, chat_history: history, question: text, credits_left: null }) });
       const raw = await res.json(); sTyp(false);
       bot(raw.text || raw.answer || "I couldn't find an answer for that one. Try rephrasing.");
     } catch (e) { sTyp(false); bot("Sorry, I couldn't process that. Try asking again."); }
