@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v2.0 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v2.2 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v2.0 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v2.2 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1976,7 +1976,8 @@ const TrustTable = ({ rows, dashHref }) => (
               <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{r.period}</div>
             </div>
           </div>
-          {r.breakdown && <div style={{ fontSize: 11.5, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>{r.breakdown}</div>}
+          {r.note && <div style={{ marginTop: 8, padding: "9px 12px", borderRadius: 9, background: "rgba(110,43,255,0.05)", border: "1px solid rgba(110,43,255,0.12)", fontSize: 11.5, color: C.dark, lineHeight: 1.5 }}>{r.note}</div>}
+          {r.chips && r.chips.length > 0 && <div style={{ marginTop: 8 }}>{r.chipsLabel && <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>{r.chipsLabel}</div>}<div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{r.chips.map((c, j) => <span key={j} style={{ fontSize: 11.5, fontWeight: 600, color: C.accent, background: "rgba(110,43,255,0.08)", padding: "5px 11px", borderRadius: 8 }}>{c}</span>)}</div></div>}
         </div>
       ))}
     </div>
@@ -2031,12 +2032,43 @@ const DASHBOARD_URL = "/dashboard";
 const DEMO_RATING = { rating: 4.6, count: 128, positive: 112, critical: 9, dist: [ { label: "5\u2605", n: 92, pct: 72 }, { label: "4\u2605", n: 20, pct: 16 }, { label: "3\u2605", n: 7, pct: 5 }, { label: "2\u2605", n: 4, pct: 3, bad: true }, { label: "1\u2605", n: 5, pct: 4, bad: true } ] };
 
 const DEMO_TRUST_ROWS = [
-  { label: "AI citations of your page", value: "0", period: "last 30 days", tip: "Times an AI answer (ChatGPT, Perplexity, Google AI) linked directly to this page in the last 30 days. When you earn them, we show which engine cited you and for which prompt. Full history in the dashboard.", breakdown: "No citations yet. The on-page fixes below and the distribution tips are how you earn them." },
-  { label: "AI mentions of your brand", value: "47", period: "last 30 days", tip: "Times AI answers named your brand without linking, in the last 30 days, broken down by engine. Full history in the dashboard.", breakdown: "Named by ChatGPT 21 \u00b7 Perplexity 14 \u00b7 Google AI Overviews 12" },
-  { label: "Web mentions of your brand", value: "89", period: "last 30 days", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment and the domains writing about you. Full history in the dashboard.", breakdown: "84% positive \u00b7 reddit.com, healthline.com, wellnessmag.co" },
-  { label: "Backlinks to your page", value: "1,240", period: "total", tip: "Total links to this page from other sites, all-time. New and lost links, anchors, and domain authority are tracked over time in the dashboard.", breakdown: "312 referring domains \u00b7 new and lost links tracked in the dashboard" },
-  { label: "AI Overview presence (Google)", value: "2 of 5", period: "tracked queries", tip: "Whether your tracked queries trigger a Google AI Overview, and whether your page is cited inside it.", breakdown: "Cited in AI Overviews for 2 queries \u00b7 3 of 5 queries trigger an AI Overview" },
+  { label: "AI citations of your page", value: "0", period: "last 30 days", tip: "Times an AI answer (ChatGPT, Perplexity, Google AI) linked directly to this page in the last 30 days. When you earn them, we show which engine cited you and for which prompt. Full history in the dashboard.", note: "No citations yet. The on-page fixes below and the distribution tips are how you earn them." },
+  { label: "AI mentions of your brand", value: "47", period: "last 30 days", tip: "Times AI answers named your brand without linking, in the last 30 days, broken down by engine. Full history in the dashboard.", chipsLabel: "Named by", chips: ["ChatGPT \u00b7 21", "Perplexity \u00b7 14", "Google AI Overviews \u00b7 12"] },
+  { label: "Web mentions of your brand", value: "89", period: "last 30 days", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment and the domains writing about you. Full history in the dashboard.", chipsLabel: "Sentiment and top domains", chips: ["84% positive", "reddit.com", "healthline.com", "wellnessmag.co"] },
+  { label: "Backlinks to your page", value: "1,240", period: "total", tip: "Total links to this page from other sites, all-time. New and lost links, anchors, and domain authority are tracked over time in the dashboard.", chips: ["312 referring domains"], note: "New and lost links, anchors, and domain authority are tracked over time in the dashboard." },
+  { label: "AI Overview presence (Google)", value: "2 of 5", period: "tracked queries", tip: "Whether your tracked queries trigger a Google AI Overview, and whether your page is cited inside it.", chips: ["Cited in 2 of 5", "3 of 5 trigger an AI Overview"] },
 ];
+
+const DEMO_PROMPTS = [
+  { q: "best collagen supplement", chatgpt: true, perplexity: true, aio: false },
+  { q: "collagen for joints", chatgpt: false, perplexity: true, aio: true },
+  { q: "is marine collagen worth it", chatgpt: false, perplexity: false, aio: false },
+  { q: "collagen powder reviews", chatgpt: true, perplexity: false, aio: false },
+  { q: "marine vs bovine collagen", chatgpt: false, perplexity: true, aio: false },
+];
+
+const EngineDot = ({ on, label }) => <span title={label + (on ? ": you appear" : ": not found")} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600, color: on ? "#9B7AE6" : C.muted }}>{on ? "\u2713" : "\u2013"} {label}</span>;
+
+const PromptVisibility = ({ prompts, dashHref }) => (
+  <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
+    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", gap: 5 }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Prompt visibility</span>
+      <QM text="We run the real questions your buyers ask through ChatGPT, Perplexity, and Google AI Overview, and show where you already appear. You pick the prompts and run the check yourself in the dashboard." />
+    </div>
+    <div style={{ padding: "4px 16px 14px" }}>
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "8px 0 12px" }}>Suggested prompts for this page. Your first check is free with your signup credit. After that, one credit checks up to five prompts across all three engines \u2014 you run it when you want, nothing auto-charges.</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {(prompts || []).map((p, i) => (
+          <div key={i} style={{ padding: "10px 12px", borderRadius: 9, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
+            <div style={{ fontSize: 12.5, color: C.dark, marginBottom: 6 }}>“{p.q}”</div>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}><EngineDot on={p.chatgpt} label="ChatGPT" /><EngineDot on={p.perplexity} label="Perplexity" /><EngineDot on={p.aio} label="Google AI" /></div>
+          </div>
+        ))}
+      </div>
+      <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, height: 40, padding: "0 18px", borderRadius: 10, background: C.accent, color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}>Check these prompts in your dashboard<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
+    </div>
+  </div>
+);
 
 const AIReadinessPlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
   <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(110,43,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
@@ -2077,6 +2109,7 @@ const AIReadinessReport = ({ data }) => {
     {TRUST_PREVIEW && <>
       <BotNote text="How AI and the web cite you right now. Numbers are an example for layout \u2014 live data and full history connect in your dashboard." />
       <TrustTable rows={trustRows} dashHref={dashHref} />
+      <PromptVisibility prompts={DEMO_PROMPTS} dashHref={dashHref} />
       <div style={{ marginBottom: 16 }}>
         <BotNote text="Google reviews. Shows only for pages tied to a local business profile. Example below; critical reviews are in lavender, not red \u2014 a calm public reply builds more trust than hiding them." />
         <RatingBlock rating={t.rating != null ? t.rating : DEMO_RATING.rating} count={t.reviewCount != null ? t.reviewCount : DEMO_RATING.count} positive={t.positiveCount != null ? t.positiveCount : DEMO_RATING.positive} critical={t.criticalCount != null ? t.criticalCount : DEMO_RATING.critical} dist={t.reviewDist || DEMO_RATING.dist} />
