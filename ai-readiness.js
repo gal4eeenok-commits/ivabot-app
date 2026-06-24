@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v2.7 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v2.8 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v2.7 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v2.8 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1828,7 +1828,13 @@ function AIReadinessTool({ onHome, memberName: mn }) {
       const nBad = aiReadiness.aiBad.length;
       const nGood = aiReadiness.aiGood.length;
       const nTot = aiReadiness.total || (nGood + nBad);
-      bot(<div><div style={{ fontWeight: 600, marginBottom: 6 }}>{"Done. Your AI readiness score is " + aiReadiness.score + " out of 100."}</div><div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55 }}>{nGood + " of " + nTot + " on-page signals that help AI cite this page are in place" + (nBad > 0 ? ", and " + nBad + " can be improved. " : ". ")}{isMobile ? "Open the Report tab" : "See the report on the right"} for the full breakdown, including where you already appear across ChatGPT, Perplexity, and Google AI. Come back and re-check after you make changes, and open your dashboard any time to track citations, mentions, and prompt visibility for this domain. Ask me anything, and I will explain each signal and how to get this page cited.</div></div>);
+      bot(<div>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>{"Done. Your AI readiness score is " + aiReadiness.score + " out of 100."}</div>
+        <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 8 }}>{nGood + " of " + nTot + " on-page signals that help AI cite this page are in place" + (nBad > 0 ? ", and " + nBad + " can be improved." : ".")}</div>
+        <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 8 }}>{(isMobile ? "Open the Report tab" : "See the report on the right") + " for the full breakdown, including where you already appear across ChatGPT, Perplexity, and Google AI."}</div>
+        <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 8 }}>Come back and re-check after you make changes. Open your dashboard any time to track citations, mentions, and prompt visibility for this domain.</div>
+        <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55 }}>Ask me anything, and I will explain each signal and how to get this page cited.</div>
+      </div>);
     } catch (e) {
       sPLoad(null); sTyp(false);
       bot("Could not analyze this page: " + e.message + ". Please check the URL and try again.");
