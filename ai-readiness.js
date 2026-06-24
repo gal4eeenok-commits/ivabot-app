@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v2.4 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v2.5 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v2.4 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v2.5 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1937,7 +1937,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
     {showR && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: isMobile ? "8px 12px 16px" : "8px 24px 16px", maxWidth: isMobile ? "100%" : 1224, margin: "0 auto", width: "100%", alignItems: "center" }}>
       <button onClick={newCheck} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Check</button>
       <button id="export-air-pdf-btn" onClick={() => generateAIReadinessPDF(auditData)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
-      {!isMobile && <button onClick={onHome} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }} onMouseEnter={e => { e.currentTarget.style.background = C.accentLight; }} onMouseLeave={e => { e.currentTarget.style.background = C.surface; }}>Back to Tools</button>}
+      {!isMobile && <button onClick={onHome} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }} onMouseEnter={e => { e.currentTarget.style.background = C.accentLight; }} onMouseLeave={e => { e.currentTarget.style.background = C.surface; }}>Try Other Tools</button>}
     </div>}
   </div>);
 }
@@ -2151,12 +2151,12 @@ const EngineDot = ({ on, label }) => <span title={label + (on ? ": you appear" :
 
 const PromptVisibility = ({ prompts, dashHref }) => (
   <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
-    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", gap: 5 }}>
-      <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Prompt visibility</span>
-      <QM text="We run the real questions your buyers ask through ChatGPT, Perplexity, and Google AI Overview, and show where you already appear. You pick the prompts and run the check yourself in the dashboard." />
+    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Prompt visibility</span><QM text="We run the real questions your buyers ask through ChatGPT, Perplexity, and Google AI Overview, and show where you already appear. You pick the prompts and run the check in the dashboard." /></span>
+      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
     </div>
     <div style={{ padding: "4px 16px 14px" }}>
-      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "8px 0 12px" }}>Suggested prompts for this page. Your first check is free with your signup credit. After that, one credit checks up to five prompts across all three engines \u2014 you run it when you want, nothing auto-charges.</div>
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "8px 0 12px" }}>Suggested prompts for this page, and where you already appear across ChatGPT, Perplexity, and Google AI.</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {(prompts || []).map((p, i) => (
           <div key={i} style={{ padding: "10px 12px", borderRadius: 9, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
@@ -2165,7 +2165,7 @@ const PromptVisibility = ({ prompts, dashHref }) => (
           </div>
         ))}
       </div>
-      <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 14, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Check these prompts in your dashboard<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
+      <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 14, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Write your own prompts in the dashboard<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
     </div>
   </div>
 );
