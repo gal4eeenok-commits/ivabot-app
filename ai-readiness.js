@@ -1,4 +1,4 @@
-/* IvaBot AI Readiness (standalone) v3.3 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. */
+/* IvaBot AI Readiness (standalone) v3.4 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] ai-readiness.js (standalone) v2.9 loaded");
@@ -1840,8 +1840,6 @@ function AIReadinessTool({ onHome, memberName: mn }) {
       bot(<div>
         <div style={{ fontWeight: 600, marginBottom: 8 }}>{"Done. Your AI readiness score is " + aiReadiness.score + " out of 100."}</div>
         <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 8 }}>{nGood + " of " + nTot + " on-page signals that help AI cite this page are in place" + (nBad > 0 ? ", and " + nBad + " can be improved." : ".")}</div>
-        <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 8 }}>{(isMobile ? "Open the Report tab" : "See the report on the right") + " for the full breakdown, including where you already appear across ChatGPT, Perplexity, and Google AI."}</div>
-        <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 8 }}>Come back and re-check after you make changes. Open your dashboard any time to track citations, mentions, and prompt visibility for this domain.</div>
         <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55 }}>Ask me anything, and I will explain each signal and how to get this page cited.</div>
       </div>);
     } catch (e) {
