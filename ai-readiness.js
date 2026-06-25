@@ -1,4 +1,4 @@
-/* IvaBot AI Readiness (standalone) v3.1 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. */
+/* IvaBot AI Readiness (standalone) v3.2 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] ai-readiness.js (standalone) v2.9 loaded");
@@ -96,7 +96,7 @@ const DistributionTipsBlock = ({ tips }) => {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {(tips || []).map((tip, i) => (
                 <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(184,156,240,0.05)", border: "1px solid rgba(184,156,240,0.15)", fontSize: 12.5, color: C.dark, lineHeight: 1.5 }}>
-                  {renderBoldText(tip)}
+                  {(tip && typeof tip === "object") ? (<><span style={{ fontWeight: 700 }}>{tip.channel}:</span> {tip.action}</>) : renderBoldText(tip)}
                 </div>
               ))}
             </div>
@@ -1197,7 +1197,7 @@ const CoverageReport = ({ data }) => {
       {/* Distribution Tips — page-type-aware advice for AI citations (v4 addition) */}
       <BotNote text="Here are some tips on where to mention this page to build AI citation signals." />
       <div className="reveal" style={{ marginBottom: 20 }}>
-        <DistributionTipsBlock tips={distributionTipsForPageType(data.aiReadiness?.pageType || "other")} />
+        <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.aiReadiness?.pageType || "other")} />
       </div>
     </>}
 
@@ -1823,6 +1823,11 @@ function AIReadinessTool({ onHome, memberName: mn }) {
       console.log("[AIR] AI Readiness:", aiReadiness.score + "/100", "type=" + aiReadiness.pageType, "good=" + aiReadiness.aiGood.length + "/" + aiReadiness.total);
 
       const d = { url, title: parsed.title || "", pageType: aiReadiness.pageType || pageType, aiReadiness };
+      try {
+        const _dtCtx = `URL: ${url}\nTitle: ${parsed.title || ""}\nPage type: ${d.pageType}\nPrimary keyword: ${parsed.primary_keyword || ""}\nSummary: ${(parsed.summary || "").slice(0, 600)}`;
+        const _dtRes = await fetch(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "distribution_tips", page_context: _dtCtx }) });
+        if (_dtRes.ok) { const _dt = await _dtRes.json(); if (_dt && Array.isArray(_dt.tips)) { const _clean = _dt.tips.filter(t => t && t.channel && t.action).slice(0, 4); if (_clean.length) d.distributionTips = _clean; } }
+      } catch (_dtErr) { console.log("[AIR] distribution_tips fallback", _dtErr); }
       sPLoad(null); setAuditData(d); setSR(true); setStep("done"); sTyp(false);
       if (isMobile) sMTab("report");
       const nBad = aiReadiness.aiBad.length;
@@ -2177,7 +2182,7 @@ const AIReadinessReport = ({ data }) => {
       <TrustTable rows={trustRows} dashHref={dashHref} />
       <BotNote text="Where to get this page mentioned so AI tools pick it up. This is how the citations and mentions above grow." />
       <div className="reveal" style={{ marginBottom: 20 }}>
-        <DistributionTipsBlock tips={distributionTipsForPageType(data.pageType || "other")} />
+        <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || "other")} />
       </div>
       <BotNote text="Track where you actually appear for the questions your buyers ask, across ChatGPT, Perplexity, and Google AI." />
       <PromptVisibility prompts={DEMO_PROMPTS} dashHref={dashHref} />
