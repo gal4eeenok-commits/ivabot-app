@@ -1,4 +1,4 @@
-/* IvaBot AI Readiness (standalone) v2.9 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. */
+/* IvaBot AI Readiness (standalone) v3.1 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] ai-readiness.js (standalone) v2.9 loaded");
@@ -1706,7 +1706,7 @@ async function generateAIReadinessPDF(data) {
     content.push({ table: { widths: ["auto", "*"], body: [[{ text: String(score), fontSize: 40, bold: true, color: accentC, margin: [16, 14, 16, 14] }, { stack: [{ text: "AI readiness score", fontSize: 13, bold: true, color: dk, margin: [0, 16, 0, 2] }, { text: passed + " of " + total + " on-page signals passed", fontSize: 11, color: mt }] }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => cardBdr, vLineColor: () => cardBdr, fillColor: () => cardBg }, margin: [0, 0, 0, 8] });
 
     content.push(secTitle("AI citations & authority"));
-    content.push(noteText("Live tracking of AI citations, brand mentions, web mentions, backlinks, Google reviews, and AI Overview presence \u2014 plus prompt visibility across ChatGPT, Perplexity, and Google AI \u2014 is available in your IvaBot dashboard for this domain."));
+    content.push(noteText("Live tracking of AI citations, brand mentions, and AI Overview presence, plus prompt visibility across ChatGPT, Perplexity, and Google AI, is available in your IvaBot dashboard for this domain."));
 
     content.push(secTitle("On-page AI signals \u2014 Working Well"));
     if (passages.length > 0) { content.push({ text: "Passages AI is most likely to quote", fontSize: 12, bold: true, color: dk, margin: [0, 2, 0, 4] }); passages.forEach(p => { content.push({ table: { widths: ["*"], body: [[{ stack: [{ text: p.text, fontSize: 10, color: dk, lineHeight: 1.3 }, { text: (p.words || 0) + " words", fontSize: 8, color: mt, margin: [0, 3, 0, 0] }], margin: [8, 8, 8, 8] }]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => "#f8f5ff" }, margin: [0, 0, 0, 6] }); }); }
@@ -1975,63 +1975,6 @@ const TrustCard = ({ label, total, unit, sourcesLabel, sources, onDownload }) =>
   </div>
 );
 
-const BacklinksBlock = ({ total, domains, rows, onDownload }) => (
-  <div style={{ border: `1px solid ${C.cardBorder}`, borderRadius: 12, overflow: "hidden", background: C.surface, marginBottom: 20 }}>
-    <div style={{ background: C.card, padding: "13px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-      <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Backlinks to your page</span>
-      <span style={{ background: C.surface, borderRadius: 8, padding: "5px 11px", fontSize: 13, fontWeight: 700, color: C.dark }}>{(total != null ? total.toLocaleString() : "—")} links<span style={{ color: C.muted, fontWeight: 600 }}> · </span>{(domains != null ? domains.toLocaleString() : "—")} domains</span>
-    </div>
-    <div style={{ padding: "12px 16px 16px" }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", padding: "4px 0 8px" }}>Top links</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {(rows || []).map((b, i) => (
-          <div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{b.anchor || "(no anchor)"}</span>{b.rank != null && <span style={{ fontSize: 10, fontWeight: 600, color: C.accent, background: "rgba(110,43,255,0.08)", padding: "2px 7px", borderRadius: 6 }}>rank {b.rank}</span>}</div>
-            <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 30 }}>{b.source}{b.date ? ", " + b.date : ""}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "10px 0 0" }}>The full list with every link and its anchor is in the download.</div>
-      <DownloadBtn label="Download" onClick={onDownload} />
-    </div>
-  </div>
-);
-
-const RatingBlock = ({ rating, count, positive, critical, dist }) => {
-  const [o, setO] = useState(false);
-  const goodC = "#9B7AE6", badC = "#B89CF0";
-  const stars = Math.round(rating || 0);
-  return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", background: C.surface, marginBottom: 20 }}>
-      <button onClick={() => setO(!o)} style={{ width: "100%", padding: "14px 16px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, fontFamily: "'DM Sans',sans-serif" }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ fontSize: 30, fontWeight: 700, color: C.dark, lineHeight: 1 }}>{(rating != null ? rating.toFixed(1) : "—")}</span>
-          <span style={{ textAlign: "left" }}>
-            <span style={{ fontSize: 16, letterSpacing: 2, color: C.accent }}>{"★".repeat(stars)}<span style={{ color: "rgba(110,43,255,0.22)" }}>{"★".repeat(Math.max(0, 5 - stars))}</span></span>
-            <span style={{ display: "block", fontSize: 12, color: C.muted, marginTop: 3 }}>{(count != null ? count.toLocaleString() : "—")} Google reviews</span>
-          </span>
-        </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: goodC, background: "rgba(155,122,230,0.12)", padding: "5px 11px", borderRadius: 8 }}>{positive != null ? positive : "—"} positive</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: badC, background: "rgba(110,43,255,0.10)", padding: "5px 11px", borderRadius: 8 }}>{critical != null ? critical : "—"} critical</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{ transform: o ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}><polyline points="6 9 12 15 18 9" /></svg>
-        </span>
-      </button>
-      {o && (
-        <div style={{ padding: "0 16px 16px", borderTop: `1px solid ${C.border}` }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "12px 0" }}>
-            {(dist || []).map((d, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 11, color: C.muted, width: 36 }}>{d.label}</span><div style={{ flex: 1, height: 6, background: "rgba(21,20,21,0.06)", borderRadius: 100, overflow: "hidden" }}><div style={{ width: d.pct + "%", height: "100%", background: d.bad ? badC : goodC }} /></div><span style={{ fontSize: 11, color: C.muted, width: 28, textAlign: "right" }}>{d.n}</span></div>
-            ))}
-          </div>
-          <BotNote inline text="Reply to critical reviews promptly and publicly. A calm, helpful response to a bad review builds more trust than a wall of five-star ratings, and AI engines increasingly factor review responses into local reputation." />
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 8, borderTop: "1px solid rgba(21,20,21,0.06)", paddingTop: 10 }}>Shown only for pages tied to a local business profile.</div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 /* AI readiness score card — same style as the Coverage score card */
 const AIReadinessScoreCard = ({ url, score, passed, total }) => {
   const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
@@ -2115,16 +2058,6 @@ const TrustDetail = ({ row }) => {
       <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.9 }}>{(row.topDomains || []).join(" · ")}</div>
     </div>);
   }
-  if (row.key === "backlinks") {
-    return (<div>
-      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>{row.goodNote}</div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}><Chip color="#9B7AE6">+{row.newCount} new</Chip><Chip color="#B89CF0">−{row.lostCount} lost</Chip></div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Top anchors</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>{(row.anchors || []).map((a, i) => <Chip key={i} color={C.dark}>{a.a} · {a.n}</Chip>)}</div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Top referring domains</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>{(row.refDomains || []).map((d, i) => <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.dark }}><span>{d.d}</span><span style={{ color: C.muted }}>DR {d.dr}</span></div>)}</div>
-    </div>);
-  }
   return <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{row.goodNote}</div>;
 };
 
@@ -2164,13 +2097,11 @@ const DASHBOARD_URL = "/dashboard";
 
 /* Example rows so the layout is visible before live data is connected.
    AI citations is 0 on purpose, to show the "needs work" path into the folds. */
-const DEMO_RATING = { rating: 4.6, count: 128, positive: 112, critical: 9, dist: [ { label: "5\u2605", n: 92, pct: 72 }, { label: "4\u2605", n: 20, pct: 16 }, { label: "3\u2605", n: 7, pct: 5 }, { label: "2\u2605", n: 4, pct: 3, bad: true }, { label: "1\u2605", n: 5, pct: 4, bad: true } ] };
 
 const DEMO_TRUST_ROWS = [
   { label: "AI citations of your page", value: "0", period: "last 30 days", tip: "Times an AI answer (ChatGPT, Perplexity, Google AI) linked directly to this page in the last 30 days. When you earn them, we show which engine cited you and for which prompt. Full history in the dashboard.", note: "No citations yet. The on-page fixes below and the distribution tips are how you earn them." },
   { label: "AI mentions of your brand", value: "47", period: "last 30 days", tip: "Times AI answers named your brand without linking, in the last 30 days, broken down by engine. Full history in the dashboard.", chipsLabel: "Named by", chips: ["ChatGPT \u00b7 21", "Perplexity \u00b7 14", "Google AI Overviews \u00b7 12"] },
-  { label: "Web mentions of your brand", value: "89", period: "last 30 days", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment and the domains writing about you. Full history in the dashboard.", chipsLabel: "Sentiment and top domains", chips: ["84% positive", "reddit.com", "healthline.com", "wellnessmag.co"] },
-  { label: "Backlinks to your page", value: "1,240", period: "total", tip: "Total links to this page from other sites, all-time. New and lost links, anchors, and domain authority are tracked over time in the dashboard.", chips: ["312 referring domains"], note: "New and lost links, anchors, and domain authority are tracked over time in the dashboard." },
+  { label: "Brand mentions across the web", value: "89", period: "last 30 days", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment and the domains writing about you. Full history in the dashboard.", chipsLabel: "Sentiment and top domains", chips: ["84% positive", "reddit.com", "healthline.com", "wellnessmag.co"] },
   { label: "AI Overview presence (Google)", value: "2 of 5", period: "tracked queries", tip: "Whether your tracked queries trigger a Google AI Overview, and whether your page is cited inside it.", chips: ["Cited in 2 of 5", "3 of 5 trigger an AI Overview"] },
 ];
 
@@ -2210,7 +2141,7 @@ const AIReadinessPlaceholder = () => <div style={{ minHeight: "calc(100vh - 180p
   <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 8 }}>Your AI readiness report will appear here</div>
   <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, textAlign: "center", maxWidth: 340, marginBottom: 24 }}>I'll check how ready your page is for AI search — so you know exactly what to fix to get cited by tools like ChatGPT, Perplexity, and Google AI.</div>
   <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 340 }}>
-    {[{ n: "1", t: "Page type", d: "I detect what kind of page this is, since AI weighs signals differently per type" }, { n: "2", t: "AI search signals", d: "I check schema, FAQ, question patterns, dates, author, and extractable passages" }, { n: "3", t: "Trust & authority", d: "I look at citations, mentions, backlinks, and reviews that build authority" }, { n: "4", t: "Where to get cited", d: "Tips on where to mention this page to earn AI citations" }].map((s, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.08)" }}><div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(155,122,230,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}><span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6" }}>{s.n}</span></div><div><div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{s.t}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.d}</div></div></div>)}
+    {[{ n: "1", t: "Page type", d: "I detect what kind of page this is, since AI weighs signals differently per type" }, { n: "2", t: "AI search signals", d: "I check schema, FAQ, question patterns, dates, author, and extractable passages" }, { n: "3", t: "Trust & authority", d: "I look at citations and brand mentions that build authority" }, { n: "4", t: "Where to get cited", d: "Tips on where to mention this page to earn AI citations" }].map((s, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.08)" }}><div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(155,122,230,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}><span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6" }}>{s.n}</span></div><div><div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{s.t}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.d}</div></div></div>)}
   </div>
 </div>;
 
@@ -2252,10 +2183,6 @@ const AIReadinessReport = ({ data }) => {
       <PromptVisibility prompts={DEMO_PROMPTS} dashHref={dashHref} />
       <BotNote text="Google AI Overview. For your tracked queries: does Google show an AI Overview, and are you cited inside it." />
       <AIOverviewBlock dashHref={dashHref} />
-      <div style={{ marginBottom: 16 }}>
-        <BotNote text="Google reviews. Shows only for pages tied to a local business profile. Example below; critical reviews are in lavender, not red \u2014 a calm public reply builds more trust than hiding them." />
-        <RatingBlock rating={t.rating != null ? t.rating : DEMO_RATING.rating} count={t.reviewCount != null ? t.reviewCount : DEMO_RATING.count} positive={t.positiveCount != null ? t.positiveCount : DEMO_RATING.positive} critical={t.criticalCount != null ? t.criticalCount : DEMO_RATING.critical} dist={t.reviewDist || DEMO_RATING.dist} />
-      </div>
     </>}
 
     <BotNote text={wwCount > 0 ? `On the page, ${wwCount} signal${wwCount !== 1 ? "s" : ""} that help AI cite you are already in place.` : "Let's look at the on-page signals that help AI cite you."} />
