@@ -1,4 +1,4 @@
-/* IvaBot AI Readiness (standalone) v3.2 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. */
+/* IvaBot AI Readiness (standalone) v3.3 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] ai-readiness.js (standalone) v2.9 loaded");
@@ -1823,12 +1823,16 @@ function AIReadinessTool({ onHome, memberName: mn }) {
       console.log("[AIR] AI Readiness:", aiReadiness.score + "/100", "type=" + aiReadiness.pageType, "good=" + aiReadiness.aiGood.length + "/" + aiReadiness.total);
 
       const d = { url, title: parsed.title || "", pageType: aiReadiness.pageType || pageType, aiReadiness };
-      try {
-        const _dtCtx = `URL: ${url}\nTitle: ${parsed.title || ""}\nPage type: ${d.pageType}\nPrimary keyword: ${parsed.primary_keyword || ""}\nSummary: ${(parsed.summary || "").slice(0, 600)}`;
-        const _dtRes = await fetch(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "distribution_tips", page_context: _dtCtx }) });
-        if (_dtRes.ok) { const _dt = await _dtRes.json(); if (_dt && Array.isArray(_dt.tips)) { const _clean = _dt.tips.filter(t => t && t.channel && t.action).slice(0, 4); if (_clean.length) d.distributionTips = _clean; } }
-      } catch (_dtErr) { console.log("[AIR] distribution_tips fallback", _dtErr); }
       sPLoad(null); setAuditData(d); setSR(true); setStep("done"); sTyp(false);
+      (async () => {
+        try {
+          const _dtCtx = `URL: ${url}\nTitle: ${parsed.title || ""}\nPage type: ${d.pageType}\nPrimary keyword: ${parsed.primary_keyword || ""}\nSummary: ${(parsed.summary || "").slice(0, 600)}`;
+          const _dtRes = await fetch(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "distribution_tips", page_context: _dtCtx }) });
+          if (!_dtRes.ok) return;
+          const _dt = await _dtRes.json();
+          if (_dt && Array.isArray(_dt.tips)) { const _clean = _dt.tips.filter(t => t && t.channel && t.action).slice(0, 4); if (_clean.length) setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, distributionTips: _clean } : prev); }
+        } catch (_dtErr) { console.log("[AIR] distribution_tips fallback", _dtErr); }
+      })();
       if (isMobile) sMTab("report");
       const nBad = aiReadiness.aiBad.length;
       const nGood = aiReadiness.aiGood.length;
