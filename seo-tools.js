@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
+/* IvaBot seo-tools v108 — Core button routes whitelisted user to window.CoreTool (standalone), others keep inline Core. Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v109 loaded");
+console.log("[IvaBot] seo-tools.js v110 loaded (Core routing)");
 
 /* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
 var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -1875,6 +1875,7 @@ function IvaBotV6() {
     <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
   </React.Fragment>;
 
+  const _coreWL = !!memberId && ["05021d8c-f4c5-4607-8b9c-defb694ebe42"].indexOf(memberId) !== -1;
   return (
     <div className="iva-root" style={{ fontFamily: "'DM Sans',sans-serif", background: "#f8f7f9", display: "flex", flexDirection: "column", padding: "8px 12px", minHeight: "100vh" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #ffffff 0%, #F8F5FF 15%, #F0EAFF 40%, #E4D8FC 70%, #D9CCFA 100%)", borderRadius: 12, minHeight: 0 }}>
@@ -1901,6 +1902,8 @@ function IvaBotV6() {
         React.createElement(window.ContentBuilder, { onHome: home, memberName: memberName || "" })
       ) : tool === "coverage" && window.ContentCoverage ? (
         React.createElement(window.ContentCoverage, { onHome: home, memberName: memberName || "" })
+      ) : _coreWL && window.CoreTool ? (
+        React.createElement(window.CoreTool, { onHome: home, memberName: memberName || "" })
       ) : (
         /* ═══ CORE AUDIT — Builder-style layout ═══ */
         <div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
