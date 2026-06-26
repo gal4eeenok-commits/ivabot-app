@@ -1,7 +1,7 @@
-/* IvaBot CORE TOOL (core-tool.js) v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
+/* IvaBot seo-tools v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] core-tool.js v210 loaded (standalone window.CoreTool)");
+console.log("[IvaBot] seo-tools.js v109 loaded");
 
 /* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
 var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -615,38 +615,6 @@ function buildReportData(parsed, gpt, dfs) {
 
 /* ═══ DATA (mock fallback) ═══ */
 const A = { score: 85, url: "https://www.apple.com/", title: "Apple", desc: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV, plus explore accessories, entertainment, and expert device support.", ctx: { url: "https://www.apple.com/", title: "Apple", topic: "Official Apple product and service page", owner: "Apple Inc.", goal: "Sell", industry: "Technology", region: "Global", competition: "High", message: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV." }, keywords: ["iPhone trade-in deals", "MacBook Pro features", "Apple Card benefits"], titleStatus: "bad", titleEval: { currentLabel: "Current Title", current: "Apple", why: "Too short — users and Google need more context to understand what this page offers.", sugLabel: "Suggested Titles", suggestions: ["Apple Products and Innovations", "Apple Technology and Features", "Apple: Leading the Way in Tech"], showCopy: true, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] }, descStatus: "bad", descEval: { currentLabel: "Current Description", current: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV, plus explore accessories, entertainment, and expert device support.", why: "Google may truncate descriptions longer than 160 characters in search results, reducing click-through rate.", sugLabel: "Suggested Descriptions", suggestions: ["Shop the latest iPhone, iPad, Apple Watch, Mac and Apple TV, plus accessories and expert support.", "Find everything Apple — iPhones to Macs, accessories, entertainment, backed by expert support."], showCopy: true }, headings: [{ level: "H1", text: "Apple" }, { level: "H2", text: "MacBook Neo" }, { level: "H2", text: "iPhone 17e" }, { level: "H3", text: "MacBook Air" }, { level: "H3", text: "iPad Air" }, { level: "H2", text: "Endless entertainment." }, { level: "H3", text: "Apple Trade In" }, { level: "H3", text: "Apple Card" }], headingsStatus: "good", links: { internal: 47, external: 12, social: ["Facebook", "LinkedIn", "X (Twitter)", "YouTube"] }, linksStatus: "good", ux: { cta: { found: true, text: "Learn more" }, mobile: true, altMissing: true, noVideo: true }, speedStatus: "bad", speedEval: { title: "Page Speed Is Moderate", why: "Slow pages lose visitors — even a 1-second delay can reduce conversions by 7%.", suggestions: ["Compress images to WebP", "Remove unused JS/CSS", "Enable lazy loading"], showCopy: false, links: [{ label: "Google PageSpeed Insights", url: "https://pagespeed.web.dev/" }] }, imagesEval: { title: "Some Images Missing Alt Text", why: "Alt text helps search engines understand images and improves accessibility for screen readers.", suggestions: ["Add descriptive alt to every image", "Include keywords naturally in alt descriptions"], showCopy: false }, videoEval: { title: "No Video Content Detected", why: "Pages with video tend to rank higher and keep visitors engaged longer.", suggestions: ["Add a product video or brand intro", "Use schema markup for video", "Embed from YouTube for SEO benefit"], showCopy: false }, robotsStatus: "good", sitemapStatus: "good", competitors: [{ name: "samsung.com", tactics: "Strong mobile UX, frequent product launches" }, { name: "microsoft.com", tactics: "Clear pricing, enterprise focus" }, { name: "google.com", tactics: "Clean design, prominent search features" }], backlinks: [{ name: "TechCrunch", desc: "Product reviews and features" }, { name: "CNET", desc: "In-depth reviews and buying guides" }, { name: "The Verge", desc: "Launches and industry news" }, { name: "Product Hunt", desc: "Early adopters and discovery" }, { name: "YouTube Influencers", desc: "Reviews and unboxing" }, { name: "Wired", desc: "Tech journalism and trends" }, { name: "Forbes Tech", desc: "Business tech coverage" }, { name: "Mashable", desc: "Culture and roundups" }, { name: "Ars Technica", desc: "Deep dives and security" }, { name: "TechRadar", desc: "Rankings and testing" }], rankedKeywords: [{ keyword: "buy iphone online", position: 1, volume: 12100, difficulty: 72 }, { keyword: "apple trade in value", position: 1, volume: 8100, difficulty: 38 }, { keyword: "macbook pro price", position: 2, volume: 5400, difficulty: 55 }, { keyword: "apple card benefits", position: 4, volume: 3600, difficulty: 42 }, { keyword: "ipad air review", position: 8, volume: 2900, difficulty: 48 }], keywordMetrics: [{ keyword: "iPhone trade-in deals", position: 3, volume: 6600, difficulty: 45 }, { keyword: "MacBook Pro features", position: null, volume: 4400, difficulty: 52 }, { keyword: "Apple Card benefits", position: 4, volume: 3600, difficulty: 42 }], backlinksCount: 13268, referringDomains: 2675, totalRanked: 18743 };
-/* CLOSED PREVIEW demo numbers for Core fields that go live only after July 1 (positions, backlinks, competitors). ivabot-relevant, coherent with seeded dashboard snapshots. */
-const CORE_DEMO = {
-  rankedKeywords: [
-    { keyword: "seo audit tool", position: 7, volume: 5400, difficulty: 58 },
-    { keyword: "ai search visibility", position: 11, volume: 2900, difficulty: 49 },
-    { keyword: "geo seo tool", position: 13, volume: 1600, difficulty: 44 },
-    { keyword: "seo report generator", position: 9, volume: 2400, difficulty: 51 },
-    { keyword: "check google rankings", position: 15, volume: 3300, difficulty: 47 },
-    { keyword: "pay as you go seo", position: 18, volume: 880, difficulty: 37 },
-    { keyword: "website seo checker", position: 22, volume: 8100, difficulty: 66 }
-  ],
-  keywordMetrics: [
-    { keyword: "seo audit tool", position: 7, volume: 5400, difficulty: 58 },
-    { keyword: "ai readiness check", position: null, volume: 1300, difficulty: 40 },
-    { keyword: "geo seo", position: 13, volume: 1600, difficulty: 44 }
-  ],
-  competitors: [
-    { name: "semrush.com", tactics: "Huge keyword database, strong domain authority", url: "https://www.semrush.com/" },
-    { name: "ahrefs.com", tactics: "Backlink index leader, deep content library", url: "https://ahrefs.com/" },
-    { name: "sitechecker.pro", tactics: "Freemium audits, fast onboarding", url: "https://sitechecker.pro/" }
-  ],
-  backlinks: [
-    { name: "searchengineland.com", desc: "Industry news mention (DR 82)" },
-    { name: "indiehackers.com", desc: "Founder community post (DR 74)" },
-    { name: "producthunt.com", desc: "Launch listing (DR 91)" },
-    { name: "reddit.com/r/seo", desc: "Community recommendation (DR 95)" },
-    { name: "dev.to", desc: "Technical guest article (DR 78)" }
-  ],
-  backlinksCount: 318,
-  referringDomains: 67,
-  totalRanked: 41
-};
 
 /* ═══ Build ═══ */
 const titleCardTitle = (s) => s === "missing" ? "Meta Title Missing" : s === "too_short" ? "Meta Title Too Short" : s === "too_long" ? "Meta Title Too Long" : s === "duplicate" ? "Meta Title Has Repeated Words" : "Meta Title Needs Work";
@@ -1392,34 +1360,11 @@ async function generatePDF(data) {
 }
 
 /* ═══ REPORT (unchanged) ═══ */
-const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = buildResults(data);
-  data = { ...data,
-    rankedKeywords: (data.rankedKeywords && data.rankedKeywords.length) ? data.rankedKeywords : CORE_DEMO.rankedKeywords,
-    keywordMetrics: (data.keywordMetrics && data.keywordMetrics.length) ? data.keywordMetrics : CORE_DEMO.keywordMetrics,
-    competitors: (data.competitors && data.competitors.length) ? data.competitors : CORE_DEMO.competitors,
-    backlinks: (data.backlinks && data.backlinks.length) ? data.backlinks : CORE_DEMO.backlinks,
-    backlinksCount: data.backlinksCount != null ? data.backlinksCount : CORE_DEMO.backlinksCount,
-    referringDomains: data.referringDomains != null ? data.referringDomains : CORE_DEMO.referringDomains,
-    totalRanked: data.totalRanked != null ? data.totalRanked : CORE_DEMO.totalRanked };
-  const _dashDomain = (()=>{ try { return new URL(data.url).hostname.replace(/^www\./,""); } catch(e){ return ""; } })();
-  const _dashUrl = "https://ivabot.xyz/dashboard" + (_dashDomain ? ("?domain=" + encodeURIComponent(_dashDomain)) : "");
-  const DashBtn = ({ label }) => (<a href={_dashUrl} target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:6, height:36, padding:"0 16px", borderRadius:10, background:C.accentLight, border:"1px solid rgba(110,43,255,0.18)", color:C.accent, fontSize:13, fontWeight:600, textDecoration:"none", whiteSpace:"nowrap" }}>{(label||"Track in Dashboard")} →</a>);
-  return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
+const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = buildResults(data); return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
   <BotNote text="Here's your full SEO audit. I'll walk you through each part — what's working, what needs fixing, and exactly how to fix it." />
   <div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}><ScoreRing score={data.score} /><div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}><span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>SEO Score</span><QM text="Your overall score based on title, description, headings, speed, mobile, links, robots.txt, and sitemap. Higher is better — aim for 80+." /></div><div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 4, wordBreak: "break-all" }}>{data.url}</div><div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.4 }}>{data.score >= 80 ? "Your page has a strong foundation. Let's fine-tune the details below." : "There's room for improvement — I'll show you exactly what to fix."}</div></div></div>
   <BotNote text="Let's start with how Google sees your page. This is what search engines understand about your content, topic, and purpose." />
-  <div className="reveal reveal-delay-1" style={{ marginBottom: 16 }}><Fold title="Page Context Summary" borderColor={C.cardBorder} headerBg={C.card}><div style={{ marginTop: 10 }}><div className="iva-ctx-grid">{[{ l: "Page URL", v: data.ctx.url }, { l: "Page Title", v: decodeHTML(data.ctx.title) }, { l: "Topic", v: decodeHTML(data.ctx.topic) }, { l: "Owner / Creator", v: decodeHTML(data.ctx.owner) }, { l: "Goal", v: decodeHTML(data.ctx.goal) }, { l: "Industry", v: decodeHTML(data.ctx.industry) }, { l: "Region", v: decodeHTML(data.ctx.region) }, { l: "Topic Competition", v: null, badge: data.ctx.competition }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div>{x.badge ? <CompBadge level={x.badge} /> : <div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div>}</div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{decodeHTML(data.ctx.message)}</div></div></div></div></Fold></div>
-  <BotNote text="First, what your page is currently built for — based on your title, headings, and meta description." />
-  <div className="reveal reveal-delay-2" style={{ marginBottom: 20, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>What your page is built for</span><QM text="Based on your title, H1–H3 headings, and meta description — these are the search queries your content is currently optimized for." /></div>
-      <span style={{ fontSize: 10, color: C.muted, background: "rgba(21,20,21,0.04)", padding: "3px 10px", borderRadius: 10, fontWeight: 500 }}>content analysis</span>
-    </div>
-    <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>Based on your title, headings (H1–H3), and meta description — these are the search queries your content is currently optimized for.</div>
-    <RankingsTable rows={data.keywordMetrics} emptyMsg="Keywords will appear after audit completes." />
-    <BotNote inline text="If your real rankings don't match these keywords, your content may need better keyword targeting. Update your headings and meta tags to align with your target queries." />
-    <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page — they bring niche traffic with less competition." />
-  </div>
+  <div className="reveal reveal-delay-1" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Page Context Summary</span><QM text="If something looks off here, it means Google may misunderstand your page's purpose." /></div><div className="iva-ctx-grid">{[{ l: "Page URL", v: data.ctx.url }, { l: "Page Title", v: decodeHTML(data.ctx.title) }, { l: "Topic", v: decodeHTML(data.ctx.topic) }, { l: "Owner / Creator", v: decodeHTML(data.ctx.owner) }, { l: "Goal", v: decodeHTML(data.ctx.goal) }, { l: "Industry", v: decodeHTML(data.ctx.industry) }, { l: "Region", v: decodeHTML(data.ctx.region) }, { l: "Topic Competition", v: null, badge: data.ctx.competition }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div>{x.badge ? <CompBadge level={x.badge} /> : <div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div>}</div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{decodeHTML(data.ctx.message)}</div></div></div></div>
   <BotNote text="These are the keywords Google currently associates with your page. All recommendations below are based on these topics." />
   {data.rankedKeywords?.length > 0 && <div className="reveal reveal-delay-2" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -1434,22 +1379,25 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
     <RankingsTable rows={data.rankedKeywords} />
     <BotNote inline text="Positions 1–3 mean strong visibility. 4–10 is page one but below the fold. 11+ means page two or deeper — most users never scroll there." />
     <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page — they bring niche traffic with less competition." />
-    <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:12, flexWrap:"wrap" }}><DashBtn label="Track positions in Dashboard" /><button onClick={() => downloadKeywordsCSV(data)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export CSV</button></div>
+    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button onClick={() => downloadKeywordsCSV(data)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export CSV</button></div>
   </div>}
-  <div className="reveal" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 10, gap:8, flexWrap:"wrap" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ fontSize:13, fontWeight:700, color:C.dark }}>Backlink opportunities</span><QM text="Links from other websites to yours — one of Google's top ranking signals. Track your full backlink profile over time in your dashboard." /></div>
-      <DashBtn label="Track backlinks in Dashboard" />
+  <div className="reveal reveal-delay-2" style={{ marginBottom: 20, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>What your page is built for</span><QM text="Based on your title, H1–H3 headings, and meta description — these are the search queries your content is currently optimized for." /></div>
+      <span style={{ fontSize: 10, color: C.muted, background: "rgba(21,20,21,0.04)", padding: "3px 10px", borderRadius: 10, fontWeight: 500 }}>content analysis</span>
     </div>
-    {(data.backlinksCount != null || data.referringDomains != null) && <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
-      {data.backlinksCount != null && <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:8, background:C.surface, border:`1px solid ${C.cardBorder}` }}><span style={{ fontSize:16, fontWeight:700, color:C.dark }}>{data.backlinksCount.toLocaleString()}</span><span style={{ fontSize:11, color:C.muted }}>Backlinks</span></div>}
-      {data.referringDomains != null && <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:8, background:C.surface, border:`1px solid ${C.cardBorder}` }}><span style={{ fontSize:16, fontWeight:700, color:C.dark }}>{data.referringDomains.toLocaleString()}</span><span style={{ fontSize:11, color:C.muted }}>Referring domains</span></div>}
-    </div>}
-    <BotNote inline text="Every quality link from another website is a vote of confidence for Google. Reach out to relevant sites — even 2–3 strong backlinks can make a real difference." />
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>{data.backlinks.map((b, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{b.name}</span></div><div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 28 }}>{b.desc}</div></div>))}</div>
+    <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>Based on your title, headings (H1–H3), and meta description — these are the search queries your content is currently optimized for.</div>
+    <RankingsTable rows={data.keywordMetrics} emptyMsg="Keywords will appear after audit completes." />
+    <BotNote inline text="If your real rankings don't match these keywords, your content may need better keyword targeting. Update your headings and meta tags to align with your target queries." />
+    <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page — they bring niche traffic with less competition." />
   </div>
+  <BotNote text={good.length > 0 ? `Good news — ${good.length} things are already working well on your page.` : "Let's look at what needs attention."} />
+  {good.length > 0 && <div className="reveal reveal-delay-3" style={{ marginBottom: 12 }}><Fold title="What's Working" count={good.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{good.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+  <BotNote text={bad.length > 0 ? `I found ${bad.length} areas that need attention. My recommendations below are personalized based on the keywords I found in your content — this is how Google sees your page and what it thinks you're trying to rank for. If you plan to target different keywords, update your content first, then come back for a fresh audit. Each card has a clear fix — tap to see what to do.` : "Everything looks great! No major issues found."} />
+  {bad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Needs Improvement" count={bad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{bad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
   <BotNote text="Want to go deeper? See how your competitors rank and where to earn backlinks." />
-  <div className="reveal" style={{ marginBottom: 20 }}>    <Fold title="Top Competitors in Google" borderColor={C.cardBorder} headerBg={C.card}><BotNote inline text={`These are the top organic Google results for "${data.keywords?.[0] || "your topic"}". They currently outrank your page for this search query.`} /><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.competitors.map((c, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
+  <div className="reveal" style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+    <Fold title="Top Competitors in Google" borderColor={C.cardBorder} headerBg={C.card}><BotNote inline text={`These are the top organic Google results for "${data.keywords?.[0] || "your topic"}". They currently outrank your page for this search query.`} /><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.competitors.map((c, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <span style={{ background: "rgba(110,43,255,0.08)", color: C.accent, fontWeight: 700, width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>{i + 1}</span>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{c.name}</span>
@@ -1458,11 +1406,13 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
       {c.tactics && c.title && <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 32, marginBottom: 3, lineHeight: 1.4 }}>{c.tactics}</div>}
       {c.description && !c.tactics && <div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 32, marginBottom: 4, lineHeight: 1.4 }}>{c.description.length > 120 ? c.description.slice(0, 117) + "..." : c.description}</div>}
       {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.accent, textDecoration: "none", paddingLeft: 32, display: "block" }}>{c.url.length > 55 ? c.url.slice(0, 52) + "..." : c.url} →</a>}
-    </div>))}</div><BotNote inline text="Study their titles, descriptions, and content structure. What are they doing that you're not? Use their strengths as inspiration to improve your own page." /></Fold></div>
-  <BotNote text={good.length > 0 ? `Good news — ${good.length} things are already working well on your page.` : "Let's look at what needs attention."} />
-  {good.length > 0 && <div className="reveal reveal-delay-3" style={{ marginBottom: 12 }}><Fold title="What's Working" count={good.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{good.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
-  <BotNote text={bad.length > 0 ? `I found ${bad.length} areas that need attention. My recommendations below are personalized based on the keywords I found in your content — this is how Google sees your page and what it thinks you're trying to rank for. If you plan to target different keywords, update your content first, then come back for a fresh audit. Each card has a clear fix — tap to see what to do.` : "Everything looks great! No major issues found."} />
-  {bad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Needs Improvement" count={bad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{bad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+    </div>))}</div><BotNote inline text="Study their titles, descriptions, and content structure. What are they doing that you're not? Use their strengths as inspiration to improve your own page." /></Fold>
+    <Fold title="PR & Backlink Opportunities" borderColor={C.cardBorder} headerBg={C.card} headerExtra={false /* HIDDEN until real DataForSEO endpoints (post 2026-07-01, when the $100 Backlinks API commitment is removed). TODO: replace with REAL backlinks to THIS audited page — full list + exact count + referring domains — from the Backlinks API (backlinks/summary + backlinks/backlinks, target = the page URL, not the domain). Then show the exact count and drop "approximate"/"~". NOTE: AI mentions of this page belong in the Coverage tool (LLM Mentions API), NOT here. */ && data.backlinksCount != null ? <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>~{Math.round(data.backlinksCount * 1.1).toLocaleString()}</span><span style={{ fontSize: 11, color: C.muted }}>approximate links to your site</span><QM text="A rough estimate of the links pointing to your whole site, based on free ranking data with a small adjustment. Not exact — full backlink data needs a paid backlinks plan." /></div> : null}>
+      {false && (data.backlinksCount != null && data.backlinksCount < 10) && <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.15)", marginBottom: 8 }}><div style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: 2 }}>{data.backlinksCount === 0 ? "No backlinks detected" : "Low backlink count"}</div><div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>Backlinks are one of Google's top 3 ranking factors. {data.backlinksCount === 0 ? "Without them, it's very hard to rank on page one — even with perfect on-page SEO." : "With fewer than 10 backlinks, you're likely losing rankings to competitors with stronger link profiles."} Start with directories, guest posts, and industry publications.</div></div>}
+      <BotNote inline text="Every quality link from another website is a 'vote of confidence' for Google. Reach out to these sites — offer a guest post, suggest a resource mention, or propose a collaboration. Even 2–3 strong backlinks can make a real difference." />
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>{data.backlinks.map((b, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{b.name}</span></div><div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 28 }}>{b.desc}</div></div>))}</div>
+    </Fold>
+  </div>
   <BotNote text="Here's a summary of what to focus on. Fix these and your rankings will improve." />
   <div className="reveal" style={{ marginBottom: 8, padding: 20, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 12 }}>Final Recommendations</div><div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
     {bad.map((item, i) => {
@@ -1487,19 +1437,21 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
 </div>); };
 
 /* ═══ MAIN — NEW LAYOUT (Builder-style) ═══ */
-function CoreTool({ onHome }) {
+function IvaBotV6() {
   const isMobile = useIsMobile();
   const [mTab, sMTab] = useState("chat");
   const [pLoad, sPLoad] = useState(null);
   const [view, setView] = useState("select"), [tool, setTool] = useState(null), [msgs, setMsgs] = useState([]), [loadStep, setLS] = useState(-1), [showR, setSR] = useState(false), [showBuy, setSB] = useState(false), [typing, setTyping] = useState(false), [credits, setCredits] = useState({ core: 0, builder: 0, coverage: 0 }), [memberId, setMemberId] = useState(null), [memberName, setMemberName] = useState(null), [loading, setLoading] = useState(true);
   const inputRef = useRef(null);
   useEffect(() => { (async () => { const info = await getMemberInfo(); setMemberId(info.id); setMemberName(info.name); const cr = await fetchCredits(info.id); setCredits(cr); setLoading(false);
-    /* standalone Core tool: restore last report if present, else start Core directly */
-    const savedCore = loadCoreReport(info.id);
+    /* URL routing: ?tool=core|builder|coverage */
+    const p = new URLSearchParams(window.location.search);
+    const t = p.get("tool");
+    const savedCore = (t === "core") ? loadCoreReport(info.id) : null;
     if (savedCore) {
       setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Here's your latest audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
-    } else {
-      setTimeout(() => start("core"), 100);
+    } else if (t && ["core","builder","coverage"].includes(t) && ((t === "core" && cr.core > 0) || (t === "builder" && cr.builder > 0) || (t === "coverage" && cr.coverage > 0) || ((t === "builder" || t === "coverage") && _shellIsReload() && _hasFreshSaved(t, info.id)))) {
+      setTimeout(() => start(t), 100);
     }
   })(); }, []);
   const chatRef = useRef(null);
@@ -1556,7 +1508,13 @@ function CoreTool({ onHome }) {
       setMsgs(p => [...p, { from: "bot", content: React.createElement("div", null, React.createElement("div", {style:{color:"#928E95",fontSize:12,marginBottom:8}}, "I'll check your page for technical SEO, content structure, speed, mobile readiness, and more. You'll get clear, actionable recommendations."), React.createElement("div", {style:{fontWeight:600}}, "Just paste your URL below and I'll get started.")), id: Date.now() + 1 }]);
     }, 4000);
   };
-  const home = () => { try { const url = new URL(window.location); url.searchParams.delete("tool"); url.searchParams.delete("paid"); window.history.replaceState({}, "", url); } catch(e){} if (typeof onHome === "function") onHome(); };
+  const home = async () => { setView("select"); setTool(null); setMsgs([]); setSR(false); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); const cr = await fetchCredits(memberId); setCredits(cr);
+    /* Reset URL to /app */
+    const url = new URL(window.location);
+    url.searchParams.delete("tool");
+    url.searchParams.delete("paid");
+    window.history.replaceState({}, "", url);
+  };
 
   const runAudit = async (url) => {
     /* Check credits before starting */
@@ -1917,30 +1875,35 @@ function CoreTool({ onHome }) {
     <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
   </React.Fragment>;
 
-  /* ═══ CORE WHITELIST GATE — closed preview, mirrors AI Readiness ═══ */
-  const CORE_WHITELIST = ["05021d8c-f4c5-4607-8b9c-defb694ebe42"];
-  const _coreAllowed = window.__CORE_OPEN === true || (!!memberId && CORE_WHITELIST.indexOf(memberId) !== -1);
-  if (!loading && !_coreAllowed) {
-    return (
-      <div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: isMobile ? "0 12px 6px" : "0 24px 10px", display: "flex", alignItems: "center", gap: 6, maxWidth: 1224, margin: "0 auto", width: "100%" }}>
-          <button onClick={() => { if (typeof onHome === "function") onHome(); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button>
-          <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>Core Audit</span>
+  return (
+    <div className="iva-root" style={{ fontFamily: "'DM Sans',sans-serif", background: "#f8f7f9", display: "flex", flexDirection: "column", padding: "8px 12px", minHeight: "100vh" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #ffffff 0%, #F8F5FF 15%, #F0EAFF 40%, #E4D8FC 70%, #D9CCFA 100%)", borderRadius: 12, minHeight: 0 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}@keyframes foldOpen{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}.reveal.visible{opacity:1;transform:translateY(0)}.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}.fold-content{animation:foldOpen 0.4s cubic-bezier(0.4,0,0.2,1) forwards;overflow:hidden}.iva-tools{display:flex;gap:14px;width:100%}.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}.iva-seo-title{font-size:64px}.iva-nav{height:84px;padding:24px 0 0}.iva-root{height:auto!important;min-height:100vh!important;overflow:visible!important}#ivabot-root{overflow:visible!important;height:auto!important;min-height:100vh!important}.w-embed,.w-container,.w-layout-cell,.w-layout-layout{overflow:visible!important}.iva-scroll-inner{overflow:auto!important}@media(max-width:768px){.iva-tools{flex-direction:column}.iva-buy-grid{grid-template-columns:1fr}.iva-ctx-grid{grid-template-columns:1fr}.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}.iva-seo-title{font-size:32px}.iva-nav{padding:0 12px}}@media(max-width:520px){.iva-seo-title{font-size:26px}.iva-nav{height:48px;padding:0 10px}}`}</style>
+      {showBuy && <BuyM onClose={() => setSB(false)} memberId={memberId} />}
+      <PaymentToast />
+      <nav className="iva-nav" style={{ display: "flex", justifyContent: "center", background: "transparent", flexShrink: 0, zIndex: 100, height: 84, paddingTop: 24 }}>
+        <div style={{ width: "100%", maxWidth: 1224, padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <a href="https://ivabot.xyz" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textDecoration: "none" }}><svg width="33" height="29" viewBox="0 0 66 58" fill="none"><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill={C.accent} /><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill={C.accent} /></svg><span style={{ fontSize: 17, fontWeight: 700, color: C.dark, letterSpacing: "-0.02em" }}>IvaBot</span></a>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}><a href="https://ivabot.xyz/dashboard" style={{ fontSize: 14, fontWeight: 500, color: C.dark, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Dashboard</a><button onClick={() => setSB(true)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: C.dark, background: "rgba(255,255,255,0.43)", border: "1px solid rgba(21,20,21,0.16)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "-0.3px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#fff"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.43)"}>Buy Credits</button><a href="/login" onClick={async (e) => { e.preventDefault(); if (window.__supabase) await window.__supabase.auth.signOut(); window.location.href = "/login"; }} style={{ fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log out</a></div>
         </div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
-          <div style={{ maxWidth: 420, textAlign: "center", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "32px 28px" }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 8 }}>Core is in private preview</div>
-            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>The rebuilt Core audit is being tested. It will open to everyone soon.</div>
+      </nav>
+
+      {view === "select" ? (
+        <div style={{ flex: 1, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px", gap: 36, maxWidth: 780, width: "100%" }}>
+            <div style={{ textAlign: "center" }}><div className="iva-seo-title" style={{ fontWeight: 400, color: C.dark, letterSpacing: "-0.2px", lineHeight: 1, marginBottom: 16, background: "linear-gradient(116deg, rgba(21,20,21,0.25) 8%, #151415 35%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>SEO Tools</div><p style={{ fontSize: 20, color: "rgba(21,20,21,0.5)", maxWidth: 460, margin: "0 auto", lineHeight: 1.1, letterSpacing: "-0.2px", fontWeight: 400 }}>Analyze pages, build content, and find gaps — powered by AI with real Google data.</p><p style={{ fontSize: 13, color: C.muted, margin: "12px auto 0", fontWeight: 500, letterSpacing: "-0.1px" }}>1 run = 1 credit</p></div>
+            <div className="iva-tools"><TCard title="Core Audit" desc="Technical SEO, content structure, links, speed, and usability. Plus AI chat to explain results and help fix issues." tag="~2 min" credits={credits.core} onClick={() => start("core")} onBuy={() => setSB(true)} /><TCard title="Content Coverage & AI Readiness" desc="Find keyword gaps, trust signals, and AI extraction signals that help you rank on Google and get cited by ChatGPT, Perplexity, Claude, and Google AI." tag="~3 min" credits={credits.coverage} onClick={() => start("coverage")} onBuy={() => setSB(true)} /><TCard title="Content Builder" desc="Finds low-competition keywords, builds SEO page structure, and writes full content. AI assistant helps refine your copy." tag="~5 min" credits={credits.builder} onClick={() => start("builder")} onBuy={() => setSB(true)} /><button onClick={() => start("readiness")} style={{ padding: 22, borderRadius: 12, border: `1px solid ${C.border}`, background: C.surface, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans',sans-serif", flex: 1, minWidth: 0 }} onMouseEnter={e => { e.currentTarget.style.borderColor = C.hoverBorder; e.currentTarget.style.boxShadow = C.hoverShadow; }} onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}><div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}><span style={{ fontSize: 10, fontWeight: 600, color: C.accent, background: C.accentLight, padding: "4px 10px", borderRadius: 6 }}>Free preview</span></div><div style={{ fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: 6, letterSpacing: "-0.02em" }}>AI Readiness</div><div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>See how ready your page is to be cited by ChatGPT, Perplexity, and Google AI, with the signals to fix first.</div></button></div>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <React.Fragment>
-      {showBuy && <BuyM onClose={() => setSB(false)} memberId={memberId} />}
-      <div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
+      ) : tool === "readiness" && window.AIReadinessTool ? (
+        React.createElement(window.AIReadinessTool, { onHome: home, memberName: memberName || "" })
+      ) : tool === "builder" && window.ContentBuilder ? (
+        React.createElement(window.ContentBuilder, { onHome: home, memberName: memberName || "" })
+      ) : tool === "coverage" && window.ContentCoverage ? (
+        React.createElement(window.ContentCoverage, { onHome: home, memberName: memberName || "" })
+      ) : (
+        /* ═══ CORE AUDIT — Builder-style layout ═══ */
+        <div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
           {/* BREADCRUMB */}
           <div style={{ padding: isMobile ? "0 12px 6px" : "0 24px 10px", display: "flex", alignItems: "center", gap: 6, maxWidth: 1224, margin: "0 auto", width: "100%" }}>
             <button onClick={home} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button>
@@ -1991,9 +1954,20 @@ function CoreTool({ onHome }) {
             {!isMobile && <button onClick={home} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>Try Other Tools</button>}
           </div>}
         </div>
-    </React.Fragment>
+      )}
+      <div style={{ padding: "6px 16px 4px", background: "transparent", textAlign: "center", flexShrink: 0 }}><span style={{ fontSize: 10, color: C.muted }}>Powered by IvaBot · AI SEO Assistant</span></div>
+      </div>
+    </div>
   );
 }
 
-window.CoreTool = CoreTool;
+/* ═══ MOUNT ═══ */
+const root = document.getElementById("ivabot-root");
+if (root) {
+  if (ReactDOM.createRoot) {
+    ReactDOM.createRoot(root).render(React.createElement(IvaBotV6));
+  } else {
+    ReactDOM.render(React.createElement(IvaBotV6), root);
+  }
+}
 })();
