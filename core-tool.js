@@ -184,6 +184,8 @@ const CompBadge = ({ level }) => { const map = { Low: { color: "#9B7AE6", bg: "r
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK = false;
+/* July-1 flip flags — single source of truth. Flip to true on the day; revert to false = rollback. */
+window.IVA_FLAGS = window.IVA_FLAGS || { backlinksLive: false, toolsOpen: false };
 const WEBHOOK_URL = "https://hook.eu2.make.com/la0f5jggl23gkearytvw7xjhagwd3ibc";
 const CHAT_WEBHOOK_URL = "https://hook.eu2.make.com/it65d8rtzws93lsnl1jncrcmcwx14xyj";
 const CORS_PROXY = "https://empuzslozakbicmenxfo.supabase.co/functions/v1/fetch-page";
@@ -1633,7 +1635,7 @@ function CoreTool({ onHome }) {
         let dfsSeo = null;
         const DFS_PROXY = SUPABASE_URL + "/functions/v1/dataforseo-proxy";
 
-        const [rankedRes, serpRes, kvRes] = await Promise.allSettled([
+        const [rankedRes, serpRes, kvRes, blRes] = await Promise.allSettled([
           /* a) ranked_keywords + backlinks for the page */
           fetch(DFS_PROXY, {
             method: "POST",
@@ -1651,6 +1653,12 @@ function CoreTool({ onHome }) {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
             body: JSON.stringify({ mode: "keyword_volume", keywords: gptKws, location_code: locale.location_code, language_code: locale.language_code })
+          }).then(r => r.ok ? r.json() : null) : Promise.resolve(null),
+          /* d) dedicated backlinks summary (PAYG) — gated; skipped while backlinksLive=false */
+          (window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? fetch(DFS_PROXY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
+            body: JSON.stringify({ mode: "backlinks_summary", target: domain })
           }).then(r => r.ok ? r.json() : null) : Promise.resolve(null)
         ]);
 
@@ -1665,6 +1673,14 @@ function CoreTool({ onHome }) {
           console.log("[IvaBot] DFS ranked OK — ranked:", dfsSeo.ranked_keywords.length, "total:", dfsSeo.total_ranked);
         } else {
           console.log("[IvaBot] DFS ranked failed:", rankedRes.reason?.message || "no data");
+        }
+
+        /* F1: when backlinks go live, dedicated summary overrides the ranked_only hack */
+        if (window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive && blRes && blRes.status === "fulfilled" && blRes.value) {
+          const b = blRes.value;
+          if (b.backlinks_count != null) dfsSeo.backlinksCount = b.backlinks_count;
+          if (b.referring_domains_count != null) dfsSeo.referringDomains = b.referring_domains_count;
+          dfsSeo.domainRank = b.domain_rank ?? null;
         }
 
         if (serpRes.status === "fulfilled" && serpRes.value) {
