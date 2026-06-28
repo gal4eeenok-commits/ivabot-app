@@ -1496,7 +1496,7 @@ function CoreTool({ onHome }) {
   useEffect(() => { (async () => { const info = await getMemberInfo(); setMemberId(info.id); setMemberName(info.name); const cr = await fetchCredits(info.id); setCredits(cr); setLoading(false);
     /* standalone Core tool: restore last report if present, else start Core directly */
     const savedCore = loadCoreReport(info.id);
-    if (savedCore) {
+    if (savedCore && _shellIsReload()) {
       setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Here's your latest audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
     } else {
       setTimeout(() => start("core"), 100);
