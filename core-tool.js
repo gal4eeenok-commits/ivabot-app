@@ -1396,13 +1396,13 @@ async function generatePDF(data) {
 /* ═══ REPORT (unchanged) ═══ */
 const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = buildResults(data);
   data = { ...data,
-    rankedKeywords: (data.rankedKeywords && data.rankedKeywords.length) ? data.rankedKeywords : CORE_DEMO.rankedKeywords,
-    keywordMetrics: (data.keywordMetrics && data.keywordMetrics.length) ? data.keywordMetrics : CORE_DEMO.keywordMetrics,
-    competitors: (data.competitors && data.competitors.length) ? data.competitors : CORE_DEMO.competitors,
-    backlinks: (data.backlinks && data.backlinks.length) ? data.backlinks : CORE_DEMO.backlinks,
-    backlinksCount: data.backlinksCount != null ? data.backlinksCount : CORE_DEMO.backlinksCount,
-    referringDomains: data.referringDomains != null ? data.referringDomains : CORE_DEMO.referringDomains,
-    totalRanked: data.totalRanked != null ? data.totalRanked : CORE_DEMO.totalRanked };
+    rankedKeywords: (data.rankedKeywords && data.rankedKeywords.length) ? data.rankedKeywords : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? [] : CORE_DEMO.rankedKeywords),
+    keywordMetrics: (data.keywordMetrics && data.keywordMetrics.length) ? data.keywordMetrics : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? [] : CORE_DEMO.keywordMetrics),
+    competitors: (data.competitors && data.competitors.length) ? data.competitors : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? [] : CORE_DEMO.competitors),
+    backlinks: (data.backlinks && data.backlinks.length) ? data.backlinks : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? [] : CORE_DEMO.backlinks),
+    backlinksCount: data.backlinksCount != null ? data.backlinksCount : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? null : CORE_DEMO.backlinksCount),
+    referringDomains: data.referringDomains != null ? data.referringDomains : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? null : CORE_DEMO.referringDomains),
+    totalRanked: data.totalRanked != null ? data.totalRanked : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? null : CORE_DEMO.totalRanked) };
   const _dashDomain = (()=>{ try { return new URL(data.url).hostname.replace(/^www\./,""); } catch(e){ return ""; } })();
   const _dashUrl = "https://ivabot.xyz/dashboard" + (_dashDomain ? ("?domain=" + encodeURIComponent(_dashDomain)) : "");
   const DashLink = ({ href }) => (<a href={href || _dashUrl} target="_blank" rel="noopener noreferrer" title="Open this domain in your dashboard" style={{ display:"inline-flex", alignItems:"center", gap:6, color:C.accent, textDecoration:"none", fontSize:12, fontWeight:600, flexShrink:0 }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>);
