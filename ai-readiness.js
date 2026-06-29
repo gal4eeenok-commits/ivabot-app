@@ -23,6 +23,8 @@ class _CovErrorBoundary extends React.Component {
 
 /* ═══ CONFIG ═══ */
 const USE_MOCK=false;
+/* July-1 flip flags — single source of truth (guarded; shared with other tools). */
+window.IVA_FLAGS = window.IVA_FLAGS || { backlinksLive: false, toolsOpen: false };
 const SUPABASE_URL="https://empuzslozakbicmenxfo.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
 
@@ -1902,7 +1904,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
 
   const WHITELIST = ["05021d8c-f4c5-4607-8b9c-defb694ebe42"];
   const _uid = getMemberId();
-  const _allowed = window.__AIR_OPEN === true || (!!_uid && WHITELIST.indexOf(_uid) !== -1);
+  const _allowed = window.__AIR_OPEN === true || (window.IVA_FLAGS && window.IVA_FLAGS.toolsOpen) || (!!_uid && WHITELIST.indexOf(_uid) !== -1);
   console.log("[AIR] uid:", _uid, "allowed:", _allowed);
 
   if (!_allowed) {
