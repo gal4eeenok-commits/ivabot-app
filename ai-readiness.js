@@ -1,7 +1,7 @@
 /* IvaBot AI Readiness (standalone) v3.5 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v3.7 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v3.8 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1836,7 +1836,16 @@ function AIReadinessTool({ onHome, memberName: mn }) {
         try {
           var _host = ""; try { _host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
           if (!_host) return;
-          var _mr = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "llm_mentions", target: _host, platform: "google" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          /* brand for AI-mentions: last segment of the page title after a separator (e.g. "Aptos | Ashfall Studio" -> "Ashfall Studio"), fallback to the domain's second-level label. */
+          var _brand = "";
+          try {
+            var _tt = (d.title || "").trim();
+            var _seg = _tt.split(/\s[|\u2013\u2014\u00b7:\-]\s/).map(function (s) { return s.trim(); }).filter(Boolean);
+            if (_seg.length > 1) _brand = _seg[_seg.length - 1];
+            if (!_brand || _brand.length > 40 || _brand.length < 2) _brand = "";
+          } catch (e) {}
+          if (!_brand) _brand = _host.split(".")[0];
+          var _mr = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "llm_mentions", brand: _brand, target: _host, platform: "google" }) }).then(function (r) { return r.ok ? r.json() : null; });
           if (_mr) {
             var _m = (_mr.mentions != null) ? _mr.mentions : 0;
             var _asv = (_mr.ai_search_volume != null) ? _mr.ai_search_volume : 0;
