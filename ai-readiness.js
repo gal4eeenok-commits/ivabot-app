@@ -1,7 +1,7 @@
 /* IvaBot AI Readiness (standalone) v3.5 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v3.8 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v3.9 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1857,6 +1857,23 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           }
         } catch (_me) { console.log("[AIR] llm_mentions", _me); }
       })();
+      /* AIR (variant B): AI Overview by the page's real ranked keywords \u2014 does Google show an AI Overview and are you cited. Hardcoded US/en (matches Core for English pages). */
+      (async () => {
+        try {
+          var _h = ""; try { _h = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
+          if (!_h) return;
+          var _nrm = function (u) { try { var x = new URL(u); return (x.hostname.replace(/^www\./, "") + x.pathname.replace(/\/+$/, "")).toLowerCase(); } catch (e) { return String(u || "").toLowerCase(); } };
+          var _rk = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ranked_only", domain: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          var _pk = _nrm(url);
+          var _kws = (((_rk && _rk.ranked_keywords) || []).filter(function (k) { return k && k.url && _nrm(k.url) === _pk; }).map(function (k) { return k.keyword; })).slice(0, 5);
+          if (!_kws.length) { console.log("[AIR] ai_overview: no ranked keywords for this page"); return; }
+          var _ao = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ai_overview", keywords: _kws, target: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          if (_ao && Array.isArray(_ao.ai_overview) && _ao.ai_overview.length) {
+            console.log("[AIR] ai_overview OK:", _ao.ai_overview.length, "keywords checked");
+            setAuditData(function (prev) { return (prev && prev.url === d.url) ? Object.assign({}, prev, { aioItems: _ao.ai_overview }) : prev; });
+          }
+        } catch (_ae) { console.log("[AIR] ai_overview", _ae); }
+      })();
       (async () => {
         try {
           const _dtCtx = `URL: ${url}\nTitle: ${parsed.title || ""}\nPage type: ${d.pageType}\nPrimary keyword: ${parsed.primary_keyword || ""}\nSummary: ${(parsed.summary || "").slice(0, 600)}`;
@@ -2110,7 +2127,7 @@ const DEMO_AIO = [
 ];
 
 const AIOverviewBlock = ({ items, dashHref }) => {
-  const rows = items || DEMO_AIO;
+  const rows = items || [];
   const triggered = rows.filter(r => r.triggers).length;
   const cited = rows.filter(r => r.cited).length;
   const total = rows.length;
@@ -2219,7 +2236,8 @@ const AIReadinessReport = ({ data }) => {
       <div className="reveal" style={{ marginBottom: 20 }}>
         <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || "other")} />
       </div>
-      <BotNote text="Live AI tracking, which prompts cite you across ChatGPT, Perplexity and Google AI plus your Google AI Overview presence, lives in your dashboard and refreshes on demand." />
+      <BotNote text="Prompt-level tracking, which prompts cite you across ChatGPT and Perplexity, lives in your dashboard and refreshes on demand." />
+      {data.aioItems && data.aioItems.length > 0 && <React.Fragment><BotNote text="Google AI Overview: for the keywords this page ranks for, does Google show an AI Overview and are you cited inside it." /><AIOverviewBlock items={data.aioItems} dashHref={dashHref} /></React.Fragment>}
       
       
       
