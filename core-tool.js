@@ -1,7 +1,7 @@
-/* IvaBot CORE TOOL (core-tool.js) v214 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
+/* IvaBot CORE TOOL (core-tool.js) v215 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] core-tool.js v211 loaded (standalone window.CoreTool)");
+console.log("[IvaBot] core-tool.js v215 loaded (standalone window.CoreTool)");
 
 /* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
 var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -313,11 +313,14 @@ function detectLocale(url, htmlLang, hreflang, opts) {
   var LANG_DOMINANT_LOC = { ru:2643,uk:2804,en:2840,de:2276,fr:2250,es:2724,it:2380,pl:2616,"pt-PT":2620,"pt-BR":2076,pt:2076,tr:2792,ro:2642,bg:2100,el:2300,ja:2392,ko:2410,"zh-CN":2156,zh:2156,ar:2682,he:2376,nl:2528,sr:2688,cs:2203,hu:2348,sv:2752,ka:2268,hy:2051,az:2031,uz:2860,lt:2440,lv:2428,et:2233 };
 
   var country = null, source = "default";
+  /* English page must not be dragged to a foreign market by a stray currency/phone symbol.
+     Currency/phone signals apply only to non-English pages; English defaults to US unless hreflang/ccTLD says otherwise. */
+  var _isEn = (htmlLang && String(htmlLang).toLowerCase().indexOf("en") === 0) || (gptLang === "en");
 
   if (hreflang) { var hp = hreflang.toLowerCase().split(/[-_]/); if (hp.length>=2 && countryToLoc[hp[1]]) { country=hp[1]; source="hreflang:"+hreflang; } else if (countryToLoc[hp[0]]) { country=hp[0]; source="hreflang-lang:"+hp[0]; } }
   if (!country) { try { var host=new URL(url).hostname.toLowerCase(); var pr=host.split("."); if (pr.length>=3){ var two=pr.slice(-2).join("."); if (TLD_TO_COUNTRY[two]){ country=TLD_TO_COUNTRY[two]; source="tld:"+two; } } if (!country){ var t1=pr[pr.length-1]; if (TLD_TO_COUNTRY[t1]){ country=TLD_TO_COUNTRY[t1]; source="tld:"+t1; } } } catch(e){} }
-  if (!country) { var cur=scanCurrencies(text); if (cur.length===1 && countryToLoc[cur[0]]) { country=cur[0]; source="currency:"+cur[0]; } else if (cur.length>1 && gptCountry && cur.indexOf(gptCountry)>=0) { country=gptCountry; source="currency+gpt:"+gptCountry; } }
-  if (!country) { var ph=scanPhones(text); if (ph.length>=1 && countryToLoc[ph[0]]) { country=ph[0]; source="phone:"+ph[0]; } }
+  if (!country && !_isEn) { var cur=scanCurrencies(text); if (cur.length===1 && countryToLoc[cur[0]]) { country=cur[0]; source="currency:"+cur[0]; } else if (cur.length>1 && gptCountry && cur.indexOf(gptCountry)>=0) { country=gptCountry; source="currency+gpt:"+gptCountry; } }
+  if (!country && !_isEn) { var ph=scanPhones(text); if (ph.length>=1 && countryToLoc[ph[0]]) { country=ph[0]; source="phone:"+ph[0]; } }
   if (!country && gptCountry && countryToLoc[gptCountry] && gptConf!=="low") { country=gptCountry; source="gpt:"+gptCountry; }
 
   var langCode = null;
