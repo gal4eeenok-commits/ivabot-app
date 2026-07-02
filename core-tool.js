@@ -1,4 +1,4 @@
-/* IvaBot CORE TOOL (core-tool.js) v212 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
+/* IvaBot CORE TOOL (core-tool.js) v213 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] core-tool.js v211 loaded (standalone window.CoreTool)");
@@ -1640,7 +1640,7 @@ function CoreTool({ onHome }) {
           fetch(DFS_PROXY, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
-            body: JSON.stringify({ mode: "ranked_only", domain, page_url: url, location_code: locale.location_code, language_code: locale.language_code })
+            body: JSON.stringify({ mode: "ranked_only", domain, location_code: locale.location_code, language_code: locale.language_code })
           }).then(r => r.ok ? r.json() : null),
           /* b) SERP competitors by the right keyword (gpt.keywords[0]) */
           serpKeyword ? fetch(DFS_PROXY, {
@@ -1658,7 +1658,7 @@ function CoreTool({ onHome }) {
           (window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? fetch(DFS_PROXY, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
-            body: JSON.stringify({ mode: "backlinks_summary", target: domain })
+            body: JSON.stringify({ mode: "backlinks_summary", target: url })
           }).then(r => r.ok ? r.json() : null) : Promise.resolve(null)
         ]);
 
@@ -1674,6 +1674,21 @@ function CoreTool({ onHome }) {
         } else {
           console.log("[IvaBot] DFS ranked failed:", rankedRes.reason?.message || "no data");
         }
+
+        /* page-level positions: ranked_only now returns domain-level keywords (each with its own url).
+           Attribute to THIS page by normalized url (strip protocol/www/trailing slash) so inner pages
+           like /work/aptos get their real keywords instead of an exact-URL miss. Homepage keeps all. */
+        try {
+          var _normU = function (u) { try { var x = new URL(u); return (x.hostname.replace(/^www\./, "") + x.pathname.replace(/\/+$/, "")).toLowerCase(); } catch (e) { return String(u || "").toLowerCase(); } };
+          var _isInner = (function () { try { var p = new URL(url).pathname; return !!p && p !== "/" && p !== ""; } catch (e) { return false; } })();
+          if (_isInner && Array.isArray(dfsSeo.ranked_keywords)) {
+            var _pageKey = _normU(url);
+            var _pageKws = dfsSeo.ranked_keywords.filter(function (k) { return k && k.url && _normU(k.url) === _pageKey; });
+            console.log("[IvaBot] page-level attribution:", _pageKws.length, "of", dfsSeo.ranked_keywords.length, "domain keywords match", _pageKey);
+            dfsSeo.ranked_keywords = _pageKws;
+            dfsSeo.total_ranked = _pageKws.length;
+          }
+        } catch (_attrErr) { console.warn("[IvaBot] page-level attribution error:", _attrErr); }
 
         /* F1: when backlinks go live, dedicated summary overrides the ranked_only hack */
         if (window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive && blRes && blRes.status === "fulfilled" && blRes.value) {
