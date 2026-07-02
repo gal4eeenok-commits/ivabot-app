@@ -1,7 +1,7 @@
 /* IvaBot AI Readiness (standalone) v3.5 — cloned from content-coverage.js shell; AI Readiness report only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v3.5 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v3.6 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -1831,6 +1831,19 @@ function AIReadinessTool({ onHome, memberName: mn }) {
          Credit charge intentionally deferred while metrics are demo and the tool is whitelisted.
          To enable charging later: call trackCoverageUsage(_air_mid) here AND add a checkCoverageCredits gate before runAIReadiness. */
       try { const _air_mid = getMemberId(); if (_air_mid) recordAirRun(_air_mid, url); } catch(_air_e){}
+      /* AIR: real AI mentions of the brand (llm_mentions) — feeds the trust table; no demo. */
+      (async () => {
+        try {
+          var _host = ""; try { _host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
+          if (!_host) return;
+          var _mr = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "llm_mentions", target: _host, platform: "google" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          if (_mr && _mr.mentions != null) {
+            var _rows = [{ label: "AI mentions of your brand", value: String(_mr.mentions), period: "last 30 days", tip: "Times AI answers named your brand in the last 30 days (Google AI). Full history in your dashboard." }];
+            if (_mr.ai_search_volume != null) _rows.push({ label: "AI search volume", value: String(_mr.ai_search_volume), period: "est. monthly", tip: "Estimated monthly AI searches related to your brand." });
+            setAuditData(function (prev) { return (prev && prev.url === d.url) ? Object.assign({}, prev, { trust: { rows: _rows } }) : prev; });
+          }
+        } catch (_me) { console.log("[AIR] llm_mentions", _me); }
+      })();
       (async () => {
         try {
           const _dtCtx = `URL: ${url}\nTitle: ${parsed.title || ""}\nPage type: ${d.pageType}\nPrimary keyword: ${parsed.primary_keyword || ""}\nSummary: ${(parsed.summary || "").slice(0, 600)}`;
@@ -2173,7 +2186,7 @@ const AIReadinessReport = ({ data }) => {
   const score = typeof ai.score === "number" ? Math.round(ai.score) : 0;
   const t = data.trust || {};
 
-  const trustRows = (t.rows && t.rows.length) ? t.rows : DEMO_TRUST_ROWS;
+  const trustRows = (t.rows && t.rows.length) ? t.rows : [];
   const extractableBad = aiBad.some(p => p.title === "Extractable passages");
   const showPassages = ai.extractablePassages && ai.extractablePassages.length > 0 && !extractableBad;
   const wwCount = aiGood.length + (showPassages ? 1 : 0);
@@ -2187,16 +2200,16 @@ const AIReadinessReport = ({ data }) => {
     <AIReadinessScoreCard url={data.url} score={score} passed={passed} total={total} />
 
     {TRUST_PREVIEW && <>
-      <BotNote text="How AI and the web cite you right now. Numbers are an example for layout \u2014 live data and full history connect in your dashboard." />
-      <TrustTable rows={trustRows} dashHref={dashHref} />
+      <BotNote text="How AI cites your brand right now, from live data. Full history and tracking are in your dashboard." />
+      {trustRows.length > 0 && <TrustTable rows={trustRows} dashHref={dashHref} />}
       <BotNote text="Where to get this page mentioned so AI tools pick it up. This is how the citations and mentions above grow." />
       <div className="reveal" style={{ marginBottom: 20 }}>
         <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || "other")} />
       </div>
-      <BotNote text="Track where you actually appear for the questions your buyers ask, across ChatGPT, Perplexity, and Google AI." />
-      <PromptVisibility prompts={DEMO_PROMPTS} dashHref={dashHref} />
-      <BotNote text="Google AI Overview. For your tracked queries: does Google show an AI Overview, and are you cited inside it." />
-      <AIOverviewBlock dashHref={dashHref} />
+      <BotNote text="Live AI tracking \u2014 which prompts cite you across ChatGPT, Perplexity and Google AI, plus your Google AI Overview presence \u2014 lives in your dashboard, refreshed on demand." />
+      
+      
+      
     </>}
 
     <BotNote text={wwCount > 0 ? `On the page, ${wwCount} signal${wwCount !== 1 ? "s" : ""} that help AI cite you are already in place.` : "Let's look at the on-page signals that help AI cite you."} />
