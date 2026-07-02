@@ -1,4 +1,4 @@
-/* IvaBot CORE TOOL (core-tool.js) v213 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
+/* IvaBot CORE TOOL (core-tool.js) v214 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] core-tool.js v211 loaded (standalone window.CoreTool)");
@@ -1395,14 +1395,15 @@ async function generatePDF(data) {
 
 /* ═══ REPORT (unchanged) ═══ */
 const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = buildResults(data);
+  /* demo fallback removed — show real data, or empty when there is none (no placeholder) */
   data = { ...data,
-    rankedKeywords: (data.rankedKeywords && data.rankedKeywords.length) ? data.rankedKeywords : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? [] : CORE_DEMO.rankedKeywords),
-    keywordMetrics: (data.keywordMetrics && data.keywordMetrics.length) ? data.keywordMetrics : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? [] : CORE_DEMO.keywordMetrics),
-    competitors: (data.competitors && data.competitors.length) ? data.competitors : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? [] : CORE_DEMO.competitors),
-    backlinks: (data.backlinks && data.backlinks.length) ? data.backlinks : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? [] : CORE_DEMO.backlinks),
-    backlinksCount: data.backlinksCount != null ? data.backlinksCount : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? null : CORE_DEMO.backlinksCount),
-    referringDomains: data.referringDomains != null ? data.referringDomains : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? null : CORE_DEMO.referringDomains),
-    totalRanked: data.totalRanked != null ? data.totalRanked : ((window.IVA_FLAGS && window.IVA_FLAGS.backlinksLive) ? null : CORE_DEMO.totalRanked) };
+    rankedKeywords: (data.rankedKeywords && data.rankedKeywords.length) ? data.rankedKeywords : [],
+    keywordMetrics: (data.keywordMetrics && data.keywordMetrics.length) ? data.keywordMetrics : [],
+    competitors: (data.competitors && data.competitors.length) ? data.competitors : [],
+    backlinks: (data.backlinks && data.backlinks.length) ? data.backlinks : [],
+    backlinksCount: data.backlinksCount != null ? data.backlinksCount : null,
+    referringDomains: data.referringDomains != null ? data.referringDomains : null,
+    totalRanked: data.totalRanked != null ? data.totalRanked : null };
   const _dashDomain = (()=>{ try { return new URL(data.url).hostname.replace(/^www\./,""); } catch(e){ return ""; } })();
   const _dashUrl = "https://ivabot.xyz/dashboard" + (_dashDomain ? ("?domain=" + encodeURIComponent(_dashDomain)) : "");
   const DashLink = ({ href }) => (<a href={href || _dashUrl} target="_blank" rel="noopener noreferrer" title="Open this domain in your dashboard" style={{ display:"inline-flex", alignItems:"center", gap:6, color:C.accent, textDecoration:"none", fontSize:12, fontWeight:600, flexShrink:0 }} onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>);
