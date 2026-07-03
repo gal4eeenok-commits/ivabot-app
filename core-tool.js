@@ -1732,7 +1732,7 @@ function CoreTool({ onHome }) {
         try {
           const [blSumRes, blListRes] = await Promise.allSettled([
             fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_summary", target: url }) }).then(r => r.ok ? r.json() : null),
-            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_list", target: url, limit: 100 }) }).then(r => r.ok ? r.json() : null)
+            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_list", target: url, limit: 1000 }) }).then(r => r.ok ? r.json() : null)
           ]);
           if (blSumRes.status === "fulfilled" && blSumRes.value) {
             if (blSumRes.value.backlinks_count != null) dfsSeo.backlinksCount = blSumRes.value.backlinks_count;
