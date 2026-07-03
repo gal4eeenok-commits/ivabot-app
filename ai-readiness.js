@@ -2043,7 +2043,7 @@ const AIReadinessScoreCard = ({ url, score, passed, total }) => {
     <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
         <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>AI signals in place</span>
-        <QM text="How many of the AI-readiness signals we check are already in place on your page. These are the on-page things that make ChatGPT, Perplexity, and Google AI more likely to cite you. Also known as GEO (Generative Engine Optimization)." />
+        <QM text="How many of the AI-readiness signals I check are already in place on your page. These are the on-page things that make ChatGPT, Perplexity, and Google AI more likely to cite you. Also known as GEO (Generative Engine Optimization)." />
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
       <div>
@@ -2118,14 +2118,6 @@ const TrustDetail = ({ row }) => {
   return <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{row.goodNote}</div>;
 };
 
-const DEMO_AIO = [
-  { q: "best collagen supplement", triggers: true, cited: true },
-  { q: "collagen for joints", triggers: true, cited: true },
-  { q: "marine collagen benefits", triggers: true, cited: false },
-  { q: "is marine collagen worth it", triggers: false, cited: false },
-  { q: "collagen powder reviews", triggers: false, cited: false },
-];
-
 const AIOverviewBlock = ({ items, dashHref }) => {
   const rows = items || [];
   const triggered = rows.filter(r => r.triggers).length;
@@ -2134,7 +2126,7 @@ const AIOverviewBlock = ({ items, dashHref }) => {
   return (
   <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
     <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Google AI Overview</span><QM text="For the questions your buyers ask, whether Google shows an AI Overview and whether your page is cited inside it. A query can trigger an AI Overview without citing you. You pick the queries and run the check in the dashboard." /></span>
+      <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Google AI Overview</span><QM text="For the questions people ask, whether Google shows an AI Overview and whether your page is cited inside it. A query can trigger an AI Overview without citing you. You pick the queries and run the check in the dashboard." /></span>
       <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
     </div>
     <div style={{ padding: "4px 16px 14px" }}>
@@ -2152,36 +2144,14 @@ const AIOverviewBlock = ({ items, dashHref }) => {
 /* Dashboard route — confirm the real path and update here once. */
 const DASHBOARD_URL = "/dashboard";
 
-/* Example rows so the layout is visible before live data is connected.
-   AI citations is 0 on purpose, to show the "needs work" path into the folds. */
-
-const DEMO_TRUST_ROWS = [
-  { label: "AI citations of your page", value: "0", period: "last 30 days", tip: "Times an AI answer (ChatGPT, Perplexity, Google AI) linked directly to this page in the last 30 days. When you earn them, we show which engine cited you and for which prompt. Full history in the dashboard.", note: "No citations yet. The on-page fixes below and the distribution tips are how you earn them." },
-  { label: "AI mentions of your brand", value: "47", period: "last 30 days", tip: "Times AI answers named your brand without linking, in the last 30 days, broken down by engine. Full history in the dashboard.", chipsLabel: "Named by", chips: ["ChatGPT \u00b7 21", "Perplexity \u00b7 14", "Google AI Overviews \u00b7 12"] },
-  { label: "Brand mentions across the web", value: "89", period: "last 30 days", tip: "Mentions of your brand across the open web in the last 30 days, with sentiment and the domains writing about you. Full history in the dashboard.", chipsLabel: "Sentiment and top domains", chips: ["84% positive", "reddit.com", "healthline.com", "wellnessmag.co"] },
-  { label: "AI Overview presence (Google)", value: "2 of 5", period: "tracked queries", tip: "Whether your tracked queries trigger a Google AI Overview, and whether your page is cited inside it.", chips: ["Cited in 2 of 5", "3 of 5 trigger an AI Overview"] },
-];
-
-const DEMO_PROMPTS = [
-  { q: "best collagen supplement", chatgpt: true, perplexity: true, aio: false },
-  { q: "collagen for joints", chatgpt: false, perplexity: true, aio: true },
-  { q: "is marine collagen worth it", chatgpt: false, perplexity: false, aio: false },
-  { q: "collagen powder reviews", chatgpt: true, perplexity: false, aio: false },
-  { q: "marine vs bovine collagen", chatgpt: false, perplexity: true, aio: false },
-];
-
-const EngineDot = ({ on, label }) => <span title={label + (on ? ": you appear" : ": not found")} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600, color: on ? "#9B7AE6" : C.muted }}>{on ? "\u2713" : "\u2013"} {label}</span>;
-
 const PromptVisibility = ({ dashHref }) => (
   <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
     <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
       <span style={{ fontSize: 14, fontWeight: 700, color: C.dark, minWidth: 0 }}>Prompt visibility</span>
-      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Track in dashboard</a>
+      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
     </div>
     <div style={{ padding: "8px 16px 16px" }}>
-      <div style={{ fontSize: 12.5, color: C.dark, lineHeight: 1.6, marginBottom: 8 }}>Choose the questions you want AI to find you for. Add the prompts your customers ask ChatGPT, Perplexity, and Google AI, and IvaBot runs each one to check whether these tools mention your brand and link to your page in their answers.</div>
-      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.6 }}>For every prompt you track, you see which engines name you, which ones cite your page, and how that changes over time, so you know exactly where you already appear in AI search and where you are missing.</div>
-      <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 14, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Open your dashboard to start tracking prompts<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>In your dashboard, add the questions you want AI to find you for, and I check whether ChatGPT, Perplexity, and Google AI mention your brand and cite your page for each one.</div>
     </div>
   </div>
 );
