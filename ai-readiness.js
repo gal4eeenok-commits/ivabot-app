@@ -2213,12 +2213,12 @@ const AIReadinessReport = ({ data }) => {
     {TRUST_PREVIEW && <>
       <BotNote text="How AI cites your brand right now, from live data. Full history and tracking are in your dashboard." />
       {trustRows.length > 0 && <TrustTable rows={trustRows} dashHref={dashHref} />}
+      <BotNote text="Prompt visibility shows where AI already mentions and cites you for the questions that matter to your business." />
+      <PromptVisibility dashHref={dashHref} />
       <BotNote text="Where to get this page mentioned so AI tools pick it up. This is how the citations and mentions above grow." />
       <div className="reveal" style={{ marginBottom: 20 }}>
         <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || "other")} />
       </div>
-      <BotNote text="Prompt visibility shows where AI already mentions and cites you for the questions that matter to your business." />
-      <PromptVisibility dashHref={dashHref} />
       {data.aioItems && data.aioItems.length > 0 && <React.Fragment><BotNote text="Google AI Overview: for the keywords this page ranks for, does Google show an AI Overview and are you cited inside it." /><AIOverviewBlock items={data.aioItems} dashHref={dashHref} /></React.Fragment>}
       
       
