@@ -1883,12 +1883,21 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           if (_dt && Array.isArray(_dt.tips)) { const _clean = _dt.tips.filter(t => t && t.channel && t.action).slice(0, 4); if (_clean.length) setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, distributionTips: _clean } : prev); }
         } catch (_dtErr) { console.log("[AIR] distribution_tips fallback", _dtErr); }
       })();
+      (async () => {
+        try {
+          const _spCtx = `URL: ${url}\nTitle: ${parsed.title || ""}\nPage type: ${d.pageType}\nPrimary keyword: ${parsed.primary_keyword || ""}\nSummary: ${(parsed.summary || "").slice(0, 600)}`;
+          const _spRes = await fetch(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "suggested_prompts", page_context: _spCtx }) });
+          if (!_spRes.ok) return;
+          const _sp = await _spRes.json();
+          if (_sp && Array.isArray(_sp.prompts)) { const _cleanP = _sp.prompts.filter(p => typeof p === "string" && p.trim()).map(p => p.trim()).slice(0, 5); if (_cleanP.length) setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, suggestedPrompts: _cleanP } : prev); }
+        } catch (_spErr) { console.log("[AIR] suggested_prompts fallback", _spErr); }
+      })();
       if (isMobile) sMTab("report");
       const nBad = aiReadiness.aiBad.length;
       const nGood = aiReadiness.aiGood.length;
       const nTot = aiReadiness.total || (nGood + nBad);
       bot(<div>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>{"Done. Your AI readiness score is " + aiReadiness.score + " out of 100."}</div>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>{"Done. " + aiReadiness.aiGood.length + " of " + aiReadiness.total + " AI signals are in place."}</div>
         <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 8 }}>{nGood + " of " + nTot + " on-page signals that help AI cite this page are in place" + (nBad > 0 ? ", and " + nBad + " can be improved." : ".")}</div>
         <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55 }}>Ask me anything, and I will explain each signal and how to get this page cited.</div>
       </div>);
@@ -2037,19 +2046,19 @@ const AIReadinessScoreCard = ({ url, score, passed, total }) => {
   const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
   return (<div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
     <div style={{ width: 92, height: 92, flexShrink: 0, borderRadius: 14, background: C.card, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: `1px solid ${C.cardBorder}` }}>
-      <span style={{ fontSize: 28, fontWeight: 700, color: C.dark }}>{score}</span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>/ 100</span>
+      <span style={{ fontSize: 28, fontWeight: 700, color: C.dark }}>{passed}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>/ {total}</span>
     </div>
     <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>AI Readiness Score</span>
-        <QM text="How ready your page is to be cited by AI search tools like ChatGPT, Perplexity, and Google AI. The score is an estimate — what matters most depends on your page type. Also known as GEO (Generative Engine Optimization)." />
+        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>AI signals in place</span>
+        <QM text="How many of the AI-readiness signals we check are already in place on your page. These are the on-page things that make ChatGPT, Perplexity, and Google AI more likely to cite you. Also known as GEO (Generative Engine Optimization)." />
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-          <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Signals passed</span>
-          <span style={{ fontSize: 10, fontWeight: 600, color: "#B89CF0" }}>{passed} / {total}</span>
+          <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>{pct}% in place</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#B89CF0" }}>{passed} of {total} signals</span>
         </div>
         <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${pct}%`, background: "#B89CF0", borderRadius: 100, transition: "width 0.8s ease" }} />
@@ -2172,20 +2181,29 @@ const DEMO_PROMPTS = [
 
 const EngineDot = ({ on, label }) => <span title={label + (on ? ": you appear" : ": not found")} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600, color: on ? "#9B7AE6" : C.muted }}>{on ? "\u2713" : "\u2013"} {label}</span>;
 
+function suggestedPromptsForPageType(pageType) {
+  const byType = {
+    homepage: ["best tools for what you do", "top alternatives in your space", "how to choose a provider like you", "is your service worth it", "who leads your category"],
+    product: ["best options in this category", "how it compares to alternatives", "is it worth the price", "honest reviews and experiences", "what to check before buying"],
+    article: ["how to do what this page explains", "what is the main topic here", "best way to get started", "common mistakes to avoid", "beginner tips for this topic"],
+    service: ["best providers for this service", "how much this service costs", "how to choose the right provider", "questions to ask before hiring", "is this service worth it"],
+    local: ["best options near me", "how much it costs locally", "who to trust for this locally", "reviews from real customers", "what to expect from this service"],
+    other: ["best options for this topic", "how to get started here", "what to look for", "honest reviews and experiences", "is it worth it"],
+  };
+  return byType[pageType] || byType.other;
+}
+
 const PromptVisibility = ({ prompts, dashHref }) => (
   <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
     <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Prompt visibility</span><QM text="We run the real questions your buyers ask through ChatGPT, Perplexity, and Google AI Overview, and show where you already appear. You pick the prompts and run the check in the dashboard." /></span>
+      <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Prompt visibility</span><span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", background: "rgba(110,43,255,0.08)", padding: "3px 8px", borderRadius: 10, textTransform: "uppercase", letterSpacing: "0.4px", flexShrink: 0 }}>Examples</span><QM text="These are example questions people might ask ChatGPT, Perplexity, or Google AI about your topic. I generated them from your page as a starting point, so they are examples, not live results. Run them in your dashboard to see which ones actually cite you." /></span>
       <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
     </div>
     <div style={{ padding: "4px 16px 14px" }}>
-      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "8px 0 12px" }}>Suggested prompts for this page, and where you already appear across ChatGPT, Perplexity, and Google AI.</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "8px 0 12px" }}>I put together a few example prompts for this page. Run them in your dashboard, or write your own, to see which ones cite you across ChatGPT, Perplexity, and Google AI.</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {(prompts || []).map((p, i) => (
-          <div key={i} style={{ padding: "10px 12px", borderRadius: 9, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
-            <div style={{ fontSize: 12.5, color: C.dark, marginBottom: 6 }}>“{p.q}”</div>
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}><EngineDot on={p.chatgpt} label="ChatGPT" /><EngineDot on={p.perplexity} label="Perplexity" /><EngineDot on={p.aio} label="Google AI" /></div>
-          </div>
+          <span key={i} style={{ fontSize: 12.5, color: C.dark, background: C.surface, border: `1px solid ${C.cardBorder}`, borderRadius: 999, padding: "7px 13px", lineHeight: 1.3 }}>“{p}”</span>
         ))}
       </div>
       <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 14, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Write your own prompts in the dashboard<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
@@ -2236,7 +2254,8 @@ const AIReadinessReport = ({ data }) => {
       <div className="reveal" style={{ marginBottom: 20 }}>
         <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || "other")} />
       </div>
-      <BotNote text="Prompt-level tracking, which prompts cite you across ChatGPT and Perplexity, lives in your dashboard and refreshes on demand." />
+      <BotNote text="Track where you actually appear for the questions people ask AI. I put together a few example prompts for this page to get you started." />
+      <PromptVisibility prompts={(data.suggestedPrompts && data.suggestedPrompts.length) ? data.suggestedPrompts : suggestedPromptsForPageType(data.pageType || "other")} dashHref={dashHref} />
       {data.aioItems && data.aioItems.length > 0 && <React.Fragment><BotNote text="Google AI Overview: for the keywords this page ranks for, does Google show an AI Overview and are you cited inside it." /><AIOverviewBlock items={data.aioItems} dashHref={dashHref} /></React.Fragment>}
       
       
@@ -2259,7 +2278,7 @@ const AIReadinessReport = ({ data }) => {
               <span style={{ color: pr.color, fontSize: 10, marginTop: 4 }}>●</span>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{item.title}</span><span style={{ fontSize: 9, fontWeight: 600, color: pr.color, background: pr.bg, padding: "2px 7px", borderRadius: 5, textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0 }}>{pr.label}</span></div>
-                {item.why && typeof item.why === "string" && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions && item.suggestions[0] ? 6 : 0 }}>{item.why.length > 150 ? item.why.slice(0, 147) + "..." : item.why}</div>}
+                {item.why && typeof item.why === "string" && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions && item.suggestions[0] ? 6 : 0 }}>{renderBoldText(item.why)}</div>}
                 {item.suggestions && item.suggestions.length > 0 && typeof item.suggestions[0] === "string" && <div style={{ padding: "8px 10px", borderRadius: 6, background: C.bg }}><div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>Start with:</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, padding: "2px 0" }}>{item.suggestions[0]}</div></div>}
               </div>
             </div>
