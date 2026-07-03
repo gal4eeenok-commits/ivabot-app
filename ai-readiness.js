@@ -1214,7 +1214,7 @@ const CoverageReport = ({ data }) => {
             <span style={{ color: pr.color, fontSize: 10, marginTop: 4 }}>●</span>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{item.title}</span><span style={{ fontSize: 9, fontWeight: 600, color: pr.color, background: pr.bg, padding: "2px 7px", borderRadius: 5, textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0 }}>{pr.label}</span></div>
-              {item.why && typeof item.why === "string" && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions?.[0] ? 6 : 0 }}>{item.why.length > 150 ? item.why.slice(0, 147) + "..." : item.why}</div>}
+              {item.why && typeof item.why === "string" && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions?.[0] ? 6 : 0 }}>{renderBoldText(item.why)}</div>}
               {item.suggestions?.length > 0 && typeof item.suggestions[0] === "string" && (() => {
                 const isBody = item.title?.includes("Body Content");
                 const showSugs = isBody ? item.suggestions : item.suggestions.slice(0, 1);
