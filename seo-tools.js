@@ -1657,12 +1657,30 @@ function IvaBotV6() {
           console.log("[IvaBot] DFS keyword_volume failed:", kvRes.reason?.message || "no data");
         }
 
+        /* Page-level backlinks (post 2026-07-01 PAYG) — fetched for the tracking snapshot; target = the audited page URL, not the whole domain. */
+        try {
+          const [blSumRes, blListRes] = await Promise.allSettled([
+            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_summary", target: url }) }).then(r => r.ok ? r.json() : null),
+            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_list", target: url, limit: 100 }) }).then(r => r.ok ? r.json() : null)
+          ]);
+          if (blSumRes.status === "fulfilled" && blSumRes.value) {
+            if (blSumRes.value.backlinks_count != null) dfsSeo.backlinksCount = blSumRes.value.backlinks_count;
+            if (blSumRes.value.referring_domains_count != null) dfsSeo.referringDomains = blSumRes.value.referring_domains_count;
+            dfsSeo.domainRank = blSumRes.value.domain_rank ?? dfsSeo.domainRank ?? null;
+          }
+          if (blListRes.status === "fulfilled" && blListRes.value && Array.isArray(blListRes.value.backlinks)) {
+            dfsSeo.backlinksList = blListRes.value.backlinks;
+          }
+          console.log("[IvaBot] page backlinks — count:", dfsSeo.backlinksCount, "list:", (dfsSeo.backlinksList || []).length);
+        } catch (e) { console.warn("[IvaBot] page backlinks error:", e); }
+
         setStep(5);
         var reportData = buildReportData(parsed, gpt, dfsSeo);
         /* v98: прокидываем полный список ранжируемых + чистый домен для снимка трекинга */
         reportData._allRanked = Array.isArray(dfsSeo?.ranked_keywords) ? dfsSeo.ranked_keywords : [];
         reportData._domain = domain;
         reportData._locale = locale;
+        reportData._backlinksList = Array.isArray(dfsSeo?.backlinksList) ? dfsSeo.backlinksList : [];
 
         /* ── robots.txt + sitemap checks ── */
         try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
@@ -1722,7 +1740,8 @@ function IvaBotV6() {
             p_audit_score: reportData.score ?? null,
             p_location_code: reportData._locale?.location_code ?? null,
             p_language_code: reportData._locale?.language_code ?? null,
-            p_ranked_keywords: allRk
+            p_ranked_keywords: allRk,
+            p_backlinks: (Array.isArray(reportData._backlinksList) && reportData._backlinksList.length) ? reportData._backlinksList : null
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
           const snapRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_snapshot", {
