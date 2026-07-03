@@ -1427,6 +1427,16 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
       <BotNote inline text="Positions 1–3 mean strong visibility. 4–10 is page one but below the fold. 11+ means page two or deeper — most users never scroll there." />
     </div>
   </div>}
+  {!(data.rankedKeywords && data.rankedKeywords.length > 0) && <div className="reveal reveal-delay-2" style={{ marginBottom: 16, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
+    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>How your page ranks in Google</span><QM text="Real positions from the Google search index — these are the actual search queries your page currently ranks for." /></span>
+      <DashLink href={_dashUrl} />
+    </div>
+    <div style={{ padding: "16px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}><span style={{ fontSize: 26, fontWeight: 700, color: C.dark }}>0</span><span style={{ fontSize: 12, color: C.muted }}>keywords in the Google index</span></div>
+      <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.55 }}>This page doesn't rank for any Google search queries yet. That's normal for a new page, or a deep page with little search demand. Once it starts ranking, the keywords and their positions will appear here and build a trend in your <a href={_dashUrl} style={{ color: C.accent, textDecoration: "none", fontWeight: 600 }}>dashboard</a>.</div>
+    </div>
+  </div>}
   <BotNote text="Next, what your page is currently built for — based on your title, headings, and meta description." />
   <div className="reveal reveal-delay-2" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
     <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
