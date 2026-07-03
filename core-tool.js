@@ -1423,6 +1423,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
       {data.totalRanked != null && data.totalRanked > 0 && <div style={{ padding: "13px 0", borderBottom: "1px solid rgba(21,20,21,0.06)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}><div style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>Keywords your page ranks for</span><QM text="Total search queries this page ranks for in Google, from the search index." /></div><div style={{ textAlign: "right", flexShrink: 0 }}><span style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>{fmtVol(data.totalRanked)}</span><div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>in Google index</div></div></div>}
       <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "10px 0" }}>Keywords this page actually ranks for right now — with real positions from Google's search index.</div>
       <RankingsTable rows={data.rankedKeywords} />
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginTop: 8 }}>The full keyword list and how each position changes over time live in your <a href={_dashUrl} style={{ color: C.accent, textDecoration: "none", fontWeight: 600 }}>dashboard</a>.</div>
       <BotNote inline text="Positions 1–3 mean strong visibility. 4–10 is page one but below the fold. 11+ means page two or deeper — most users never scroll there." />
     </div>
   </div>}
@@ -1447,6 +1448,7 @@ const ReportV6 = ({ data, onNewAudit, onHome }) => { const { good, bad } = build
     <div style={{ padding: "2px 16px 12px" }}>
       {data.backlinksCount != null && <div style={{ padding: "13px 0", borderBottom: "1px solid rgba(21,20,21,0.06)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}><div style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>Backlinks</span><QM text="Total links from other websites pointing to this page." /></div><div style={{ textAlign: "right", flexShrink: 0 }}><span style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>{data.backlinksCount.toLocaleString()}</span><div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>to this page</div></div></div>}
       {data.referringDomains != null && <div style={{ padding: "13px 0", borderBottom: "1px solid rgba(21,20,21,0.06)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}><div style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>Referring domains</span><QM text="Number of unique websites linking to this page." /></div><div style={{ textAlign: "right", flexShrink: 0 }}><span style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>{data.referringDomains.toLocaleString()}</span><div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>unique sites</div></div></div>}
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, marginTop: 10 }}>The full backlink list for this page is in your <a href={_dashUrl} style={{ color: C.accent, textDecoration: "none", fontWeight: 600 }}>dashboard</a>.</div>
       <div style={{ marginTop: 12 }}><Fold title="PR & outreach opportunities" titleSize={13} borderColor="transparent" headerBg="transparent" headerPad="14px 0"><BotNote inline text="Every quality link from another website is a vote of confidence for Google. Even 2–3 strong backlinks can make a real difference." /><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>{data.backlinks.map((b, i) => (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}><NumBadge n={i + 1} /><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{b.name}</span></div><div style={{ fontSize: 11.5, color: C.muted, paddingLeft: 28 }}>{b.desc}</div></div>))}</div></Fold></div>
     </div>
   </div>
@@ -1716,12 +1718,30 @@ function CoreTool({ onHome }) {
           console.log("[IvaBot] DFS keyword_volume failed:", kvRes.reason?.message || "no data");
         }
 
+        /* Page-level backlinks (post 2026-07-01 PAYG) — fetched for the tracking snapshot; target = the audited page URL, not the whole domain. */
+        try {
+          const [blSumRes, blListRes] = await Promise.allSettled([
+            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_summary", target: url }) }).then(r => r.ok ? r.json() : null),
+            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_list", target: url, limit: 100 }) }).then(r => r.ok ? r.json() : null)
+          ]);
+          if (blSumRes.status === "fulfilled" && blSumRes.value) {
+            if (blSumRes.value.backlinks_count != null) dfsSeo.backlinksCount = blSumRes.value.backlinks_count;
+            if (blSumRes.value.referring_domains_count != null) dfsSeo.referringDomains = blSumRes.value.referring_domains_count;
+            dfsSeo.domainRank = blSumRes.value.domain_rank ?? dfsSeo.domainRank ?? null;
+          }
+          if (blListRes.status === "fulfilled" && blListRes.value && Array.isArray(blListRes.value.backlinks)) {
+            dfsSeo.backlinksList = blListRes.value.backlinks;
+          }
+          console.log("[IvaBot] page backlinks — count:", dfsSeo.backlinksCount, "list:", (dfsSeo.backlinksList || []).length);
+        } catch (e) { console.warn("[IvaBot] page backlinks error:", e); }
+
         setStep(5);
         var reportData = buildReportData(parsed, gpt, dfsSeo);
         /* v98: прокидываем полный список ранжируемых + чистый домен для снимка трекинга */
         reportData._allRanked = Array.isArray(dfsSeo?.ranked_keywords) ? dfsSeo.ranked_keywords : [];
         reportData._domain = domain;
         reportData._locale = locale;
+        reportData._backlinksList = Array.isArray(dfsSeo?.backlinksList) ? dfsSeo.backlinksList : [];
 
         /* ── robots.txt + sitemap checks ── */
         try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
@@ -1781,7 +1801,8 @@ function CoreTool({ onHome }) {
             p_audit_score: reportData.score ?? null,
             p_location_code: reportData._locale?.location_code ?? null,
             p_language_code: reportData._locale?.language_code ?? null,
-            p_ranked_keywords: allRk
+            p_ranked_keywords: allRk,
+            p_backlinks: (Array.isArray(reportData._backlinksList) && reportData._backlinksList.length) ? reportData._backlinksList : null
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
           const snapRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_snapshot", {
