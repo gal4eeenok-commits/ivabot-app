@@ -1883,16 +1883,6 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           if (_dt && Array.isArray(_dt.tips)) { const _clean = _dt.tips.filter(t => t && t.channel && t.action).slice(0, 4); if (_clean.length) setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, distributionTips: _clean } : prev); }
         } catch (_dtErr) { console.log("[AIR] distribution_tips fallback", _dtErr); }
       })();
-      (async () => {
-        try {
-          const _spCtx = `URL: ${url}\nTitle: ${parsed.title || ""}\nPage type: ${d.pageType}\nPrimary keyword: ${parsed.primary_keyword || ""}\nSummary: ${(parsed.summary || "").slice(0, 600)}`;
-          const _spRes = await fetch(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "suggested_prompts", page_context: _spCtx }) });
-          if (!_spRes.ok) { setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, suggestedPromptsFailed: true } : prev); return; }
-          const _sp = await _spRes.json();
-          const _cleanP = (_sp && Array.isArray(_sp.prompts)) ? _sp.prompts.filter(p => typeof p === "string" && p.trim()).map(p => p.trim()).slice(0, 5) : [];
-          setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, ...(_cleanP.length ? { suggestedPrompts: _cleanP } : { suggestedPromptsFailed: true }) } : prev);
-        } catch (_spErr) { setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, suggestedPromptsFailed: true } : prev); console.log("[AIR] suggested_prompts fallback", _spErr); }
-      })();
       if (isMobile) sMTab("report");
       const nBad = aiReadiness.aiBad.length;
       const nGood = aiReadiness.aiGood.length;
@@ -2182,26 +2172,16 @@ const DEMO_PROMPTS = [
 
 const EngineDot = ({ on, label }) => <span title={label + (on ? ": you appear" : ": not found")} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600, color: on ? "#9B7AE6" : C.muted }}>{on ? "\u2713" : "\u2013"} {label}</span>;
 
-const PromptVisibility = ({ prompts, failed, dashHref }) => (
+const PromptVisibility = ({ dashHref }) => (
   <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
     <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Prompt visibility</span><span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", background: "rgba(110,43,255,0.08)", padding: "3px 8px", borderRadius: 10, textTransform: "uppercase", letterSpacing: "0.4px", flexShrink: 0 }}>Examples</span><QM text="These are example questions people might ask ChatGPT, Perplexity, or Google AI about your topic. I generated them from your page as a starting point, so they are examples, not live results. Run them in your dashboard to see which ones actually cite you." /></span>
-      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.dark, minWidth: 0 }}>Prompt visibility</span>
+      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Track in dashboard</a>
     </div>
-    <div style={{ padding: "4px 16px 14px" }}>
-      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "8px 0 12px" }}>I put together a few example prompts for this page. Run them in your dashboard, or write your own, to see which ones cite you across ChatGPT, Perplexity, and Google AI.</div>
-      {Array.isArray(prompts) && prompts.length ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {prompts.map((p, i) => (
-            <span key={i} style={{ fontSize: 12.5, color: C.dark, background: C.surface, border: `1px solid ${C.cardBorder}`, borderRadius: 999, padding: "7px 13px", lineHeight: 1.3 }}>“{p}”</span>
-          ))}
-        </div>
-      ) : failed ? (
-        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, padding: "4px 0" }}>Could not generate examples just now. Add your own prompts in your dashboard to start tracking.</div>
-      ) : (
-        <div style={{ fontSize: 12, color: C.muted, fontStyle: "italic", padding: "4px 0" }}>Generating example prompts for your page…</div>
-      )}
-      <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 14, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Write your own prompts in the dashboard<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
+    <div style={{ padding: "8px 16px 16px" }}>
+      <div style={{ fontSize: 12.5, color: C.dark, lineHeight: 1.6, marginBottom: 8 }}>Choose the questions you want AI to find you for. Add the prompts your customers ask ChatGPT, Perplexity, and Google AI, and IvaBot runs each one to check whether these tools mention your brand and link to your page in their answers.</div>
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.6 }}>For every prompt you track, you see which engines name you, which ones cite your page, and how that changes over time, so you know exactly where you already appear in AI search and where you are missing.</div>
+      <a href={dashHref || DASHBOARD_URL} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 14, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Open your dashboard to start tracking prompts<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></a>
     </div>
   </div>
 );
@@ -2249,8 +2229,8 @@ const AIReadinessReport = ({ data }) => {
       <div className="reveal" style={{ marginBottom: 20 }}>
         <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || "other")} />
       </div>
-      <BotNote text="Track where you actually appear for the questions people ask AI. I put together a few example prompts for this page to get you started." />
-      <PromptVisibility prompts={data.suggestedPrompts || null} failed={!!data.suggestedPromptsFailed} dashHref={dashHref} />
+      <BotNote text="Prompt visibility shows where AI already mentions and cites you for the questions that matter to your business." />
+      <PromptVisibility dashHref={dashHref} />
       {data.aioItems && data.aioItems.length > 0 && <React.Fragment><BotNote text="Google AI Overview: for the keywords this page ranks for, does Google show an AI Overview and are you cited inside it." /><AIOverviewBlock items={data.aioItems} dashHref={dashHref} /></React.Fragment>}
       
       
