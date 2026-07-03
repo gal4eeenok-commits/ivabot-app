@@ -1812,7 +1812,8 @@ function CoreTool({ onHome }) {
             p_location_code: reportData._locale?.location_code ?? null,
             p_language_code: reportData._locale?.language_code ?? null,
             p_ranked_keywords: allRk,
-            p_backlinks: (Array.isArray(reportData._backlinksList) && reportData._backlinksList.length) ? reportData._backlinksList : null
+            p_backlinks: (Array.isArray(reportData._backlinksList) && reportData._backlinksList.length) ? reportData._backlinksList : null,
+            p_keywords_checked: (Array.isArray(reportData.keywordMetrics) && reportData.keywordMetrics.length) ? reportData.keywordMetrics : null
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
           const snapRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_snapshot", {
