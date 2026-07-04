@@ -1515,9 +1515,25 @@ function CoreTool({ onHome }) {
     if (savedCore && _shellIsReload()) {
       setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Here's your latest audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
     } else {
-      setTimeout(() => start("core"), 100);
+      const _ap = new URLSearchParams(window.location.search);
+      if (_ap.get("url") && _ap.get("autorun") === "1") { setTimeout(() => { setTool("core"); setView("chat"); }, 100); }
+      else setTimeout(() => start("core"), 100);
     }
   })(); }, []);
+  const _autoRan = useRef(false);
+  useEffect(() => {
+    if (!memberId || _autoRan.current) return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const au = p.get("url");
+      if (au && p.get("autorun") === "1") {
+        _autoRan.current = true;
+        try { const u2 = new URL(window.location); u2.searchParams.delete("url"); u2.searchParams.delete("autorun"); window.history.replaceState({}, "", u2); } catch (e) {}
+        setTool("core"); setView("chat");
+        setTimeout(() => { try { runAudit(au); } catch (e) {} }, 500);
+      }
+    } catch (e) {}
+  }, [memberId]);
   const chatRef = useRef(null);
   const prevMsgCount = useRef(0);
   const scrollChat = useCallback(() => {
