@@ -1791,10 +1791,25 @@ function AIReadinessTool({ onHome, memberName: mn }) {
   const bot = (c) => add("b", c);
 
   useEffect(() => {
+    try { const _p = new URLSearchParams(window.location.search); if (_p.get("url") && _p.get("autorun") === "1") return; } catch (e) {}
     sTyp(true);
     setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); }, 1200);
     setTimeout(() => { sTyp(false); add("b", <div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I'll check how ready this page is to be cited by AI search tools like ChatGPT, Perplexity, and Google AI, and show you the signals to fix first.</div><div style={{ fontWeight: 600 }}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 3200);
   }, []);
+  const _autoRanAir = useRef(false);
+  useEffect(() => {
+    if (_autoRanAir.current) return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const au = p.get("url");
+      if (au && p.get("autorun") === "1") {
+        _autoRanAir.current = true;
+        try { const u2 = new URL(window.location); u2.searchParams.delete("url"); u2.searchParams.delete("autorun"); window.history.replaceState({}, "", u2); } catch (e) {}
+        setTimeout(() => { try { runAIReadiness(au); } catch (e) {} }, 1200);
+      }
+    } catch (e) {}
+  }, []);
+
 
   /* ═══ AI READINESS PIPELINE (no credits in preview, no DFS, no keywords) ═══ */
   const runAIReadiness = async (url) => {
