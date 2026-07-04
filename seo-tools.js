@@ -1452,7 +1452,7 @@ function IvaBotV6() {
     const savedCore = (t === "core" && _shellIsReload()) ? loadCoreReport(info.id) : null;
     if (savedCore) {
       setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Here's your latest audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
-    } else if (t && ["core","builder","coverage"].includes(t) && ((t === "core" && cr.core > 0) || (t === "builder" && cr.builder > 0) || (t === "coverage" && cr.coverage > 0) || ((t === "builder" || t === "coverage") && _shellIsReload() && _hasFreshSaved(t, info.id)))) {
+    } else if (t && ["core","builder","coverage","readiness"].includes(t) && ((t === "core" && cr.core > 0) || (t === "builder" && cr.builder > 0) || (t === "coverage" && cr.coverage > 0) || (t === "readiness") || ((t === "builder" || t === "coverage") && _shellIsReload() && _hasFreshSaved(t, info.id)))) {
       setTimeout(() => start(t), 100);
     }
   })(); }, []);
