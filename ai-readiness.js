@@ -1852,13 +1852,20 @@ function AIReadinessTool({ onHome, memberName: mn }) {
         try {
           var _host = ""; try { _host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
           if (!_host) return;
-          /* brand for AI-mentions: last segment of the page title after a separator (e.g. "Aptos | Ashfall Studio" -> "Ashfall Studio"), fallback to the domain's second-level label. */
+          /* brand for AI-mentions: prefer the site's own declared name (og:site_name), then the last title segment (e.g. "Aptos | Ashfall Studio" -> "Ashfall Studio"), then the domain's second-level label. */
           var _brand = "";
           try {
-            var _tt = (d.title || "").trim();
-            var _seg = _tt.split(/\s[|\u2013\u2014\u00b7:\-]\s/).map(function (s) { return s.trim(); }).filter(Boolean);
-            if (_seg.length > 1) _brand = _seg[_seg.length - 1];
-            if (!_brand || _brand.length > 40 || _brand.length < 2) _brand = "";
+            var _ogm = rawHtml.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) || rawHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
+            if (_ogm && _ogm[1]) _brand = _ogm[1].trim();
+            if (_brand && (_brand.length > 40 || _brand.length < 2)) _brand = "";
+          } catch (e) {}
+          try {
+            if (!_brand) {
+              var _tt = (d.title || "").trim();
+              var _seg = _tt.split(/\s[|\u2013\u2014\u00b7:\-]\s/).map(function (s) { return s.trim(); }).filter(Boolean);
+              if (_seg.length > 1) _brand = _seg[_seg.length - 1];
+              if (!_brand || _brand.length > 40 || _brand.length < 2) _brand = "";
+            }
           } catch (e) {}
           if (!_brand) _brand = _host.split(".")[0];
           var _mr = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "llm_mentions", brand: _brand, target: _host, platform: "google" }) }).then(function (r) { return r.ok ? r.json() : null; });
