@@ -1780,18 +1780,12 @@ function CoreTool({ onHome }) {
       setAuditData(reportData);
       try { saveCoreReport(memberId, reportData); } catch(e){}
       if (!USE_MOCK) {
-        setCredits(prev => ({ ...prev, core: Math.max(0, prev.core - 1) }));
+        /* no credit decrement: /app is internal, charging happens in the dashboard */
         const isUUID = memberId && /^[0-9a-f]{8}-/.test(memberId);
         const rpcBody = isUUID ? { p_user_id: memberId } : { p_member_id: memberId };
         let createdRunId = null;
         try {
-          const incRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/increment_core_used", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) },
-            body: JSON.stringify(rpcBody)
-          });
-          const incData = await incRes.json();
-          console.log("[IvaBot] increment_core_used:", incData);
+          /* payment removed: /app is internal-only. Core now charges via the dashboard unified wallet (charge_credit). No credit is taken here. */
         } catch(e) { console.warn("[IvaBot] increment_core_used error:", e); }
         try {
           const runBody = isUUID ? { p_user_id: memberId, p_source_url: reportData.url || "" } : { p_member_id: memberId, p_source_url: reportData.url || "" };
