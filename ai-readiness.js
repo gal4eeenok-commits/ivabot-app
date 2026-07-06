@@ -1987,7 +1987,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
 
   const WHITELIST = ["05021d8c-f4c5-4607-8b9c-defb694ebe42"];
   const _uid = getMemberId();
-  const _allowed = window.__AIR_OPEN === true || (window.IVA_FLAGS && window.IVA_FLAGS.toolsOpen) || (!!_uid && WHITELIST.indexOf(_uid) !== -1);
+  const _allowed = true; /* GO-LIVE: whitelist lifted */
   console.log("[AIR] uid:", _uid, "allowed:", _allowed);
 
   if (!_allowed) {
