@@ -1,4 +1,4 @@
-/* IvaBot DASHBOARD (dashboard-tool.js) v68 - whitelist-gated IIFE, mockup in a full-screen iframe on /dashboard.
+/* IvaBot DASHBOARD (dashboard-tool.js) v69 - whitelist-gated IIFE, mockup in a full-screen iframe on /dashboard.
    v68: render runs exactly once (readiness poll for parent __supabase + re-entrancy lock); removed the visibilitychange full-rebuild that reset the open page/metric and re-animated the graph. Fixes the multi-render/jumping and random tab-switching at the root, not just masked.
    v22: pages with Core data now show the mockup's VERBATIM data-state panel (clickable kw/bl/ai/cite/aio cards + detail panels), filled from snapshots: keyword table = positions per keyword across snapshot dates (from ranked_keywords history), backlink table = real list (from backlinks jsonb), card counts real; AI-mention/citation detail panels show a "prompt tracking coming" note (no invented data). Pages without Core data keep the empty block. Delete crosses (×) restored on domains + pages (dashboard-view only, no DB delete). No charts (the mockup uses trend tables, not SVG). First domain + first page open.
    v21: verbatim per-page widget block (empty state).
