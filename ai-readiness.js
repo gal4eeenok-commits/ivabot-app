@@ -1985,7 +1985,6 @@ function AIReadinessTool({ onHome, memberName: mn }) {
   const placeholder = step === "url" ? "Paste your URL here..." : "Ask me anything about AI readiness...";
   const inputDisabled = step === "parsing";
 
-  const WHITELIST = ["05021d8c-f4c5-4607-8b9c-defb694ebe42"];
   const _uid = getMemberId();
   const _allowed = true; /* GO-LIVE: whitelist lifted */
   console.log("[AIR] uid:", _uid, "allowed:", _allowed);
@@ -2009,7 +2008,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
     <div style={{ padding: isMobile ? "0 12px 6px" : "0 24px 10px", display: "flex", alignItems: "center", gap: 6, maxWidth: 1224, margin: "0 auto", width: "100%" }}>
       <button onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button>
       <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>AI Readiness</span>
-      <span style={{ fontSize: 10, fontWeight: 600, color: C.accent, background: C.accentLight, padding: "3px 8px", borderRadius: 10, marginLeft: 4 }}>Free preview</span>
+      
       {showR && <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6", background: "rgba(155,122,230,0.08)", padding: "3px 8px", borderRadius: 10, marginLeft: 4 }}>Done</span>}
     </div>
 
