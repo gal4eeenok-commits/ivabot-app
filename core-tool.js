@@ -1592,8 +1592,8 @@ function CoreTool({ onHome }) {
 
   const runAudit = async (url) => {
     /* Check credits before starting */
-    const coreCredits = await fetchCredits(memberId);
-    if (coreCredits.core <= 0) {
+    const coreCredits = await fetchCredits(memberId); /* kept for logging */
+    if (false /* credit gate removed: /app is internal, the dashboard charges the unified wallet before launching this tool */) {
       addMsg("bot", React.createElement("div", null,
         React.createElement("div", {style:{marginBottom:6}}, "You've used all your Core Audit credits."),
         React.createElement("div", {style:{color:"#928E95",fontSize:12}}, React.createElement("button", {onClick:() => setSB(true), style:{color:"#6E2BFF",fontWeight:600,textDecoration:"underline",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"inherit"}}, "Buy more credits"), " to continue.")
