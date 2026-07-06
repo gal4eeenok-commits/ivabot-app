@@ -1992,8 +1992,6 @@ function CoreTool({ onHome }) {
     <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
   </React.Fragment>;
 
-  /* ═══ CORE WHITELIST GATE — closed preview, mirrors AI Readiness ═══ */
-  const CORE_WHITELIST = ["05021d8c-f4c5-4607-8b9c-defb694ebe42"];
   const _coreAllowed = true; /* GO-LIVE: whitelist lifted */
   if (!loading && !_coreAllowed) {
     return (
