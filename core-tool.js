@@ -2000,7 +2000,7 @@ function CoreTool({ onHome }) {
 
   /* ═══ CORE WHITELIST GATE — closed preview, mirrors AI Readiness ═══ */
   const CORE_WHITELIST = ["05021d8c-f4c5-4607-8b9c-defb694ebe42"];
-  const _coreAllowed = window.__CORE_OPEN === true || (!!memberId && CORE_WHITELIST.indexOf(memberId) !== -1);
+  const _coreAllowed = true; /* GO-LIVE: whitelist lifted */
   if (!loading && !_coreAllowed) {
     return (
       <div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
