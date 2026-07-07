@@ -872,11 +872,18 @@ const askConfirm=()=>{
 const gStr=async()=>{
   /* Check credits before generating structure */
   const memberId=getMemberId();
-  const creditCheck=await checkBuilderCredits(memberId);
-  if(!creditCheck.ok){
-    bot(<div><div style={{marginBottom:6}}>You've used all your Content Builder credits ({creditCheck.used}/{creditCheck.limit}).</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue building content. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
-    return;
-  }
+  /* Charge 1 credit up front (unified wallet). Abort only if the wallet confirms insufficient. */
+  try {
+    const _isU=/^[0-9a-f]{8}-/.test(memberId||"");
+    const _chB=_isU?{p_user_id:memberId,p_action:"content_builder",p_cost:1}:{p_member_id:memberId,p_action:"content_builder",p_cost:1};
+    const _chR=await fetch("https://empuzslozakbicmenxfo.supabase.co/rest/v1/rpc/charge_credit",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},body:JSON.stringify(_chB)});
+    const _ch=await _chR.json();
+    console.log("[CB] charge_credit:",_ch);
+    if(_ch&&_ch.ok===false){
+      bot(<div><div style={{marginBottom:6}}>Not enough credits to build content.</div><div style={{color:C.muted,fontSize:12}}>Buy more credits to continue. <a href="/dashboard#buy-credits" style={{color:C.accent,fontWeight:600,textDecoration:"underline"}}>Buy credits</a></div></div>);
+      return;
+    }
+  } catch(e){console.warn("[CB] charge_credit error:",e);}
   mk("cf");setStep("sl");
   window.scrollTo({top:0,behavior:"smooth"});
   sPLoad("Building SEO structure...");startLoading(LST);sTyp(true);
@@ -920,8 +927,7 @@ const gStr=async()=>{
     sBd(briefData);sRp("br");sPLoad(null);stopLoading();sTyp(false);setStep("sr");
     try{saveBuilderReport(getMemberId(),{rp:"br",bd:briefData,contentHtml:null,kwData:kwData});}catch(e){}
     if(isMobile)sMTab("panel");
-    /* Deduct 1 credit after successful structure generation */
-    try{const r=await trackBuilderUsage(memberId);if(r&&r.success)console.log("[CB] credit deducted:",r.used+"/"+r.limit);}catch(e){}
+    /* Credit already charged up front via charge_credit (unified wallet); old-system deduction removed. */
     try{
       const title=confirmedTitleRef.current||briefData?.title||"Content Builder";
       const isUUID2=/^[0-9a-f]{8}-/.test(memberId);
