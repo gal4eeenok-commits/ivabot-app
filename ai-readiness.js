@@ -1813,6 +1813,16 @@ function AIReadinessTool({ onHome, memberName: mn }) {
 
   /* ═══ AI READINESS PIPELINE (no credits in preview, no DFS, no keywords) ═══ */
   const runAIReadiness = async (url) => {
+    /* Charge 1 credit up front (unified wallet). Abort only if the wallet confirms insufficient. */
+    try {
+      const _mid = getMemberId();
+      const _isU = _mid && /^[0-9a-f]{8}-/.test(_mid);
+      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 1 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 1 };
+      const _chRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/charge_credit`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY }, body: JSON.stringify(_chBody) });
+      const _ch = await _chRes.json();
+      console.log("[AIR] charge_credit:", _ch);
+      if (_ch && _ch.ok === false) { try { sPLoad(null); } catch(e) {} try { alert("Not enough credits to run AI Readiness. Buy more credits to continue."); } catch(e) {} return; }
+    } catch(e) { console.warn("[AIR] charge_credit error:", e); }
     setSR(false); setAuditData(null); sPLoad("Analyzing your page...");
     try {
       let origin = ""; try { origin = new URL(url).origin; } catch (e) {}
