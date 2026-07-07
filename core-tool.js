@@ -1591,15 +1591,21 @@ function CoreTool({ onHome }) {
   const home = () => { try { const url = new URL(window.location); url.searchParams.delete("tool"); url.searchParams.delete("paid"); window.history.replaceState({}, "", url); } catch(e){} if (typeof onHome === "function") onHome(); };
 
   const runAudit = async (url) => {
-    /* Check credits before starting */
-    const coreCredits = await fetchCredits(memberId);
-    if (coreCredits.core <= 0) {
-      addMsg("bot", React.createElement("div", null,
-        React.createElement("div", {style:{marginBottom:6}}, "You've used all your Core Audit credits."),
-        React.createElement("div", {style:{color:"#928E95",fontSize:12}}, React.createElement("button", {onClick:() => setSB(true), style:{color:"#6E2BFF",fontWeight:600,textDecoration:"underline",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"inherit"}}, "Buy more credits"), " to continue.")
-      ));
-      return;
-    }
+    /* Charge 1 credit up front (unified wallet). Abort only if the wallet confirms insufficient. */
+    try {
+      const _isU = memberId && /^[0-9a-f]{8}-/.test(memberId);
+      const _chBody = _isU ? { p_user_id: memberId, p_action: "core_audit", p_cost: 1 } : { p_member_id: memberId, p_action: "core_audit", p_cost: 1 };
+      const _chRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/charge_credit", { method: "POST", headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify(_chBody) });
+      const _ch = await _chRes.json();
+      console.log("[IvaBot] charge_credit core:", _ch);
+      if (_ch && _ch.ok === false) {
+        addMsg("bot", React.createElement("div", null,
+          React.createElement("div", {style:{marginBottom:6}}, "Not enough credits to run this audit."),
+          React.createElement("div", {style:{color:"#928E95",fontSize:12}}, React.createElement("button", {onClick:() => setSB(true), style:{color:"#6E2BFF",fontWeight:600,textDecoration:"underline",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"inherit"}}, "Buy more credits"), " to continue.")
+        ));
+        return;
+      }
+    } catch(e) { console.warn("[IvaBot] charge_credit core error:", e); }
     clearCoreReport(memberId); setSR(false); setAuditData(null); sPLoad("Analyzing your page...");
     setLS(0);
     const setStep = (s) => setLS(prev => Math.max(prev, s));
