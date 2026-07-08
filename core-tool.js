@@ -619,39 +619,9 @@ function buildReportData(parsed, gpt, dfs) {
 }
 
 /* ═══ DATA (mock fallback) ═══ */
-const A = { score: 85, url: "https://www.apple.com/", title: "Apple", desc: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV, plus explore accessories, entertainment, and expert device support.", ctx: { url: "https://www.apple.com/", title: "Apple", topic: "Official Apple product and service page", owner: "Apple Inc.", goal: "Sell", industry: "Technology", region: "Global", competition: "High", message: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV." }, keywords: ["iPhone trade-in deals", "MacBook Pro features", "Apple Card benefits"], titleStatus: "bad", titleEval: { currentLabel: "Current Title", current: "Apple", why: "Too short — users and Google need more context to understand what this page offers.", sugLabel: "Suggested Titles", suggestions: ["Apple Products and Innovations", "Apple Technology and Features", "Apple: Leading the Way in Tech"], showCopy: true, links: [{ label: "Google Search Console", url: "https://search.google.com/search-console" }] }, descStatus: "bad", descEval: { currentLabel: "Current Description", current: "Discover the innovative world of Apple and shop everything iPhone, iPad, Apple Watch, Mac, and Apple TV, plus explore accessories, entertainment, and expert device support.", why: "Google may truncate descriptions longer than 160 characters in search results, reducing click-through rate.", sugLabel: "Suggested Descriptions", suggestions: ["Shop the latest iPhone, iPad, Apple Watch, Mac and Apple TV, plus accessories and expert support.", "Find everything Apple — iPhones to Macs, accessories, entertainment, backed by expert support."], showCopy: true }, headings: [{ level: "H1", text: "Apple" }, { level: "H2", text: "MacBook Neo" }, { level: "H2", text: "iPhone 17e" }, { level: "H3", text: "MacBook Air" }, { level: "H3", text: "iPad Air" }, { level: "H2", text: "Endless entertainment." }, { level: "H3", text: "Apple Trade In" }, { level: "H3", text: "Apple Card" }], headingsStatus: "good", links: { internal: 47, external: 12, social: ["Facebook", "LinkedIn", "X (Twitter)", "YouTube"] }, linksStatus: "good", ux: { cta: { found: true, text: "Learn more" }, mobile: true, altMissing: true, noVideo: true }, speedStatus: "bad", speedEval: { title: "Page Speed Is Moderate", why: "Slow pages lose visitors — even a 1-second delay can reduce conversions by 7%.", suggestions: ["Compress images to WebP", "Remove unused JS/CSS", "Enable lazy loading"], showCopy: false, links: [{ label: "Google PageSpeed Insights", url: "https://pagespeed.web.dev/" }] }, imagesEval: { title: "Some Images Missing Alt Text", why: "Alt text helps search engines understand images and improves accessibility for screen readers.", suggestions: ["Add descriptive alt to every image", "Include keywords naturally in alt descriptions"], showCopy: false }, videoEval: { title: "No Video Content Detected", why: "Pages with video tend to rank higher and keep visitors engaged longer.", suggestions: ["Add a product video or brand intro", "Use schema markup for video", "Embed from YouTube for SEO benefit"], showCopy: false }, robotsStatus: "good", sitemapStatus: "good", competitors: [{ name: "samsung.com", tactics: "Strong mobile UX, frequent product launches" }, { name: "microsoft.com", tactics: "Clear pricing, enterprise focus" }, { name: "google.com", tactics: "Clean design, prominent search features" }], backlinks: [{ name: "TechCrunch", desc: "Product reviews and features" }, { name: "CNET", desc: "In-depth reviews and buying guides" }, { name: "The Verge", desc: "Launches and industry news" }, { name: "Product Hunt", desc: "Early adopters and discovery" }, { name: "YouTube Influencers", desc: "Reviews and unboxing" }, { name: "Wired", desc: "Tech journalism and trends" }, { name: "Forbes Tech", desc: "Business tech coverage" }, { name: "Mashable", desc: "Culture and roundups" }, { name: "Ars Technica", desc: "Deep dives and security" }, { name: "TechRadar", desc: "Rankings and testing" }], rankedKeywords: [{ keyword: "buy iphone online", position: 1, volume: 12100, difficulty: 72 }, { keyword: "apple trade in value", position: 1, volume: 8100, difficulty: 38 }, { keyword: "macbook pro price", position: 2, volume: 5400, difficulty: 55 }, { keyword: "apple card benefits", position: 4, volume: 3600, difficulty: 42 }, { keyword: "ipad air review", position: 8, volume: 2900, difficulty: 48 }], keywordMetrics: [{ keyword: "iPhone trade-in deals", position: 3, volume: 6600, difficulty: 45 }, { keyword: "MacBook Pro features", position: null, volume: 4400, difficulty: 52 }, { keyword: "Apple Card benefits", position: 4, volume: 3600, difficulty: 42 }], backlinksCount: 13268, referringDomains: 2675, totalRanked: 18743 };
+/* IVA-DEMO 2026-07-08: dead mock fallback (closed-preview, pre-Jul-1). Unreferenced. Emptied; safe to delete. */ const A = {};
 /* CLOSED PREVIEW demo numbers for Core fields that go live only after July 1 (positions, backlinks, competitors). ivabot-relevant, coherent with seeded dashboard snapshots. */
-const CORE_DEMO = {
-  rankedKeywords: [
-    { keyword: "seo audit tool", position: 7, volume: 5400, difficulty: 58 },
-    { keyword: "ai search visibility", position: 11, volume: 2900, difficulty: 49 },
-    { keyword: "geo seo tool", position: 13, volume: 1600, difficulty: 44 },
-    { keyword: "seo report generator", position: 9, volume: 2400, difficulty: 51 },
-    { keyword: "check google rankings", position: 15, volume: 3300, difficulty: 47 },
-    { keyword: "pay as you go seo", position: 18, volume: 880, difficulty: 37 },
-    { keyword: "website seo checker", position: 22, volume: 8100, difficulty: 66 }
-  ],
-  keywordMetrics: [
-    { keyword: "seo audit tool", position: 7, volume: 5400, difficulty: 58 },
-    { keyword: "ai readiness check", position: null, volume: 1300, difficulty: 40 },
-    { keyword: "geo seo", position: 13, volume: 1600, difficulty: 44 }
-  ],
-  competitors: [
-    { name: "semrush.com", tactics: "Huge keyword database, strong domain authority", url: "https://www.semrush.com/" },
-    { name: "ahrefs.com", tactics: "Backlink index leader, deep content library", url: "https://ahrefs.com/" },
-    { name: "sitechecker.pro", tactics: "Freemium audits, fast onboarding", url: "https://sitechecker.pro/" }
-  ],
-  backlinks: [
-    { name: "searchengineland.com", desc: "Industry news mention (DR 82)" },
-    { name: "indiehackers.com", desc: "Founder community post (DR 74)" },
-    { name: "producthunt.com", desc: "Launch listing (DR 91)" },
-    { name: "reddit.com/r/seo", desc: "Community recommendation (DR 95)" },
-    { name: "dev.to", desc: "Technical guest article (DR 78)" }
-  ],
-  backlinksCount: 318,
-  referringDomains: 67,
-  totalRanked: 41
-};
+/* IVA-DEMO 2026-07-08: dead mock fallback (closed-preview, pre-Jul-1). Unreferenced. Emptied; safe to delete. */ const CORE_DEMO = {};
 
 /* ═══ Build ═══ */
 const titleCardTitle = (s) => s === "missing" ? "Meta Title Missing" : s === "too_short" ? "Meta Title Too Short" : s === "too_long" ? "Meta Title Too Long" : s === "duplicate" ? "Meta Title Has Repeated Words" : "Meta Title Needs Work";
