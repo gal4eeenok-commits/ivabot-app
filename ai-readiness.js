@@ -1902,7 +1902,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           var _nrm = function (u) { try { var x = new URL(u); return (x.hostname.replace(/^www\./, "") + x.pathname.replace(/\/+$/, "")).toLowerCase(); } catch (e) { return String(u || "").toLowerCase(); } };
           var _rk = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ranked_only", domain: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
           var _pk = _nrm(url);
-          var _kws = (((_rk && _rk.ranked_keywords) || []).filter(function (k) { return k && k.url && _nrm(k.url) === _pk; }).map(function (k) { return k.keyword; })).slice(0, 5);
+          var _kws = (((_rk && _rk.ranked_keywords) || []).filter(function (k) { return k && k.url && _nrm(k.url) === _pk; }).map(function (k) { return k.keyword; })).slice(0, 3);
           if (!_kws.length) { console.log("[AIR] ai_overview: no ranked keywords for this page"); return; }
           var _ao = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ai_overview", keywords: _kws, target: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
           if (_ao && Array.isArray(_ao.ai_overview) && _ao.ai_overview.length) {
