@@ -1860,6 +1860,8 @@ function AIReadinessTool({ onHome, memberName: mn }) {
       /* AIR: real AI mentions of the brand (llm_mentions) — feeds the trust table; no demo. */
       const _pMentions = (async () => {
         try {
+          var _isHome = ((url || "").toLowerCase().replace(/^https?:\/\/[^/]+/, "").replace(/[#?].*$/, "").replace(/\/+$/, "") === "");
+          if (!_isHome) return null; /* brand mentions / AI search volume are domain-level — homepage only. Internal pages stay page-level (score, on-page signals, prompt visibility). */
           var _host = ""; try { _host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
           if (!_host) return;
           /* brand for AI-mentions: prefer the site's own declared name (og:site_name), then the last title segment (e.g. "Aptos | Ashfall Studio" -> "Ashfall Studio"), then the domain's second-level label. */
