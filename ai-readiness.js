@@ -2261,7 +2261,7 @@ const AIReadinessReport = ({ data }) => {
     <AIReadinessScoreCard url={data.url} score={score} passed={passed} total={total} />
 
     {TRUST_PREVIEW && <>
-      <BotNote text="How AI cites your brand right now, from live data. Full history and tracking are in your dashboard." />
+      {trustRows.length > 0 && <BotNote text="How AI cites your brand right now, from live data. Full history and tracking are in your dashboard." />}
       {trustRows.length > 0 && <TrustTable rows={trustRows} dashHref={dashHref} />}
       <BotNote text="Prompt visibility shows where AI already mentions and cites you for the questions that matter to your business." />
       <PromptVisibility dashHref={dashHref} />
