@@ -1734,6 +1734,16 @@ function CoreTool({ onHome }) {
           if (blListRes.status === "fulfilled" && blListRes.value && Array.isArray(blListRes.value.backlinks)) {
             dfsSeo.backlinksList = blListRes.value.backlinks;
           }
+          /* Fallback 2026-07-08: big targets return an empty itemized list from DFS. If the count is >0 but no items came back, fetch referring domains (a lighter endpoint) and show the linking sites instead. Marked kind:"domain" so the dashboard renders a domains table. */
+          if ((!dfsSeo.backlinksList || !dfsSeo.backlinksList.length) && (dfsSeo.backlinksCount || 0) > 0) {
+            try {
+              const rdRes = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "referring_domains", target: url, limit: 1000 }) }).then(r => r.ok ? r.json() : null);
+              if (rdRes && Array.isArray(rdRes.referring_domains) && rdRes.referring_domains.length) {
+                dfsSeo.backlinksList = rdRes.referring_domains.map(function (rd) { return { domain: rd.domain, url: null, rank: rd.rank, dofollow: null, anchor: null, refBacklinks: rd.backlinks, kind: "domain" }; });
+                console.log("[IvaBot] backlinks list empty — referring_domains fallback:", dfsSeo.backlinksList.length, "domains");
+              }
+            } catch (e) { console.warn("[IvaBot] referring_domains fallback error:", e); }
+          }
           console.log("[IvaBot] page backlinks — count:", dfsSeo.backlinksCount, "list:", (dfsSeo.backlinksList || []).length);
         } catch (e) { console.warn("[IvaBot] page backlinks error:", e); }
 
