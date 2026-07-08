@@ -1817,7 +1817,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
     try {
       const _mid = getMemberId();
       const _isU = _mid && /^[0-9a-f]{8}-/.test(_mid);
-      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 3 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 3 };
+      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 1 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 1 };
       const _chRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/charge_credit`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY }, body: JSON.stringify(_chBody) });
       const _ch = await _chRes.json();
       console.log("[AIR] charge_credit:", _ch);
