@@ -1817,7 +1817,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
     try {
       const _mid = getMemberId();
       const _isU = _mid && /^[0-9a-f]{8}-/.test(_mid);
-      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 1 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 1 };
+      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 3 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 3 };
       const _chRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/charge_credit`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY }, body: JSON.stringify(_chBody) });
       const _ch = await _chRes.json();
       console.log("[AIR] charge_credit:", _ch);
@@ -1907,8 +1907,24 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           var _ao = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ai_overview", keywords: _kws, target: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
           if (_ao && Array.isArray(_ao.ai_overview) && _ao.ai_overview.length) {
             console.log("[AIR] ai_overview OK:", _ao.ai_overview.length, "keywords checked");
+            /* Option B 2026-07-08: for the top-3 keywords, also check ChatGPT + Perplexity citation via llm_responses (extra credits). Fills the ChatGPT/Perplexity columns for those rows. */
+            try {
+              var _tok = await ivaAuthToken();
+              var _top3 = _ao.ai_overview.slice(0, 3);
+              var _llmJobs = [];
+              _top3.forEach(function (row) {
+                ["chat_gpt", "sonar"].forEach(function (eng) {
+                  _llmJobs.push(fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + _tok }, body: JSON.stringify({ mode: "llm_responses", user_prompt: row.q, engine: eng }) }).then(function (r) { return r.ok ? r.json() : null; }).then(function (resp) { var c = false; try { c = !!(resp && resp.items && JSON.stringify(resp.items).toLowerCase().indexOf(_h) !== -1); } catch (e) {} return { q: row.q, eng: eng, cited: c }; }).catch(function () { return { q: row.q, eng: eng, cited: false }; }));
+                });
+              });
+              var _llmRes = await Promise.all(_llmJobs);
+              _ao.ai_overview.forEach(function (row) {
+                _llmRes.forEach(function (lr) { if (lr.q === row.q) { if (lr.eng === "chat_gpt") row.chat_gpt = lr.cited; if (lr.eng === "sonar") row.perplexity = lr.cited; } });
+              });
+              console.log("[AIR] llm top-3 checked (ChatGPT + Perplexity)");
+            } catch (_le) { console.log("[AIR] llm top-3 enrich error", _le); }
             setAuditData(function (prev) { return (prev && prev.url === d.url) ? Object.assign({}, prev, { aioItems: _ao.ai_overview }) : prev; });
-            var _aioCited = _ao.ai_overview.filter(function (x) { return x && x.cited; }).length;
+            var _aioCited = _ao.ai_overview.reduce(function (n, x) { return n + ((x && x.cited) ? 1 : 0) + ((x && x.chat_gpt) ? 1 : 0) + ((x && x.perplexity) ? 1 : 0); }, 0);
             return { ai_overview_count: _aioCited, prompts_checked: _kws, aioItems: _ao.ai_overview };
           }
           return null;
