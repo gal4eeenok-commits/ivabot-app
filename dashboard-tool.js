@@ -1,81 +1,2310 @@
-/* IvaBot DASHBOARD (dashboard-tool.js) v327 - SEO score as third Core card (Positions/Backlinks/Score): reads snapshots.audit_score, status word Strong/Moderate/Weak, score-over-time trend, additive only. v326 - whitelist-gated IIFE, mockup in a full-screen iframe on /dashboard.
-   v68: render runs exactly once (readiness poll for parent __supabase + re-entrancy lock); removed the visibilitychange full-rebuild that reset the open page/metric and re-animated the graph. Fixes the multi-render/jumping and random tab-switching at the root, not just masked.
-   v69: first real domain + its first page now open by default (demo scaffolding no longer counted as prior-open state); pinned badge stays only on home pages. Page cited centered in the Show-all-prompt-runs modal. Prompts Refresh now warns like keywords when refreshed within 5 days. Keyword delete-x right-aligned to match the prompt table.
-   v70: Show-all-prompt-runs modal header now centers with its cells (fixes misaligned Page cited dashes and engine dots). Backlinks summary copy is honest and non-contradictory (leads with linking pages shown, then totals). Delete-x column pinned to a fixed right-aligned width in both the keyword and prompt tables so the x's line up.
-   v71: Core refresh now runs IN the dashboard (no bounce to /app, no second report): one charge via the unified wallet (charge_credit, 1 + ceil(added keywords/50)), fetches ranked keywords + page-level backlinks (summary + full live list up to 1000) + added-keyword positions, writes ONE core snapshot via insert_core_run->insert_snapshot (trigger sets page_url), then re-renders. Separate 'Refresh keywords' button folded in. Backlinks shown strictly page-level (count = links we list, 'N backlinks to this page', no domain totals). Buy Credits explainer line added. Confirmation modal reused with simple item list + 3-day repeat warning. AI section refresh is the next drop (v72).
-   v72: Core refresh button now shows the REAL cost (1 + ceil(added keywords/50)) instead of a hardcoded '1'. Confirmation modal lists the number of keyword positions being refreshed. AI prompt block wrapped in the same .detail frame as the Core keyword block so both sections share one style. Removed the v70 last-child CSS rule that pushed the ADDED BY YOU / RANKED IN GOOGLE group labels to the right.
-   v73: AI Readiness refresh now runs IN the dashboard too (ivaRefresh generalized to scope 'air'): brand mentions (llm_mentions) + prompt citations (llm_responses x3 engines) + Google AI Overview (ai_overview) in one button, one charge via the unified wallet, one ai_readiness snapshot via insert_core_run->insert_snapshot. The home AI 'Refresh prompts' button is now the AI section refresh. Cost formula changed so keywords/prompts are INCLUDED in the base credit: Core = max(1, ceil(added keywords/50)) and AI = max(1, ceil(prompts/10)) - the first keyword/prompt no longer adds a whole credit. Buy Credits copy generalized to all tracked data.
-   v74: AI refresh now costs 2 credits per 10 prompts (minimum 2) so it never runs at a loss (each prompt = 3 AI-engine calls). Core unchanged at max(1, ceil(added/50)).
-   v75: AI cost smoothed to max(2, 1 + ceil(prompts/10)) - starts at 2 for up to 10 prompts, then +1 per additional 10 (no 2->4 jump). Core unchanged.
-   v76: AI Readiness refresh button moved up to the section header (next to 'AI Readiness \u00b7 AI assistants'), mirroring Core's 'Refresh' at 'Core \u00b7 Google search'; removed from the 'Track where you show up in AI' prompt sub-block. Refresh confirmation now counts ALL tracked keywords in the list (added + ranked, including zero-position ones) via a data-kwtotal attribute, instead of only keywords that currently rank.
-   v77: AI cost scales faster with prompts - max(2, ceil(prompts/5)) (1 credit per 5 prompts, min 2) so price keeps pace with the 3-engine-calls-per-prompt cost and margin does not erode on heavy prompt users. Previously +1 per 10, which grew slower than cost.
-   v78: AI back to max(2, 1 + ceil(prompts/10)) - cheaper for users, still ~80% margin at real DataForSEO prices, to grow adoption of the flagship AI Readiness tool. Core keyword volume/difficulty (the $0.09 search_volume call) is now fetched only ONCE per keyword (when vol is still null) and cached, instead of on every refresh - drops repeat-refresh Core cost to ~$0.11 (~89% margin) without any unbilled add-time cost. Positions still refresh every time.
-   v79 (GO-LIVE): whitelist removed - allowed() now returns true, dashboard open to all authenticated users. Keyword count card shows ALL tracked keywords (order.length), matching the list and the refresh modal, instead of only keywords that currently rank. Refresh pills restyled black (#151415) like the Buy Credits button so they stand out.
-   v80: empty-state 'Run Core Audit' / 'Run AI Readiness' buttons were demo toasts; now they open the Track-a-new-page modal with the chosen tool pre-selected, which launches the tool directly via autorun (new window, writes snapshot, PDF-ready). openTrack() accepts an optional pre-selected tool. The tracked-page Run buttons and Track-a-new-page already launched the tool directly; unchanged.
-   v81 (credits display fix): the real credits loader C() ran once on DOMContentLoaded before the parent window.__supabase/__userId were ready, bailed out, and left the hardcoded demo value 133 showing. C() now retries every 250ms (up to ~6s, like render) until the parent client is ready, then loads the real credits_balance. Initial creditNum placeholder changed from 133 to an em-dash; removed the demo setView clobber that forced creditNum to 3/133.
-   v82 (profile wiring): the whole profile was demo-hardcoded ('Malina Arikh', avatar 'MA', and the founder's own email gal4eeenok@gmail.com shown to every user - a leak). Added PR() that loads the real logged-in user (sb.auth.getUser -> email + user_metadata name) with the same readiness retry as credits, and populates the avatar initials, account name, and Settings first/last name + email fields. Wired the demo-stub buttons to real Supabase auth: Save Name (updateUser data), Save Email (updateUser email), Save Password (updateUser password), Forgot Password (resetPasswordForEmail), and Log out (signOut + redirect home).
-   v83 (reset-password flow): sendReset now passes redirectTo=https://ivabot.xyz/dashboard?reset=1 so the reset link lands on the dashboard instead of the homepage. New RC() handler detects arrival via recovery link (?reset=1 query, type=recovery hash, or the PASSWORD_RECOVERY auth event) and auto-opens Profile Settings focused on the New Password field, where Save Password (updateUser) completes the reset. NOTE: the dashboard URL must be added to Supabase Auth -> URL Configuration -> Redirect URLs.
-   v84: password UX clearer for reset. Added a Confirm New Password field (pfNewPw2); Save Password now requires the two to match. In reset mode _openReset hides the Current Password row (not needed when you forgot it); normal openProfile shows it again.
-   v22: pages with Core data now show the mockup's VERBATIM data-state panel (clickable kw/bl/ai/cite/aio cards + detail panels), filled from snapshots: keyword table = positions per keyword across snapshot dates (from ranked_keywords history), backlink table = real list (from backlinks jsonb), card counts real; AI-mention/citation detail panels show a "prompt tracking coming" note (no invented data). Pages without Core data keep the empty block. Delete crosses (×) restored on domains + pages (dashboard-view only, no DB delete). No charts (the mockup uses trend tables, not SVG). First domain + first page open.
-   v21: verbatim per-page widget block (empty state).
-   v9: dashboard nav is a plain STATIC top bar (does not move/stick, does not collapse) so it never covers metrics.
-   Keeps all original items (Dashboard / Buy Credits / History / Settings / Log out); no Run IvaBot, no floating pill.
-   The floating pill stays on the homepage only. Carried: scope-aware refresh modal + prompts note, footer logo eyes,
-   email hello@ivabot.xyz, reveal cascade. iframe srcdoc = exact mockup doc, <base target="_parent">. Demo data. */
-(function () {
-  "use strict";
-  if (window.__ivaDashBooted) return;
-  window.__ivaDashBooted = true;
-  var FRAME_ID = "iva-dash-frame";
-  /* v103: the dashboard page must expose window.__supabase + window.__userId to the
-     srcdoc iframe. core-tool.js / seo-tools.js do this on their own pages, but the
-     dashboard page loads neither, so the iframe's C() (credits) and PR() (profile name)
-     polled for the parent client, never found it, and left name + credits as "—".
-     This mirrors the core-tool.js auth bootstrap (anon client + getSession). */
-  var _IVA_SB_URL = "https://empuzslozakbicmenxfo.supabase.co";
-  var _IVA_SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
-  (function ivaDashAuth(){
-    try {
-      if (window.__supabase && window.__userId) return;
-      var proceed = function(){
-        try {
-          if (!window.__supabase && window.supabase) window.__supabase = window.supabase.createClient(_IVA_SB_URL, _IVA_SB_KEY);
-          if (window.__supabase && window.__supabase.auth) {
-            window.__supabase.auth.getSession().then(function(r){
-              var u = r && r.data && r.data.session && r.data.session.user;
-              if (u) { window.__userId = u.id; window.__memberId = u.id; }
-            }).catch(function(){});
+/* IvaBot AI Readiness (standalone) v3.7 — cloned from content-coverage.js shell; AI Readiness report for only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
+(function() {
+const{useState,useRef,useEffect,useCallback}=React;
+console.log("[IvaBot] ai-readiness.js (standalone) v4.1 loaded");
+
+/* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
+   reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
+   survive JSON, so on save we drop aiReadiness + keep the raw AI result, and rebuild aiReadiness on restore. */
+var _COV_REPORT_TTL = 24 * 60 * 60 * 1000;
+function _covReportKey(mid){ return "iva_coverage_report_" + (mid || "anon"); }
+function _covStripEls(k, v){ if (v && typeof v === "object" && v.$$typeof) return undefined; return v; }
+function saveCoverageReport(mid, data){ try { localStorage.setItem(_covReportKey(mid), JSON.stringify({ savedAt: Date.now(), data: data }, _covStripEls)); } catch(e){ console.warn("[CC] saveCoverageReport failed", e); } }
+function loadCoverageReport(mid){ try { var raw = localStorage.getItem(_covReportKey(mid)); if(!raw) return null; var o = JSON.parse(raw); if(!o || !o.data) return null; if(Date.now() - (o.savedAt||0) > _COV_REPORT_TTL){ localStorage.removeItem(_covReportKey(mid)); return null; } return o.data; } catch(e){ return null; } }
+function clearCoverageReport(mid){ try { localStorage.removeItem(_covReportKey(mid)); } catch(e){} }
+function _covIsReload(){ try { var nav = (performance.getEntriesByType && performance.getEntriesByType("navigation")) || []; if (nav[0] && nav[0].type) return nav[0].type === "reload"; } catch(e){} try { return !!(performance.navigation && performance.navigation.type === 1); } catch(e){} return false; }
+/* Safety net: a restored report should never white-screen the app. */
+class _CovErrorBoundary extends React.Component {
+  constructor(props){ super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err){ return { err: err }; }
+  componentDidCatch(err, info){ console.error("[CC] report render error:", err, info && info.componentStack); try { clearCoverageReport(getMemberId()); } catch(e){} }
+  render(){ if (this.state.err) return this.props.fallback || null; return this.props.children; }
+}
+
+/* ═══ CONFIG ═══ */
+const USE_MOCK=false;
+/* July-1 flip flags — single source of truth (guarded; shared with other tools). */
+window.IVA_FLAGS = window.IVA_FLAGS || { backlinksLive: false, toolsOpen: false };
+const SUPABASE_URL="https://empuzslozakbicmenxfo.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtcHV6c2xvemFrYmljbWVueGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjM0MDEsImV4cCI6MjA3OTM5OTQwMX0.d89Kk93fqL77Eq6jHGS5TdPzaWsWva632QoS4aPOm9E";
+
+/* IvaBot security step 1: send the logged-in user's session token instead of the anon key.
+   Falls back to the anon key if no session, so this change is non-breaking on its own. */
+async function ivaAuthToken(){try{if(window.__supabase){const{data:{session}}=await window.__supabase.auth.getSession();if(session&&session.access_token)return session.access_token;}}catch(e){}return SUPABASE_KEY;}
+
+const CORS_PROXY=SUPABASE_URL+"/functions/v1/fetch-page";
+const DFS_PROXY=SUPABASE_URL+"/functions/v1/dataforseo-proxy";
+const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
+const AIR_GPT=SUPABASE_URL+"/functions/v1/air-gpt";
+
+/* ═══ MEMBER ID + CREDITS ═══ */
+function getMemberId(){if(window.__memberId)return window.__memberId;if(window.__userId)return window.__userId;try{const sb=window.__supabase;if(sb){const key=Object.keys(localStorage).find(k=>k.includes('auth-token'));if(key){const data=JSON.parse(localStorage.getItem(key));if(data?.user?.id)return data.user.id;}}}catch(e){}return null;}
+async function checkCoverageCredits(memberId){if(!memberId)return{ok:true};try{let res=await fetch(`${SUPABASE_URL}/rest/v1/usage?user_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY}});let rows=res.ok?await res.json():[];if(rows.length===0){res=await fetch(`${SUPABASE_URL}/rest/v1/usage?member_id=eq.${memberId}&select=coverage_used,coverage_limit`,{headers:{"Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY}});rows=res.ok?await res.json():[];}if(rows.length===0)return{ok:true};const{coverage_used,coverage_limit}=rows[0];if(coverage_limit&&coverage_limit>0&&coverage_used>=coverage_limit)return{ok:false,used:coverage_used,limit:coverage_limit};return{ok:true,used:coverage_used,limit:coverage_limit};}catch(e){console.error("[CC] checkCredits error:",e);return{ok:true};}}
+async function trackCoverageUsage(memberId){if(!memberId){console.log("[CC] trackUsage: no memberId");return{success:false};}try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const rpcBody=isUUID?{p_user_id:memberId}:{p_member_id:memberId};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_coverage_used`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},body:JSON.stringify(rpcBody)});if(res.ok){const data=await res.json();console.log("[CC] trackUsage:",JSON.stringify(data));return data;}else{console.error("[CC] trackUsage HTTP",res.status);return{success:false};}}catch(e){console.error("[CC] trackUsage error:",e);return{success:false};}}
+async function recordCoverageRun(memberId,url){try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const runBody=isUUID?{p_user_id:memberId,p_source_url:url||null}:{p_member_id:memberId,p_source_url:url||null};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_coverage_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},body:JSON.stringify(runBody)});let runId=null;try{const d=await res.json();runId=d&&d.run_id?d.run_id:null;}catch(_){}console.log("[CC] run recorded:",runId);return runId;}catch(e){console.error("[CC] run record error:",e);return null;}}
+async function recordAirRun(memberId,url){try{const isUUID=/^[0-9a-f]{8}-/.test(memberId);const runBody=isUUID?{p_user_id:memberId,p_source_url:url||null}:{p_member_id:memberId,p_source_url:url||null};const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_air_run`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},body:JSON.stringify(runBody)});let runId=null;try{const d=await res.json();runId=d&&d.run_id?d.run_id:null;}catch(_){}console.log("[AIR] run recorded:",runId);return runId;}catch(e){console.error("[AIR] run record error:",e);return null;}}
+async function recordAirSnapshot(a){try{var ai=a.aiReadiness||{};var good=ai.aiGood||[];var bad=ai.aiBad||[];var passed=good.length;var total=ai.total||(good.length+bad.length);var score=(typeof ai.score==="number")?Math.round(ai.score):null;var coverage={score:score,signals_passed:passed,signals_total:total,page_type:ai.pageType||null,good:good.map(function(g){return g&&g.title;}).filter(Boolean),bad:bad.map(function(b){return b&&b.title;}).filter(Boolean),aio:(a.aioItems&&a.aioItems.length?a.aioItems:null),brand:(a.brand||null)};var isUUID=/^[0-9a-f]{8}-/.test(a.memberId||"");var body={p_domain:a.domain||null,p_user_id:isUUID?a.memberId:null,p_member_id:isUUID?null:(a.memberId||null),p_flow_type:"ai_readiness",p_run_id:a.runId||null,p_audit_score:score,p_coverage:coverage,p_ai_mentions_count:(a.ai_mentions_count!=null)?a.ai_mentions_count:null,p_ai_search_volume:(a.ai_search_volume!=null)?a.ai_search_volume:null,p_ai_overview_count:(a.ai_overview_count!=null)?a.ai_overview_count:null,p_prompts_checked:a.prompts_checked||null,p_subject:"self"};var res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_snapshot`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(await ivaAuthToken()),"apikey":SUPABASE_KEY},body:JSON.stringify(body)});if(res.ok){var dd=await res.json();console.log("[AIR] snapshot recorded:",JSON.stringify(dd));return dd;}var t="";try{t=await res.text();}catch(e){}console.error("[AIR] snapshot HTTP",res.status,t.slice(0,200));return null;}catch(e){console.error("[AIR] snapshot error:",e);return null;}}
+
+/* ═══ COLORS (identical to Core Audit + CB) ═══ */
+const C={bg:"#FBF5FF",surface:"#ffffff",accent:"#6E2BFF",accentLight:"#f3f0fd",dark:"#151415",muted:"#928E95",border:"rgba(21,20,21,0.08)",borderMid:"rgba(21,20,21,0.12)",green:"#22C55E",red:"#EF4444",card:"#F0EAFF",cardBorder:"rgba(110,43,255,0.08)",numBg:"#6E2BFF",hoverBorder:"rgba(110,43,255,0.2)",hoverShadow:"0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)"};
+
+/* ═══ PRIMITIVES (1:1 from seo-tools.js) ═══ */
+const Tip=({text,children})=>{const[s,setS]=useState(false);const ref=useRef(null);const[pos,setPos]=useState({above:true,alignRight:false});return(<span ref={ref} style={{position:"relative",display:"inline-flex",alignItems:"center"}} onMouseEnter={()=>{if(ref.current){const rect=ref.current.getBoundingClientRect();setPos({above:rect.top>160,alignRight:rect.left>window.innerWidth/2});}setS(true);}} onMouseLeave={()=>setS(false)}>{children}{s&&<span style={{position:"absolute",...(pos.above?{bottom:"calc(100% + 8px)"}:{top:"calc(100% + 8px)"}),...(pos.alignRight?{right:0}:{left:0}),background:C.surface,color:C.dark,padding:"10px 14px",borderRadius:10,fontSize:11,lineHeight:1.5,width:260,maxWidth:"85vw",zIndex:9999,fontWeight:400,boxShadow:"0 4px 24px rgba(0,0,0,0.14)",border:`1px solid ${C.border}`,pointerEvents:"none",whiteSpace:"normal",wordBreak:"break-word",textAlign:"left"}}>{text}</span>}</span>);};
+const QM=({text})=>(<Tip text={text}><span style={{width:16,height:16,borderRadius:"50%",border:`1px solid ${C.borderMid}`,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.muted,cursor:"help",marginLeft:4,flexShrink:0,verticalAlign:"top",position:"relative",top:-1}}>?</span></Tip>);
+/* Parse **bold** segments in text — returns React fragments */
+const renderBoldText = (text) => {
+  if (!text || typeof text !== "string") return text;
+  if (!text.includes("**")) return text;
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**")) {
+      return <strong key={i} style={{ fontWeight: 700, color: C.dark }}>{p.slice(2, -2)}</strong>;
+    }
+    return <React.Fragment key={i}>{p}</React.Fragment>;
+  });
+};
+const CopyBtn=({text})=>{const[c,setC]=useState(false);return(<button onClick={()=>{navigator.clipboard?.writeText(text);setC(true);setTimeout(()=>setC(false),1500);}} style={{fontSize:10,fontWeight:600,color:c?"#9B7AE6":C.accent,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"2px 6px"}}>{c?"Copied!":"Copy"}</button>);};
+const HoverCard=({children,style={}})=>(<div style={{borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,transition:"box-shadow 0.3s, border-color 0.3s",cursor:"default",...style}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.hoverBorder;e.currentTarget.style.boxShadow=C.hoverShadow;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}>{children}</div>);
+const SOCIAL_URLS={Facebook:"https://facebook.com",Instagram:"https://instagram.com",LinkedIn:"https://linkedin.com","X (Twitter)":"https://x.com",YouTube:"https://youtube.com",TikTok:"https://tiktok.com",Pinterest:"https://pinterest.com",Threads:"https://threads.net"};
+const SocialBadge=({name,url})=>(<a href={url||SOCIAL_URLS[name]||"#"} target="_blank" rel="noopener noreferrer" style={{padding:"8px 14px",borderRadius:8,background:C.surface,border:`1px solid ${C.border}`,textDecoration:"none",display:"inline-block",transition:"border-color 0.2s, box-shadow 0.2s",cursor:"pointer"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.hoverBorder;e.currentTarget.style.boxShadow=C.hoverShadow;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}><span style={{fontSize:12,fontWeight:500,color:C.dark}}>{name}</span></a>);
+
+const Fold=({title,children,open:d=false,borderColor,headerBg,titleColor,count})=>{const[o,setO]=useState(d);return(<div style={{borderRadius:12,border:`1px solid ${borderColor||C.border}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"14px 16px",background:headerBg||"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"'DM Sans',sans-serif"}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14,fontWeight:700,color:titleColor||C.dark}}>{title}</span>{count!=null&&<span style={{fontSize:11,fontWeight:600,color:titleColor?"rgba(255,255,255,0.7)":C.muted,background:titleColor?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.5)",padding:"2px 8px",borderRadius:10}}>{count}</span>}</div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={titleColor||C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.3s ease",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button><div style={{display:"grid",gridTemplateRows:o?"1fr":"0fr",opacity:o?1:0,transition:"grid-template-rows 0.7s cubic-bezier(0.16,1,0.3,1), opacity 0.5s ease"}}><div style={{overflow:"hidden"}}><div style={{padding:"0 16px 16px",borderTop:`1px solid ${borderColor||C.border}`}}>{children}</div></div></div></div>);};
+
+const WorkingItem=({title,content})=>{const[o,setO]=useState(true);return(<div style={{borderRadius:10,border:`1px solid ${C.cardBorder}`,overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"11px 14px",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"'DM Sans',sans-serif"}}><span style={{color:"#9B7AE6",flexShrink:0,fontSize:13,fontWeight:600,display:"flex",alignItems:"center"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9B7AE6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&<div style={{padding:"0 14px 14px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>{content}</div></div>}</div>);};
+
+const InfoBlock=({label,value,borderColor})=>{const renderLine=(line,i)=>{const hMatch=line.match(/^(H[1-3]):\s*(.*)/);if(hMatch){const lv=hMatch[1],text=hMatch[2];const hColorMap={H1:{color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},H2:{color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},H3:{color:"#B89CF0",bg:"rgba(184,156,240,0.12)"}};const hc=hColorMap[lv]||hColorMap.H2;const isBroken=text.includes("⚠");return(<div key={i} style={{display:"flex",alignItems:"center",gap:6,fontSize:12.5,fontWeight:500,color:isBroken?C.accent:C.dark,padding:"2px 0"}}><span style={{fontSize:9,fontWeight:600,color:isBroken?C.accent:hc.color,background:isBroken?"rgba(110,43,255,0.08)":hc.bg,padding:"2px 5px",borderRadius:3,minWidth:22,textAlign:"center",flexShrink:0}}>{lv}</span><span>{text}</span></div>);}return<div key={i} style={{padding:"2px 0"}}>{line}</div>;};return(<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:`1px solid ${borderColor||C.border}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:3}}>{label}</div><div style={{fontSize:13,fontWeight:500,color:C.dark,lineHeight:1.5}}>{typeof value==="string"?value.split("\n").map(renderLine):value}</div></div>);};
+
+const PRIO={critical:{label:"Critical",color:"#6E2BFF",bg:"rgba(110,43,255,0.08)"},important:{label:"Important",color:"#9B7AE6",bg:"rgba(155,122,230,0.08)"},nice:{label:"Nice to have",color:"#B89CF0",bg:"rgba(184,156,240,0.08)"}};
+const ProblemCard=({title,why,currentLabel,current,suggestions,sugLabel,showCopy=true,links,serpSnippet,soft,priority})=>{const[o,setO]=useState(false);const pr=PRIO[priority]||PRIO.important;return(<div style={{borderRadius:12,border:soft?"1px solid rgba(110,43,255,0.12)":"1px solid rgba(110,43,255,0.25)",overflow:"hidden",background:C.surface}}><button onClick={()=>setO(!o)} style={{width:"100%",padding:"13px 16px",background:C.surface,border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontFamily:"'DM Sans',sans-serif"}}><div style={{width:6,height:6,borderRadius:"50%",background:pr.color,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:C.dark,flex:1,textAlign:"left"}}>{title}</span><span style={{fontSize:9,fontWeight:600,color:pr.color,background:pr.bg,padding:"3px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:"0.5px",flexShrink:0}}>{pr.label}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{transform:o?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s",flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg></button>{o&&(<div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.cardBorder}`}}><div style={{display:"flex",flexDirection:"column",gap:8,marginTop:12}}>{serpSnippet&&<SerpSnippet {...serpSnippet}/>}{current&&(typeof current==="string"?<InfoBlock label={currentLabel||"Current"} value={current} borderColor="rgba(110,43,255,0.15)"/>:<div style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:"1px solid rgba(110,43,255,0.15)"}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{currentLabel||"Current"}</div>{current}</div>)}{why&&<div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"8px 12px",borderRadius:8,background:soft?"rgba(184,156,240,0.06)":"rgba(110,43,255,0.04)",border:`1px solid ${soft?"rgba(184,156,240,0.12)":"rgba(110,43,255,0.1)"}`}}><div style={{width:7,height:7,borderRadius:"50%",background:pr.color,flexShrink:0,marginTop:4}}/><span style={{fontSize:11.5,color:C.dark,lineHeight:1.5}}>{renderBoldText(why)}</span></div>}{suggestions?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>{sugLabel||"Suggested"}</div><div style={{display:"flex",flexDirection:"column",gap:5}}>{suggestions.map((s,i)=>showCopy?(<HoverCard key={i} style={{padding:"9px 12px"}}><span style={{fontSize:12.5,color:C.dark,fontWeight:500,display:"block",marginBottom:4}}>{s}</span><CopyBtn text={s}/></HoverCard>):(<div key={i} style={{padding:"9px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:C.surface,fontSize:12.5,color:C.dark,fontWeight:500}}>{s}</div>))}</div></div>}{links?.length>0&&<div><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:6}}>Learn more</div>{links.map((l,i)=>(<a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:12,color:C.accent,marginBottom:4,textDecoration:"none"}}>{l.label} →</a>))}</div>}</div></div>)}</div>);};
+
+const SerpSnippet=({url,title,desc,hideDesc})=>{let displayUrl=url||"";try{const u=new URL(url);displayUrl=u.hostname+(u.pathname==="/"?"":u.pathname);}catch(e){}const truncTitle=title?(title.length>60?title.slice(0,57)+"...":title):"No title set";const truncDesc=desc?(desc.length>160?desc.slice(0,157)+"...":desc):"No description set";return(<div style={{padding:"14px 16px",borderRadius:10,background:C.surface,border:`1px solid ${C.cardBorder}`}}><div style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.5px"}}>Google Search Preview</div><div style={{padding:"12px 14px",borderRadius:8,background:"#fff",border:"1px solid rgba(21,20,21,0.06)"}}><div style={{fontSize:11,color:"#202124",marginBottom:2,display:"flex",alignItems:"center",gap:6}}><div style={{width:18,height:18,borderRadius:"50%",background:"rgba(21,20,21,0.06)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,fontWeight:700,color:C.muted}}>{(displayUrl[0]||"?").toUpperCase()}</span></div><span style={{color:"#4d5156",fontSize:11}}>{displayUrl}</span></div><div style={{fontSize:16,color:"#1a0dab",fontWeight:400,lineHeight:1.3,marginBottom:hideDesc?0:3,cursor:"pointer"}}>{truncTitle}</div>{!hideDesc&&<div style={{fontSize:12,color:"#4d5156",lineHeight:1.5}}>{truncDesc}</div>}</div></div>);};
+
+/* DistributionTipsBlock — advice block per page_type, NOT a check */
+const DistributionTipsBlock = ({ tips }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ borderRadius: 12, border: `1px solid ${C.cardBorder}`, overflow: "hidden", background: C.surface }}>
+      <button onClick={() => setOpen(!open)} style={{ width: "100%", padding: "14px 16px", background: "rgba(184,156,240,0.08)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Where to mention this page</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6", background: "rgba(155,122,230,0.12)", padding: "3px 8px", borderRadius: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>Tips</span>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" style={{ transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.3s ease", flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", opacity: open ? 1 : 0, transition: "grid-template-rows 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.4s ease" }}>
+        <div style={{ overflow: "hidden" }}>
+          <div style={{ padding: "0 16px 16px", borderTop: `1px solid ${C.cardBorder}` }}>
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, padding: "12px 0 10px" }}>
+              AI engines cite pages that have mentions across the web. Based on your page type, here's where to start building those mentions:
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {(tips || []).map((tip, i) => (
+                <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(184,156,240,0.05)", border: "1px solid rgba(184,156,240,0.15)", fontSize: 12.5, color: C.dark, lineHeight: 1.5 }}>
+                  {(tip && typeof tip === "object") ? (<><span style={{ fontWeight: 700 }}>{tip.channel}:</span> {tip.action}</>) : renderBoldText(tip)}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 10, fontWeight: 600, color: C.muted, marginBottom: 6 }}>Learn more</div>
+            <a href="https://ivabot.xyz/blog/where-do-ai-engines-get-information" target="_blank" rel="noopener noreferrer" style={{ display: "block", fontSize: 12, color: C.accent, textDecoration: "none" }}>How AI engines source citations (2026 study) →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+/* Bot bubbles */
+const BL=({s=16})=>(<svg width={s} height={Math.round(s*0.81)} viewBox="0 0 66 58" fill="none" style={{flexShrink:0,opacity:0.35}}><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill="#6E2BFF"/><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill="#6E2BFF"/></svg>);
+const BotLogo=()=><BL s={16}/>;
+const UA=({n})=><div style={{width:20,height:20,borderRadius:"50%",background:C.accent,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:10,fontWeight:700,color:"#fff"}}>{(n||"U")[0].toUpperCase()}</span></div>;
+const BB=({children})=><div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",maxWidth:"90%",alignSelf:"flex-start"}}><div style={{marginBottom:3,marginLeft:2}}><BL s={16}/></div><div style={{padding:"10px 14px",borderRadius:"4px 12px 12px 12px",background:C.surface,border:`1px solid ${C.border}`,fontSize:13,color:C.dark,lineHeight:1.5}}>{children}</div></div>;
+const UB=({children,n})=><div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",maxWidth:"80%",alignSelf:"flex-end"}}><div style={{marginBottom:3,marginRight:2}}><UA n={n}/></div><div style={{padding:"8px 14px",borderRadius:"12px 4px 12px 12px",background:C.accent,fontSize:13,color:"#fff"}}>{children}</div></div>;
+const BotNote=({text,inline})=>inline?(<div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,padding:"4px 0"}}>{text}</div>):(<div className="reveal" style={{display:"flex",alignItems:"flex-start",gap:8,padding:"6px 0",marginBottom:8}}><BotLogo/><span style={{fontSize:12,color:C.muted,lineHeight:1.5}}>{text}</span></div>);
+
+const useIsMobile=()=>{const[m,sm]=useState(window.innerWidth<1024);useEffect(()=>{const h=()=>sm(window.innerWidth<1024);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);return m;};
+const LBar=({step,total,text})=>{const p=((step+1)/total)*100;return(<div style={{padding:"14px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,fontWeight:500,color:C.dark}}>{text}</span><span style={{fontSize:11,fontWeight:600,color:C.accent}}>{Math.round(p)}%</span></div><div style={{height:4,background:"rgba(110,43,255,0.08)",borderRadius:100,overflow:"hidden"}}><div style={{height:"100%",background:C.accent,borderRadius:100,width:`${p}%`,transition:"width 0.5s ease"}}/></div></div>);};
+const MobileTab=({active,onSwitch,hasReport})=>{if(!hasReport)return null;return<div style={{display:"flex",gap:0,background:"rgba(21,20,21,0.04)",borderRadius:10,padding:3,margin:"0 16px 8px"}}><button onClick={()=>onSwitch("chat")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="chat"?C.surface:"transparent",color:active==="chat"?C.dark:C.muted,boxShadow:active==="chat"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Chat</button><button onClick={()=>onSwitch("report")} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",fontSize:12,fontWeight:600,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",background:active==="report"?C.surface:"transparent",color:active==="report"?C.dark:C.muted,boxShadow:active==="report"?"0 1px 3px rgba(0,0,0,0.06)":"none"}}>Report</button></div>;};
+
+/* ═══ RANKINGS TABLE ═══ */
+const fmtVol=(v)=>{if(!v)return"—";if(v>=1000000)return(v/1000000).toFixed(1).replace(/\.0$/,"")+"M";if(v>=1000)return(v/1000).toFixed(1).replace(/\.0$/,"")+"K";return v.toLocaleString();};
+const NicheBadge=()=><Tip text="This keyword has fewer than 10 monthly searches in Google. This is normal for branded or highly specific terms — your page may still rank well for it."><span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500,cursor:"help"}}>&lt; 10</span></Tip>;
+const KdBadge=({d})=>{const label=d==null?"low":d<30?"low":d<60?"medium":"high";return<span style={{fontSize:9,color:"#9B7AE6",background:"rgba(110,43,255,0.06)",padding:"2px 6px",borderRadius:4,fontWeight:500}}>{label}</span>;};
+const LowBadge=()=><KdBadge d={null}/>;
+const RankingsTable=({rows,emptyMsg})=>(<div style={{background:C.surface,borderRadius:10,padding:"4px 14px",border:`1px solid ${C.cardBorder}`,overflow:"visible"}}><table style={{width:"100%",minWidth:380,borderCollapse:"collapse",fontSize:12.5}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}><th style={{textAlign:"left",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5}}>Keyword</th><th style={{textAlign:"center",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>Pos. <QM text="Your page's position in Google search results for this keyword. Position 1 = top result. Based on your target region."/></th><th style={{textAlign:"right",padding:"8px 4px",color:C.muted,fontWeight:500,fontSize:11.5,width:70,whiteSpace:"nowrap"}}>Vol. <QM text="Monthly search volume — how many times per month people search this keyword in Google."/></th><th style={{textAlign:"right",padding:"8px 0",color:C.muted,fontWeight:500,fontSize:11.5,width:50,whiteSpace:"nowrap"}}>KD <QM text="Keyword difficulty — how hard it is to rank in the top 10. Low = easy to rank, medium = moderate competition, high = very competitive."/></th></tr></thead><tbody>{rows&&rows.length>0?rows.map((r,i)=>(<tr key={i} style={{borderBottom:i<rows.length-1?`1px solid rgba(21,20,21,0.04)`:"none"}}><td style={{padding:"10px 8px 10px 0",color:C.dark,fontWeight:500}}>{r.keyword}</td><td style={{textAlign:"center",padding:"10px 4px"}}>{r.position!=null?(<span style={{background:r.position<=3?"rgba(110,43,255,0.08)":"rgba(21,20,21,0.04)",color:r.position<=3?C.accent:C.muted,fontWeight:600,padding:"3px 10px",borderRadius:8,fontSize:12}}>{r.position}</span>):<Tip text="Position data unavailable — this keyword may be too niche for automated tracking. Your page could still rank for it."><span style={{color:C.muted,fontSize:10,background:"rgba(21,20,21,0.03)",padding:"3px 8px",borderRadius:6,cursor:"help"}}>—</span></Tip>}</td><td style={{textAlign:"right",padding:"10px 4px",whiteSpace:"nowrap"}}>{r.volume!=null&&r.volume>0?<span style={{color:C.dark,fontSize:12}}>{fmtVol(r.volume)}</span>:<NicheBadge/>}</td><td style={{textAlign:"right",padding:"10px 0",whiteSpace:"nowrap"}}><KdBadge d={r.difficulty}/></td></tr>)):<tr><td colSpan={4} style={{padding:"14px 0",color:C.muted,fontSize:12,textAlign:"center"}}>{emptyMsg||"No data available yet."}</td></tr>}</tbody></table></div>);
+
+const Btn=({text,onClick,primary,disabled:d})=><button onClick={d?undefined:onClick} style={{padding:"9px 20px",borderRadius:10,border:primary?"none":`1px solid ${C.borderMid}`,background:primary?C.accent:C.surface,color:primary?"#fff":C.dark,fontSize:13,fontWeight:600,cursor:d?"default":"pointer",fontFamily:"'DM Sans',sans-serif",opacity:d?0.4:1,pointerEvents:d?"none":"auto"}} onMouseEnter={e=>{if(!primary&&!d){e.currentTarget.style.background=C.accentLight;e.currentTarget.style.borderColor=C.hoverBorder;}}} onMouseLeave={e=>{if(!primary&&!d){e.currentTarget.style.background=C.surface;e.currentTarget.style.borderColor=C.borderMid;}}}>{text}</button>;
+
+function valUrl(raw){let s=raw.trim();if(!s)return{ok:false,e:"Paste a URL to start."};const m=s.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/i);if(m)s=m[0];else{const d=s.match(/[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}[^\s]*/);if(d)s="https://"+d[0];else return{ok:false,e:"Need a URL like https://example.com"};}s=s.replace(/\s+/g,"");if(!s.startsWith("http"))s="https://"+s;try{const u=new URL(s);if(!u.hostname.includes("."))return{ok:false,e:"Not valid."};return{ok:true,url:u.href};}catch{return{ok:false,e:"Not valid."};}}
+
+/* ═══ DataForSEO geo/language detection ═══
+   Detects target country + language from URL TLD + HTML lang attribute.
+   This is CRITICAL — without it, DFS defaults to US/English and Pos. = "—" for non-US sites.
+*/
+/* ═══ geo signal helpers (currency / phone / script) — non-English locale detection ═══ */
+function scanCurrencies(text){ if(!text) return []; var t=(" "+text+" ").toLowerCase().slice(0,8000); var CUR={ "\u20b4":"ua","\u0433\u0440\u043d":"ua","uah":"ua","\u20bd":"ru","\u0440\u0443\u0431":"ru","rub":"ru","\u20b8":"kz","\u0442\u04a3\u0433":"kz","kzt":"kz","byn":"by","z\u0142":"pl","pln":"pl","\u043b\u0432":"bg","bgn":"bg","\u20be":"ge","gel":"ge","\u0586":"am","amd":"am","\u20bc":"az","azn":"az","uzs":"uz","\u0441\u045e\u043c":"uz","\u20ba":"tr","try":"tr","lei":"ro","ron":"ro","k\u010d":"cz","czk":"cz","huf":"hu","\u20aa":"il","ils":"il","\ufdfc":"sa","sar":"sa","aed":"ae","r$":"br","brl":"br","\u20b9":"in","inr":"in","\u20a9":"kr","krw":"kr" }; var out={}; for(var k in CUR){ if(t.indexOf(k)>=0) out[CUR[k]]=1; } return Object.keys(out); }
+function scanPhones(text){ if(!text) return []; var t=text.slice(0,8000); var P=[[/\+380/,"ua"],[/\+375/,"by"],[/\+77\d{2}/,"kz"],[/\+7[\s\-(]*[489]\d{2}/,"ru"],[/\+48/,"pl"],[/\+40/,"ro"],[/\+359/,"bg"],[/\+90/,"tr"],[/\+995/,"ge"],[/\+374/,"am"],[/\+994/,"az"],[/\+998/,"uz"],[/\+370/,"lt"],[/\+371/,"lv"],[/\+372/,"ee"],[/\+972/,"il"],[/\+971/,"ae"],[/\+966/,"sa"],[/\+420/,"cz"],[/\+351/,"pt"],[/\+30\d/,"gr"],[/\+49/,"de"],[/\+33/,"fr"],[/\+34/,"es"],[/\+39/,"it"],[/\+44/,"gb"],[/\+81/,"jp"],[/\+82/,"kr"],[/\+86/,"cn"],[/\+55/,"br"],[/\+36/,"hu"],[/\+31/,"nl"]]; var out=[]; for(var i=0;i<P.length;i++){ if(P[i][0].test(t)){ if(out.indexOf(P[i][1])<0) out.push(P[i][1]); } } return out; }
+function scriptLang(text){ if(!text) return null; var t=text.slice(0,4000); var cyr=0,greek=0,kana=0,hangul=0,han=0,arab=0,hebrew=0; for(var i=0;i<t.length;i++){ var c=t.charCodeAt(i); if(c>=0x0400&&c<=0x04FF)cyr++; else if(c>=0x0370&&c<=0x03FF)greek++; else if(c>=0x3040&&c<=0x30FF)kana++; else if(c>=0xAC00&&c<=0xD7A3)hangul++; else if(c>=0x4E00&&c<=0x9FFF)han++; else if(c>=0x0600&&c<=0x06FF)arab++; else if(c>=0x0590&&c<=0x05FF)hebrew++; } var nl=cyr+greek+kana+hangul+han+arab+hebrew; if(nl<8) return null; if(kana>0) return "ja"; if(hangul>0) return "ko"; if(cyr>=greek&&cyr>=arab&&cyr>=hebrew&&cyr>=han){ if(/[\u0456\u0457\u0454\u0491]/i.test(t)) return "uk"; return "ru"; } if(greek>0) return "el"; if(arab>0) return "ar"; if(hebrew>0) return "he"; if(han>0) return "zh"; return null; }
+
+function detectLocale(url, htmlLang, hreflang, opts) {
+  opts = opts || {};
+  var text = opts.text || "";
+  var gptCountry = (opts.gptCountry||"").toString().toLowerCase().trim();
+  var gptLang = (opts.gptLang||"").toString().toLowerCase().split(/[-_]/)[0].trim();
+  var gptConf = (opts.gptConfidence||"").toString().toLowerCase().trim();
+
+  var countryToLoc = {
+    ro:{loc:2642,lang:"ro"}, de:{loc:2276,lang:"de"}, fr:{loc:2250,lang:"fr"},
+    es:{loc:2724,lang:"es"}, it:{loc:2380,lang:"it"}, nl:{loc:2528,lang:"nl"},
+    pl:{loc:2616,lang:"pl"}, pt:{loc:2620,lang:"pt-PT"}, br:{loc:2076,lang:"pt-BR"},
+    ru:{loc:2643,lang:"ru"}, ua:{loc:2804,lang:"uk"}, tr:{loc:2792,lang:"tr"},
+    se:{loc:2752,lang:"sv"}, no:{loc:2578,lang:"no"}, dk:{loc:2208,lang:"da"},
+    fi:{loc:2246,lang:"fi"}, cz:{loc:2203,lang:"cs"}, gr:{loc:2300,lang:"el"},
+    hu:{loc:2348,lang:"hu"}, at:{loc:2040,lang:"de"}, ch:{loc:2756,lang:"de"},
+    be:{loc:2056,lang:"nl"}, gb:{loc:2826,lang:"en"}, uk:{loc:2826,lang:"en"},
+    us:{loc:2840,lang:"en"}, au:{loc:2036,lang:"en"}, ca:{loc:2124,lang:"en"},
+    in:{loc:2356,lang:"en"}, ie:{loc:2372,lang:"en"}, nz:{loc:2554,lang:"en"},
+    za:{loc:2710,lang:"en"}, mx:{loc:2484,lang:"es"}, ar:{loc:2032,lang:"es"},
+    jp:{loc:2392,lang:"ja"}, kr:{loc:2410,lang:"ko"}, cn:{loc:2156,lang:"zh-CN"},
+    tw:{loc:2158,lang:"zh-TW"}, kz:{loc:2398,lang:"ru"}, by:{loc:2112,lang:"ru"},
+    rs:{loc:2688,lang:"sr"}, bg:{loc:2100,lang:"bg"}, ge:{loc:2268,lang:"ka"},
+    am:{loc:2051,lang:"hy"}, az:{loc:2031,lang:"az"}, uz:{loc:2860,lang:"uz"},
+    il:{loc:2376,lang:"he"}, ae:{loc:2784,lang:"ar"}, sa:{loc:2682,lang:"ar"},
+    lt:{loc:2440,lang:"lt"}, lv:{loc:2428,lang:"lv"}, ee:{loc:2233,lang:"et"}
+  };
+  var TLD_TO_COUNTRY = { ro:"ro",de:"de",fr:"fr",es:"es",it:"it",nl:"nl",pl:"pl",pt:"pt",br:"br",ru:"ru",ua:"ua",tr:"tr",se:"se",no:"no",dk:"dk",fi:"fi",cz:"cz",gr:"gr",hu:"hu",at:"at",ch:"ch",be:"be",au:"au",ca:"ca",in:"in",ie:"ie",nz:"nz",za:"za",mx:"mx",ar:"ar",jp:"jp",kr:"kr",cn:"cn",tw:"tw",kz:"kz",by:"by",rs:"rs",bg:"bg",ge:"ge",am:"am",az:"az",uz:"uz",il:"il",ae:"ae",sa:"sa",lt:"lt",lv:"lv",ee:"ee","co.uk":"gb",uk:"gb" };
+  var langToDfs = { ro:"ro",de:"de",fr:"fr",es:"es",it:"it",nl:"nl",pl:"pl",pt:"pt-PT",ru:"ru",uk:"uk",tr:"tr",sv:"sv",no:"no",da:"da",fi:"fi",cs:"cs",el:"el",hu:"hu",ja:"ja",ko:"ko",zh:"zh-CN",en:"en",sr:"sr",bg:"bg",ka:"ka",hy:"hy",az:"az",uz:"uz",lt:"lt",lv:"lv",et:"et",he:"he",ar:"ar" };
+  var LANG_DOMINANT_LOC = { ru:2643,uk:2804,en:2840,de:2276,fr:2250,es:2724,it:2380,pl:2616,"pt-PT":2620,"pt-BR":2076,pt:2076,tr:2792,ro:2642,bg:2100,el:2300,ja:2392,ko:2410,"zh-CN":2156,zh:2156,ar:2682,he:2376,nl:2528,sr:2688,cs:2203,hu:2348,sv:2752,ka:2268,hy:2051,az:2031,uz:2860,lt:2440,lv:2428,et:2233 };
+
+  var country = null, source = "default";
+
+  if (hreflang) { var hp = hreflang.toLowerCase().split(/[-_]/); if (hp.length>=2 && countryToLoc[hp[1]]) { country=hp[1]; source="hreflang:"+hreflang; } else if (countryToLoc[hp[0]]) { country=hp[0]; source="hreflang-lang:"+hp[0]; } }
+  if (!country) { try { var host=new URL(url).hostname.toLowerCase(); var pr=host.split("."); if (pr.length>=3){ var two=pr.slice(-2).join("."); if (TLD_TO_COUNTRY[two]){ country=TLD_TO_COUNTRY[two]; source="tld:"+two; } } if (!country){ var t1=pr[pr.length-1]; if (TLD_TO_COUNTRY[t1]){ country=TLD_TO_COUNTRY[t1]; source="tld:"+t1; } } } catch(e){} }
+  if (!country) { var cur=scanCurrencies(text); if (cur.length===1 && countryToLoc[cur[0]]) { country=cur[0]; source="currency:"+cur[0]; } else if (cur.length>1 && gptCountry && cur.indexOf(gptCountry)>=0) { country=gptCountry; source="currency+gpt:"+gptCountry; } }
+  if (!country) { var ph=scanPhones(text); if (ph.length>=1 && countryToLoc[ph[0]]) { country=ph[0]; source="phone:"+ph[0]; } }
+  if (!country && gptCountry && countryToLoc[gptCountry] && gptConf!=="low") { country=gptCountry; source="gpt:"+gptCountry; }
+
+  var langCode = null;
+  var sl = scriptLang(text); if (sl) langCode = sl;
+  if (!langCode && htmlLang) { var hk=htmlLang.toLowerCase().split(/[-_]/)[0]; langCode = langToDfs[hk] || hk; }
+  if (!langCode && gptLang) { langCode = langToDfs[gptLang] || gptLang; }
+  if (!langCode && country) langCode = countryToLoc[country].lang;
+  if (!langCode) langCode = "en";
+  if (langCode === "zh") langCode = "zh-CN";
+
+  var location_code, language_code = langCode;
+  if (country) { location_code = countryToLoc[country].loc; }
+  else if (LANG_DOMINANT_LOC[langCode]) { location_code = LANG_DOMINANT_LOC[langCode]; source = source + "|lang-dominant:" + langCode; }
+  else { location_code = 2840; }
+
+  console.log(`[CC] detectLocale: url=${url} htmlLang=${htmlLang} hreflang=${hreflang} country=${country} → loc=${location_code} lang=${language_code} (source=${source})`);
+  return { location_code, language_code };
+}
+
+function extractGeoSignals(parsed) {
+  var text = (((parsed&&parsed.title)||"")+" "+((parsed&&(parsed.body_text||parsed.visible_text))||"")).slice(0,8000);
+  var tld = "unknown";
+  try { if (parsed && parsed.hostname) { var h = parsed.hostname.toLowerCase().split("."); tld = h.slice(-2).join("."); } } catch(e){}
+  var cur=scanCurrencies(text), ph=scanPhones(text), sl=scriptLang(text);
+  var lines=[];
+  lines.push("Domain TLD: "+tld);
+  lines.push("Currencies on page: "+(cur.length?cur.join(", "):"none detected"));
+  lines.push("Phone country prefixes: "+(ph.length?ph.join(", "):"none detected"));
+  lines.push("HTML lang attribute: "+((parsed&&parsed.html_lang)||"none"));
+  lines.push("hreflang: "+((parsed&&parsed.hreflang)||"none"));
+  lines.push("Dominant script language: "+(sl||"latin/undetermined"));
+  return lines.join("\n");
+}
+
+/* ═══ HTML PARSER — extended from Core Audit parseSEO ═══ */
+function parseCoverage(rawHtml, pageUrl) {
+  const decodeHTML = (s) => {
+    if (typeof s !== "string" || !s) return s;
+    if (!s.includes("&")) return s;
+    const ta = document.createElement("textarea");
+    ta.innerHTML = s;
+    return ta.value;
+  };
+  const r = {};
+  let normalized = pageUrl.trim().replace(/\s+/g, "");
+  if (!normalized.startsWith("http")) normalized = "https://" + normalized;
+  r.url = normalized.replace(/\?.*$/, "");
+  let hostname = ""; try { hostname = new URL(normalized).hostname.replace(/^www\./, ""); } catch(e){}
+  r.hostname = hostname;
+
+  // Detect HTML lang attribute (e.g. <html lang="ro">) — used for DataForSEO geo/lang targeting
+  const langMatch = rawHtml.match(/<html[^>]*\blang\s*=\s*["']([a-zA-Z]{2,3}(?:[-_][a-zA-Z]{2,4})?)["']/i);
+  r.html_lang = langMatch ? langMatch[1].toLowerCase().split(/[-_]/)[0] : null;
+
+  /* v6.91: Parse hreflang tags — most precise geo signal (site self-declares target region per page) */
+  /* Format: <link rel="alternate" hreflang="ro-RO" href="..." /> */
+  /* We find the hreflang whose href best matches the current pageUrl */
+  r.hreflang = null;
+  try {
+    const hreflangRegex = /<link[^>]*\brel\s*=\s*["']alternate["'][^>]*\bhreflang\s*=\s*["']([^"']+)["'][^>]*\bhref\s*=\s*["']([^"']+)["']/gi;
+    const hreflangRegex2 = /<link[^>]*\bhreflang\s*=\s*["']([^"']+)["'][^>]*\brel\s*=\s*["']alternate["'][^>]*\bhref\s*=\s*["']([^"']+)["']/gi;
+    const found = [];
+    let m;
+    while ((m = hreflangRegex.exec(rawHtml)) !== null) found.push({ lang: m[1], href: m[2] });
+    while ((m = hreflangRegex2.exec(rawHtml)) !== null) found.push({ lang: m[1], href: m[2] });
+    if (found.length > 0) {
+      const normalizedPage = normalized.replace(/\/$/, "").toLowerCase();
+      /* Try exact match first */
+      const exact = found.find(h => h.href.replace(/\/$/, "").toLowerCase() === normalizedPage);
+      if (exact && exact.lang.toLowerCase() !== "x-default") {
+        r.hreflang = exact.lang;
+      } else {
+        /* Try match by URL contains hreflang code (e.g. /ro/ in URL → match ro-RO) */
+        for (const h of found) {
+          if (h.lang.toLowerCase() === "x-default") continue;
+          const langCode = h.lang.toLowerCase().split(/[-_]/)[0];
+          if (normalizedPage.includes("/" + langCode + "/") || normalizedPage.endsWith("/" + langCode)) {
+            r.hreflang = h.lang;
+            break;
           }
-        } catch(e){ console.log("[dash] auth init err", e); }
-      };
-      if (window.supabase) { proceed(); }
-      else {
-        var s = document.createElement("script");
-        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
-        s.onload = proceed; s.onerror = function(){ console.log("[dash] supabase sdk load failed"); };
-        document.head.appendChild(s);
+        }
+        /* If still nothing — use first non-default hreflang (assumes single-region site) */
+        if (!r.hreflang) {
+          const firstReal = found.find(h => h.lang.toLowerCase() !== "x-default");
+          if (firstReal && found.length === 1) r.hreflang = firstReal.lang;
+        }
       }
-    } catch(e){ console.log("[dash] auth bootstrap err", e); }
-  })();
-  var DOC = "<!DOCTYPE html>\n<html lang=\"en\"><head>\n<base target=\"_parent\">\n<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>IvaBot Dashboard</title>\n<style>/* latin-ext */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url(\"f4c8180c-ceee-4889-87c0-1e21233a2df4\") format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}\n/* latin */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 400;\n  font-display: swap;\n  src: url(\"b6a37d23-085c-42ce-bd1a-61033bc35746\") format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}\n/* latin-ext */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url(\"f4c8180c-ceee-4889-87c0-1e21233a2df4\") format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}\n/* latin */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 500;\n  font-display: swap;\n  src: url(\"b6a37d23-085c-42ce-bd1a-61033bc35746\") format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}\n/* latin-ext */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url(\"f4c8180c-ceee-4889-87c0-1e21233a2df4\") format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}\n/* latin */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 600;\n  font-display: swap;\n  src: url(\"b6a37d23-085c-42ce-bd1a-61033bc35746\") format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}\n/* latin-ext */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url(\"f4c8180c-ceee-4889-87c0-1e21233a2df4\") format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}\n/* latin */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 700;\n  font-display: swap;\n  src: url(\"b6a37d23-085c-42ce-bd1a-61033bc35746\") format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}\n/* latin-ext */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 800;\n  font-display: swap;\n  src: url(\"f4c8180c-ceee-4889-87c0-1e21233a2df4\") format('woff2');\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;\n}\n/* latin */\n@font-face {\n  font-family: 'DM Sans';\n  font-style: normal;\n  font-weight: 800;\n  font-display: swap;\n  src: url(\"b6a37d23-085c-42ce-bd1a-61033bc35746\") format('woff2');\n  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;\n}\n.iva-clip{position:relative;padding-right:20px;}.iva-cliptext{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;word-break:break-word;max-width:100%;}.iva-copy{position:absolute;top:0;right:-2px;opacity:0;border:none;background:transparent;cursor:pointer;color:var(--muted);padding:1px;line-height:0;transition:opacity .15s,color .15s;}.iva-clip.truncated:hover .iva-copy{opacity:1;}.iva-copy:hover{color:var(--accent);}@media (hover:none){.iva-clip.truncated .iva-copy{opacity:.55;}}</style>\n<style>\n  html{scroll-behavior:smooth;} *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}\n  :root{--bg:#FBF5FF;--surface:#fff;--border:rgba(21,20,21,0.08);--border-mid:rgba(21,20,21,0.12);--accent:#6E2BFF;--accent-light:#f3f0fd;--card:#F0EAFF;--cardBorder:rgba(110,43,255,0.08);--dark:#151415;--muted:#928E95;--separator:#F6F6F6;--ai:#B89CF0;--pinkdn:#C77DB5;--pink:#fbf5ff;}\n  body{font-family:'DM Sans',sans-serif;background:#fff;color:var(--dark);}\n  /* NAV */\n  nav{max-width:1224px;margin:0 auto;padding:24px 24px 0;height:84px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.75);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);}\n  .nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;cursor:pointer;}\n  .nav-logo span{font-size:17px;font-weight:700;letter-spacing:-0.02em;}\n  .nav-links{display:flex;align-items:center;gap:24px;}\n  .nav-links a{font-size:14px;font-weight:500;color:var(--dark);text-decoration:none;opacity:.7;cursor:pointer;transition:opacity .2s;}\n  .nav-links a:hover,.nav-links a.active{opacity:1;}\n  .nav-actions{display:flex;align-items:center;gap:16px;}\n  .nav-actions a:first-child{font-size:14px;font-weight:500;color:var(--dark);text-decoration:none;cursor:pointer;}\n  .nav-actions a:first-child:hover{opacity:.6;}\n  .nav-run{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 16px;border-radius:8px;border:1px solid rgba(21,20,21,0.16);font-size:14px;font-weight:600;color:var(--dark);background:rgba(255,255,255,0.43);cursor:pointer;transition:.2s;}\n  .nav-run:hover{background:#f5f4fd;}\n  /* SECTIONS */\n  .white-gap{height:12px;background:#fff;}\n  .pink-section{background:#fff;padding:0 12px;}\n  .pink-inner{background:#fbf5ff;border-radius:12px;}\n  .hero-bg{position:relative;overflow:hidden;border-radius:12px;background:radial-gradient(ellipse at 25% 100%,rgba(164,127,230,0.4) 0%,transparent 55%),radial-gradient(ellipse at 80% 90%,rgba(200,140,240,0.35) 0%,transparent 50%),linear-gradient(180deg,#fff 0%,#f5f0ff 35%,#ece3ff 78%,#e4d7f8 100%);}\n  .section-content{max-width:1100px;margin:0 auto;padding:48px 32px;width:100%;}\n  .welcome-page{max-width:1100px;margin:0 auto;padding:40px 32px 28px;}\n  .section-title{font-size:36px;font-weight:600;color:var(--dark);letter-spacing:-0.04em;line-height:1.15;}\n  .section-sub{font-size:16px;font-weight:400;color:var(--muted);letter-spacing:-0.01em;margin-top:6px;}\n  /* WHITE CARDS */\n  .wcardbox,.welcome-card-white{background:#fff;border:1px solid var(--border);border-radius:12px;}\n  .welcome-card-white{padding:28px;display:flex;flex-direction:column;}\n  .welcome-greeting{font-size:14px;color:var(--muted);}\n  .welcome-name{font-size:32px;font-weight:500;color:rgba(21,20,21,0.55);letter-spacing:-0.04em;margin-top:4px;}\n  .welcome-info{margin-top:18px;display:flex;flex-direction:column;gap:10px;}\n  .welcome-info-row{display:flex;align-items:center;gap:12px;}\n  .welcome-info-label{font-size:13px;font-weight:500;color:var(--muted);min-width:64px;}\n  .welcome-info-val{font-size:13px;font-weight:600;color:var(--dark);}\n  .status-badge{display:inline-flex;align-items:center;gap:5px;background:#f3f0fd;color:#8b6ff0;font-size:12px;font-weight:500;padding:4px 10px;border-radius:100px;border:1px solid #d8d0ea;}\n  .status-dot{width:6px;height:6px;border-radius:50%;background:#8b6ff0;}\n  .welcome-edit-link{display:inline-flex;gap:6px;margin-top:18px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;}\n  .welcome-edit-link:hover{opacity:.75;}\n  .avatar{width:52px;height:52px;border-radius:50%;background:rgba(110,43,255,0.08);display:flex;align-items:center;justify-content:center;margin-bottom:10px;font-size:18px;font-weight:600;color:#9B7AE6;}\n  .grid3{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:20px;} @media(max-width:900px){.grid3{grid-template-columns:1fr;}}\n  /* glance card */\n  .glance-row{display:flex;align-items:baseline;gap:8px;padding:9px 0;border-bottom:1px solid var(--separator);}\n  .glance-row:last-of-type{border-bottom:none;}\n  .glance-num{font-size:26px;font-weight:700;letter-spacing:-0.02em;line-height:1;}\n  .glance-lbl{font-size:12.5px;color:var(--muted);}\n  /* buttons */\n  .btn-dark{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#151415;color:#fff;border:1px solid #151415;border-radius:10px;padding:11px 20px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;}\n  .btn-dark:hover{background:#333;}\n  .btn-out{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:rgba(255,255,255,0.43);color:var(--dark);border:1px solid rgba(21,20,21,0.16);border-radius:10px;padding:11px 20px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;}\n  .btn-out:hover{background:#f5f4fd;}\n  .btn-sm{padding:8px 14px;font-size:13px;border-radius:8px;}\n  .credits-num{font-size:64px;font-weight:400;letter-spacing:-0.03em;line-height:1;margin:4px 0;}\n  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;} @media(max-width:760px){.grid2{grid-template-columns:1fr;}}\n  /* PAYMENT BLOCK */\n  .pay-block{background:#fff;border:1px solid var(--border);border-radius:12px;padding:26px;margin-top:20px;}\n  .stripe-line{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;font-size:12px;color:var(--muted);}\n  .stripe-mark{font-weight:700;color:#635BFF;letter-spacing:-0.02em;}\n  .pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:stretch;} @media(max-width:680px){.pay-grid{grid-template-columns:1fr;gap:20px;}}\n  .slider-frame{border:1px solid var(--border-mid);border-radius:12px;padding:20px;height:100%;display:flex;flex-direction:column;justify-content:center;}\n  .pay-right{display:flex;flex-direction:column;}\n  .pay-right .freeline{margin-top:auto;}\n  .eq-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:22px;flex-wrap:wrap;}\n  .eq-row b{font-size:16px;}\n  .freeline{font-size:12px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--separator);}\n  .price-row{display:flex;align-items:baseline;gap:3px;}\n  .price-sym{font-size:22px;font-weight:400;} .price-amt{font-size:56px;font-weight:400;letter-spacing:-0.03em;line-height:1;display:inline-block;min-width:1.5em;text-align:left;} .price-note{font-size:13px;color:var(--muted);margin-left:6px;}\n  .kw-pill{display:inline-flex;align-items:center;gap:6px;background:#f3f0fd;color:var(--accent);border:1px solid rgba(110,43,255,0.18);border-radius:100px;padding:4px 6px 4px 12px;font-size:13px;font-weight:500;}\n  .kw-pill button{border:none;background:none;color:var(--accent);cursor:pointer;font-size:14px;line-height:1;padding:0 3px;border-radius:50%;}\n  .kw-pill button:hover{background:rgba(110,43,255,0.15);}\n  .upd-item{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--dark);}\n  .upd-item svg{width:15px;height:15px;stroke:var(--accent);fill:none;stroke-width:2.4;flex-shrink:0;}\n  .spinner{width:34px;height:34px;border-radius:50%;border:3px solid #eee;border-top-color:var(--accent);margin:0 auto;animation:spin .8s linear infinite;}\n  @keyframes spin{to{transform:rotate(360deg)}}\n  .slider-wrap{margin:26px 0 8px;}\n  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:100px;background:#e7e0f5;outline:none;}\n  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;box-shadow:0 1px 4px rgba(110,43,255,0.4);}\n  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;}\n  .hint{font-size:12px;color:var(--muted);margin-top:8px;} .hint b{color:var(--accent);}\n  .rtitle{font-size:15px;font-weight:700;color:var(--dark);}\n  .check{display:flex;align-items:flex-start;gap:11px;font-size:15px;color:var(--dark);padding:9px 0;}\n  .check svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:2.5;flex-shrink:0;margin-top:2px;}\n  .totline{margin-top:12px;padding-top:12px;border-top:1px solid var(--separator);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}\n  .totline b{font-size:15px;} .save-badge{font-size:12px;font-weight:700;color:var(--accent);background:var(--card);border-radius:100px;padding:3px 11px;}\n  .helper{text-align:center;font-size:12px;color:var(--muted);margin-top:16px;}\n\n  /* ===== REDESIGN: three equal cards + expanding buy panel ===== */\n  .hero-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch;}\n  @media(max-width:560px){.hero-grid3{grid-template-columns:1fr;}}\n  .trio-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px;display:flex;flex-direction:column;}\n\n  .id-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}\n  .id-card .avatar{margin:0;width:46px;height:46px;font-size:15px;}\n  .id-card .welcome-greeting{font-size:13px;color:var(--muted);letter-spacing:-0.01em;}\n  .id-card .welcome-name{font-size:24px;font-weight:600;color:var(--dark);letter-spacing:-0.03em;line-height:1.1;margin-top:3px;}\n  .id-card .welcome-link{margin-top:auto;padding-top:18px;align-self:flex-start;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;white-space:nowrap;}\n  .id-card .welcome-link:hover{text-decoration:underline;}\n\n  .bal-card .cc-label{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);}\n  .bal-card .bal-num{margin:10px 0 auto;}\n  .bal-card #creditNum{font-size:60px;font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--dark);}\n  .bal-card .cc-chip{align-self:flex-start;margin-top:14px;font-size:12px;font-weight:600;color:var(--accent);background:#fbf5ff;border:1px solid var(--cardBorder);border-radius:999px;padding:5px 12px;}\n\n  .buy-card{cursor:pointer;transition:border-color .2s,box-shadow .2s;}\n  .buy-card:hover{border-color:rgba(110,43,255,0.35);}\n  .buy-card.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(110,43,255,0.1);}\n  .buy-card-top{display:flex;align-items:center;justify-content:space-between;}\n  .buy-card-top .cc-label{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);}\n  .buy-chev{font-size:18px;color:var(--accent);transition:transform .3s ease;line-height:1;}\n  .buy-card-sub{font-size:14px;color:var(--muted);line-height:1.5;margin:12px 0 16px;}\n  .buy-card-cta{margin-top:auto;align-self:flex-start;}\n\n  .buy-expand{display:none;}\n  .buy-expand.open{display:block;margin-top:16px;margin-bottom:24px;animation:expandIn .4s ease;}\n  @keyframes expandIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}\n  .buy-expand-inner{background:#fff;border:1px solid var(--border);border-radius:24px;padding:28px;}\n\n  .pay-head .section-title{font-size:24px;}\n  .buy-cols{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:22px;}\n  @media(max-width:680px){.buy-cols{grid-template-columns:1fr;}}\n  .buy-col-left{padding-right:32px;display:flex;flex-direction:column;justify-content:center;}\n  .buy-col-right{padding-left:32px;border-left:1px solid var(--separator);display:flex;flex-direction:column;justify-content:center;}\n  @media(max-width:680px){.buy-col-left{padding-right:0;}.buy-col-right{padding-left:0;border-left:none;border-top:1px solid var(--separator);padding-top:20px;margin-top:20px;}}\n  .offer-figures{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}\n  .offer-credits{display:flex;align-items:baseline;gap:10px;}\n  .offer-credits .ocn{font-size:48px;font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--dark);min-width:auto;}\n  .offer-credits .ocl{font-size:16px;font-weight:600;color:var(--muted);}\n  .offer-price{display:flex;align-items:baseline;gap:2px;margin-top:0;color:var(--dark);}\n  .offer-price .price-sym{font-size:17px;font-weight:500;}\n  .offer-price #amt{font-size:28px;font-weight:600;letter-spacing:-0.02em;}\n  .offer-price .price-note{font-size:13px;color:var(--muted);margin-left:8px;align-self:center;}\n  .slider-area{margin-top:18px;}\n  .buy-col-left .slider-wrap{margin:0 0 8px;}\n  .slider-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:500;}\n  .buy-col-left .hint{margin-top:10px;min-height:16px;}\n  .buy-col-left .buy-cta{margin:22px 0 0;align-self:flex-start;}\n  .buy-col-left .stripe-line{margin-top:14px;justify-content:flex-start;}\n  .check-list{margin-top:10px;}\n  .buy-col-right .rtitle{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);}\n  .buy-col-right .check{font-size:14px;padding:6px 0;}\n  .buy-col-right .freeline{margin-top:16px;}\n\n  /* GRAPH card */\n  .graph-card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:28px;display:flex;flex-direction:column;}\n  .gc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}\n  .gc-num{font-size:34px;font-weight:600;letter-spacing:-0.02em;margin-top:6px;display:flex;align-items:baseline;gap:8px;line-height:1;}\n  .gc-up{font-size:14px;font-weight:700;color:var(--accent);}\n  .gc-tag{font-size:12px;color:var(--muted);font-weight:500;white-space:nowrap;}\n  .gc-chart{flex:1;min-height:118px;margin-top:16px;}\n  .gc-chart svg{width:100%;height:100%;display:block;}\n  .gc-x{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:500;margin-top:10px;}\n\n  /* CREDITS \u2014 primary highlight card (lavender fill) */\n  .credits-card{position:relative;overflow:hidden;border-radius:20px;padding:32px;display:flex;flex-direction:column;\n    background:#fbf5ff;color:var(--dark);border:1px solid var(--cardBorder);}\n  .cc-top{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;}\n  .cc-label{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);}\n  .cc-chip{font-size:12px;font-weight:600;color:var(--accent);background:#fff;border:1px solid var(--cardBorder);border-radius:999px;padding:5px 12px;white-space:nowrap;}\n  .cc-num{position:relative;z-index:1;font-size:72px;font-weight:600;letter-spacing:-0.04em;line-height:1;margin:16px 0 4px;color:var(--dark);}\n  .cc-num small{font-size:18px;font-weight:600;color:var(--muted);letter-spacing:-0.01em;margin-left:8px;}\n  .cc-sub{position:relative;z-index:1;font-size:14px;color:var(--muted);line-height:1.55;max-width:300px;margin-bottom:auto;}\n  .cc-buy{position:relative;z-index:1;margin-top:28px;align-self:flex-start;display:inline-flex;align-items:center;justify-content:center;gap:8px;\n    padding:14px 26px;border:none;border-radius:12px;background:#151415;color:#fff;\n    font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:.2s;box-shadow:0 4px 14px rgba(21,20,21,0.18);}\n  .cc-buy:hover{background:#333;transform:translateY(-1px);box-shadow:0 7px 20px rgba(21,20,21,0.22);}\n  .cc-buy svg{width:16px;height:16px;}\n\n  /* PAY BLOCK \u2014 clearer offer hierarchy */\n  .pay-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap;}\n  .pay-grid{align-items:stretch;}\n  .pay-offer{background:#fbf5ff;border:1px solid var(--cardBorder);border-radius:14px;padding:24px;display:flex;flex-direction:column;justify-content:center;}\n  .offer-credits{display:flex;align-items:baseline;gap:9px;}\n  .offer-credits .ocn{font-size:60px;font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--dark);min-width:1.3em;}\n  .offer-credits .ocl{font-size:17px;font-weight:600;color:var(--muted);}\n  .offer-price{display:flex;align-items:baseline;gap:2px;margin-top:10px;color:var(--dark);}\n  .offer-price .price-sym{font-size:18px;font-weight:500;}\n  .offer-price #amt{font-size:30px;font-weight:600;letter-spacing:-0.02em;}\n  .offer-price .price-note{font-size:13px;color:var(--muted);margin-left:8px;align-self:center;}\n  .pay-offer .slider-wrap{margin:22px 0 6px;}\n  .slider-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:500;}\n  .pay-offer .hint{min-height:16px;}\n  .pay-right{justify-content:flex-start;}\n  .buy-cta{display:block;width:fit-content;margin:28px auto 0;background:#151415;border-color:#151415;color:#fff;padding:15px 32px;height:auto;font-size:15px;font-weight:600;border-radius:12px;white-space:nowrap;}\n  .buy-cta:hover{background:#333;}\n  .save-badge{align-self:center;}\n  .pay-block{border-radius:24px;padding:32px;background:#fff;}\n  .pay-offer{border-radius:20px;}\n  /* SITES + cards */\n  .panel-card{background:#fff;border:1px solid var(--border);border-radius:12px;}\n  .site-head{display:flex;align-items:center;gap:10px;padding:16px 20px;flex-wrap:wrap;user-select:none;}\n  .site-head .nm{font-size:16px;font-weight:600;cursor:pointer;} .site-head .meta{font-size:12px;color:var(--muted);cursor:pointer;}\n  .sub-list{display:none;border-top:1px solid var(--separator);} .sub-list.open{display:block;}\n  .prow{border-top:1px solid var(--separator);} .prow:first-child{border-top:none;}\n  .prow-head{display:flex;align-items:center;gap:16px;padding:15px 20px;cursor:pointer;flex-wrap:wrap;}\n  .prow:not(.open) .prow-head:hover{background:#faf8ff;}\n  .panel{display:none;padding:4px 20px 20px;} .prow.open .panel{display:block;}\n  .wgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;}\n  .wcard{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:.15s;}\n  .wcard:hover{border-color:var(--hoverBorder,rgba(110,43,255,0.3));} .wcard.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(110,43,255,.1);}\n  .wcard .wt{font-size:13px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:5px;}\n  .wcard .wn{font-size:30px;font-weight:700;line-height:1.1;margin:6px 0 2px;display:flex;align-items:baseline;gap:7px;} .wcard .wn .arw{font-size:14px;} .wcard .wd{font-size:12px;color:var(--muted);}\n  .wcard.ghost{border-style:dashed;cursor:default;background:#fcfbfe;}\n  .up{color:var(--accent);font-weight:700;} .dn{color:var(--pinkdn);font-weight:700;}\n  /* report-language detail (white card, lavender pinpoint) */\n  .detail{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}\n  .det-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;}\n  .det-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:4px;}\n  .rchip{font-size:10px;color:var(--accent);background:rgba(110,43,255,0.06);padding:3px 10px;border-radius:10px;font-weight:500;}\n  .det-sub{font-size:11.5px;color:var(--muted);line-height:1.5;margin:4px 0 12px;}\n  .innerbox{background:#fff;border:1px solid var(--cardBorder);border-radius:10px;padding:2px 14px;}\n  table{width:100%;border-collapse:collapse;}\n  .cmp th{font-size:11px;color:var(--muted);font-weight:500;text-align:right;padding:8px 10px;border-bottom:1px solid var(--separator);} .cmp th:first-child{text-align:left;}\n  .cmp td{font-size:13px;padding:10px;border-bottom:1px solid var(--separator);text-align:right;} .cmp td:first-child{text-align:left;}\n  .cmp tr.kwrow{cursor:pointer;} .cmp tr.kwrow:hover td{background:#faf7ff;} .cmp tr.kwrow.sel td{background:#f4f0fd;}\n  .cmp tr.grp td{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:#fbfafc;padding:6px 10px;}\n  .chip{font-size:11px;color:var(--accent);background:var(--card);border-radius:6px;padding:1px 7px;margin-left:4px;}\n  .dlinks{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;}\n  a.link{color:var(--accent);text-decoration:none;font-size:13px;cursor:pointer;} a.link:hover{text-decoration:underline;}\n  .note{font-size:12px;color:var(--muted);background:var(--pink);border-radius:10px;padding:10px 12px;}\n  .upd-pill{font-family:inherit;background:#151415;border:1px solid #151415;color:#fff;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:500;cursor:pointer;transition:.2s;}\n  .upd-pill:hover{background:#2a2830;border-color:#2a2830;color:#fff;}\n  /* tooltip (QM) */\n  .tip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--border-mid);background:#fff;color:var(--muted);font-size:9px;cursor:help;}\n  .tip:hover::after{content:attr(data-tip);position:absolute;bottom:135%;right:-4px;width:210px;background:#fff;color:var(--muted);font-size:12px;line-height:1.5;padding:10px 12px;border:1px solid var(--border-mid);border-radius:10px;box-shadow:0 8px 24px rgba(21,20,21,0.1);z-index:50;text-align:left;font-weight:400;}\n  /* run history */\n  .filter-btn{padding:6px 14px;border-radius:8px;border:1px solid rgba(21,20,21,0.16);background:rgba(255,255,255,0.6);color:var(--dark);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:.2s;}\n  .filter-btn:hover{background:#f3f0fd;border-color:rgba(110,43,255,0.2);} .filter-btn.active{background:#f3f0fd;color:var(--accent);border-color:rgba(110,43,255,0.45);}\n  .htable th{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:14px 12px;text-align:left;border-bottom:1px solid var(--separator);}\n  .htable td{padding:14px 12px;font-size:13px;border-bottom:1px solid var(--separator);} .htable tr:last-child td{border-bottom:none;}\n  .flow-badge{display:inline-flex;padding:4px 10px;border-radius:100px;font-size:11.5px;font-weight:700;}\n  .flow-badge.audit{background:rgba(155,122,230,0.12);color:#7B5DC5;} .flow-badge.coverage{background:rgba(212,160,232,0.15);color:#B07ACC;} .flow-badge.builder{background:rgba(226,212,245,0.4);color:#A98DC5;}\n  .flow-badge.aireadiness{background:rgba(184,156,240,0.18);color:#8B6FD0;} .flow-badge.position{background:rgba(110,43,255,0.1);color:#6E2BFF;}\n  .doc-link{color:var(--accent);font-size:12.5px;font-weight:600;text-decoration:none;padding:8px 12px;border-radius:10px;background:var(--accent-light);cursor:pointer;} .doc-link:hover{background:#ddd6f5;}\n  .pgbtn{width:32px;height:32px;border-radius:8px;border:1px solid rgba(21,20,21,0.1);cursor:pointer;font-size:13px;font-family:inherit;background:#fff;} .pgbtn.on{background:#151415;color:#fff;border-color:#151415;}.pgbtn[disabled]{opacity:.4;cursor:default;}\n  /* footer */\n  .footer-section{padding:0 12px 12px;} .footer-inner{background:#fff;border-radius:12px;overflow:hidden;}\n  .footer-main{max-width:1224px;margin:0 auto;padding:64px 24px 48px;border-bottom:1px solid rgba(21,20,21,0.08);display:flex;flex-direction:column;gap:64px;}\n  .footer-menu-row{display:flex;gap:24px;flex-wrap:wrap;} .footer-menu-row a{font-size:16px;font-weight:500;color:var(--dark);text-decoration:none;cursor:pointer;} .footer-menu-row a:hover{opacity:.5;}\n  .footer-slogan-row{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:32px;}\n  .footer-slogan{font-size:44px;font-weight:500;line-height:1;letter-spacing:-0.2px;}\n  .footer-contact-label{font-size:14px;font-weight:500;color:rgba(21,20,21,0.33);} .footer-contact-val{font-size:16px;font-weight:600;}\n  .footer-copy-row{max-width:1224px;margin:0 auto;padding:32px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}\n  .footer-copyright{font-size:15px;font-weight:500;color:var(--muted);} .footer-legal{display:flex;gap:24px;} .footer-legal a{font-size:15px;font-weight:500;color:var(--dark);text-decoration:none;cursor:pointer;}\n  /* modal + toast */\n  .ov{position:fixed;inset:0;background:rgba(21,20,21,.35);display:none;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto;z-index:200;} .ov.open{display:flex;}\n  .modal{background:#fff;border-radius:16px;max-width:660px;width:100%;padding:28px;} .modal.sm{max-width:420px;}\n  .inp{font-family:inherit;width:100%;font-size:14px;border:1px solid rgba(21,20,21,0.14);border-radius:10px;padding:11px 13px;background:#fff;} .inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(110,43,255,0.08);}\n  .hr{border:none;border-top:1px solid var(--separator);margin:22px 0;}\n  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#151415;color:#fff;font-size:14px;padding:12px 18px;border-radius:12px;opacity:0;pointer-events:none;transition:.25s;z-index:300;box-shadow:0 8px 30px rgba(0,0,0,.2);} #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}\n  .vtoggle{background:#fff;border-bottom:1px solid var(--separator);padding:8px 14px;display:flex;gap:8px;align-items:center;font-size:13px;position:sticky;top:0;z-index:150;}\n  .vt-btn{font-family:inherit;font-size:13px;border:1px solid var(--border-mid);background:#fff;color:var(--dark);border-radius:8px;padding:6px 12px;cursor:pointer;} .vt-btn.on{background:var(--accent-light);color:var(--accent);border-color:var(--accent);}\n  @media(max-width:520px){.section-title{font-size:24px;}.welcome-name{font-size:24px;}.price-amt{font-size:44px;}.footer-slogan{font-size:26px;}}\n.pg-range-opt{padding:8px 10px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--dark);}\n.pg-range-opt:hover{background:#f3f0fd;color:var(--accent);}\n\n/* v3 account strip + tools hero */\n.acct-strip{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:32px;}.acct-strip .avatar{margin:0;width:46px;height:46px;font-size:15px;}.acct-id{display:flex;align-items:center;gap:13px;}.acct-greet{font-size:12.5px;color:var(--muted);line-height:1.1;}.acct-name{font-size:18px;font-weight:600;color:var(--dark);letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;margin-top:3px;}.acct-name .status-badge{font-weight:500;}.acct-edit{display:inline-block;margin-top:5px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;}.acct-edit:hover{color:var(--accent);}.acct-wallet{display:flex;align-items:center;gap:22px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 16px 14px 22px;box-shadow:0 2px 10px rgba(21,20,21,0.05);}.acct-wallet-info{display:flex;flex-direction:column;line-height:1.15;}.acct-credits{font-size:16px;font-weight:600;color:var(--dark);}.acct-credits #creditNum{font-size:22px;letter-spacing:-0.02em;}.acct-note{font-size:11.5px;font-weight:500;color:var(--muted);margin-top:2px;}.acct-buy{font-size:14px;padding:12px 20px;display:inline-flex;align-items:center;gap:7px;}.acct-buy .buy-chev{font-size:13px;line-height:1;color:#fff;transition:transform .3s ease;}.acct-buy.active{background:#333;}.tools-hero{margin-top:8px;}.tools-hero-head{margin-bottom:20px;}.tools-title{font-size:34px;font-weight:600;color:var(--dark);letter-spacing:-0.04em;line-height:1.12;}.tools-sub{font-size:16px;color:var(--muted);margin-top:8px;max-width:640px;letter-spacing:-0.01em;}.tools-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}.tool-card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:26px;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(21,20,21,0.03);transition:transform .15s,box-shadow .15s,border-color .15s;}.tool-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(110,43,255,0.13);border-color:rgba(110,43,255,0.25);}.tool-icon{width:46px;height:46px;border-radius:13px;background:rgba(110,43,255,0.09);display:flex;align-items:center;justify-content:center;margin-bottom:18px;}.tool-icon svg{width:24px;height:24px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}.tool-name{font-size:19px;font-weight:700;color:var(--dark);letter-spacing:-0.02em;}.tool-desc{font-size:14px;line-height:1.55;color:var(--muted);margin:8px 0 20px;flex:1;}.tool-run{align-self:center;}@media(max-width:760px){.tools-grid{grid-template-columns:1fr;}.acct-wallet{width:100%;justify-content:space-between;}}\n\n.track-opt{border:1px solid var(--cardBorder);border-radius:12px;padding:13px 15px;cursor:pointer;transition:border-color .15s,background .15s;}.track-opt:hover{border-color:rgba(110,43,255,0.3);}.track-opt.on{border-color:var(--accent);background:rgba(110,43,255,0.05);}.track-opt .to-name{font-weight:700;font-size:14px;color:var(--dark);}.track-opt .to-desc{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:4px;}\n\n.pager{display:flex;gap:6px;justify-content:center;align-items:center;margin-top:14px;flex-wrap:wrap;}.pg-nav,.pg-num{padding:5px 11px;border-radius:8px;border:1px solid var(--cardBorder);background:#fff;color:var(--dark);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:.15s;}.pg-num.on{background:var(--accent);color:#fff;border-color:var(--accent);}.pg-nav[disabled]{opacity:.4;cursor:default;}.pg-nav:hover:not([disabled]),.pg-num:hover{border-color:var(--accent);color:var(--accent);}.pg-nav{padding:5px 11px;border-radius:8px;border:1px solid var(--cardBorder);background:#fff;color:var(--dark);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:.15s;}.pg-nav:hover:not([disabled]){border-color:var(--accent);color:var(--accent);}.pg-nav[disabled]{opacity:.4;cursor:default;}\n\n@media(max-width:600px){.innerbox{overflow-x:auto;-webkit-overflow-scrolling:touch;}.innerbox table{min-width:max-content;}.innerbox table th,.innerbox table td{white-space:nowrap;}.htable{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}.htable thead,.htable tbody{display:table;width:100%;min-width:max-content;}.htable th,.htable td{white-space:nowrap;}.doc-link{white-space:nowrap;display:inline-block;}}\n</style>\n<style id=\"iva-inj\">.reveal{opacity:0;transform:translateY(32px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1);}.reveal.visible{opacity:1;transform:translateY(0);}.reveal-delay-1{transition-delay:.08s;}.reveal-delay-2{transition-delay:.16s;}.reveal-delay-3{transition-delay:.24s;}.reveal-delay-4{transition-delay:.32s;}@media (prefers-reduced-motion: reduce){.reveal{transition:none;opacity:1;transform:none;}}nav{position:static !important;top:auto !important;max-width:1100px;width:100%;margin:0 auto;padding:22px 24px;background:transparent !important;border:none !important;border-radius:0 !important;box-shadow:none !important;height:auto;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;display:flex;align-items:center;justify-content:space-between;}</style></head>\n<body>\n\n\n\n<nav>\n  <a class=\"nav-logo\" onclick=\"go('top')\"><svg width=\"33\" height=\"29\" viewBox=\"0 0 66 58\" fill=\"none\"><path d=\"M63.078 44.4359C61.0665 50.7794 60.9769 52.7084 56.3781 54.0734L33.5104 58C32.7668 53.4404 35.7663 49.1255 40.2101 48.3625L63.078 44.4359Z\" fill=\"#6E2BFF\"></path><path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M46.3316 0.113926C48.0323-0.176911 49.7792 0.092449 51.3214 0.883612L60.7549 5.72346C63.5187 7.1414 65.2646 10.04 65.2646 13.2106V34.4289C65.2646 38.5209 62.3814 42.013 58.4477 42.6857L18.933 49.4433C17.2323 49.7341 15.4854 49.4648 13.9433 48.6736L4.50975 43.8338C1.74593 42.4158 0 39.5172 0 36.3466V15.1283C0 11.0363 2.88318 7.54393 6.81691 6.87122L46.3316 0.113926ZM16.3162 16.4079C11.8106 16.4079 8.15808 20.1556 8.15808 24.7786C8.15808 29.4016 11.8106 33.1494 16.3162 33.1494C20.8217 33.1494 24.4742 29.4016 24.4742 24.7786C24.4742 20.1556 20.8217 16.4079 16.3162 16.4079ZM48.9485 16.4079C44.4429 16.4079 40.7904 20.1556 40.7904 24.7786C40.7904 29.4016 44.4429 33.1494 48.9485 33.1494C53.454 33.1494 57.1065 29.4016 57.1065 24.7786C57.1065 20.1556 53.4541 16.4079 48.9485 16.4079Z\" fill=\"#6E2BFF\"></path></svg><span>IvaBot</span></a>\n  <div class=\"nav-links\"><a class=\"active\" onclick=\"go('top')\">Dashboard</a><a onclick=\"openBuy()\">Buy Credits</a><a onclick=\"go('runhist')\">History</a><a onclick=\"openProfile()\">Settings</a></div>\n  <div class=\"nav-actions\"><a onclick=\"doLogout()\">Log out</a></div>\n</nav>\n\n<!-- HERO -->\n<div class=\"pink-section\" id=\"top\"><div class=\"hero-bg\"><div class=\"welcome-page\">\n  <div class=\"acct-strip\">\n    <div class=\"acct-id\">\n      <div class=\"avatar\" id=\"acctAvatar\"></div>\n      <div class=\"acct-meta\">\n        <div class=\"acct-greet\">Welcome back \ud83d\udc4b</div>\n        <div class=\"acct-name\"><span id=\"acctNameTxt\"></span> <span class=\"status-badge\" id=\"acctStatusWrap\" style=\"display:none\"><span class=\"status-dot\"></span><span id=\"acctStatus\"></span></span></div>\n        <a class=\"acct-edit\" onclick=\"openProfile()\">Edit Profile</a>\n      </div>\n    </div>\n    <div class=\"acct-wallet\">\n      <div class=\"acct-wallet-info\">\n        <div class=\"acct-credits\"><span id=\"creditNum\">\u2014</span> credits</div>\n        <div class=\"acct-note\">1 credit = 1 action</div>\n      </div>\n      <button class=\"btn-dark acct-buy\" id=\"buyCard\" onclick=\"toggleBuy()\">Buy Credits <span class=\"buy-chev\" id=\"buyChev\">\u2304</span></button>\n    </div>\n  </div>\n  <div class=\"buy-expand\" id=\"pricing\">\n    <div class=\"buy-expand-inner\">\n      <div class=\"pay-head\">\n        <div><div class=\"section-title\">Buy credits</div><div class=\"section-sub\">Pay once, no subscription. Drag to pick your pack.</div></div>\n        <span class=\"save-badge\" id=\"save\">20% off</span>\n      </div>\n      <div class=\"buy-cols\">\n        <div class=\"buy-col-left\">\n          <div class=\"offer-figures\">\n            <div class=\"offer-credits\"><span class=\"ocn\" id=\"cred2\">15</span><span class=\"ocl\">credits</span></div>\n            <div class=\"offer-price\"><span class=\"price-sym\">$</span><span id=\"amt\">12</span><span class=\"price-note\">one-time payment</span></div>\n          </div>\n          <div class=\"slider-area\">\n            <div class=\"slider-wrap\"><input type=\"range\" id=\"slider\" min=\"5\" max=\"60\" value=\"12\" step=\"1\"></div>\n            <div class=\"slider-scale\"><span>$5</span><span>$60</span></div>\n            <div class=\"hint\" id=\"hint\">You're saving <b>20%</b></div>\n          </div>\n          <button class=\"btn-dark buy-cta\" id=\"buyBtn\">Buy Credits</button>\n          <div class=\"stripe-line\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\"></rect><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"></path></svg><span>Secure checkout \u00b7 powered by</span><span class=\"stripe-mark\">stripe</span></div>\n        </div>\n        <div class=\"buy-col-right\">\n          <div class=\"rtitle\">What you can use credits for</div>\n          <div class=\"check-list\">\n            <div class=\"check\"><svg viewBox=\"0 0 24 24\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg>Core Audit: technical SEO, Google positions and backlinks</div>\n            <div class=\"check\"><svg viewBox=\"0 0 24 24\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg>AI Readiness: AI citations, mentions and prompt checks</div>\n            <div class=\"check\"><svg viewBox=\"0 0 24 24\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg>Content Builder: SEO articles from live Google search data</div>\n            <div class=\"check\"><svg viewBox=\"0 0 24 24\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg>Ask IvaBot: SEO and GEO questions, answered</div>\n          </div>\n          <div style=\"font-size:12px;color:var(--muted);margin-top:16px;line-height:1.55\">Start with 1 credit per action. The cost grows as you track more: larger sets of keywords or prompts cost a little more.</div>\n          \n        </div>\n      </div>\n    </div>\n  </div>\n  <div class=\"tools-hero\">\n    <div class=\"tools-hero-head\">\n      <div class=\"tools-title\">Your tools</div>\n      <div class=\"tools-sub\">Run any tool on one of your pages from here. New accounts start with 3 credits to try them.</div>\n    </div>\n    <div class=\"tools-grid\">\n      <div class=\"tool-card\">\n        <div class=\"tool-icon\"><svg viewBox=\"0 0 24 24\"><circle cx=\"11\" cy=\"11\" r=\"7\"></circle><line x1=\"20.5\" y1=\"20.5\" x2=\"16.5\" y2=\"16.5\"></line><path d=\"M8 11.5l2 2 3.5-4\"></path></svg></div>\n        <div class=\"tool-name\">Core Audit</div>\n        <div class=\"tool-desc\">Check where this page's key phrases rank in Google, how many sites link to it and which ones, and get a clear, prioritized list of what to fix first.</div>\n        <button class=\"btn-dark tool-run\" onclick=\"window.open('https://ivabot.xyz/app?tool=core','_blank','noopener')\">Run Core Audit</button>\n      </div>\n      <div class=\"tool-card\">\n        <div class=\"tool-icon\"><svg viewBox=\"0 0 24 24\"><path d=\"M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8z\"></path><path d=\"M18.5 15.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z\"></path></svg></div>\n        <div class=\"tool-name\">AI Readiness</div>\n        <div class=\"tool-desc\">Check whether ChatGPT, Perplexity and Google AI mention and cite this page, see which prompts you appear for, and get the on-page fixes that help AI quote you.</div>\n        <button class=\"btn-dark tool-run\" onclick=\"window.open('https://ivabot.xyz/app?tool=readiness','_blank','noopener')\">Run AI Readiness</button>\n      </div>\n      <div class=\"tool-card\">\n        <div class=\"tool-icon\"><svg viewBox=\"0 0 24 24\"><path d=\"M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z\"></path><path d=\"M14 3v5h5\"></path><line x1=\"8.5\" y1=\"13\" x2=\"15.5\" y2=\"13\"></line><line x1=\"8.5\" y1=\"16.5\" x2=\"13\" y2=\"16.5\"></line></svg></div>\n        <div class=\"tool-name\">Content Builder</div>\n        <div class=\"tool-desc\">Write a full SEO article built on live SERP data, so it targets what people actually search and what already ranks.</div>\n        <button class=\"btn-dark tool-run\" onclick=\"window.open('https://ivabot.xyz/app?tool=builder','_blank','noopener')\">Run Content Builder</button>\n      </div>\n    </div>\n  </div>\n</div></div></div>\n\n<!-- EMPTY -->\n<div class=\"white-gap\"></div>\n<div class=\"pink-section\" id=\"emptyState\" style=\"display:none\"><div class=\"pink-inner\"><div class=\"section-content\"><div style=\"text-align:center;margin-bottom:22px\"><div style=\"width:60px;height:60px;border-radius:16px;background:var(--card);margin:0 auto 16px;display:flex;align-items:center;justify-content:center\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#B89CF0\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 17l5-5 4 4 7-8\"></path><path d=\"M15 7h5v5\"></path></svg></div><div class=\"section-title\" style=\"font-size:24px\">Nothing tracked yet</div><div class=\"section-sub\" style=\"max-width:520px;margin:8px auto 0\">Run a tool on one of your pages. It does the work and starts tracking here. This is what every page will show.</div></div><div style=\"display:block\"><div class=\"section-title\" style=\"font-size:20px;margin-bottom:12px\">Sites you're working on</div><div class=\"panel-card\"><div class=\"site-head\" style=\"cursor:default\"><span class=\"nm\">your-site.com</span><span class=\"meta\">1 page</span></div><div class=\"prow\"><div style=\"padding:18px 20px\"><div class=\"mblock\"><div class=\"section-sub\" style=\"font-size:16px;margin:0 0 10px;font-weight:600;color:var(--dark)\">Core <span style=\"font-weight:400;color:var(--muted)\">\u00b7 Google search</span></div><div class=\"wgrid\"><div class=\"wcard\"><div class=\"wt\">Keyword positions <span class=\"tip\" data-tip=\"Where your page ranks in Google for each keyword. Refreshed when you refresh Core.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div><div class=\"wcard\"><div class=\"wt\">Backlinks <span class=\"tip\" data-tip=\"Other sites linking to this page. More quality links usually means better ranking.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div><div class=\"wcard\"><div class=\"wt\">SEO score <span class=\"tip\" data-tip=\"Overall on-page SEO health of this page, 0\u2013100. Updates when you refresh after making the fixes from your audit.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div></div><div class=\"pgchart\" style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-bottom:14px\"><div style=\"min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px\"><div style=\"font-size:14px;color:var(--muted);max-width:360px;line-height:1.5\">No data yet. Run Core Audit to pull Google positions and backlinks and start the trend.</div><button class=\"btn-dark\" onclick=\"openTrack('core')\">Run Core Audit \u00b7 1 credit</button></div></div><div style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px\"><div class=\"det-title\" style=\"font-size:20px\">Track your keyword positions</div><div class=\"det-sub\" style=\"margin:2px 0 12px\">Add the keywords you want to rank for. Each Core refresh checks your position in Google.</div><div class=\"innerbox\" style=\"padding:22px 14px;text-align:center\"><div style=\"font-size:13px;color:var(--muted)\">No keywords yet. Add a few, then run Core Audit to see your positions.</div></div></div></div><div class=\"mblock\"><div class=\"section-sub\" style=\"font-size:16px;margin:18px 0 10px;font-weight:600;color:var(--dark)\">AI Readiness <span style=\"font-weight:400;color:var(--muted)\">\u00b7 AI assistants</span></div><div class=\"wgrid\"><div class=\"wcard\"><div class=\"wt\">AI mentions <span class=\"tip\" data-tip=\"How often ChatGPT, Perplexity and Google AI name your brand in their answers, without a link. Comes from your AI Readiness run.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div><div class=\"wcard\"><div class=\"wt\">AI citations <span class=\"tip\" data-tip=\"How often an AI answer links directly to this page as a source. Rarer and more valuable than a mention. Comes from your AI Readiness run.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div></div><div class=\"pgchart\" style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-bottom:14px\"><div style=\"min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px\"><div style=\"font-size:14px;color:var(--muted);max-width:360px;line-height:1.5\">No data yet. Run AI Readiness to see where ChatGPT, Perplexity and Google AI mention and cite this page.</div><button class=\"btn-dark\" onclick=\"openTrack('ai')\">Run AI Readiness \u00b7 1 credit</button></div></div><div style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-top:14px\"><div class=\"det-title\" style=\"font-size:20px\">Track where you show up in AI</div><div class=\"det-sub\" style=\"margin:2px 0 12px\">Add the prompts your users ask. One refresh checks them across ChatGPT, Perplexity and Google AI.</div><div class=\"innerbox\" style=\"padding:22px 14px;text-align:center\"><div style=\"font-size:13px;color:var(--muted)\">No prompts yet. Add a few, then run a check to see where you appear.</div></div></div></div></div></div></div></div></div></div></div>\n\n<!-- SITES -->\n<div class=\"white-gap\"></div>\n<div class=\"pink-section\" id=\"filledSites\"><div class=\"pink-inner\"><div class=\"section-content\">\n  <div style=\"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px\" id=\"sites\">\n    <div><div class=\"section-title\">Sites you're working on</div><div class=\"section-sub\">Open a page to see its widgets. Click a widget for the full detail.</div></div>\n    <button class=\"btn-dark\" onclick=\"openTrack()\">+ Track a new page</button>\n  </div>\n  <div style=\"display:flex;align-items:center;gap:8px;margin-top:18px\"><span style=\"font-size:13px;color:var(--muted)\">Sort:</span><button class=\"filter-btn active\" onclick=\"sortSites('recent',this)\">Recent</button><button class=\"filter-btn\" onclick=\"sortSites('az',this)\">A\u2013Z</button></div>\n\n  \n</div></div></div>\n\n<!-- CONTENT -->\n<div class=\"white-gap\"></div>\n<div class=\"pink-section\" id=\"content\"><div class=\"pink-inner\"><div class=\"section-content\">\n  <div style=\"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px\"><div><div class=\"section-title\">Content you built</div><div class=\"section-sub\">Open to read a saved article, Download to get the text.</div></div><button class=\"btn-dark\" onclick=\"window.open('https://ivabot.xyz/app?tool=builder','_blank','noopener')\">Run Content Builder</button></div>\n  <div class=\"panel-card\" id=\"cbList\" style=\"margin-top:24px;padding:6px 20px\">\n    <div style=\"padding:18px 0;color:var(--muted);font-size:13px\">No content yet. Run Content Builder to create your first article.</div>\n  \n  </div>\n  \n</div></div></div>\n\n<!-- RUN HISTORY -->\n<div class=\"white-gap\"></div>\n<div class=\"pink-section\" id=\"runhist\"><div style=\"background:#fff;border-radius:12px\"><div class=\"section-content\">\n  <div class=\"section-title\">Run history</div><div class=\"section-sub\">Every action that used a credit, across all your sites.</div><a class=\"link\" style=\"display:inline-block;margin-top:6px\" onclick=\"openHistory('runs')\">Open full run history \u2192</a>\n  <div class=\"panel-card\" style=\"margin-top:24px;padding:18px 22px\">\n    <div style=\"display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap\"><button class=\"filter-btn active\" onclick=\"filterRuns('all',this)\">All</button><button class=\"filter-btn\" onclick=\"filterRuns('audit',this)\">Core Audit</button><button class=\"filter-btn\" onclick=\"filterRuns('aireadiness',this)\">AI Readiness</button><button class=\"filter-btn\" onclick=\"filterRuns('builder',this)\">Content Builder</button></div>\n    <table class=\"htable\"><thead><tr><th>Date</th><th>Page</th><th>Action</th></tr></thead><tbody id=\"runBody\"></tbody></table>\n  </div>\n</div></div></div>\n\n<!-- FOOTER -->\n<div class=\"white-gap\"></div>\n<div class=\"footer-section\"><div class=\"footer-inner\">\n  <div class=\"footer-main\">\n    <div class=\"footer-menu-row\"><a onclick=\"go('top')\">Dashboard</a><a onclick=\"openBuy()\">Buy Credits</a><a onclick=\"go('runhist')\">History</a><a onclick=\"openProfile()\">Settings</a></div>\n    <div class=\"footer-slogan-row\"><div class=\"footer-slogan\">SEO Made<br>Effortless.</div><div style=\"display:flex;flex-direction:column;gap:4px\"><span class=\"footer-contact-label\">Contact</span><span class=\"footer-contact-val\">hello@ivabot.xyz</span></div></div>\n  </div>\n  <div class=\"footer-copy-row\"><div style=\"display:flex;align-items:center;gap:24px\"><svg width=\"27\" height=\"24\" viewBox=\"0 0 66 58\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M63.078 44.4359C61.0665 50.7794 60.9769 52.7084 56.3781 54.0734L33.5104 58C32.7668 53.4404 35.7663 49.1255 40.2101 48.3625L63.078 44.4359Z\" fill=\"#6E2BFF\"/><path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M46.3316 0.113926C48.0323-0.176911 49.7792 0.092449 51.3214 0.883612L60.7549 5.72346C63.5187 7.1414 65.2646 10.04 65.2646 13.2106V34.4289C65.2646 38.5209 62.3814 42.013 58.4477 42.6857L18.933 49.4433C17.2323 49.7341 15.4854 49.4648 13.9433 48.6736L4.50975 43.8338C1.74593 42.4158 0 39.5172 0 36.3466V15.1283C0 11.0363 2.88318 7.54393 6.81691 6.87122L46.3316 0.113926ZM16.3162 16.4079C11.8106 16.4079 8.15808 20.1556 8.15808 24.7786C8.15808 29.4016 11.8106 33.1494 16.3162 33.1494C20.8217 33.1494 24.4742 29.4016 24.4742 24.7786C24.4742 20.1556 20.8217 16.4079 16.3162 16.4079ZM48.9485 16.4079C44.4429 16.4079 40.7904 20.1556 40.7904 24.7786C40.7904 29.4016 44.4429 33.1494 48.9485 33.1494C53.454 33.1494 57.1065 29.4016 57.1065 24.7786C57.1065 20.1556 53.4541 16.4079 48.9485 16.4079Z\" fill=\"#6E2BFF\"/></svg><span class=\"footer-copyright\">\u00a9 2026 IvaBot. All rights reserved.</span></div><div class=\"footer-legal\"><a href=\"https://ivabot.xyz/terms\" target=\"_parent\">Terms</a><a href=\"https://ivabot.xyz/privacy-policy\" target=\"_parent\">Privacy policy</a></div></div>\n</div></div>\n\n<!-- MODALS -->\n<div class=\"ov\" id=\"ovProfile\"><div class=\"modal\">\n  <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:18px\"><div style=\"font-weight:700;font-size:22px\">Profile Settings</div><a class=\"link\" style=\"color:var(--muted);font-size:18px\" onclick=\"closeOv('ovProfile')\">\u2715</a></div>\n  <div style=\"font-size:14px;font-weight:700;margin-bottom:14px\">Name</div>\n  <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px\"><div><div style=\"font-size:13px;font-weight:600;margin-bottom:6px\">First Name</div><input class=\"inp\" id=\"pfFirst\" value=\"\"></div><div><div style=\"font-size:13px;font-weight:600;margin-bottom:6px\">Last Name</div><input class=\"inp\" id=\"pfLast\" value=\"\"></div></div>\n  <button class=\"btn-dark\" style=\"margin-top:16px\" onclick=\"saveName()\">Save Name</button>\n  <hr class=\"hr\"><div style=\"font-size:14px;font-weight:700;margin-bottom:14px\">Email Address</div>\n  <div style=\"font-size:13px;font-weight:600;margin-bottom:6px\">Email</div><input class=\"inp\" id=\"pfEmail\" value=\"\"><div style=\"color:var(--muted);font-size:12px;margin-top:6px\">Enter new email and click Save.</div>\n  <button class=\"btn-dark\" style=\"margin-top:16px\" onclick=\"saveEmail()\">Save Email</button>\n  <hr class=\"hr\"><div style=\"font-size:14px;font-weight:700;margin-bottom:14px\">Change Password</div>\n  <div style=\"font-size:13px;font-weight:600;margin:0 0 6px\">New Password</div><input class=\"inp\" id=\"pfNewPw\" type=\"password\" placeholder=\"Enter new password\"><div style=\"color:var(--muted);font-size:12px;margin-top:6px\">Minimum 8 characters.</div><div style=\"font-size:13px;font-weight:600;margin:12px 0 6px\">Confirm New Password</div><input class=\"inp\" id=\"pfNewPw2\" type=\"password\" placeholder=\"Repeat new password\">\n  <div style=\"display:flex;gap:12px;margin-top:16px\"><button class=\"btn-dark\" onclick=\"savePassword()\">Save Password</button><button class=\"btn-out\" onclick=\"sendReset()\">Forgot Password?</button></div>\n  <hr class=\"hr\"><div style=\"font-size:14px;font-weight:700;margin-bottom:10px\">Delete Account</div>\n  <div style=\"color:var(--muted);font-size:13px;line-height:1.5\">To delete your account and all associated data, email us at <a class=\"link\" href=\"mailto:hello@ivabot.xyz?subject=Delete%20my%20account\" target=\"_parent\">hello@ivabot.xyz</a>.</div>\n</div></div>\n\n<div class=\"ov\" id=\"ovUpdate\"><div class=\"modal sm\">\n  <div id=\"updStep1\">\n    <div style=\"font-weight:700;font-size:18px;margin-bottom:8px\">Refresh</div>\n    <div id=\"updText\" style=\"font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:14px\"></div>\n    <div id=\"updItems\" style=\"display:flex;flex-direction:column;gap:10px;margin-bottom:20px\"></div>\n    <div style=\"display:flex;gap:8px;justify-content:flex-end\"><button class=\"btn-out\" onclick=\"closeOv('ovUpdate')\">Cancel</button><button class=\"btn-dark\" id=\"updConfirm\" onclick=\"confirmUpdate()\">Confirm</button></div>\n  </div>\n  <div id=\"updStep2\" style=\"display:none;text-align:center;padding:24px 0\"><div class=\"spinner\"></div><div style=\"font-size:14px;color:var(--muted);margin-top:16px\">Fetching the latest data\u2026</div></div>\n  <div id=\"updStep3\" style=\"display:none;text-align:center;padding:14px 0\">\n    <div style=\"width:48px;height:48px;border-radius:50%;background:var(--card);margin:0 auto;display:flex;align-items:center;justify-content:center\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--accent)\" stroke-width=\"2.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg></div>\n    <div style=\"font-weight:700;font-size:16px;margin-top:12px\">Latest data updated</div>\n    <div id=\"updDone\" style=\"font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5\"></div>\n    <button class=\"btn-dark\" style=\"margin-top:18px\" onclick=\"finishUpdate()\">Done</button>\n  </div>\n</div></div>\n\n<div class=\"ov\" id=\"ovTrack\"><div class=\"modal sm\">\n  <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\"><div style=\"font-weight:700;font-size:18px\">Track a new page</div><a class=\"link\" style=\"color:var(--muted);font-size:18px\" onclick=\"closeOv('ovTrack')\">\u2715</a></div>\n  <div style=\"font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px\">Paste a page URL, choose what to run, then confirm.</div>\n  <input class=\"inp\" id=\"trackUrl\" placeholder=\"https://yoursite.com/page\" style=\"margin-bottom:14px\">\n  <div id=\"trackOpts\" style=\"display:flex;flex-direction:column;gap:10px;margin-bottom:14px\"><div class=\"track-opt\" onclick=\"pickTrack(this,'core')\"><div class=\"to-name\">Core Audit</div><div class=\"to-desc\">Tracks Google positions, backlinks and technical SEO for this page. Best for regular search visibility.</div></div><div class=\"track-opt\" onclick=\"pickTrack(this,'ai')\"><div class=\"to-name\">AI Readiness</div><div class=\"to-desc\">Checks if ChatGPT, Perplexity and Google AI mention and cite the page, and lets you track prompts.</div></div></div><button class=\"btn-dark\" id=\"trackRunBtn\" style=\"width:100%\" disabled onclick=\"runTrack()\">Select a tool to run \u00b7 1 credit</button><div style=\"font-size:11.5px;color:var(--muted);line-height:1.55;margin-top:10px\">You can run the other one later from the page.</div>\n</div></div>\n\n<div class=\"ov\" id=\"ovHistory\"><div class=\"modal\" style=\"max-width:min(880px,92vw)\"><div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:6px\"><div style=\"font-weight:700;font-size:18px\" id=\"histTitle\">History</div><a class=\"link\" style=\"color:var(--muted);font-size:18px\" onclick=\"closeOv('ovHistory')\">\u2715</a></div><div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px\"><div id=\"histPeriods\" style=\"display:flex;gap:6px;flex-wrap:wrap\"><button class=\"filter-btn\" data-p=\"week\" onclick=\"histPeriod('week',this)\">Week</button><button class=\"filter-btn\" data-p=\"2w\" onclick=\"histPeriod('2w',this)\">2 weeks</button><button class=\"filter-btn\" data-p=\"month\" onclick=\"histPeriod('month',this)\">Month</button><button class=\"filter-btn active\" data-p=\"all\" onclick=\"histPeriod('all',this)\">All time</button></div><span id=\"histCount\" style=\"font-size:12px;color:var(--muted)\"></span></div><div class=\"innerbox\" style=\"padding:0 14px;overflow-x:auto\"><table style=\"width:100%;border-collapse:collapse;min-width:520px\" id=\"histTable\"></table></div><div id=\"histPager\"></div><div style=\"display:flex;justify-content:flex-end;margin-top:14px\"><button class=\"btn-out\" onclick=\"histCSV()\">Download CSV</button></div></div></div>\n\n<div id=\"toast\"></div>\n\n<script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js\"></script>\n<script>\nvar _tt;function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove('show');},2200);}\nfunction go(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}\nfunction setView(v){document.getElementById('vFilled').classList.toggle('on',v==='filled');document.getElementById('vEmpty').classList.toggle('on',v==='empty');document.getElementById('filledSites').style.display=v==='filled'?'block':'none';document.getElementById('emptyState').style.display=v==='empty'?'block':'none';var st=document.getElementById('acctStatus');if(st)st.textContent=v==='empty'?'Free':'Paid';}\nfunction toggleSite(el){var card=el.closest('.panel-card');var l=card.querySelector('.sub-list');l.classList.toggle('open');var c=card.querySelector('.chev');if(c)c.textContent=l.classList.contains('open')?'\u2303':'\u2304';}\nfunction togglePage(head){var p=head.parentElement;p.classList.toggle('open');var c=head.querySelector('span:last-child');if(c)c.textContent=p.classList.contains('open')?'\u2303':'\u2304';}\nfunction pick(el){var panel=el.closest('.panel');var w=el.dataset.w;panel.querySelectorAll('.wcard').forEach(function(c){c.classList.remove('on')});el.classList.add('on');panel.querySelectorAll('[data-tc]').forEach(function(d){d.style.display=(d.dataset.tc===w)?'block':'none'});}function pickM(el,cm,tc){var blk=el.closest('.mblock')||el.closest('.panel');blk.querySelectorAll('.wcard').forEach(function(c){c.classList.remove('on')});el.classList.add('on');blk.querySelectorAll('[data-tc]').forEach(function(d){d.style.display=(d.dataset.tc===tc)?'block':'none'});var pg=blk.querySelector('.pgchart');if(pg)pg.style.display=(tc==='aio')?'none':'block';if(tc!=='aio'){var key=blk.dataset.chart||'collagen' /* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */;PG_STATE[key]=PG_STATE[key]||{metric:cm,mode:'preset',weeks:13};PG_STATE[key].metric=cm;pgBuild(key);}}\nfunction kwKey(e){if(e.key==='Enter'||e.key===','){e.preventDefault();var v=e.target.value.trim().replace(/,$/,'');if(v)addKwPill(v);e.target.value='';}}\nfunction addKwPill(k){var wrap=document.getElementById('kwPills');var span=document.createElement('span');span.className='kw-pill';span.innerHTML='<span></span><button title=\"Remove\">\u2715</button>';span.firstChild.textContent=k;span.querySelector('button').onclick=function(){span.remove();};wrap.appendChild(span);}\nfunction saveKw(){var n=document.getElementById('kwPills').children.length;if(!n){toast('Type a keyword and press Enter first');return;}document.getElementById('kwPills').innerHTML='';document.getElementById('addKwInp').value='';document.getElementById('addKw').style.display='none';toast(n+' keyword'+(n>1?'s':'')+' added \u2014 positions arrive on the next data update');}\nfunction openProfile(){document.getElementById('ovProfile').classList.add('open');}\nvar _trackTool=null;function pickTrack(el,t){_trackTool=t;document.querySelectorAll('#trackOpts .track-opt').forEach(function(o){o.classList.remove('on');});el.classList.add('on');var b=document.getElementById('trackRunBtn');if(b){b.disabled=false;b.textContent='Run '+(t==='core'?'Core Audit':'AI Readiness')+' \u00b7 1 credit';}}function runTrack(){if(!_trackTool)return;var inp=document.getElementById('trackUrl');var url=inp?(inp.value||'').trim():'';if(!url){if(inp)inp.focus();toast('Paste a page URL first');return;}if(!/^https?:\\/\\//i.test(url))url='https://'+url;closeOv('ovTrack');var _tp=(_trackTool==='ai')?'readiness':'core';window.open('https://ivabot.xyz/app?tool='+_tp+'&url='+encodeURIComponent(url)+'&autorun=1','_blank','noopener');}function openTrack(preTool){_trackTool=null;var b=document.getElementById('trackRunBtn');if(b){b.disabled=true;b.textContent='Select a tool to run \u00b7 1 credit';}document.querySelectorAll('#trackOpts .track-opt').forEach(function(o){o.classList.remove('on');});document.getElementById('ovTrack').classList.add('open'); if(preTool){ var _to=document.querySelectorAll('#trackOpts .track-opt'); var _ti=(preTool==='ai')?1:0; if(_to[_ti]&&typeof pickTrack==='function')pickTrack(_to[_ti],preTool); } }\nfunction toggleBuy(){var e=document.getElementById('pricing');var c=document.getElementById('buyChev');var card=document.getElementById('buyCard');var open=e.classList.toggle('open');if(card)card.classList.toggle('active',open);if(c)c.style.transform=open?'rotate(180deg)':'';}\nfunction openBuy(){var e=document.getElementById('pricing');if(!e.classList.contains('open'))toggleBuy();go('top');}\nvar _updCredits=1;\nfunction openUpdate(what,credits,scope){_updCredits=parseInt(credits,10)||1;_updScope=scope;document.getElementById('updText').innerHTML='For <b>'+credits+' credit'+(credits==='1'?'':'s')+'</b>, IvaBot fetches fresh data for '+what+':';var IVA_M={core:['Google positions (SERP)','Backlinks'],air:['AI mentions','AI citations','Google AI Overview'],all:['Google positions (SERP)','Backlinks','AI mentions','AI citations','Google AI Overview']};var items=IVA_M[scope]||IVA_M.all;var ui=document.getElementById('updItems');if(ui){ui.innerHTML=items.map(function(t){return '<div class=\"upd-item\"><svg viewBox=\"0 0 24 24\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg>'+t+'</div>';}).join('');if(scope==='air'||scope==='all'){ui.innerHTML+='<div style=\"font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:4px\">Plus a re-check of your tracked AI prompts (billed separately, 10 prompts per credit).</div>';}if(scope==='core'||scope==='all'){var _ci=document.getElementById('updItems');if(_ci){_ci.innerHTML+='<div style=\"font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px\">Cost is 1 base credit plus 1 for every 50 tracked keywords.</div><div style=\"font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:6px\">This page was refreshed 2 days ago, within the 5-day window. Refresh everything again to update all keywords.</div>';}var _cb=document.getElementById('updConfirm');if(_cb)_cb.textContent='Refresh everything';}}document.getElementById('updStep1').style.display='block';document.getElementById('updStep2').style.display='none';document.getElementById('updStep3').style.display='none';document.getElementById('ovUpdate').classList.add('open');}function refreshNewOnly(){var _ov=document.getElementById('ovUpdate');if(_ov)_ov.classList.remove('open');refreshNewKw();}\nfunction confirmUpdate(){document.getElementById('updStep1').style.display='none';document.getElementById('updStep2').style.display='block';setTimeout(function(){document.getElementById('updStep2').style.display='none';var el=document.getElementById('creditNum');var bal=parseInt(el.textContent,10);var nb=Math.max(0,bal-_updCredits);document.getElementById('updDone').innerHTML=_updCredits+' credit'+(_updCredits===1?'':'s')+' used \u00b7 balance '+bal+' \u2192 '+nb;el.textContent=nb;if((typeof _updScope!=='undefined')&&(_updScope==='core'||_updScope==='all')&&typeof ivaClearNewKw==='function'){ivaClearNewKw();}document.getElementById('updStep3').style.display='block';},1400);}\nfunction finishUpdate(){closeOv('ovUpdate');toast('Latest data updated');}\nfunction closeOv(id){document.getElementById(id).classList.remove('open');}\nfunction filterRuns(t,btn){document.querySelectorAll('#runhist .filter-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');document.querySelectorAll('#runBody tr').forEach(function(r){r.style.display=(t==='all'||r.dataset.t===t)?'':'none';});}\nfunction sortSites(mode,btn){btn.parentElement.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');try{var first=document.querySelector('#filledSites .panel-card')||document.querySelector('.panel-card');if(!first||!first.parentNode)return;var host=first.parentNode;var cards=Array.prototype.slice.call(host.querySelectorAll('.panel-card'));if(!cards.length)return;cards.sort(function(a,b){if(mode==='az'){var an=(a.getAttribute('data-dom')||'').toLowerCase(),bn=(b.getAttribute('data-dom')||'').toLowerCase();return an<bn?-1:(an>bn?1:0);}var al=a.getAttribute('data-last')||'',bl=b.getAttribute('data-last')||'';return bl<al?-1:(bl>al?1:0);});cards.forEach(function(c){host.appendChild(c);});}catch(e){}}\ndocument.querySelectorAll('.ov').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});});\n\n/* slider */\n(function(){var MIN=5,MAX=60,slider=document.getElementById('slider');if(!slider)return;\n  function calc(a){var rate,save;if(a<12){rate=1.00;save=0;}else if(a<21){rate=0.90;save=10;}else if(a<34){rate=0.80;save=20;}else{rate=0.70;save=30;}return {credits:Math.round(a/rate),save:save};}\n  function pct(v){return (v-MIN)/(MAX-MIN);}\n  function fill(){var p=pct(parseInt(slider.value,10))*100;slider.style.background='linear-gradient(to right,var(--accent) 0%,var(--accent) '+p+'%,#e7e0f5 '+p+'%,#e7e0f5 100%)';}\n  function render(){var a=parseInt(slider.value,10),c=calc(a);\n    document.getElementById('amt').textContent=a;document.getElementById('cred2').textContent=c.credits;\n    var s=document.getElementById('save');if(c.save>0){s.style.display='';s.textContent=c.save+'% off';}else{s.style.display='none';}\n    var h=document.getElementById('hint');if(c.save>0){h.innerHTML=\"You're saving <b>\"+c.save+\"%</b>\";}else{h.innerHTML=\"Slide up to $12 to start saving\";}\n    fill();}\n  slider.addEventListener('input',render);\n  document.getElementById('buyBtn').addEventListener('click',function(){var a=parseInt(slider.value,10),c=calc(a);var el=document.getElementById('creditNum');var bal=parseInt(el.textContent,10)||0;el.textContent=bal+c.credits;var p=document.getElementById('pricing');if(p)p.classList.remove('open');var ch=document.getElementById('buyChev');if(ch)ch.style.transform='';var bc=document.getElementById('buyCard');if(bc)bc.classList.remove('active');toast(c.credits+' credits added \u00b7 balance '+bal+' \u2192 '+(bal+c.credits));});\n  render();\n})();\n\n/* keyword graphs */\nvar labels=['28 Apr','12 May','26 May','9 Jun'];\n/* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */ var kwData={};\ndocument.addEventListener('click',function(e){var row=e.target.closest('.cmp tr.kwrow');if(!row||!kwData[row.dataset.k])return;var k=row.dataset.k;var sel=row.classList.contains('sel');var tb=row.closest('tbody');tb.querySelectorAll('tr.kwrow').forEach(function(r){r.classList.remove('sel')});tb.querySelectorAll('.kwdetail').forEach(function(d){d.remove()});if(sel)return;row.classList.add('sel');var tr=document.createElement('tr');tr.className='kwdetail';var td=document.createElement('td');td.colSpan=6;td.style.padding='10px 6px';var id='kc_'+Math.random().toString(36).slice(2,7);td.innerHTML='<div style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:10px;padding:12px\"><div style=\"font-size:12px;color:var(--muted);margin-bottom:6px\">Position of \\\"'+k+'\\\" \u00b7 1 = top</div><div style=\"position:relative;height:160px\"><canvas id=\"'+id+'\"></canvas></div></div>';tr.appendChild(td);row.parentNode.insertBefore(tr,row.nextSibling);new Chart(document.getElementById(id),{type:'line',data:{labels:labels,datasets:[{data:kwData[k],borderColor:'#B89CF0',backgroundColor:'rgba(184,156,240,0.22)',borderWidth:2.5,fill:'start',tension:0.3,pointBackgroundColor:'#B89CF0',pointRadius:5,spanGaps:false}]},options:{layout:{padding:{bottom:8,top:4}},responsive:true,maintainAspectRatio:false,scales:{y:{reverse:true,min:1,max:30,ticks:{stepSize:5,display:false},grid:{color:'rgba(21,20,21,0.06)'}},x:{ticks:{color:'#928E95',font:{family:'DM Sans'}},grid:{display:false}}},plugins:{legend:{display:false}}}});});\n\n/* per-page trend chart + range picker + calendar */\nvar PG_LABELS=['Apr 7','Apr 14','Apr 21','Apr 28','May 5','May 12','May 19','May 26','Jun 2','Jun 9'];\nvar PG_DATES=['2026-04-07','2026-04-14','2026-04-21','2026-04-28','2026-05-05','2026-05-12','2026-05-19','2026-05-26','2026-06-02','2026-06-09'];\n/* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */ var PG_DATA={};\nvar PG_META={kw:{title:'Average Google position',hint:'',reverse:true},bl:{title:'Backlinks',hint:'Pages and domains that link to your page.',reverse:false},ai:{title:'AI mentions',hint:'Times AI answers named this page.',reverse:false},cite:{title:'AI citations',hint:'Times AI answers linked to this page.',reverse:false}};\n/* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */ var PG_STATE={};\nfunction pgIdx(key){var st=PG_STATE[key];var n=PG_DATES.length;\n  if(st.mode==='custom'&&st.start){var s=0,e=n-1;while(s<n&&PG_DATES[s]<st.start)s++;e=n-1;while(e>0&&PG_DATES[e]>(st.end||st.start))e--;if(s>e){s=0;e=n-1;}return [s,e];}\n  var w=st.weeks||13;var c=(w>=999)?n:Math.min(n,w);return [Math.max(0,n-c),n-1];}\n/* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */ function pgBuild(key){var d=PG_DATA[key];if(!d)return;var st=PG_STATE[key]||(PG_STATE[key]={metric:'kw',mode:'preset',weeks:13});var meta=PG_META[st.metric];var ix=pgIdx(key);\n  var labels=PG_LABELS.slice(ix[0],ix[1]+1);var data=d[st.metric].slice(ix[0],ix[1]+1);\n  var tEl=document.getElementById('pg_title_'+key);if(tEl)tEl.textContent=meta.title;var hEl=document.getElementById('pg_hint_'+key);if(hEl)hEl.textContent=meta.hint;\n  var ctx=document.getElementById('pg_canvas_'+key);if(!ctx)return;if(st.chart)st.chart.destroy();\n  var mx=Math.max.apply(null,data.filter(function(v){return v!=null;}));\n  var yScale=meta.reverse?{reverse:true,min:1,suggestedMax:Math.max(10,mx+2),ticks:{display:false},grid:{color:'rgba(21,20,21,0.06)'}}:{beginAtZero:true,ticks:{precision:0,color:'#928E95',font:{family:'DM Sans'}},grid:{color:'rgba(21,20,21,0.06)'}};\n  st.chart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{data:data,borderColor:'#6E2BFF',backgroundColor:'rgba(110,43,255,0.10)',borderWidth:2.5,tension:0.3,fill:'start',pointBackgroundColor:'#6E2BFF',pointRadius:3,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:yScale,x:{ticks:{color:'#928E95',font:{family:'DM Sans'}},grid:{display:false}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return meta.reverse?('Position '+c.parsed.y):(meta.title+': '+c.parsed.y);}}}}}});}\nfunction pgMetric(key,m,btn){PG_STATE[key]=PG_STATE[key]||{metric:'kw',mode:'preset',weeks:13};PG_STATE[key].metric=m;var row=btn.parentElement;row.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');pgBuild(key);}\nfunction pgRangeToggle(key,ev){ev.stopPropagation();var m=document.getElementById('pg_range_menu_'+key);m.style.display=(m.style.display==='none'||!m.style.display)?'block':'none';}\nfunction pgRangeSet(key,weeks,label){PG_STATE[key]=PG_STATE[key]||{metric:'kw',mode:'preset',weeks:13};PG_STATE[key].mode='preset';PG_STATE[key].weeks=weeks;document.getElementById('pg_range_btn_'+key).textContent=label+' \u25be';document.getElementById('pg_range_menu_'+key).style.display='none';pgBuild(key);}\ndocument.addEventListener('click',function(e){if(!e.target.closest('[id^=pg_range_]')){document.querySelectorAll('[id^=pg_range_menu_]').forEach(function(m){m.style.display='none';});}});\n\n/* custom-range calendar */\nvar _calKey=null,_calMonth=null,_calStart=null,_calEnd=null;\nfunction pgCalOpen(key){_calKey=key;var mn=document.getElementById('pg_range_menu_'+key);if(mn)mn.style.display='none';\n  if(!document.getElementById('pgCalOv')){var ov=document.createElement('div');ov.id='pgCalOv';ov.style.cssText='position:fixed;inset:0;background:rgba(21,20,21,0.45);display:none;align-items:center;justify-content:center;z-index:200';\n    ov.innerHTML='<div style=\"background:#fff;border-radius:16px;padding:20px;width:340px;max-width:92vw;font-family:DM Sans,sans-serif\"><div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\"><button id=\"calPrev\" style=\"border:none;background:none;font-size:22px;cursor:pointer;color:#151415;line-height:1\">\\u2039</button><div id=\"calTitle\" style=\"font-weight:700;color:#151415\"></div><button id=\"calNext\" style=\"border:none;background:none;font-size:22px;cursor:pointer;color:#151415;line-height:1\">\\u203a</button></div><div id=\"calGrid\"></div><div style=\"display:flex;align-items:center;gap:7px;margin:12px 0 2px;font-size:11px;color:#928E95\"><span style=\"width:9px;height:9px;border-radius:50%;background:#6E2BFF;display:inline-block\"></span>days with a data update</div><div id=\"calSel\" style=\"font-size:12px;color:#151415;min-height:18px;margin-top:4px\"></div><div style=\"display:flex;justify-content:flex-end;gap:10px;margin-top:14px\"><button onclick=\"pgCalCancel()\" style=\"border:none;background:none;color:#928E95;font-weight:600;cursor:pointer;font-family:inherit\">Cancel</button><button onclick=\"pgCalApply()\" style=\"background:#6E2BFF;color:#fff;border:none;border-radius:9px;padding:8px 16px;font-weight:600;cursor:pointer;font-family:inherit\">Apply</button></div></div>';\n    document.body.appendChild(ov);ov.addEventListener('click',function(e){if(e.target===ov)pgCalCancel();});\n    document.getElementById('calPrev').onclick=function(){_calMonth.setMonth(_calMonth.getMonth()-1);calRender();};\n    document.getElementById('calNext').onclick=function(){_calMonth.setMonth(_calMonth.getMonth()+1);calRender();};}\n  _calStart=null;_calEnd=null;_calMonth=new Date(2026,5,1);\n  document.getElementById('pgCalOv').style.display='flex';calRender();}\n/* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */ function calRender(){var runs=(PG_DATA[_calKey]&&PG_DATA[_calKey].runs)||[];var y=_calMonth.getFullYear(),m=_calMonth.getMonth();\n  document.getElementById('calTitle').textContent=_calMonth.toLocaleDateString('en-US',{month:'long',year:'numeric'});\n  var first=new Date(y,m,1).getDay();var days=new Date(y,m+1,0).getDate();\n  var html='<div style=\"display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:10px;color:#928E95;margin-bottom:4px\">';['S','M','T','W','T','F','S'].forEach(function(d){html+='<div>'+d+'</div>';});html+='</div><div style=\"display:grid;grid-template-columns:repeat(7,1fr);gap:3px\">';\n  for(var i=0;i<first;i++)html+='<div></div>';\n  for(var d=1;d<=days;d++){var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');var isRun=runs.indexOf(ds)>=0;var inR=_calStart&&_calEnd&&ds>=_calStart&&ds<=_calEnd;var isEnd=(ds===_calStart||ds===_calEnd);var bg=isEnd?'#6E2BFF':(inR?'rgba(110,43,255,0.12)':'transparent');var col=isEnd?'#fff':'#151415';\n    html+='<div onclick=\"calPick(\\''+ds+'\\')\" style=\"position:relative;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:12px;background:'+bg+';color:'+col+'\">'+d+(isRun?'<span style=\"position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:'+(isEnd?'#fff':'#6E2BFF')+'\"></span>':'')+'</div>';}\n  html+='</div>';document.getElementById('calGrid').innerHTML=html;\n  document.getElementById('calSel').textContent=_calStart?('From '+_calStart+(_calEnd?(' to '+_calEnd):' \u2014 now pick the end date')):'Pick a start date';}\nfunction calPick(ds){if(!_calStart||(_calStart&&_calEnd)){_calStart=ds;_calEnd=null;}else{if(ds<_calStart){_calEnd=_calStart;_calStart=ds;}else{_calEnd=ds;}}calRender();}\nfunction pgCalCancel(){var ov=document.getElementById('pgCalOv');if(ov)ov.style.display='none';}\nfunction pgCalApply(){if(!_calStart){pgCalCancel();return;}var st=PG_STATE[_calKey]=PG_STATE[_calKey]||{metric:'kw',mode:'preset',weeks:13};st.mode='custom';st.start=_calStart;st.end=_calEnd||_calStart;var lbl=_calStart+(st.end!==_calStart?(' \\u2013 '+st.end):'');document.getElementById('pg_range_btn_'+_calKey).textContent=lbl+' \\u25be';pgCalCancel();pgBuild(_calKey);}\n\nPG_STATE.collagen={metric:'kw',mode:'preset',weeks:13};/* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */ pgBuild('collagen');PG_STATE['collagenai']={metric:'ai',mode:'preset',weeks:13};/* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */ pgBuild('collagenai');\n\n/* AI mentions tab: prompts x engines, add prompt, run check */\nvar AI_PROMPTS=[]\nfunction aiDot(on){return on?'<span style=\"color:var(--accent)\">\u25cf</span>':'<span style=\"color:var(--muted)\">\u25cb</span>';}\nfunction renderPrompts(){var tb=document.getElementById('promptRows');if(!tb)return;var bd='border-bottom:1px solid var(--separator)';tb.innerHTML=AI_PROMPTS.map(function(p){return '<tr>'+'<td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;'+bd+'\">\u201c'+p.q+'\u201d<\\/td>'+'<td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(p.m.c)+'<\\/td>'+'<td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(p.m.p)+'<\\/td>'+'<td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(p.m.g)+'<\\/td>'+'<\\/tr>';}).join('');}function renderCite(){var tb=document.getElementById('citeRows');if(!tb)return;var bd='border-bottom:1px solid var(--separator)';tb.innerHTML=AI_PROMPTS.map(function(p){return '<tr>'+'<td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;'+bd+'\">\u201c'+p.q+'\u201d<\\/td>'+'<td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(p.cite.c)+'<\\/td>'+'<td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(p.cite.p)+'<\\/td>'+'<td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(p.cite.g)+'<\\/td>'+'<\\/tr>';}).join('');}function renderAio(){var tb=document.getElementById('aioRows');if(!tb)return;var bd='border-bottom:1px solid var(--separator)';tb.innerHTML=AI_PROMPTS.map(function(p){var st;if(!p.aio){st='<span style=\"color:var(--muted);font-weight:500\">No overview<\\/span>';}else if(p.aioc){st='<span style=\"color:var(--accent);font-weight:500\">Cited in overview<\\/span>';}else{st='<span style=\"color:var(--dark);font-weight:500\">Shows overview, not cited<\\/span>';}return '<tr><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;'+bd+'\">\u201c'+p.q+'\u201d<\\/td>'+'<td style=\"text-align:right;font-size:12px;padding:9px 6px;'+bd+'\">'+st+'<\\/td><\\/tr>';}).join('');}\nfunction showAddPrompt(){var b=document.getElementById('addPrompt');if(!b)return;b.style.display='block';var inp=document.getElementById('addPromptInp');if(inp)inp.focus();}\nfunction promptKey(e){if(e.key==='Enter'||e.key===','){e.preventDefault();var v=e.target.value.trim().replace(/,$/,'');if(v)addPromptRow(v);e.target.value='';}}\nfunction runCost(){return 1+Math.ceil(Math.max(0,AI_PROMPTS.length-5)/10);}function updateRunCost(){var b=document.getElementById('runChkBtn');if(!b)return;var c=runCost();b.textContent='Refresh \u00b7 '+c+(c===1?' credit':' credits');}function addPromptRow(v){AI_PROMPTS.push({q:v,m:{c:false,p:false,g:false},cite:{c:false,p:false,g:false},aio:false,aioc:false});renderPrompts();updateRunCost();}\nfunction runPrompts(){var el=document.getElementById('creditNum');var bal=parseInt(el?el.textContent:'0',10)||0;var cost=runCost();if(bal<cost){toast('Not enough credits. Buy more to run this check.');return;}el.textContent=bal-cost;updateRunCost();toast('Checked '+AI_PROMPTS.length+' prompts across ChatGPT, Perplexity and Google AI. '+cost+(cost===1?' credit':' credits')+' used.');}\nvar PAGERS={};\nfunction pagerGo(id,p){if(PAGERS[id]){PAGERS[id].page=p;PAGERS[id].render();}}\nfunction pagerHTML(id,total){var p=PAGERS[id];var pages=Math.max(1,Math.ceil(total/p.per));if(p.page>pages)p.page=pages;if(pages<=1)return'';var f0=(p.page-1)*p.per+1;var t0=Math.min(total,p.page*p.per);var s='<div style=\"display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px\"><span style=\"font-size:13px;color:var(--muted)\">Showing '+f0+'\\u2013'+t0+' of '+total+'</span><div style=\"display:flex;gap:6px\">';s+='<button class=\"pgbtn\"'+(p.page<=1?' disabled':'')+' onclick=\"pagerGo(\\''+id+'\\','+(p.page-1)+')\">\\u2039</button>';var win=2,lo=Math.max(1,p.page-win),hi=Math.min(pages,p.page+win);if(lo>1){s+='<button class=\"pgbtn\" onclick=\"pagerGo(\\''+id+'\\',1)\">1</button>';if(lo>2)s+='<span style=\"color:var(--muted);padding:0 2px\">\\u2026</span>';}for(var i=lo;i<=hi;i++){s+='<button class=\"pgbtn'+(i===p.page?' on':'')+'\" onclick=\"pagerGo(\\''+id+'\\','+i+')\">'+i+'</button>';}if(hi<pages){if(hi<pages-1)s+='<span style=\"color:var(--muted);padding:0 2px\">\\u2026</span>';s+='<button class=\"pgbtn\" onclick=\"pagerGo(\\''+id+'\\','+pages+')\">'+pages+'</button>';}s+='<button class=\"pgbtn\"'+(p.page>=pages?' disabled':'')+' onclick=\"pagerGo(\\''+id+'\\','+(p.page+1)+')\">\\u203a</button>';s+='</div></div>';return s;}\nvar HIST={};var _histKey=null;var _histPeriod='all';\nfunction _maxDate(rows){var m='';rows.forEach(function(r){if(r.date>m)m=r.date;});return m;}\nfunction _periodCut(rows,period){if(period==='all')return rows.slice();var md=_maxDate(rows);if(!md)return rows.slice();var days=period==='week'?7:(period==='2w'?14:30);var cut=new Date(md+'T00:00:00');cut.setDate(cut.getDate()-days+1);var cs=cut.toISOString().slice(0,10);return rows.filter(function(r){return r.date>=cs;});}\nfunction openHistory(key){var d=HIST[key];if(!d)return;_histKey=key;_histPeriod='all';document.getElementById('histTitle').textContent=d.title;var _pp=document.getElementById('histPeriods');if(_pp)_pp.style.display=d.nodate?'none':'flex';document.querySelectorAll('#histPeriods .filter-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-p')==='all');});PAGERS['hist']={page:1,per:10,render:renderHistory};renderHistory();document.getElementById('ovHistory').classList.add('open');}\nfunction histPeriod(p,btn){_histPeriod=p;document.querySelectorAll('#histPeriods .filter-btn').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');if(PAGERS['hist'])PAGERS['hist'].page=1;renderHistory();}\nfunction renderHistory(){var d=HIST[_histKey];if(!d)return;var rows=d.nodate?d.rows.slice():_periodCut(d.rows,_histPeriod);var p=PAGERS['hist'];var pages=Math.max(1,Math.ceil(rows.length/p.per));if(p.page>pages)p.page=pages;var slice=rows.slice((p.page-1)*p.per,(p.page-1)*p.per+p.per);var thead='<tr>'+d.cols.map(function(c){return '<th style=\"text-align:'+(c.r?'right':'left')+';font-size:11px;color:var(--muted);font-weight:500;padding:8px 8px;border-bottom:1px solid var(--separator)\">'+c.t+'</th>';}).join('')+'</tr>';var body;if(!slice.length){body='<tr><td colspan=\"'+d.cols.length+'\" style=\"padding:18px;text-align:center;color:var(--muted);font-size:13px\">No rows in this period.</td></tr>';}else{body=slice.map(function(r){return '<tr>'+r.cells.map(function(cell,ci){return '<td style=\"text-align:'+(d.cols[ci].r?'right':'left')+';font-size:12.5px;color:var(--dark);padding:9px 8px;border-bottom:1px solid var(--separator)\">'+cell+'</td>';}).join('')+'</tr>';}).join('');}document.getElementById('histTable').innerHTML='<thead>'+thead+'</thead><tbody>'+body+'</tbody>';document.getElementById('histPager').innerHTML=pagerHTML('hist',rows.length);document.getElementById('histCount').textContent=rows.length+' row'+(rows.length===1?'':'s');}\nfunction histCSV(){var d=HIST[_histKey];if(!d)return;var rows=d.nodate?d.rows.slice():_periodCut(d.rows,_histPeriod);var lines=[d.cols.map(function(c){return '\"'+c.t+'\"';}).join(',')];rows.forEach(function(r){lines.push(r.cells.map(function(c){return '\"'+String(c).replace(/<[^>]+>/g,'').replace(/\"/g,'\"\"')+'\"';}).join(','));});var a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(lines.join('\\n'));a.download=(_histKey||'history')+'.csv';document.body.appendChild(a);a.click();a.remove();toast('Downloaded '+a.download);}\nfunction _r(date,disp,cells){return {date:date,cells:[disp].concat(cells)};}\nHIST['runs']={title:'All run history',cols:[{t:'Date'},{t:'Page'},{t:'Action'},{t:'Credits',r:true}],rows:[\n _r('2026-06-13','13 Jun',['vitaboost.shop/collagen-powder','Core Audit','1']),\n _r('2026-06-12','12 Jun',['vitaboost.shop/collagen-powder','AI Readiness','1']),\n _r('2026-06-12','12 Jun',['vitaboost.shop/collagen-powder','AI prompt check','1']),\n _r('2026-06-11','11 Jun',['vitaboost.shop/collagen-powder','Content Builder','1']),\n _r('2026-06-09','9 Jun',['vitaboost.shop (all pages)','Refresh all tracked','5']),\n _r('2026-06-06','6 Jun',['glowserum.co/vitamin-c-serum','AI Readiness','1']),\n _r('2026-06-02','2 Jun',['vitaboost.shop/collagen-powder','Core Audit','1']),\n _r('2026-05-29','29 May',['glowserum.co/vitamin-c-serum','Content Builder','1']),\n _r('2026-05-26','26 May',['vitaboost.shop/collagen-powder','AI Readiness','1']),\n _r('2026-05-22','22 May',['vitaboost.shop (all pages)','Refresh all tracked','5']),\n _r('2026-05-19','19 May',['vitaboost.shop/collagen-powder','Core Audit','1']),\n _r('2026-05-12','12 May',['vitaboost.shop/collagen-powder','AI Readiness','1']),\n _r('2026-05-05','5 May',['vitaboost.shop/collagen-powder','Core Audit','1']),\n _r('2026-04-28','28 Apr',['vitaboost.shop/collagen-powder','AI Readiness','1'])\n]};\nHIST['prompts']={title:'All prompt checks',cols:[{t:'Date'},{t:'ChatGPT',r:true},{t:'Perplexity',r:true},{t:'Google AI',r:true},{t:'Appeared',r:true}],rows:[\n _r('2026-06-12','12 Jun',['2','1','1','3 of 5']),\n _r('2026-05-26','26 May',['2','1','0','3 of 5']),\n _r('2026-05-12','12 May',['1','1','0','2 of 5']),\n _r('2026-04-28','28 Apr',['1','0','0','1 of 5']),\n _r('2026-04-14','14 Apr',['0','1','0','1 of 5']),\n _r('2026-03-31','31 Mar',['0','0','0','0 of 5'])\n]};\n\n\nHIST['mentions']={title:'All AI mention checks',cols:[{t:'Date'},{t:'ChatGPT',r:true},{t:'Perplexity',r:true},{t:'Google AI',r:true},{t:'Total',r:true}],rows:[\n _r('2026-06-12','12 Jun',['1','1','1','3']),_r('2026-05-26','26 May',['1','1','0','2']),_r('2026-05-12','12 May',['1','0','0','1']),_r('2026-04-28','28 Apr',['1','0','0','1']),_r('2026-04-14','14 Apr',['0','0','0','0'])\n]};\nHIST['cites']={title:'All AI citation checks',cols:[{t:'Date'},{t:'ChatGPT',r:true},{t:'Perplexity',r:true},{t:'Google AI',r:true},{t:'Total',r:true}],rows:[\n _r('2026-06-12','12 Jun',['1','0','1','2']),_r('2026-05-26','26 May',['1','0','0','1']),_r('2026-05-12','12 May',['1','0','0','1']),_r('2026-04-28','28 Apr',['0','0','0','0'])\n]};\nrenderPrompts();renderCite();renderAio();updateRunCost();\n</script>\n\n\n<script id=\"iva-rev-js\">(function(){function run(){var g=document.querySelectorAll(\".pink-section .section-content, .tools-grid, .wgrid, .grid2, .grid3\");g.forEach(function(c){var k=c.children,d=0;for(var i=0;i<k.length;i++){var el=k[i];if(el.classList.contains(\"reveal\"))continue;el.classList.add(\"reveal\");el.classList.add(\"reveal-delay-\"+((d%4)+1));d++;}});document.querySelectorAll(\".welcome-page, .tools-hero, .section-title, .section-sub\").forEach(function(el){if(!el.classList.contains(\"reveal\"))el.classList.add(\"reveal\");});var all=document.querySelectorAll(\".reveal\");if(typeof IntersectionObserver===\"undefined\"){all.forEach(function(el){el.classList.add(\"visible\");});return;}var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add(\"visible\");io.unobserve(e.target);}});},{threshold:0.08,rootMargin:\"0px 0px -40px 0px\"});var above=[];all.forEach(function(el){var r=el.getBoundingClientRect();if(r.top<innerHeight*0.95)above.push(el);else io.observe(el);});requestAnimationFrame(function(){requestAnimationFrame(function(){above.forEach(function(el){el.classList.add(\"visible\");});});});}if(document.readyState===\"loading\")document.addEventListener(\"DOMContentLoaded\",run);else setTimeout(run,0);})();</script><script>\nvar IVA_NEWKW=0, IVA_ADDEDKW=0, IVA_NEWPR=0, _updScope='';\nfunction ivaKwCost(){return 1+Math.ceil(IVA_ADDEDKW/50);}\nfunction ivaNewOnlyCost(){return (1+Math.ceil(IVA_NEWKW/50));}\nfunction ivaPrNewCost(){return Math.max(1,Math.ceil(IVA_NEWPR/10));}\nfunction ivaUpdateKwCost(){var b=document.getElementById('coreRefreshBtn');if(b){var c=ivaKwCost();b.textContent='Refresh \\u00b7 '+c+(c===1?' credit':' credits');}}\nfunction ivaKwState(){var chip=document.getElementById('kwRealChip');var pill=document.getElementById('kwNewRefresh');if(!pill)return;if(IVA_NEWKW>0){var n=ivaNewOnlyCost();pill.textContent='Refresh new keywords \\u00b7 '+n+(n===1?' credit':' credits');pill.style.display='';if(chip)chip.style.display='none';}else{pill.style.display='none';if(chip)chip.style.display='';}}\nfunction ivaPromptState(){var pill=document.getElementById('prNewRefresh');if(!pill)return;if(IVA_NEWPR>0){var n=ivaPrNewCost();pill.textContent='Refresh new prompts \\u00b7 '+n+(n===1?' credit':' credits');pill.style.display='';}else{pill.style.display='none';}}\nfunction ivaXCell(){var td=document.createElement('td');td.className='iva-xcell';td.style.cssText='text-align:right;padding:10px 16px 10px 22px;border-bottom:1px solid var(--separator);white-space:nowrap';return td;}\nfunction ivaXBtn(t){var b=document.createElement('button');b.className='iva-x';b.type='button';b.textContent='\\u2715';b.title=t||'Remove';b.style.cssText='border:none;background:none;color:rgba(21,20,21,0.28);cursor:pointer;font-size:12px;line-height:1;padding:0';b.onmouseenter=function(){b.style.color='var(--accent)';};b.onmouseleave=function(){b.style.color='rgba(21,20,21,0.28)';};return b;}\nfunction ivaRowX(tr,cmsg,onDel){if(!tr||tr.querySelector('.iva-xcell'))return;var td=ivaXCell();var b=ivaXBtn('Stop tracking');b.onclick=function(e){e.stopPropagation();if(cmsg&&!window.confirm(cmsg))return;onDel();};td.appendChild(b);tr.appendChild(td);}\nfunction ivaAddKw(k){var tb=document.querySelector('#kwTable tbody');if(!tb)return;var grp=document.getElementById('kwAddedGrp');var tr=document.createElement('tr');tr.className='kwrow knew';tr.setAttribute('data-k',k);var td0=document.createElement('td');td0.textContent=k;var chip=document.createElement('span');chip.className='chip';chip.textContent='new';chip.style.marginLeft='8px';td0.appendChild(chip);tr.appendChild(td0);for(var i=0;i<5;i++){var td=document.createElement('td');td.className='muted';td.textContent='\\u2014';tr.appendChild(td);}if(grp&&grp.nextSibling){tb.insertBefore(tr,grp.nextSibling);}else if(grp){tb.appendChild(tr);}else{tb.insertBefore(tr,tb.firstChild);}IVA_NEWKW++;IVA_ADDEDKW++;ivaRowX(tr,null,function(){if(IVA_ADDEDKW>0)IVA_ADDEDKW--;if(tr.classList.contains('knew')&&IVA_NEWKW>0)IVA_NEWKW--;tr.remove();ivaUpdateKwCost();ivaKwState();ivaKwRender();});ivaUpdateKwCost();ivaKwState();ivaKwRender();}\nfunction kwKey(e){if(e.key==='Enter'||e.key===','){e.preventDefault();var v=e.target.value.trim().replace(/,$/,'');if(v)ivaAddKw(v);e.target.value='';}}\nfunction ivaClearNewKw(){var tb=document.querySelector('#kwTable tbody');if(tb)Array.prototype.forEach.call(tb.querySelectorAll('tr.knew'),function(tr){tr.classList.remove('knew');var c=tr.querySelector('.chip');if(c)c.remove();var tds=tr.querySelectorAll('td');if(tds.length>=6){tds[4].className='';tds[4].textContent=String(8+Math.floor(Math.random()*50));tds[5].className='';tds[5].innerHTML='<span class=\"up\">new</span>';}});IVA_NEWKW=0;ivaUpdateKwCost();ivaKwState();}\nfunction refreshNewKw(){if(IVA_NEWKW<=0)return;var el=document.getElementById('creditNum');var bal=el?(parseInt(el.textContent,10)||0):0;var cost=ivaNewOnlyCost();if(bal<cost){if(typeof toast==='function')toast('Not enough credits. Buy more to run this check.');return;}if(el)el.textContent=bal-cost;var m='Checked your new keyword'+(IVA_NEWKW>1?'s':'')+' \\u2014 positions updated.';ivaClearNewKw();if(typeof toast==='function')toast(m);}\nfunction ivaKwRender(){var tb=document.querySelector('#kwTable tbody');var pager=document.getElementById('kwPager');if(!tb)return;var rows=Array.prototype.slice.call(tb.querySelectorAll('tr.kwrow'));var p=PAGERS['kw'];var per=p.per;if(rows.length<=per){rows.forEach(function(r){r.style.display='';});if(pager)pager.innerHTML='';return;}var pages=Math.max(1,Math.ceil(rows.length/per));if(p.page>pages)p.page=pages;rows.forEach(function(r,i){r.style.display=(i>=(p.page-1)*per&&i<p.page*per)?'':'none';});if(pager)pager.innerHTML=pagerHTML('kw',rows.length);}\nfunction ivaPromptX(){var tb=document.getElementById('promptRows');if(!tb)return;Array.prototype.forEach.call(tb.querySelectorAll('tr'),function(tr,i){if(!tr.querySelector('.iva-xcell')){ivaRowX(tr,null,function(){ivaRemovePrompt(i);});}var f=tr.querySelector('td');if(f&&i<IVA_NEWPR&&!f.querySelector('.chip')){var chip=document.createElement('span');chip.className='chip';chip.textContent='new';chip.style.marginLeft='8px';f.appendChild(chip);}});}\nfunction ivaPromptRender(){if(typeof renderPrompts==='function')renderPrompts();ivaPromptX();var tb=document.getElementById('promptRows');var pager=document.getElementById('promptPager');if(!tb)return;var rows=Array.prototype.slice.call(tb.querySelectorAll('tr'));var p=PAGERS['prompts'];var per=p.per;if(rows.length<=per){rows.forEach(function(r){r.style.display='';});if(pager)pager.innerHTML='';return;}var pages=Math.max(1,Math.ceil(rows.length/per));if(p.page>pages)p.page=pages;rows.forEach(function(r,i){r.style.display=(i>=(p.page-1)*per&&i<p.page*per)?'':'none';});if(pager)pager.innerHTML=pagerHTML('prompts',rows.length);}\nfunction ivaRemovePrompt(i){if(window.AI_PROMPTS)AI_PROMPTS.splice(i,1);if(i<IVA_NEWPR&&IVA_NEWPR>0)IVA_NEWPR--;ivaPromptRender();if(typeof updateRunCost==='function')updateRunCost();ivaPromptState();}\nfunction refreshNewPrompts(){if(IVA_NEWPR<=0)return;var el=document.getElementById('creditNum');var bal=el?(parseInt(el.textContent,10)||0):0;var cost=ivaPrNewCost();if(bal<cost){if(typeof toast==='function')toast('Not enough credits. Buy more to run this check.');return;}if(el)el.textContent=bal-cost;var n=IVA_NEWPR;IVA_NEWPR=0;ivaPromptRender();ivaPromptState();if(typeof toast==='function')toast('Checked '+n+' new prompt'+(n>1?'s':'')+' across ChatGPT, Perplexity and Google AI.');}\nPAGERS['kw']={page:1,per:10,render:ivaKwRender};\nPAGERS['prompts']={page:1,per:10,render:ivaPromptRender};\nfunction ivaInit(){var kt=document.querySelector('#kwTable tbody');if(kt)Array.prototype.forEach.call(kt.querySelectorAll('tr.kwrow'),function(tr){ivaRowX(tr,null,function(){if(tr.classList.contains('knew')&&IVA_NEWKW>0)IVA_NEWKW--;tr.remove();ivaUpdateKwCost();ivaKwState();ivaKwRender();});});if(typeof addPromptRow==='function'&&(!window.addPromptRow||!window.addPromptRow.__ivawrap)){window.addPromptRow=function(v){if(window.AI_PROMPTS)AI_PROMPTS.unshift({q:v,m:{c:false,p:false,g:false},cite:{c:false,p:false,g:false},aio:false,aioc:false});IVA_NEWPR++;PAGERS['prompts'].page=1;ivaPromptRender();if(typeof updateRunCost==='function')updateRunCost();ivaPromptState();};window.addPromptRow.__ivawrap=true;}if(typeof runPrompts==='function'&&(!window.runPrompts||!window.runPrompts.__ivawrap)){var _rp=runPrompts;window.runPrompts=function(){_rp();IVA_NEWPR=0;ivaPromptRender();ivaPromptState();};window.runPrompts.__ivawrap=true;}ivaPromptRender();Array.prototype.forEach.call(document.querySelectorAll('.prow > .prow-head'),function(head){if(head.querySelector('.iva-x'))return;var b=ivaXBtn('Delete page');b.style.marginLeft='6px';b.style.fontSize='13px';b.onclick=function(e){e.stopPropagation();if(window.confirm('Delete this page and its tracked data?'))head.parentElement.remove();};head.appendChild(b);});Array.prototype.forEach.call(document.querySelectorAll('.site-head'),function(head){if(head.querySelector('.iva-x'))return;var b=ivaXBtn('Delete domain');b.style.marginLeft='6px';b.style.fontSize='13px';b.onclick=function(e){e.stopPropagation();if(window.confirm('Delete this domain and all its pages?')){var card=head.closest('.panel-card');if(card)card.remove();}};head.appendChild(b);});ivaUpdateKwCost();ivaKwState();ivaKwRender();ivaPromptState();}\nif(document.readyState!=='loading')ivaInit();else document.addEventListener('DOMContentLoaded',ivaInit);\nwindow.ivaInit=ivaInit;\n</script><script>\n(function(){\nvar _kwSortCol=-1,_kwSortDir=1;\nfunction kwVal(tr,ci){var tds=tr.children;if(ci===0)return (tds[0].textContent||'').toLowerCase();var t=((tds[ci]&&tds[ci].textContent)||'').replace(/[^0-9.\\-]/g,'');var n=parseFloat(t);return isNaN(n)?99999:n;}\nwindow.ivaKwSort=function(ci){var tb=document.querySelector('#kwTable tbody');if(!tb)return;if(_kwSortCol===ci)_kwSortDir=-_kwSortDir;else{_kwSortCol=ci;_kwSortDir=1;}Array.prototype.forEach.call(tb.querySelectorAll('tr.grp'),function(g){g.style.display='none';});var rows=Array.prototype.slice.call(tb.querySelectorAll('tr.kwrow'));rows.sort(function(a,b){var va=kwVal(a,ci),vb=kwVal(b,ci);if(va<vb)return -1*_kwSortDir;if(va>vb)return 1*_kwSortDir;return 0;});rows.forEach(function(r){tb.appendChild(r);});if(window.PAGERS&&PAGERS['kw']){PAGERS['kw'].page=1;if(PAGERS['kw'].render)PAGERS['kw'].render();}if(typeof toast==='function')toast('Sorted by '+['keyword','28 Apr','12 May','26 May','9 Jun','change'][ci]+(_kwSortDir<0?' (desc)':''));};\nfunction _dateVal(txt){var m=(txt||'').match(/(\\d+)\\s+([A-Za-z]{3})/);if(!m)return 0;var mo={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};return (mo[m[2].slice(0,3).toLowerCase()]||0)*100+parseInt(m[1],10);}\nwindow.sortSites=function(mode,btn){if(btn){btn.parentElement.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');}var cont=document.getElementById('filledSites')||document;var cards=Array.prototype.slice.call(cont.querySelectorAll('.panel-card'));if(cards.length){var parent=cards[0].parentNode;cards.sort(function(a,b){if(mode==='az'){var na=((a.querySelector('.nm')||{}).textContent||'').toLowerCase();var nb=((b.querySelector('.nm')||{}).textContent||'').toLowerCase();return na<nb?-1:(na>nb?1:0);}return _dateVal((b.querySelector('.meta')||{}).textContent)-_dateVal((a.querySelector('.meta')||{}).textContent);});cards.forEach(function(c){parent.appendChild(c);});}\nArray.prototype.forEach.call(cont.querySelectorAll('.sub-list'),function(sl){var prows=Array.prototype.slice.call(sl.querySelectorAll('.prow'));if(!prows.length)return;prows.sort(function(a,b){var ha=a.querySelector('.prow-head'),hb=b.querySelector('.prow-head');if(!ha||!hb)return 0;if(mode==='az'){var na=((ha.querySelector('div')||{}).textContent||'').toLowerCase();var nb=((hb.querySelector('div')||{}).textContent||'').toLowerCase();return na<nb?-1:(na>nb?1:0);}return _dateVal((hb.querySelector('span')||{}).textContent)-_dateVal((ha.querySelector('span')||{}).textContent);});prows.forEach(function(p){sl.appendChild(p);});});\nif(typeof toast==='function')toast(mode==='az'?'Sorted A\\u2013Z':'Sorted by most recent');};\nwindow.ivaKwStale=function(on){var chip=document.getElementById('kwRealChip');var pill=document.getElementById('kwNewRefresh');if(!pill)return;if(on){var c=window.ivaKwCost?ivaKwCost():1;pill.textContent='Refresh all keywords \\u00b7 '+c+(c===1?' credit':' credits');pill.style.display='';if(chip)chip.style.display='none';pill.onclick=function(){if(window.openUpdate)openUpdate('this page',String(window.ivaKwCost?ivaKwCost():1),'core');};}else{pill.onclick=function(){if(window.refreshNewKw)refreshNewKw();};if(window.ivaKwState)ivaKwState();}};\nfunction _mkHist(){if(!window.HIST)return;\nif(!HIST.keywords){/* IVA-DEMO 2026-07-08: demo seed, NOT rendered (real data via drawTrend/fillKw). Safe to delete with its callers. */ var base=['marine collagen','best collagen supplement','collagen for skin','collagen for joints','hydrolyzed collagen','collagen peptides','vegan collagen','collagen powder','liquid collagen','collagen for hair','collagen benefits','collagen vs whey','grass fed collagen','collagen for nails','bovine collagen','collagen coffee','collagen face cream','collagen drink','type 2 collagen','collagen gummies'];var rows=[];for(var i=0;i<42;i++){var kw=base[i%base.length]+(i>=base.length?' '+(Math.floor(i/base.length)+1):'');var p=5+Math.floor(Math.random()*40);var c=[];for(var d=0;d<4;d++)c.push(String(Math.max(1,p+Math.floor(Math.random()*6-3))));rows.push({date:'2026-06-09',cells:[kw,c[0],c[1],c[2],c[3],'<span class=\"up\">\\u2191'+(1+Math.floor(Math.random()*8))+'</span>']});}HIST.keywords={title:'All tracked keywords',nodate:true,cols:[{t:'Keyword'},{t:'28 Apr',r:1},{t:'12 May',r:1},{t:'26 May',r:1},{t:'9 Jun',r:1},{t:'Change',r:1}],rows:rows};}\nif(!HIST.prompts){var MO=['','Jan','Feb','Mar','Apr','May','Jun'];var dts=['2026-06-09','2026-05-26','2026-05-12','2026-04-28'];var pr=(window.AI_PROMPTS&&AI_PROMPTS.length)?AI_PROMPTS:[{q:'best collagen supplement'},{q:'collagen for joints'},{q:'is marine collagen worth it'}];var dot=function(v){return v?'<span style=\"color:var(--accent)\">\\u25cf</span>':'<span style=\"color:rgba(21,20,21,0.2)\">\\u25cb</span>';};var rows2=[];dts.forEach(function(dt){pr.forEach(function(x){rows2.push({date:dt,cells:[parseInt(dt.slice(8),10)+' '+MO[parseInt(dt.slice(5,7),10)],'\\u201c'+x.q+'\\u201d',dot(Math.random()>0.5),dot(Math.random()>0.6),dot(Math.random()>0.7)]});});});HIST.prompts={title:'Prompt runs',nodate:false,cols:[{t:'Date'},{t:'Prompt'},{t:'ChatGPT',r:1},{t:'Perplexity',r:1},{t:'Google AI',r:1}],rows:rows2};}\n}\nif(document.readyState!=='loading')_mkHist();else document.addEventListener('DOMContentLoaded',_mkHist);\n})();\n</script><script>\n(function(){\nfunction _esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');}\nvar COPY='<svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"9\" width=\"11\" height=\"11\" rx=\"2\"></rect><path d=\"M5 15V5a2 2 0 0 1 2-2h10\"></path></svg>';\nvar CHECK='<svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg>';\nfunction _clip(s){return '<div class=\"iva-clip\"><span class=\"iva-cliptext\">'+_esc(s)+'</span><button class=\"iva-copy\" type=\"button\" data-full=\"'+_esc(s)+'\" onclick=\"ivaCopyCell(this,event)\" aria-label=\"Copy\">'+COPY+'</button></div>';}\nwindow.ivaCopyCell=function(btn,ev){if(ev){ev.stopPropagation();ev.preventDefault();}var t=btn.getAttribute('data-full')||'';function done(){btn.innerHTML=CHECK;btn.style.color='var(--accent)';btn.style.opacity='1';setTimeout(function(){btn.innerHTML=COPY;btn.style.color='';btn.style.opacity='';},1200);}\ntry{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,function(){_fb(t,done);});}else{_fb(t,done);}}catch(e){_fb(t,done);}};\nfunction _fb(t,cb){try{var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);cb();}catch(e){}}\nfunction ivaClipScan(){var ov=document.getElementById('ovHistory');if(!ov||!ov.classList.contains('open'))return;Array.prototype.forEach.call(document.querySelectorAll('#histTable .iva-clip'),function(w){var t=w.querySelector('.iva-cliptext');if(!t)return;if(t.scrollHeight-1>t.clientHeight||t.scrollWidth-1>t.clientWidth)w.classList.add('truncated');else w.classList.remove('truncated');});}\nwindow.ivaClipScan=ivaClipScan;\nvar MO=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];\nfunction dl(d){return parseInt(d.slice(8),10)+' '+MO[parseInt(d.slice(5,7),10)];}\nfunction dot(v){return v?'<span style=\"color:var(--accent)\">\\u25cf</span>':'<span style=\"color:rgba(21,20,21,0.2)\">\\u25cb</span>';}\nvar DTS=['2026-06-09','2026-05-26','2026-05-12','2026-04-28'];\nvar LONG='what is the best marine collagen supplement for joint health and glowing skin according to dermatologists in 2026';\nfunction ivaBuildHist(key){return; /* demo history disabled - real per-metric history is served via openReal, wired by fillKw/fillBl/fillAir */ if(!window.HIST)return;\n if(key==='keywords'){var base=['marine collagen','best collagen supplement','collagen for skin','collagen for joints','hydrolyzed collagen','collagen peptides','vegan collagen','collagen powder','liquid collagen','collagen for hair','collagen benefits','collagen vs whey','grass fed collagen','collagen for nails','bovine collagen','collagen coffee','collagen face cream','collagen drink','type 2 collagen','collagen gummies'];var kr=[];for(var i=0;i<42;i++){var kw=base[i%base.length]+(i>=base.length?' '+(Math.floor(i/base.length)+1):'');var p=5+Math.floor(Math.random()*40);var c=[];for(var d=0;d<4;d++)c.push(String(Math.max(1,p+Math.floor(Math.random()*6-3))));kr.push({date:'2026-06-09',cells:[_clip(kw),c[0],c[1],c[2],c[3],'<span class=\"up\">\\u2191'+(1+Math.floor(Math.random()*8))+'</span>']});}HIST.keywords={title:'All tracked keywords',nodate:true,cols:[{t:'Keyword'},{t:'28 Apr',r:1},{t:'12 May',r:1},{t:'26 May',r:1},{t:'9 Jun',r:1},{t:'Change',r:1}],rows:kr};}\n if(key==='prompts'||key==='mentions'||key==='cites'){var pr=(window.AI_PROMPTS&&AI_PROMPTS.length)?AI_PROMPTS.map(function(x){return x.q;}):['best collagen supplement','collagen for joints'];pr=pr.concat([LONG,'collagen']);\n  if(key==='prompts'||key==='mentions'){var rows=[];DTS.forEach(function(d){pr.forEach(function(q){rows.push({date:d,cells:[dl(d),_clip(q),dot(Math.random()>0.5),dot(Math.random()>0.6),dot(Math.random()>0.7)]});});});HIST[key]={title:key==='prompts'?'Prompt runs':'AI mention checks',nodate:false,cols:[{t:'Date'},{t:'Prompt'},{t:'ChatGPT',r:1},{t:'Perplexity',r:1},{t:'Google AI',r:1}],rows:rows};}\n  else{var cr=[];DTS.forEach(function(d){pr.forEach(function(q){cr.push({date:d,cells:[dl(d),_clip(q),dot(Math.random()>0.7),_clip('https://chatgpt.com/answer/'+Math.random().toString(36).slice(2,8)+'/marine-collagen-full-buyers-guide-and-comparison')]});});});HIST.cites={title:'AI citation checks',nodate:false,cols:[{t:'Date'},{t:'Prompt'},{t:'Linked',r:1},{t:'Where it linked'}],rows:cr};}}\n if(key==='backlinks'){var refs=[['https://www.healthline.com/nutrition/collagen-benefits','collagen benefits','dofollow'],['https://www.verywellhealth.com/a-very-long-article-slug-about-marine-collagen-supplements-joint-health-and-skin-2026-edition','marine collagen supplement for skin and joints','dofollow'],['https://blog.example.com/x','collagen','nofollow']];HIST.backlinks={title:'Backlinks to this page',nodate:true,cols:[{t:'Referring page'},{t:'Anchor'},{t:'Type',r:1}],rows:refs.map(function(r){return {date:'2026-06-06',cells:[_clip(r[0]),_clip(r[1]),r[2]]};})};}\n if(key==='runs'){var acts=[['2026-06-09','vitaboost.shop/collagen-powder-for-skin-and-joints','Core Audit','2'],['2026-06-09','vitaboost.shop/collagen-powder-for-skin-and-joints','AI Readiness','1'],['2026-06-08','vitaboost.shop/very/long/deep/path/to/a/page/that/overflows/the/cell','Content Builder','1'],['2026-06-06','glowserum.co','Core Audit','1']];HIST.runs={title:'Run history',nodate:false,cols:[{t:'Date'},{t:'Page'},{t:'Action'},{t:'Credits',r:1}],rows:acts.map(function(a){return {date:a[0],cells:[dl(a[0]),_clip(a[1]),a[2],a[3]]};})};}\n}\nwindow.ivaBuildHist=ivaBuildHist;\nfunction boot(){\n if(typeof renderHistory==='function'&&(!window.renderHistory||!window.renderHistory.__ivawrap)){var _rh=window.renderHistory;window.renderHistory=function(){_rh.apply(this,arguments);setTimeout(ivaClipScan,0);};window.renderHistory.__ivawrap=true;}\n if(typeof openHistory==='function'&&(!window.openHistory||!window.openHistory.__ivawrap)){var _oh=window.openHistory;window.openHistory=function(k){if(k!=='runs')return;_oh(k);requestAnimationFrame(function(){requestAnimationFrame(ivaClipScan);});setTimeout(ivaClipScan,80);};window.openHistory.__ivawrap=true;}\n}\nif(document.readyState!=='loading')boot();else document.addEventListener('DOMContentLoaded',boot);\n})();\n</script><script>(function(){function P(){try{return window.parent||window;}catch(e){return window;}}function U(){try{var p=P();return p.__userId||p.__memberId||null;}catch(e){return null;}}async function C(){try{var sb=P().__supabase;var u=U();if(!sb||!u){ if((C._t=(C._t||0)+1)<24)setTimeout(C,250); return; }var q=await sb.from('usage').select('credits_balance').eq('user_id',u).limit(1);if(q&&q.data&&q.data.length&&q.data[0].credits_balance!=null){var v=q.data[0].credits_balance;var els=document.querySelectorAll('#creditNum');for(var i=0;i<els.length;i++)els[i].textContent=v;console.log('[dash] credits',v);}}catch(e){console.log('[dash] credits err',e);}}  async function PR(){try{\n    var sb=P().__supabase; if(!sb){ if((PR._t=(PR._t||0)+1)<24)setTimeout(PR,250); return; }\n    var ures=await sb.auth.getUser(); var user=ures&&ures.data&&ures.data.user;\n    if(!user){ if((PR._t=(PR._t||0)+1)<24)setTimeout(PR,250); return; }\n    var email=user.email||''; var md=user.user_metadata||{};\n    var first=(md.first_name||md.given_name||'').trim();\n    var last=(md.last_name||md.family_name||'').trim();\n    var full=(md.full_name||md.name||((first+' '+last).trim())||'').trim();\n    if(!first&&full){ first=full.split(' ')[0]; last=full.split(' ').slice(1).join(' '); }\n    var disp=full||email.split('@')[0]||'';\n    var av=document.getElementById('acctAvatar'); if(av){ var ini=((first||disp||'?').charAt(0)+(last||'').charAt(0)).toUpperCase(); av.textContent=ini||'?'; }\n    var nm=document.getElementById('acctNameTxt'); if(nm)nm.textContent=disp||email;\n    var pf=document.getElementById('pfFirst'); if(pf)pf.value=first;\n    var pl=document.getElementById('pfLast'); if(pl)pl.value=last;\n    var pe=document.getElementById('pfEmail'); if(pe)pe.value=email;\n    console.log('[dash] profile',disp,email);\n  }catch(e){console.log('[dash] profile err',e);}}\n  window.saveName=async function(){try{var sb=P().__supabase;if(!sb)return;var f=((document.getElementById('pfFirst')||{}).value||'').trim();var l=((document.getElementById('pfLast')||{}).value||'').trim();var full=(f+' '+l).trim();var r=await sb.auth.updateUser({data:{full_name:full,name:full,first_name:f,last_name:l}});if(r&&r.error){toast('Could not save name');return;}var nm=document.getElementById('acctNameTxt');if(nm)nm.textContent=full;var av=document.getElementById('acctAvatar');if(av)av.textContent=(((f||'?').charAt(0))+((l||'').charAt(0))).toUpperCase()||'?';toast('Name saved');}catch(e){toast('Could not save name');}};\n  window.saveEmail=async function(){try{var sb=P().__supabase;if(!sb)return;var em=((document.getElementById('pfEmail')||{}).value||'').trim();if(!em){toast('Enter an email');return;}var r=await sb.auth.updateUser({email:em});if(r&&r.error){toast('Could not update email');return;}toast('Check your inbox to confirm the new email');}catch(e){toast('Could not update email');}};\n  window.savePassword=async function(){try{var sb=P().__supabase;if(!sb)return;var np=((document.getElementById('pfNewPw')||{}).value||'');var np2=((document.getElementById('pfNewPw2')||{}).value||'');if(np.length<8){toast('Password must be at least 8 characters');return;}if(np!==np2){toast('Passwords do not match');return;}var r=await sb.auth.updateUser({password:np});if(r&&r.error){toast('Could not update password');return;}var a=document.getElementById('pfNewPw');if(a)a.value='';var a2=document.getElementById('pfNewPw2');if(a2)a2.value='';toast('Password updated');}catch(e){toast('Could not update password');}};\n  window.sendReset=async function(){try{var sb=P().__supabase;if(!sb)return;var em=((document.getElementById('pfEmail')||{}).value||'').trim();if(!em){toast('Enter your email first');return;}await sb.auth.resetPasswordForEmail(em,{redirectTo:'https://ivabot.xyz/password-reset'});toast('Reset link sent to '+em);}catch(e){toast('Could not send reset link');}};\n  window.doLogout=async function(){try{var sb=P().__supabase;if(sb){await sb.auth.signOut();}}catch(e){}try{window.parent.location.href='https://ivabot.xyz/';}catch(e){try{window.location.href='https://ivabot.xyz/';}catch(_){}}};\n\n  function _openReset(){ try{ if(typeof openProfile==='function')openProfile(); var el=document.getElementById('pfNewPw'); if(el){ try{el.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} setTimeout(function(){try{el.focus();}catch(_){}},350); } if(typeof toast==='function')toast('Enter a new password below to finish resetting'); }catch(e){} }\n  function RC(){try{\n    var sb=P().__supabase; if(!sb){ if((RC._t=(RC._t||0)+1)<24)setTimeout(RC,250); return; }\n    var qs=''; try{ qs=window.parent.location.search||''; }catch(e){ try{qs=window.location.search||'';}catch(_){qs='';} }\n    var hs=''; try{ hs=window.parent.location.hash||''; }catch(e){ try{hs=window.location.hash||'';}catch(_){hs='';} }\n    if(qs.indexOf('reset=1')>=0 || hs.indexOf('type=recovery')>=0){ _openReset(); }\n    try{ sb.auth.onAuthStateChange(function(ev){ if(ev==='PASSWORD_RECOVERY')_openReset(); }); }catch(e){}\n  }catch(e){}}\n  function _esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;'); }\n  function _fmtRD(iso){ try{ return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }catch(e){ return String(iso||'').slice(0,10); } }\n  function _runAct(ft){ return ft==='core'?'Core Audit':(ft==='ai_readiness'?'AI Readiness':(ft==='builder'?'Content Builder':(ft||'Run'))); }\n  function _runFT(ft){ return ft==='core'?'audit':(ft==='ai_readiness'?'aireadiness':(ft==='builder'?'content':'other')); }\n  function _pgDisp(u){ try{ var x=new URL(/^https?:/.test(u)?u:'https://'+u); return (x.hostname.replace(/^www\\./,'')+x.pathname).replace(/\\/$/,'')||x.hostname.replace(/^www\\./,''); }catch(e){ return String(u||''); } }\n  \n  async function loadRuns(){ try{\n    var sb=P().__supabase; var u=U(); if(!sb||!u){ if((loadRuns._t=(loadRuns._t||0)+1)<24)setTimeout(loadRuns,250); return; }\n    var q=await sb.from('runs').select('created_at,flow_type,source_url,doc_url').eq('user_id',u).order('created_at',{ascending:false}).limit(300);\n    var rows=(q&&q.data)||[];\n    var tb=document.getElementById('runBody');\n    if(tb){\n      if(!rows.length){ tb.innerHTML='<tr><td colspan=\"4\" style=\"padding:22px 8px;text-align:center;color:var(--muted);font-size:13px\">No runs yet. Run a tool on a page and it shows up here.</td></tr>'; }\n      else{ window.__ivaRunsAll=rows; var _tblEl=(tb.closest?tb.closest('table'):null); if(_tblEl&&_tblEl.parentNode&&!document.getElementById('runsInlinePager')){ var _pel=document.createElement('div'); _pel.id='runsInlinePager'; _pel.style.marginTop='12px'; _tblEl.parentNode.appendChild(_pel); } PAGERS['runsInline']={page:1,per:10,render:function(){ var all=window.__ivaRunsAll||[]; var P=PAGERS['runsInline']; var pages=Math.max(1,Math.ceil(all.length/P.per)); if(P.page>pages)P.page=pages; var sl=all.slice((P.page-1)*P.per,(P.page-1)*P.per+P.per); tb.innerHTML=sl.map(function(r){ return '<tr data-t=\"'+_runFT(r.flow_type)+'\"><td>'+_esc(_fmtRD(r.created_at))+'</td><td>'+_esc(_pgDisp(r.source_url))+'</td><td>'+_esc(_runAct(r.flow_type))+'</td></tr>'; }).join(''); var pe=document.getElementById('runsInlinePager'); if(pe)pe.innerHTML=pagerHTML('runsInline',all.length); } }; PAGERS['runsInline'].render(); }\n    }\n    try{ if(typeof HIST!=='undefined'){ HIST['runs']={title:'All run history',cols:[{t:'Date'},{t:'Page'},{t:'Action'}],rows:rows.map(function(r){ return {date:String(r.created_at).slice(0,10),cells:[_fmtRD(r.created_at),_pgDisp(r.source_url),_runAct(r.flow_type)]}; })}; if(typeof _histKey!=='undefined'&&_histKey==='runs'&&typeof renderHistory==='function')renderHistory(); } }catch(e){}\n    console.log('[dash] runs',rows.length);\n  }catch(e){ console.log('[dash] runs err',e); } }\n  window.__cbArts=[];\n  window.cbOpen=function(i){ var r=(window.__cbArts||[])[i]; if(!r){toast('Article not found');return;} try{ var w=window.open('','_blank'); if(w){ w.document.open(); w.document.write('<!doctype html><meta charset=\"utf-8\"><title>'+String(r.title||'Article').replace(/</g,'&lt;')+'</title><style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.6;color:#151415}</style>'+(r.html||'<p>(empty)</p>')); w.document.close(); } else { toast('Allow pop-ups to open the article'); } }catch(e){ toast('Could not open the article'); } };\n  window.cbDl=function(i){ var r=(window.__cbArts||[])[i]; if(!r){toast('Article not found');return;} try{ var blob=new Blob([r.html||''],{type:'text/html'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(String(r.title||'article').replace(/[^a-z0-9]+/gi,'-').toLowerCase().replace(/^-|-$/g,'')||'article')+'.html'; document.body.appendChild(a); a.click(); setTimeout(function(){try{URL.revokeObjectURL(a.href);a.remove();}catch(_){}},1000); }catch(e){ toast('Could not download'); } };\n  async function loadBuilder(){ try{\n    var sb=P().__supabase; var u=U(); if(!sb||!u){ if((loadBuilder._t=(loadBuilder._t||0)+1)<24)setTimeout(loadBuilder,250); return; }\n    var box=document.getElementById('cbList'); if(!box)return;\n    var q=await sb.from('builder_articles').select('title,meta,created_at,html').eq('user_id',u).order('created_at',{ascending:false}).limit(60);\n    var rows=(q&&q.data)||[];\n    if(!rows.length){ box.innerHTML='<div style=\"padding:26px 14px;text-align:center;color:var(--muted);font-size:13px\">No content yet. Run Content Builder to create your first article.</div>'; return; }\n    window.__cbArts=rows; box.innerHTML=rows.map(function(r,idx){ var m=r.meta||{}; var dom=m.domain||m.site||m.url||''; var w=m.words||m.word_count||(r.html?String(r.html).replace(/<[^>]+>/g,' ').split(/\\s+/).filter(Boolean).length:0); var meta=[dom,_fmtRD(r.created_at),(w?w+' words':'')].filter(Boolean).join(' \\u00b7 '); return '<div style=\"display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--separator);flex-wrap:wrap;gap:8px\"><div><div style=\"font-weight:600;font-size:15px\">'+_esc(r.title||'Untitled')+'</div><div style=\"color:var(--muted);font-size:12px\">'+_esc(meta)+'</div></div><div style=\"display:flex;gap:16px\"><a class=\"link\" onclick=\"cbOpen('+idx+')\">Open article</a><a class=\"link\" onclick=\"cbDl('+idx+')\">Download</a></div></div>'; }).join('');\n    console.log('[dash] builder',rows.length);\n  }catch(e){ console.log('[dash] builder err',e); } }\n\n  if(document.readyState!=='loading'){C();PR();RC();loadRuns();loadBuilder();}else document.addEventListener('DOMContentLoaded',function(){C();PR();RC();loadRuns();loadBuilder();}); try{ function _ivaPaid(p){ var _b=document.getElementById('acctStatus'),_w=document.getElementById('acctStatusWrap'); if(_b&&_w){ _b.textContent=p?'Paid':'Free'; _w.style.display=''; } } window.addEventListener('message',function(ev){ try{ if(ev&&ev.data&&ev.data.type==='iva-paid')_ivaPaid(!!ev.data.paid); }catch(e){} }); if(typeof window.__isPaid!=='undefined'&&window.__isPaid!=null)_ivaPaid(!!window.__isPaid); }catch(e){} try{ window.addEventListener('focus',function(){ try{C._t=0;C();}catch(e){} }); document.addEventListener('visibilitychange',function(){ if(!document.hidden){ try{C._t=0;C();}catch(e){} } }); }catch(e){}})();</script><script>(function(){\n  var DASH='\\u2014';\n  var COPY_SVG='<svg viewBox=\"0 0 24 24\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg>';\n  function P(){try{return window.parent||window;}catch(e){return window;}}\n  function U(){try{var p=P();return p.__userId||p.__memberId||null;}catch(e){return null;}}\n  function esc(x){return String(x==null?'':x).replace(/[&<>\"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c];});}\n  function fmtDate(iso){try{var d=new Date(iso);var M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return d.getDate()+' '+M[d.getMonth()];}catch(e){return '';}}\n  function isHomeUrl(u){ try{ var p=new URL(String(u).indexOf('http')===0?u:'https://'+u).pathname.replace(/\\/$/,''); return p===''||p==='/'; }catch(e){ return false; } }\n  function pathOf(u){try{var x=new URL(String(u).indexOf('http')===0?u:'https://'+u);var p=x.pathname||'/';return p==='/'?'/ (home)':p;}catch(e){var s=String(u||'');var i=s.indexOf('/');return i>=0?(s.slice(i)||'/'):'/';}}\n  function byDay(arr){ var map={},order=[]; arr.forEach(function(p){ if(!(p.label in map))order.push(p.label); map[p.label]=p; }); return order.map(function(d){return map[d];}); }\n  function dlCsv(name,rows){ try{ var csv=rows.map(function(r){return r.map(function(c){return '\"'+String(c==null?'':c).replace(/\"/g,'\"\"')+'\"';}).join(',');}).join('\\n'); var b=new Blob([csv],{type:'text/csv'}); var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); a.remove(); }catch(e){} }\n  function addedKeyLS(u){ return 'iva_dash_added_'+u; }\n  function getAdded(u){ try{ return JSON.parse(localStorage.getItem(addedKeyLS(u))||'{}'); }catch(e){ return {}; } }\n  function saveAdded(u,obj){ try{ localStorage.setItem(addedKeyLS(u),JSON.stringify(obj)); }catch(e){} }\n  var _aiTab={};\n  function promptsKeyLS(u){ return 'iva_dash_prompts_'+u; }\n  function getPrompts(u){ try{ return JSON.parse(localStorage.getItem(promptsKeyLS(u))||'{}'); }catch(e){ return {}; } }\n  function savePrompts(u,o){ try{ localStorage.setItem(promptsKeyLS(u),JSON.stringify(o)); }catch(e){} }\n  function brandKeyLS(u){ return 'iva_dash_brand_'+u; }\n  function getBrandMap(u){ try{ return JSON.parse(localStorage.getItem(brandKeyLS(u))||'{}'); }catch(e){ return {}; } }\n  function saveBrandMap(u,o){ try{ localStorage.setItem(brandKeyLS(u),JSON.stringify(o)); }catch(e){} }\n  function brandFromDomain(dom){ var parts=String(dom||'').replace(/^www\\./,'').split('.').filter(Boolean); if(!parts.length)return dom; var wordTld={studio:1,design:1,agency:1,io:1,ai:1,app:1,dev:1,co:1,tech:1,media:1,digital:1,works:1,team:1,shop:1,store:1}; function tc(w){return w?w.charAt(0).toUpperCase()+w.slice(1):w;} var name=tc(parts[0]); if(parts.length>=2 && wordTld[parts[parts.length-1].toLowerCase()]) name+=' '+tc(parts[parts.length-1]); return name; }\n  function textOf(x){ var out=[]; var seen=0; (function walk(v){ if(v==null||seen>4000)return; if(typeof v==='string'){ out.push(v); seen+=v.length; return; } if(Array.isArray(v)){ for(var i=0;i<v.length;i++)walk(v[i]); return; } if(typeof v==='object'){ for(var k in v){ if(k==='url'||k==='links'||k==='reference')continue; walk(v[k]); } } })(x); return out.join(' '); }\n  function fillPromptsDomain(card,dom,titleMap,sb,userId){\n    var host=String(dom||'').replace(/^www\\./,'').toLowerCase();\n    var brand=(getBrandMap(userId)[dom])||brandFromDomain(dom);\n    var _MODELS={chat_gpt:'gpt-4o-mini',perplexity:'sonar',gemini:'gemini-1.5-flash'};\n    var tb=card.querySelector('.iva-prrows'); if(!tb)return;\n    var pagerEl=card.querySelector('.iva-prpager');\n    var ENG=[['chat_gpt','ChatGPT'],['perplexity','Perplexity'],['gemini','Google AI']];\n    var page=1; var PP=10;\n    var PGB='padding:3px 9px;border-radius:7px;border:1px solid var(--separator);background:#fff;color:var(--dark);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';\n    function load(){ return (getPrompts(userId)[dom])||{}; }\n    function order(pr){ return Object.keys(pr).sort(function(a,b){ var A=pr[a].addedAt||'',B=pr[b].addedAt||''; return B<A?-1:(B>A?1:0); }); }\n    function latestRun(rec){ var ds=Object.keys(rec.runs||{}).sort(); return ds.length?rec.runs[ds[ds.length-1]]:null; }\n    function dot(on){ return on?'<span style=\"color:#6E2BFF;font-size:13px\">\\u25cf</span>':'<span style=\"color:#d3c9f0;font-size:13px\">\\u25cb</span>'; }\n    function pageCell(rec){ if(!rec.page)return '<span style=\"color:var(--muted)\">\\u2014</span>'; var t=titleMap[rec.page]||''; var short=String(rec.page).replace(/^https?:\\/\\//,'').replace(/^www\\./,''); return '<div style=\"max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\" title=\"'+esc(rec.page)+'\">'+(t?('<div style=\"font-weight:600\">'+esc(t)+'</div>'):'')+'<div style=\"font-size:11px;color:var(--muted)\">'+esc(short)+'</div></div>'; }\n    function rowHtml(k,rec){ var isNew=!rec.checked; var lr=latestRun(rec)||{}; var badge=isNew?' <span class=\"chip\" style=\"background:rgba(110,43,255,0.10);color:var(--accent);font-size:10px\">new</span>':''; return '<tr><td style=\"padding:9px 6px;max-width:300px\"><div style=\"overflow:hidden;text-overflow:ellipsis;white-space:nowrap\" title=\"'+esc(rec.prompt)+'\">\\u201c'+esc(rec.prompt)+'\\u201d'+badge+'</div></td><td style=\"padding:9px 6px\">'+pageCell(rec)+'</td><td>'+dot(lr.chat_gpt)+'</td><td>'+dot(lr.perplexity)+'</td><td>'+dot(lr.gemini)+'</td><td style=\"width:34px\"><span class=\"iva-prdel\" data-k=\"'+esc(k)+'\" title=\"Remove prompt\" style=\"color:var(--muted);cursor:pointer;font-size:15px\">\\u00d7</span></td></tr>'; }\n    function pager(pages){ if(!pagerEl)return; if(pages<2){pagerEl.innerHTML='';return;} var win=2,lo=Math.max(1,page-win),hi=Math.min(pages,page+win); function bt(p,lab,on,dis){return '<button class=\"iva-prpg\" data-p=\"'+p+'\" style=\"'+PGB+(on?';background:#1a1a1a;color:#fff;border-color:#1a1a1a':'')+(dis?';opacity:.35;pointer-events:none':'')+'\">'+lab+'</button>';} var h='<div style=\"display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap\">'; h+=bt(Math.max(1,page-1),'\\u2039',false,page===1); if(lo>1){h+=bt(1,'1',false,false); if(lo>2)h+='<span style=\"color:var(--muted)\">\\u2026</span>';} for(var i=lo;i<=hi;i++)h+=bt(i,String(i),i===page,false); if(hi<pages){if(hi<pages-1)h+='<span style=\"color:var(--muted)\">\\u2026</span>'; h+=bt(pages,String(pages),false,false);} h+=bt(Math.min(pages,page+1),'\\u203a',false,page===pages); h+='</div>'; pagerEl.innerHTML=h; Array.prototype.forEach.call(pagerEl.querySelectorAll('.iva-prpg'),function(b){ b.onclick=function(){ page=+b.getAttribute('data-p'); render(); }; }); }\n    function render(){\n      var pr=load(); var ks=order(pr); var _cit=0,_app=0; var _ah=(window.__ivaAioHome&&window.__ivaAioHome[dom])||[]; var _autoRows=_ah.map(function(x){ return '<tr><td style=\"padding:9px 6px;max-width:300px\"><div style=\"overflow:hidden;text-overflow:ellipsis;white-space:nowrap\" title=\"'+esc(x.q||'')+'\">\\u201c'+esc(x.q||'')+'\\u201d <span style=\"font-size:10px;color:var(--muted)\">auto</span></div></td><td style=\"padding:9px 6px;color:var(--muted)\">\\u2014</td><td>'+dot(x.chat_gpt)+'</td><td>'+dot(x.perplexity)+'</td><td>'+dot(x.cited)+'</td><td style=\"width:34px\"></td></tr>'; }).join(''); ks.forEach(function(k){ var lr=latestRun(pr[k]); if(lr){ var _a=(lr.chat_gpt?1:0)+(lr.perplexity?1:0)+(lr.gemini?1:0); if(_a>0)_cit++; _app+=_a; } }); var _cc=card.querySelector('.iva-domcite'); if(_cc)_cc.textContent=_cit; var _vv=card.querySelector('.iva-domvis'); if(_vv)_vv.textContent=(ks.length?Math.round(_app/(ks.length*3)*100):0);\n      if(!ks.length){ tb.innerHTML=_autoRows+(_autoRows?'':'<tr><td colspan=\"6\" style=\"padding:14px 6px;color:var(--muted);font-size:12.5px\">No prompts yet. Add the prompts your users ask, then Refresh to see which page of your site gets cited.</td></tr>'); if(pagerEl)pagerEl.innerHTML=''; }\n      else { var pages=Math.max(1,Math.ceil(ks.length/PP)); if(page>pages)page=pages; var vis=ks.slice((page-1)*PP,(page-1)*PP+PP); tb.innerHTML=_autoRows+vis.map(function(k){return rowHtml(k,pr[k]);}).join(''); pager(pages); Array.prototype.forEach.call(tb.querySelectorAll('.iva-prdel'),function(x){ x.onclick=function(e){ e.stopPropagation(); var all=getPrompts(userId); if(all[dom]){ delete all[dom][x.getAttribute('data-k')]; savePrompts(userId,all); } render(); }; }); }\n      var rb=card.querySelector('.iva-airref'); if(rb){ var c=1+Math.ceil(Math.max(0,ks.length-5)/10); var hasNew=ks.some(function(k){return !pr[k].checked;}); rb.textContent='Refresh \\u00b7 '+c+(c===1?' credit':' credits'); rb.style.display=''; }\n    }\n    render();\n    // brand card\n    var bmap=getBrandMap(userId); var brand=bmap[dom]||(window.__ivaDetBrand&&window.__ivaDetBrand[dom])||host.split('.')[0];\n    var bn=card.querySelector('.iva-brandname'); if(bn)bn.textContent='brand: '+brand; var nm2i=card.querySelector('.iva-brandname2'); if(nm2i)nm2i.textContent=brand;\n    var bnum=card.querySelector('.iva-brandnum'); var bcache=bmap[dom+'__n']; if(bnum&&bcache!=null)bnum.textContent=bcache;\n    async function recomputeBrand(b){ if(bnum)bnum.innerHTML='<span class=\"iva-spin\"></span>'; try{ var res=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'llm_mentions',brand:b,platform:'google',location_code:2840,language_code:'en'}}); var mm=((res&&res.data)||{}).mentions; if(bnum)bnum.textContent=(mm!=null?mm:0); var _badv=card.querySelector('.iva-brandadv'); if(_badv)_badv.textContent=((mm==null||mm===0)?'No brand mentions yet \u2014 publish clear, quotable content and earn links so ChatGPT, Perplexity and Google AI start naming your brand.':'A month-by-month trend will appear here as data builds across refreshes.'); var m2=getBrandMap(userId); m2[dom+'__n']=(mm!=null?mm:''); saveBrandMap(userId,m2); }catch(e){ if(bnum)bnum.textContent=0; } }\n    var be=card.querySelector('.iva-brandchip'); if(be && !be._w){ be._w=1; be.style.cursor='pointer'; be.title='Edit brand'; be.onclick=function(){ var nv=prompt('Brand name to track in AI answers:', brand); if(nv==null)return; nv=nv.trim(); if(!nv)return; var m=getBrandMap(userId); m[dom]=nv; saveBrandMap(userId,m); brand=nv; var nm2=card.querySelector('.iva-brandname2'); if(nm2)nm2.textContent=nv; if(bn)bn.textContent='brand: '+nv; recomputeBrand(nv); }; }\n    // add prompt\n    var inp=card.querySelector('.iva-prinp');\n    if(inp && !inp._w){ inp._w=1; inp.onkeydown=function(e){ if(e.key!=='Enter'&&e.keyCode!==13)return; e.preventDefault(); var v=(inp.value||'').trim(); if(!v)return; inp.value=''; var all=getPrompts(userId); var pp=all[dom]||(all[dom]={}); var lk=v.toLowerCase(); if(!pp[lk])pp[lk]={prompt:v,addedAt:new Date().toISOString(),checked:'',page:'',runs:{}}; savePrompts(userId,all); page=1; render(); }; }\n    var al=card.querySelector('.iva-praddlink'); if(al && !al._w){ al._w=1; al.onclick=function(e){ e.preventDefault(); var box=card.querySelector('.iva-praddbox'); if(box)box.style.display='block'; if(inp)inp.focus(); }; }\n    // refresh (AI section) -> unified in-dashboard AI refresh (brand mentions + citations + overview + prompts, one charge, one snapshot)\n    var rb=card.querySelector('.iva-airref');\n    if(rb && !rb._w){ rb._w=1; rb.onclick=function(){ if(window.ivaRefresh) window.ivaRefresh('air','https://'+dom); }; }\n    // show all prompt runs\n    var psa=card.querySelector('.iva-prshowall'); if(psa && !psa._w){ psa._w=1; psa.onclick=function(ev){ ev.preventDefault(); var pr=load(); var ks=order(pr); var cols=[{t:'Date'},{t:'Prompt'},{t:'Page cited',c:1},{t:'ChatGPT',c:1},{t:'Perplexity',c:1},{t:'Google AI',c:1}]; var rows=[]; ks.forEach(function(k){ var rec=pr[k]; var ds=Object.keys(rec.runs||{}).sort(); if(!ds.length){ rows.push({cells:['\\u2014',rec.prompt,'\\u2014','<span style=\"color:#d3c9f0\">\\u25cb</span>','<span style=\"color:#d3c9f0\">\\u25cb</span>','<span style=\"color:#d3c9f0\">\\u25cb</span>']}); } ds.forEach(function(d){ var r=rec.runs[d]; rows.push({cells:[fmtDate(d+'T00:00:00'),rec.prompt,(rec.page?String(rec.page).replace(/^https?:\\/\\//,''):'\\u2014'),(r.chat_gpt?'<span style=\"color:#6E2BFF\">\\u25cf</span>':'<span style=\"color:#d3c9f0\">\\u25cb</span>'),(r.perplexity?'<span style=\"color:#6E2BFF\">\\u25cf</span>':'<span style=\"color:#d3c9f0\">\\u25cb</span>'),(r.gemini?'<span style=\"color:#6E2BFF\">\\u25cf</span>':'<span style=\"color:#d3c9f0\">\\u25cb</span>')]}); }); }); openReal({title:'All prompt runs \\u00b7 '+dom,cols:cols,rows:rows}); }; }\n    // csv\n    var pcsv=card.querySelector('.iva-prcsv'); if(pcsv && !pcsv._w){ pcsv._w=1; pcsv.onclick=function(ev){ ev.preventDefault(); var pr=load(); var ks=order(pr); var rr=[['Date','Prompt','Page cited','ChatGPT','Perplexity','Google AI']]; ks.forEach(function(k){ var rec=pr[k]; var ds=Object.keys(rec.runs||{}).sort(); if(!ds.length)rr.push(['',rec.prompt,(rec.page||''),'','','']); ds.forEach(function(d){ var r=rec.runs[d]; rr.push([fmtDate(d+'T00:00:00'),rec.prompt,(rec.page||''),(r.chat_gpt?'yes':'no'),(r.perplexity?'yes':'no'),(r.gemini?'yes':'no')]); }); }); dlCsv('prompts-'+dom+'.csv',rr); }; }\n  }\n  function normUrl(u){ u=String(u||'').trim(); return (!u||/^https?:\\/\\//i.test(u))?u:('https://'+u); }\n/* ==== IvaBot v71: in-dashboard Core refresh (no /app, one snapshot, one charge) ==== */\n  var __ivaRefRun=null;\n  window.ivaRefresh=async function(scope,pageUrl,costOverride){\n    try{\n    var sb=P().__supabase; if(!sb){alert('Not connected. Reload and try again.');return;} var userId=U(); if(!userId)return;\n    var rawUrl=String(pageUrl||'');\n    var fullUrl=(/^https?:\\/\\//i.test(rawUrl))?rawUrl:('https://'+rawUrl);\n    var host=''; try{ host=new URL(fullUrl).hostname.replace(/^www\\./,'').toLowerCase(); }catch(e){ host=rawUrl.split('/')[0].replace(/^www\\./,'').toLowerCase(); }\n    var dom=host;\n    var lsk='iva_dash_lastref_'+userId, refKey=scope+'|'+rawUrl;\n    try{ var lm=JSON.parse(localStorage.getItem(lsk)||'{}'); var last=lm[refKey]; if(last){ var days=(Date.now()-new Date(last).getTime())/86400000; if(days<3){ if(!confirm('You refreshed this '+(scope==='air'?'page\\u2019s AI data':'page')+' '+Math.max(1,Math.round(days))+' day(s) ago. Refresh again?')) return; } } }catch(e){}\n    var cost, items, doFn, action;\n    if(scope==='air'){\n      var prN=Object.keys(getPrompts(userId)[dom]||{}).length;\n      cost=(costOverride!=null?costOverride:1+Math.ceil(Math.max(0,prN-5)/10));\n      items=['brand mentions','citations','Google AI Overview'].concat(prN?[prN+' prompt'+(prN>1?'s':'')]:[]);\n      doFn=ivaDoAir; action='ai_refresh';\n    } else {\n      var addedN=Object.keys(getAdded(userId)[rawUrl]||{}).length;\n      cost=1+Math.ceil(addedN/50);\n      var kwN=null; try{ var _rws=document.querySelectorAll('.prow'); for(var _ii=0;_ii<_rws.length;_ii++){ if(_rws[_ii].getAttribute('data-pgurl')===rawUrl){ var _kel=_rws[_ii].querySelector('[data-w=\"kw\"]'); if(_kel){ var _kt=_kel.getAttribute('data-kwtotal'); if(_kt==null){ var _w=_kel.querySelector('.wn'); _kt=_w?_w.textContent:''; } var _kn=parseInt((''+_kt).replace(/[^0-9]/g,''),10); if(!isNaN(_kn))kwN=_kn; } break; } } }catch(e){}\n      items=[(kwN!=null?(kwN+' keyword positions'):'keyword positions'),'backlinks'];\n      doFn=ivaDoCore; action='core_refresh';\n    }\n    var m1=document.getElementById('updStep1'),m2=document.getElementById('updStep2'),m3=document.getElementById('updStep3');\n    var ut=document.getElementById('updText'),ui=document.getElementById('updItems'),cb=document.getElementById('updConfirm');\n    if(ut)ut.innerHTML='Refresh \\u00b7 <b>'+cost+' credit'+(cost===1?'':'s')+'</b>. This updates:';\n    if(ui)ui.innerHTML=items.map(function(t){return '<div class=\"upd-item\"><svg viewBox=\"0 0 24 24\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg>'+t+'</div>';}).join('');\n    if(cb)cb.textContent='Refresh';\n    if(m1)m1.style.display='block'; if(m2)m2.style.display='none'; if(m3)m3.style.display='none';\n    var ov=document.getElementById('ovUpdate'); if(ov)ov.classList.add('open');\n    __ivaRefRun=async function(){\n      if(m1)m1.style.display='none'; if(m2)m2.style.display='block';\n      var bal=null;\n      try{ var cr=await sb.rpc('charge_credit',{p_user_id:userId,p_member_id:null,p_action:action,p_cost:cost}); var crd=cr&&cr.data; if(crd&&crd.ok===false){ if(m2)m2.style.display='none'; if(m1)m1.style.display='block'; alert('Not enough credits. Buy more to refresh.'); return; } if(crd&&crd.balance!=null){ bal=crd.balance; var cel=document.getElementById('creditNum'); if(cel)cel.textContent=crd.balance; } }catch(e){ if(m2)m2.style.display='none'; if(m1)m1.style.display='block'; alert('Could not charge credits. Try again.'); return; }\n      var runId=null; try{ var rr=await sb.rpc('insert_core_run',{p_user_id:userId,p_source_url:fullUrl}); var rd=rr&&rr.data; runId=(rd&&(rd.run_id||rd.id))||null; }catch(e){}\n      var _aiTO=false; try{ await Promise.race([ doFn(sb,userId,rawUrl,fullUrl,dom,host,runId), new Promise(function(_x,_rej){ setTimeout(function(){ _aiTO=true; _rej(new Error('iva-timeout')); }, 120000); }) ]); }catch(e){ try{console.log('[dash] refresh err',e);}catch(_){} }\n      try{ var lm2=JSON.parse(localStorage.getItem(lsk)||'{}'); lm2[refKey]=new Date().toISOString(); localStorage.setItem(lsk,JSON.stringify(lm2)); }catch(e){}\n      if(m2)m2.style.display='none';\n      var dn=document.getElementById('updDone'); if(dn)dn.innerHTML=cost+' credit'+(cost===1?'':'s')+' used'+(bal!=null?(' \\u00b7 balance '+bal):'')+'. '+(_aiTO?'Some AI checks are still finishing \\u2014 refresh this page in a minute to see the latest.':'Latest data saved.');\n      if(m3)m3.style.display='block';\n    };\n    }catch(e){ try{console.log('[dash] ivaRefresh err',e);}catch(_){} }\n  };\n\n  async function ivaDoCore(sb,userId,rawUrl,fullUrl,dom,host,runId){\n    var ro; try{ ro=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'ranked_only',domain:dom,page_url:fullUrl,location_code:2840,language_code:'en'}}); }catch(e){}\n    var rod=(ro&&ro.data)||{}; var ranked=Array.isArray(rod.ranked_keywords)?rod.ranked_keywords:[]; var totalRanked=rod.total_ranked||ranked.length;\n    var bsd={}; try{ var bs=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'backlinks_summary',target:fullUrl}}); bsd=(bs&&bs.data)||{}; }catch(e){}\n    var blist=[]; try{ var bl=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'backlinks_list',target:fullUrl,limit:1000}}); blist=((bl&&bl.data)||{}).backlinks||[]; }catch(e){}\n    var added=getAdded(userId); var pg=added[rawUrl]||{}; var akws=Object.keys(pg).map(function(k){return pg[k].kw;}).filter(Boolean);\n    if(akws.length){ var today=new Date().toISOString().slice(0,10);\n      try{ var pr=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'keyword_positions',keywords:akws,page_url:fullUrl,location_code:2840,language_code:'en'}}); var positions=((pr&&pr.data)||{}).positions||{};\n           var _needV=akws.filter(function(kw){ var _r=pg[kw.toLowerCase()]; return _r && (_r.vol==null); }); var km=[]; if(_needV.length){ var vr=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'keyword_volume',keywords:_needV,location_code:2840,language_code:'en'}}); km=((vr&&vr.data)||{}).keyword_metrics||[]; }\n           akws.forEach(function(kw){ var lk=kw.toLowerCase(); var rec=pg[lk]; if(!rec)return; var pos=positions[lk]; if(pos!=null){rec.pos=rec.pos||{};rec.pos[today]=pos;} rec.checked=today; var m=km.filter(function(x){return (x.keyword||'').toLowerCase()===lk;})[0]; if(m){ if(m.volume!=null)rec.vol=m.volume; if(m.difficulty!=null)rec.diff=m.difficulty; } });\n           added[rawUrl]=pg; saveAdded(userId,added);\n      }catch(e){}\n    }\n    var parr=ranked.map(function(r){return r.position;}).filter(function(p){return typeof p==='number'&&p>0;});\n    var top3=parr.filter(function(p){return p<=3;}).length, top10=parr.filter(function(p){return p<=10;}).length;\n    var avg=parr.length?Math.round(parr.reduce(function(a,b){return a+b;},0)/parr.length*10)/10:null;\n    var etv=ranked.reduce(function(a,r){return a+(typeof r.etv==='number'?r.etv:0);},0);\n    var akChecked=akws.map(function(kw){ var rec=pg[kw.toLowerCase()]||{}; var ds=Object.keys(rec.pos||{}).sort(); return {keyword:kw,position:(ds.length?rec.pos[ds[ds.length-1]]:null),volume:rec.vol||null,difficulty:rec.diff||null}; });\n    var blCount=(bsd.backlinks_count!=null?bsd.backlinks_count:blist.length);\n    if((ranked.length===0)&&(bsd.backlinks_count==null)){ try{console.log('[dash] ivaDoCore: DFS returned no data (timeout?) - keeping previous snapshot, not overwriting');}catch(_){} return; }\n    try{ await sb.rpc('insert_snapshot',{p_domain:dom,p_user_id:userId,p_flow_type:'core',p_run_id:runId,p_ranked_keywords_count:totalRanked,p_top3_count:top3,p_top10_count:top10,p_avg_position:avg,p_est_organic_traffic:(etv>0?Math.round(etv):null),p_backlinks_count:blCount,p_referring_domains_count:(bsd.referring_domains_count!=null?bsd.referring_domains_count:null),p_domain_rank:(bsd.domain_rank!=null?bsd.domain_rank:null),p_ranked_keywords:ranked,p_backlinks:(blist.length?blist:null),p_keywords_checked:null,p_location_code:2840,p_language_code:'en'}); }catch(e){ try{console.log('[dash] insert_snapshot err',e);}catch(_){} }\n  }\n  async function ivaDoAir(sb,userId,rawUrl,fullUrl,dom,host,runId){\n    var brandMap=getBrandMap(userId); var brand=brandMap[dom]||brandFromDomain(dom);\n    var mentions=null,aisv=null;\n    try{ var res=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'llm_mentions',brand:brand,platform:'google',location_code:2840,language_code:'en'}}); var md=(res&&res.data)||{}; mentions=(md.mentions!=null?md.mentions:null); aisv=(md.ai_search_volume!=null?md.ai_search_volume:null); if(mentions!=null){ brandMap[dom+'__n']=mentions; saveBrandMap(userId,brandMap); } }catch(e){}\n    var allP=getPrompts(userId); var pp=allP[dom]||{}; var ks=Object.keys(pp);\n    var _MODELS={chat_gpt:'gpt-4o-mini',perplexity:'sonar',gemini:'gemini-1.5-flash'}; var ENG=['chat_gpt','perplexity','gemini'];\n    var today=new Date().toISOString().slice(0,10);\n    var reUrl=new RegExp('https?:\\\\/\\\\/[^\\\\s\"\\\\\\\\\\'<>)]*'+host.replace(/\\./g,'\\\\.')+'[^\\\\s\"\\\\\\\\\\'<>)]*','i');\n    var citeCount=0;\n    for(var i=0;i<ks.length;i++){ var lk=ks[i]; var rec=pp[lk]; var run={}; var citedUrl='';\n      for(var ei=0;ei<ENG.length;ei++){ var eng=ENG[ei];\n        try{ var r2=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'llm_responses',user_prompt:rec.prompt,engine:eng,model_name:_MODELS[eng],web_search:true}}); var its=((r2&&r2.data)||{}).items||[]; var txt=textOf(its); var lo=txt.toLowerCase(); var jb=JSON.stringify(its); var mm=jb.match(reUrl); if(mm&&!citedUrl)citedUrl=mm[0].replace(/[)\\].,\"']+$/,''); var hit=(lo.indexOf(host)>=0)||(lo.indexOf(String(brand).toLowerCase())>=0); run[eng]=hit; }catch(ex){ run[eng]=false; }\n      }\n      rec.runs=rec.runs||{}; rec.runs[today]=run; rec.checked=today; if(citedUrl)rec.page=citedUrl;\n      if(run.chat_gpt||run.perplexity||run.gemini)citeCount++;\n    }\n    allP[dom]=pp; savePrompts(userId,allP);\n    var aioCount=null, aioItems=null; try{ var _rk=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'ranked_only',domain:dom,page_url:fullUrl,location_code:2840,language_code:'en'}}); var _aiokws=((((_rk&&_rk.data)||{}).ranked_keywords||[]).map(function(k){return k&&k.keyword;}).filter(Boolean)).slice(0,3); if(_aiokws.length){ var ao=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'ai_overview',keywords:_aiokws,target:fullUrl,location_code:2840,language_code:'en'}}); var aod=((ao&&ao.data)||{}).ai_overview||[]; if(aod.length){ try{ var _t3=aod.slice(0,3),_jb=[]; _t3.forEach(function(row){ ['chat_gpt','sonar'].forEach(function(eng){ _jb.push(sb.functions.invoke('dataforseo-proxy',{body:{mode:'llm_responses',user_prompt:row.q,engine:eng}}).then(function(r){var c=false;try{var it=((r&&r.data)||{}).items;c=!!(it&&JSON.stringify(it).toLowerCase().indexOf(host)!==-1);}catch(e){}return{q:row.q,eng:eng,cited:c};}).catch(function(){return{q:row.q,eng:eng,cited:false};})); }); }); var _rr=await Promise.all(_jb); aod.forEach(function(row){ _rr.forEach(function(lr){ if(lr.q===row.q){ if(lr.eng==='chat_gpt')row.chat_gpt=lr.cited; if(lr.eng==='sonar')row.perplexity=lr.cited; } }); }); }catch(e){} aioItems=aod; aioCount=aod.reduce(function(n,x){return n+((x&&x.cited)?1:0)+((x&&x.chat_gpt)?1:0)+((x&&x.perplexity)?1:0);},0); } } }catch(e){}\n    if((mentions==null)&&(aioCount==null)&&(!citeCount)){ try{console.log('[dash] ivaDoAir: no AI data from DFS (timeout?) - keeping previous snapshot, not overwriting');}catch(_){} return; }\n    try{ await sb.rpc('insert_snapshot',{p_domain:dom,p_user_id:userId,p_flow_type:'ai_readiness',p_run_id:runId,p_ai_mentions_count:(mentions!=null?mentions:null),p_ai_citations_count:citeCount,p_ai_overview_count:(aioCount!=null?aioCount:null),p_ai_search_volume:(aisv!=null?aisv:null),p_prompts_checked:(ks.length?pp:null),p_coverage:(aioItems?{aio:aioItems}:null)}); }catch(e){ try{console.log('[dash] insert_snapshot air err',e);}catch(_){} }\n  }\n\n  var _ivaOrigConfirm=window.confirmUpdate;\n  window.confirmUpdate=function(){ if(__ivaRefRun){ var f=__ivaRefRun; __ivaRefRun=null; return f(); } if(_ivaOrigConfirm)return _ivaOrigConfirm.apply(this,arguments); };\n  window.finishUpdate=function(){ var ov=document.getElementById('ovUpdate'); if(ov)ov.classList.remove('open'); try{ _rendered=false; _rendering=false; if(typeof render==='function')render(); }catch(e){} };\n\n  function wireBtn(b,pageUrl){ if(!b||b.id==='kwNewRefresh'||b._runWired)return; var t=(b.textContent||'').toLowerCase(); if(t.indexOf('keyword')>=0)return; var block=(b.closest?b.closest('.mblock'):null); var bt=block?(block.textContent||'').toLowerCase():''; var tool=null; if(t.indexOf('content builder')>=0)tool='builder'; else if(t.indexOf('ai readiness')>=0||(bt.indexOf('ai readiness')>=0&&t.indexOf('refresh')>=0))tool='readiness'; else if(t.indexOf('core audit')>=0||(t.indexOf('refresh')>=0&&t.indexOf('credit')>=0))tool='core'; if(!tool)return; b._runWired=1; b.onclick=function(e){ e.preventDefault(); e.stopPropagation(); if(t.indexOf('refresh')>=0&&pageUrl&&tool==='core'&&window.ivaRefresh){ window.ivaRefresh('core',pageUrl); return; } var href='https://ivabot.xyz/app?tool='+tool+(pageUrl?('&url='+encodeURIComponent(normUrl(pageUrl))+'&autorun=1'):''); window.open(href,'_blank','noopener'); }; }\n  function wireRun(scope,pageUrl){ Array.prototype.forEach.call(scope.querySelectorAll('button'),function(b){ wireBtn(b,pageUrl); }); }\n  function wireGlobal(){ try{ var _logo=document.querySelector('.nav-logo'); if(_logo)_logo.onclick=function(e){ e.preventDefault(); window.top.location.href='https://ivabot.xyz'; }; }catch(e){} try{ Array.prototype.forEach.call(document.querySelectorAll('.nav-actions a, a'),function(a){ if((a.textContent||'').trim().toLowerCase()==='log out'){ a.onclick=function(e){ e.preventDefault(); try{ var C=window.parent.__supabase; if(C&&C.auth&&C.auth.signOut){ C.auth.signOut().then(function(){ window.top.location.href='https://ivabot.xyz'; }); return; } }catch(e){} window.top.location.href='https://ivabot.xyz'; }; } }); }catch(e){} try{ Array.prototype.forEach.call(document.querySelectorAll('.tool-run'),function(b){ if(!b._runWired && !(b.closest&&b.closest('.prow[data-pgi]')))wireBtn(b,''); }); }catch(e){} try{ window.runTrack=function(){ try{ var ov=document.getElementById('ovTrack'); var inp=ov?ov.querySelector('input.inp'):null; var url=inp?(inp.value||'').trim():''; var tt=window._trackTool||null; if(!url||!tt)return; var tool=(tt==='ai')?'readiness':(tt==='builder'?'builder':'core'); try{closeOv('ovTrack');}catch(e){} window.open('https://ivabot.xyz/app?tool='+tool+'&url='+encodeURIComponent(normUrl(url))+'&autorun=1','_blank','noopener'); }catch(e){} }; }catch(e){} }\n  function clipCell(u){ u=String(u||''); if(!u) return ''; return '<div class=\"iva-clip\"><a class=\"iva-cliptext\" href=\"'+esc(u)+'\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--dark);text-decoration:none\">'+esc(u)+'</a><button class=\"iva-copy\" type=\"button\" data-full=\"'+esc(u)+'\" onclick=\"if(window.ivaCopyCell)window.ivaCopyCell(this,event)\" aria-label=\"Copy\">'+COPY_SVG+'</button></div>'; }\n  function clipScan(root){ try{ Array.prototype.forEach.call((root||document).querySelectorAll('.iva-clip'),function(w){ var t=w.querySelector('.iva-cliptext'); if(!t)return; if(t.scrollHeight-1>t.clientHeight||t.scrollWidth-1>t.clientWidth)w.classList.add('truncated'); else w.classList.remove('truncated'); }); }catch(e){} }\n  var TPL_DATA = `<div class=\"panel\">\n          <div class=\"mblock\" data-chart=\"collagen\">\n          <div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px\"><div class=\"section-sub\" style=\"font-size:16px;margin:0;font-weight:600;color:var(--dark)\">Core <span style=\"font-weight:400;color:var(--muted)\">\u00b7 Google search</span></div><button class=\"upd-pill\" id=\"coreRefreshBtn\" data-credits=\"1\" onclick=\"openUpdate('this page',String(ivaKwCost()),'core')\">Refresh \u00b7 1 credit</button></div>\n          <div class=\"wgrid\">\n            <div class=\"wcard on\" data-w=\"kw\" onclick=\"pickM(this,'kw','kw')\"><div class=\"wt\">Keyword positions <span class=\"tip\" data-tip=\"Where your page ranks in Google for each keyword. Refreshed when you refresh Core.\">?</span></div><div class=\"wn\">42 <span class=\"arw up\">\u21915</span></div><div class=\"wd\">updated 9 Jun</div></div>\n            <div class=\"wcard\" data-w=\"bl\" onclick=\"pickM(this,'bl','bl')\"><div class=\"wt\">Backlinks <span class=\"tip\" data-tip=\"Other sites linking to this page. More quality links usually means better ranking.\">?</span></div><div class=\"wn\">10 <span class=\"arw up\">\u21912</span></div><div class=\"wd\">updated 9 Jun</div></div><div class=\"wcard\" data-w=\"score\" onclick=\"pickM(this,'score','score')\"><div class=\"wt\">SEO score <span class=\"tip\" data-tip=\"Overall on-page SEO health of this page, 0\u2013100. Updates when you refresh after making the fixes from your audit.\">?</span></div><div class=\"wn\">\u2014 <span class=\"arw\" style=\"color:var(--muted)\"></span></div><div class=\"wd\">updated \u2014</div></div>\n          </div>\n          <div class=\"pgchart\" style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-bottom:14px\">\n            <div style=\"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px\">\n              <div><div class=\"cc-label\">Trend</div><div class=\"gc-num\" id=\"pg_title_collagen\" style=\"font-size:17px\">Average Google position</div><div style=\"font-size:11px;color:var(--muted);margin-top:2px\" id=\"pg_hint_collagen\"></div></div>\n              <div style=\"position:relative\">\n                <button class=\"filter-btn\" id=\"pg_range_btn_collagen\" onclick=\"pgRangeToggle('collagen',event)\">Last 3 months \u25be</button>\n                <div id=\"pg_range_menu_collagen\" style=\"display:none;position:absolute;right:0;top:38px;z-index:30;background:#fff;border:1px solid var(--cardBorder);border-radius:10px;box-shadow:0 10px 30px rgba(21,20,21,0.12);padding:6px;min-width:190px\">\n                  <div class=\"pg-range-opt\" onclick=\"pgRangeSet('collagen',4,'Last 4 weeks')\">Last 4 weeks</div>\n                  <div class=\"pg-range-opt\" onclick=\"pgRangeSet('collagen',13,'Last 3 months')\">Last 3 months</div>\n                  <div class=\"pg-range-opt\" onclick=\"pgRangeSet('collagen',26,'Last 6 months')\">Last 6 months</div>\n                  <div class=\"pg-range-opt\" onclick=\"pgRangeSet('collagen',999,'All time')\">All time</div>\n                  <div style=\"border-top:1px solid var(--separator);margin:6px 0\"></div>\n                  <div class=\"pg-range-opt\" onclick=\"pgCalOpen('collagen')\">Custom range\u2026</div>\n                </div>\n              </div>\n            </div>\n            <div style=\"position:relative;height:220px;margin-top:14px\"><canvas id=\"pg_canvas_collagen\"></canvas></div>\n          </div>\n          <div class=\"detail\">\n            <div data-tc=\"kw\">\n              <div class=\"det-head\"><div class=\"det-title\">How your page ranks in Google <span class=\"tip\" data-tip=\"Real positions from the Google search index for this page.\">?</span></div><span class=\"rchip\" id=\"kwRealChip\">real data</span><button class=\"upd-pill\" id=\"kwNewRefresh\" style=\"display:none;margin-left:8px\" onclick=\"refreshNewKw()\"></button></div>\n              <div class=\"det-sub\">Each number is this page's position in Google on that date \u2014 1 means the top result, so lower is better.</div>\n              <div class=\"innerbox\"><table class=\"cmp\" id=\"kwTable\"><thead><tr><th onclick=\"ivaKwSort(0)\" style=\"cursor:pointer;user-select:none\">Keyword</th><th onclick=\"ivaKwSort(1)\" style=\"cursor:pointer;user-select:none\">28 Apr</th><th onclick=\"ivaKwSort(2)\" style=\"cursor:pointer;user-select:none\">12 May</th><th onclick=\"ivaKwSort(3)\" style=\"cursor:pointer;user-select:none\">26 May</th><th onclick=\"ivaKwSort(4)\" style=\"cursor:pointer;user-select:none\">9 Jun</th><th onclick=\"ivaKwSort(5)\" style=\"cursor:pointer;user-select:none\">Change</th><th style=\"width:34px\"></th></tr></thead><tbody>\n                <tr class=\"grp\" id=\"kwAddedGrp\"><td colspan=\"7\">Added by you</td></tr><tr class=\"kwrow\" data-k=\"marine collagen\"><td>marine collagen</td><td>11</td><td>9</td><td>7</td><td>6</td><td><span class=\"up\">\u21915</span></td></tr>\n                <tr class=\"kwrow\" data-k=\"best collagen supplement\"><td>best collagen supplement <span class=\"chip\">close to page 1</span></td><td>14</td><td>13</td><td>12</td><td>11</td><td><span class=\"up\">\u21913</span></td></tr>\n                <tr class=\"kwrow\" data-k=\"collagen for skin\"><td>collagen for skin <span class=\"chip\">close to page 1</span></td><td>15</td><td>16</td><td>16</td><td>17</td><td><span class=\"dn\">\u21932</span></td></tr>\n                <tr class=\"grp\"><td colspan=\"7\">All ranked keywords</td></tr>\n                <tr class=\"kwrow\" data-k=\"collagen for joints\"><td>collagen for joints <span class=\"chip\">close to page 1</span></td><td class=\"muted\">\u2014</td><td class=\"muted\">\u2014</td><td>22</td><td>19</td><td><span class=\"up\">new</span></td></tr>\n                <tr class=\"kwrow\" data-k=\"hydrolyzed collagen\"><td>hydrolyzed collagen</td><td>30</td><td>28</td><td>26</td><td>21</td><td><span class=\"up\">\u21919</span></td></tr>\n              </tbody></table></div>\n              <div id=\"kwPager\" style=\"margin-top:10px\"></div><div class=\"dlinks\"><a class=\"link\" onclick=\"document.getElementById('addKw').style.display='block';document.getElementById('addKwInp').focus()\">+ Add keywords</a><a class=\"link\" onclick=\"openHistory('keywords')\">Show all 42</a><a class=\"link\" onclick=\"toast('Downloading positions.csv')\">Download CSV</a></div>\n              <div id=\"addKw\" style=\"display:none;margin-top:10px\">\n                \n                <input class=\"inp\" id=\"addKwInp\" placeholder=\"Type a keyword and press Enter\" onkeydown=\"kwKey(event)\">\n                <div style=\"font-size:11.5px;color:var(--muted);margin-top:6px\">Add keywords to track. Press Enter after each one; it drops into the table below as new.</div>\n              </div>\n              \n            </div>\n            <div data-tc=\"bl\" style=\"display:none\"><div class=\"det-head\"><div class=\"det-title\">Backlinks to this page <span class=\"tip\" data-tip=\"Pages and domains that link to this page, with the anchor text they use and their domain rating.\">?</span></div><span class=\"rchip\">real data</span></div><div class=\"innerbox\" style=\"padding:6px 14px\"><table style=\"width:100%;border-collapse:collapse\"><thead><tr><th style=\"text-align:left;font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">Linking page</th><th style=\"text-align:left;font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">Anchor</th><th style=\"text-align:center;font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">DR</th><th style=\"text-align:center;font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">Type</th></tr></thead><tbody><tr><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">healthline-style-blog.com</td><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">\u201cbest collagen powder\u201d</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">71</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)color:var(--muted)\">dofollow</td></tr><tr><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">supplementreviews.io</td><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">\u201ccollagen review\u201d</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">52</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)color:var(--muted)\">dofollow</td></tr><tr><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">wellnessmag.co</td><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">\u201cmarine collagen\u201d</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">40</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)color:var(--muted)\">nofollow</td></tr><tr><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">nutritiondaily.net</td><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">\u201ccollagen supplement\u201d</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">38</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)color:var(--muted)\">dofollow</td></tr><tr><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">healthyhabits.blog</td><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">\u201cvitaboost collagen\u201d</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)\">33</td><td style=\"text-align:center;font-size:12.5px;color:var(--dark);padding:9px 6px;border-bottom:1px solid var(--separator)color:var(--muted)\">dofollow</td></tr></tbody></table></div><div class=\"dlinks\"><a class=\"link\" onclick=\"openHistory('backlinks')\">Show all 10</a><a class=\"link\" onclick=\"toast('Downloading backlinks.csv')\">Download CSV</a></div><div class=\"iva-bl-csvnote\" style=\"font-size:11.5px;color:var(--muted);margin-top:6px\">The download includes every linking page with its anchor text, dofollow or nofollow, and domain rating.</div></div><div data-tc=\"score\" style=\"display:none\"><div class=\"det-head\"><div class=\"det-title\">SEO score <span class=\"tip\" data-tip=\"Overall on-page SEO health of this page, 0\u2013100. Updates when you refresh after making the fixes from your audit.\">?</span></div><span class=\"rchip\">real data</span></div><div class=\"det-sub\">A single 0\u2013100 score for this page\u2019s on-page SEO health, from your last Core Audit. It weighs title, meta description, headings, content, speed, mobile, links, robots.txt and sitemap.</div><div class=\"innerbox\" style=\"padding:14px\"><div style=\"display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--dark)\"><span><b style=\"color:#6E2BFF\">Strong</b> \u00b7 80\u2013100</span><span><b style=\"color:#D4A0E8\">Moderate</b> \u00b7 50\u201379</span><span><b style=\"color:#928E95\">Weak</b> \u00b7 below 50</span></div><div class=\"det-sub\" style=\"margin:10px 0 0\">The number updates when you refresh Core after making the fixes from your audit.</div></div></div>\n            </div>\n          </div>\n          <div class=\"mblock\" data-chart=\"collagenai\">\n          <div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:18px 0 8px\"><div class=\"section-sub\" style=\"font-size:16px;margin:0;font-weight:600;color:var(--dark)\">AI Readiness <span style=\"font-weight:400;color:var(--muted)\">\u00b7 AI assistants</span></div><button class=\"upd-pill\" onclick=\"openUpdate('this page','1','air')\">Refresh \u00b7 1 credit</button></div>\n          <div class=\"wgrid\">\n            <div class=\"wcard on\" data-w=\"ai\" onclick=\"pickM(this,'ai','ai')\"><div class=\"wt\">AI mentions <span class=\"tip\" data-tip=\"How often ChatGPT, Perplexity and Google AI name your brand in their answers, without a link. Comes from your AI Readiness run.\">?</span></div><div class=\"wn\">3 <span class=\"arw up\">\u21911</span></div><div class=\"wd\">updated 9 Jun</div></div>\n            <div class=\"wcard\" data-w=\"cite\" onclick=\"pickM(this,'cite','cite')\"><div class=\"wt\">AI citations <span class=\"tip\" data-tip=\"How often an AI answer links directly to this page as a source. Rarer and more valuable than a mention. Comes from your AI Readiness run.\">?</span></div><div class=\"wn\">2 <span class=\"arw up\">\u21911</span></div><div class=\"wd\">updated 9 Jun</div></div>\n            <div class=\"wcard\" data-w=\"aio\" onclick=\"pickM(this,'aio','aio')\"><div class=\"wt\">Google AI Overview <span class=\"tip\" data-tip=\"Of the prompts you track, how many show a Google AI Overview that cites your page. Click to see which queries.\">?</span></div><div class=\"wn\">2 <span style=\"font-size:13px;color:var(--muted);font-weight:500\">of 5</span> <span class=\"arw up\">\u21911</span></div><div class=\"wd\">updated 9 Jun</div></div>\n          </div>\n          <div class=\"pgchart\" style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-bottom:14px\">\n            <div style=\"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px\">\n              <div><div class=\"cc-label\">Trend</div><div class=\"gc-num\" id=\"pg_title_collagenai\" style=\"font-size:17px\">AI mentions</div><div style=\"font-size:11px;color:var(--muted);margin-top:2px\" id=\"pg_hint_collagenai\"></div></div>\n              <div style=\"position:relative\">\n                <button class=\"filter-btn\" id=\"pg_range_btn_collagenai\" onclick=\"pgRangeToggle('collagenai',event)\">Last 3 months \u25be</button>\n                <div id=\"pg_range_menu_collagenai\" style=\"display:none;position:absolute;right:0;top:38px;z-index:30;background:#fff;border:1px solid var(--cardBorder);border-radius:10px;box-shadow:0 10px 30px rgba(21,20,21,0.12);padding:6px;min-width:190px\">\n                  <div class=\"pg-range-opt\" onclick=\"pgRangeSet('collagenai',4,'Last 4 weeks')\">Last 4 weeks</div>\n                  <div class=\"pg-range-opt\" onclick=\"pgRangeSet('collagenai',13,'Last 3 months')\">Last 3 months</div>\n                  <div class=\"pg-range-opt\" onclick=\"pgRangeSet('collagenai',26,'Last 6 months')\">Last 6 months</div>\n                  <div class=\"pg-range-opt\" onclick=\"pgRangeSet('collagenai',999,'All time')\">All time</div>\n                  <div style=\"border-top:1px solid var(--separator);margin:6px 0\"></div>\n                  <div class=\"pg-range-opt\" onclick=\"pgCalOpen('collagenai')\">Custom range\u2026</div>\n                </div>\n              </div>\n            </div>\n            <div style=\"position:relative;height:220px;margin-top:14px\"><canvas id=\"pg_canvas_collagenai\"></canvas></div>\n          </div>\n          <div class=\"detail\">\n            <div data-tc=\"ai\"><div class=\"det-sub\" style=\"margin:0\">How often ChatGPT, Perplexity and Google AI name your brand for the prompts you track. <a class=\"link\" onclick=\"openHistory('mentions')\">See all AI mention checks</a></div></div><div data-tc=\"cite\" style=\"display:none\"><div class=\"det-sub\" style=\"margin:0\">How often an AI answer links to this page as a source \u2014 rarer and stronger than a mention. <a class=\"link\" onclick=\"openHistory('cites')\">See all AI citation checks</a></div></div><div data-tc=\"aio\" style=\"display:none\"><div><div class=\"cc-label\">Latest check</div><div class=\"gc-num\" style=\"font-size:17px\">Google AI Overview <span class=\"tip\" data-tip=\"For your tracked prompts, whether Google shows an AI Overview and whether your page is cited inside it.\">?</span></div></div><div class=\"det-sub\">Of your tracked prompts, where Google shows an AI Overview and where you are cited inside it.</div><div style=\"display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px\"><span class=\"chip\">Cited in 2 of 5</span><span class=\"chip\" style=\"background:var(--card);color:var(--dark)\">3 of 5 trigger an overview</span></div><div class=\"innerbox\" style=\"padding:6px 14px\"><table style=\"width:100%;border-collapse:collapse\"><thead><tr><th style=\"text-align:left;font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">Prompt</th><th style=\"text-align:right;font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">Google AI Overview</th></tr></thead><tbody id=\"aioRows\"></tbody></table></div></div>\n          </div>\n          <div style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-top:14px\"><div style=\"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px\"><div><div class=\"det-title\" style=\"font-size:20px\">Track where you show up in AI <span class=\"tip\" data-tip=\"Prompts are the questions users ask AI. Write them the way you want ChatGPT, Perplexity or Google AI to mention or cite you, then check if you appear.\">?</span></div><div class=\"det-sub\" style=\"margin:2px 0 0\">Checked across ChatGPT, Perplexity and Google AI. Your first 5 prompts are included; every 10 more add 1 credit.</div></div><button class=\"upd-pill\" id=\"runChkBtn\" onclick=\"runPrompts()\">Refresh \u00b7 1 credit</button><button class=\"upd-pill\" id=\"prNewRefresh\" style=\"display:none;margin-left:8px\" onclick=\"refreshNewPrompts()\"></button></div><div class=\"innerbox\" style=\"padding:6px 14px\"><table style=\"width:100%;border-collapse:collapse\"><thead><tr><th style=\"text-align:left;font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">Prompt</th><th style=\"font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">ChatGPT</th><th style=\"font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">Perplexity</th><th style=\"font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)\">Google AI</th><th style=\"width:34px;border-bottom:1px solid var(--separator)\"></th></tr></thead><tbody id=\"promptRows\"></tbody></table></div><div id=\"promptPager\" style=\"margin-top:10px\"></div><div style=\"font-size:11.5px;color:var(--muted);margin-top:8px\">A check means you appeared in that AI\u2019s answer for this prompt, by mention or by link. Exact counts are on the cards above.</div><div class=\"dlinks\" style=\"margin-top:10px\"><a class=\"link\" onclick=\"showAddPrompt()\">+ Add prompt</a><a class=\"link\" onclick=\"openHistory('prompts')\">Show all prompt runs</a><a class=\"link\" onclick=\"toast('Downloading prompt-runs.csv')\">Download CSV</a></div><div id=\"addPrompt\" style=\"display:none;margin-top:8px\"><input class=\"inp\" id=\"addPromptInp\" placeholder=\"Type a prompt and press Enter\" onkeydown=\"promptKey(event)\"><div style=\"font-size:11.5px;color:var(--muted);margin-top:6px\">Add the prompts your users ask. Press Enter after each. Results appear after your next check.</div></div></div></div>\n          \n        </div>`;\n  var TPL_EMPTY = `<div class=\"mblock\"><div class=\"section-sub\" style=\"font-size:16px;margin:0 0 10px;font-weight:600;color:var(--dark)\">Core <span style=\"font-weight:400;color:var(--muted)\">\u00b7 Google search</span></div><div class=\"wgrid\"><div class=\"wcard\"><div class=\"wt\">Keyword positions <span class=\"tip\" data-tip=\"Where your page ranks in Google for each keyword. Refreshed when you refresh Core.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div><div class=\"wcard\"><div class=\"wt\">Backlinks <span class=\"tip\" data-tip=\"Other sites linking to this page. More quality links usually means better ranking.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div><div class=\"wcard\"><div class=\"wt\">SEO score <span class=\"tip\" data-tip=\"Overall on-page SEO health of this page, 0\u2013100. Updates when you refresh after making the fixes from your audit.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div></div><div class=\"pgchart\" style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-bottom:14px\"><div style=\"min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px\"><div style=\"font-size:14px;color:var(--muted);max-width:360px;line-height:1.5\">No data yet. Run Core Audit to pull Google positions and backlinks and start the trend.</div><button class=\"btn-dark\" onclick=\"openTrack('core')\">Run Core Audit \u00b7 1 credit</button></div></div><div style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px\"><div class=\"det-title\" style=\"font-size:20px\">Track your keyword positions</div><div class=\"det-sub\" style=\"margin:2px 0 12px\">Add the keywords you want to rank for. Each Core refresh checks your position in Google.</div><div class=\"innerbox\" style=\"padding:22px 14px;text-align:center\"><div style=\"font-size:13px;color:var(--muted)\">No keywords yet. Add a few, then run Core Audit to see your positions.</div></div></div></div><div class=\"mblock\"><div class=\"section-sub\" style=\"font-size:16px;margin:18px 0 10px;font-weight:600;color:var(--dark)\">AI Readiness <span style=\"font-weight:400;color:var(--muted)\">\u00b7 AI assistants</span></div><div class=\"wgrid\"><div class=\"wcard\"><div class=\"wt\">AI mentions <span class=\"tip\" data-tip=\"How often ChatGPT, Perplexity and Google AI name your brand in their answers, without a link. Comes from your AI Readiness run.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div><div class=\"wcard\"><div class=\"wt\">AI citations <span class=\"tip\" data-tip=\"How often an AI answer links directly to this page as a source. Rarer and more valuable than a mention. Comes from your AI Readiness run.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">\u2013</div><div class=\"wd\">not run yet</div></div></div><div class=\"pgchart\" style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-bottom:14px\"><div style=\"min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px\"><div style=\"font-size:14px;color:var(--muted);max-width:360px;line-height:1.5\">No data yet. Run AI Readiness to see where ChatGPT, Perplexity and Google AI mention and cite this page.</div><button class=\"btn-dark\" onclick=\"openTrack('ai')\">Run AI Readiness \u00b7 1 credit</button></div></div><div style=\"background:#fff;border:1px solid var(--cardBorder);border-radius:12px;padding:18px;margin-top:14px\"><div class=\"det-title\" style=\"font-size:20px\">Track where you show up in AI</div><div class=\"det-sub\" style=\"margin:2px 0 12px\">Add the prompts your users ask. One refresh checks them across ChatGPT, Perplexity and Google AI.</div><div class=\"innerbox\" style=\"padding:22px 14px;text-align:center\"><div style=\"font-size:13px;color:var(--muted)\">No prompts yet. Add a few, then run a check to see where you appear.</div></div></div></div>`;\n  function chg(f,l){ if(f==null||l==null||f===l) return '<span style=\"color:var(--muted)\">'+DASH+'</span>'; var d=f-l; return d>0?'<span class=\"up\">\\u2191'+d+'</span>':'<span class=\"down\">\\u2193'+(-d)+'</span>'; }\n  function chartLine(cv,labels,data,opt){\n    if(!cv||typeof Chart==='undefined') return; opt=opt||{};\n    try{ if(cv._ch)cv._ch.destroy(); }catch(e){}\n    var col=opt.color||'#6E2BFF';\n    try{ cv._ch=new Chart(cv,{ type:'line', data:{labels:labels,datasets:[{data:data,borderColor:col,backgroundColor:opt.fill||'rgba(110,43,255,0.10)',borderWidth:2.5,fill:'start',tension:0.3,pointBackgroundColor:col,pointRadius:4,spanGaps:false}]},\n      options:{animation:false,responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:true}},scales:{y:{reverse:!!opt.reverse,grace:'18%',grid:{color:'rgba(21,20,21,0.06)'},ticks:{color:'#928E95',font:{size:10},precision:0}},x:{grid:{display:false},ticks:{color:'#928E95',font:{size:10}}}}} }); }catch(e){}\n  }\n  function paintBox(box,labels,data,opt){ if(!box)return; opt=opt||{}; if(!data||data.length<2){ box.innerHTML='<div style=\"height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;padding:0 24px\">'+(opt.empty||'The trend appears once this page has a few checks over time.')+'</div>'; return; } box.innerHTML='<canvas></canvas>'; chartLine(box.querySelector('canvas'),labels,data,opt); }\n  function drawTrend(prow){ if(!prow||prow._charted)return; var c=prow._cd,b=prow._boxes; if(!c||!b)return; paintBox(b.core,c.core.labels,c.core.data,{reverse:true,empty:c.core.empty||'The position trend appears once this page has a few checks over time.'}); paintBox(b.ai,c.ai&&c.ai.labels,c.ai&&c.ai.data,{reverse:false,floorZero:true,empty:'The AI mentions trend appears once there are a few checks over time.'}); prow._charted=true; prow._coreMetric='position'; }\n  function drawCoreMetric(prow,metric){ var c=prow._cd,b=prow._boxes; if(!c||!b||!b.core)return; if(metric===prow._coreMetric)return; prow._coreMetric=metric; try{ var _tt=prow.querySelector('[id^=\"pg_title\"]')||prow.querySelector('.gc-num'); if(_tt)_tt.textContent=(metric==='backlinks'?'Backlinks over time':(metric==='score'?'SEO score over time':'Average Google position')); }catch(e){} if(metric==='backlinks'){ var _blD=(c.bl&&c.bl.data)||[]; var _blL=_blD.length?Number(_blD[_blD.length-1]):null; var _blMsg=(_blL===0||_blL==null)?'No backlinks to this page yet. Even 2-3 quality links from relevant sites make a real difference - that is your next win.':(Number(_blL).toLocaleString()+' backlink'+(_blL===1?'':'s')+' to this page. The trend line appears once this page has a few checks over time.'); paintBox(b.core,c.bl&&c.bl.labels,c.bl&&c.bl.data,{reverse:false,floorZero:true,empty:_blMsg}); } else if(metric==='score'){ paintBox(b.core,c.score&&c.score.labels,c.score&&c.score.data,{reverse:false,floorZero:true,empty:'The score trend appears once this page has a few checks over time.'}); } else { paintBox(b.core,c.core.labels,c.core.data,{reverse:true,empty:c.core.empty||'The position trend appears once this page has a few checks over time.'}); } }\n  function fillKw(panel,H,pgDate,pageUrl,sb,userId){\n    if(!H.length) return;\n    function isoDay(iso){ return String(iso||'').slice(0,10); }\n    function labelOf(isod){ return fmtDate(isod+'T00:00:00'); }\n    var tbl=panel.querySelector('[data-tc=\"kw\"] table'); if(!tbl) return;\n    var detKw=panel.querySelector('[data-tc=\"kw\"]');\n    var card=panel.querySelector('[data-w=\"kw\"] .wn');\n    var wd=panel.querySelector('[data-w=\"kw\"] .wd'); if(wd&&pgDate) wd.textContent='updated '+fmtDate(pgDate);\n    var period='30d';\n    var sortCol=null, sortDir=1;\n    var CEN='text-align:center'; var KWCELL='max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';\n    function fmtVol(v){ if(v==null)return DASH; v=+v; return v>=1000?((v/1000).toFixed(v>=10000?0:1)+'K'):String(v); }\n    var reg,order,addedKws,builtForKws,rankedKws,allDays;\n    function buildReg(){\n      reg={}; order=[]; addedKws=[]; builtForKws=[]; rankedKws=[]; var dset={};\n      function touch(k){ if(!reg[k]){reg[k]={pos:{},vol:null,diff:null,bf:false,rk:false,added:false}; order.push(k);} return reg[k]; }\n      var _maxD=''; H.forEach(function(h){ var _d=isoDay(h.date); if(_d>_maxD)_maxD=_d; });\n      var _maxBfD=''; H.forEach(function(h){ var _d=isoDay(h.date); if((h.bf||[]).length && _d>_maxBfD)_maxBfD=_d; });\n      H.forEach(function(h){ var dd=isoDay(h.date); dset[dd]=1;\n        (h.rk||[]).forEach(function(x){ if(!x||!x.keyword)return; var r=touch(x.keyword); r.rk=true; if(x.position!=null)r.pos[dd]=x.position; if(x.volume!=null)r.vol=x.volume; if(x.difficulty!=null)r.diff=x.difficulty; });\n        (h.bf||[]).forEach(function(x){ if(!x||!x.keyword)return; var r=touch(x.keyword); if(dd===_maxBfD)r.bf=true; if(x.position!=null)r.pos[dd]=x.position; if(x.volume!=null)r.vol=x.volume; if(x.difficulty!=null)r.diff=x.difficulty; });\n      });\n      var added=getAdded(userId)[pageUrl]||{};\n      Object.keys(added).forEach(function(lk){ var a=added[lk]; if(!a||!a.kw)return; var r=touch(a.kw); r.added=true; r.addedAt=a.addedAt||''; r.checked=a.checked||''; if(a.vol!=null)r.vol=a.vol; if(a.diff!=null)r.diff=a.diff; Object.keys(a.pos||{}).forEach(function(dd){ r.pos[dd]=a.pos[dd]; dset[dd]=1; }); });\n      allDays=Object.keys(dset).sort();\n      addedKws=order.filter(function(k){return reg[k].added;}).sort(function(a,b){return (reg[b].addedAt||'')<(reg[a].addedAt||'')?-1:((reg[b].addedAt||'')>(reg[a].addedAt||'')?1:0);});\n      builtForKws=order.filter(function(k){return reg[k].bf && !reg[k].added;});\n      rankedKws=order.filter(function(k){return reg[k].rk && !reg[k].added;});\n    }\n    function periodDays(){ var days={'7d':7,'30d':30,'3mo':90}[period]; var cut=(period==='All'||!days)?null:(new Date(Date.now()-days*86400000).toISOString().slice(0,10)); var ds=allDays.filter(function(d){return cut===null||d>=cut;}); if(!ds.length)ds=allDays.slice(-1); if(ds.length>6){ var out=[ds[0]],step=(ds.length-1)/5; for(var i=1;i<5;i++)out.push(ds[Math.round(i*step)]); out.push(ds[ds.length-1]); var seen={},uq=[]; out.forEach(function(d){if(!seen[d]){seen[d]=1;uq.push(d);}}); ds=uq; } return ds; }\n    function chgOf(r,ds){ var f=null,l=null; ds.forEach(function(d){var p=r.pos[d]; if(p!=null){if(f==null)f=p; l=p;}}); return chg(f,l); }\n    function rowHtml(k,ds){ var r=reg[k]; var isNew=(r.added && !r.checked); var badge=isNew?' <span class=\"chip\" style=\"background:rgba(110,43,255,0.10);color:var(--accent);font-size:10px\">new</span>':''; var cells=ds.map(function(d){var p=r.pos[d];return '<td style=\"'+CEN+'\">'+(p!=null?p:DASH)+'</td>';}).join(''); return '<tr class=\"kwrow\" data-k=\"'+esc(k)+'\"><td style=\"'+KWCELL+'\" title=\"'+esc(k)+'\">'+esc(k)+badge+'</td><td style=\"'+CEN+'\">'+fmtVol(r.vol)+'</td><td style=\"'+CEN+'\">'+(r.diff!=null?r.diff:DASH)+'</td>'+cells+'<td style=\"text-align:right;width:34px\"><span class=\"iva-kwdel\" data-k=\"'+esc(k)+'\" title=\"Remove keyword\" style=\"color:var(--muted);cursor:pointer;font-size:15px\">\\u00d7</span></td></tr>'; }\n    var grpPage={}; var PGBTN='padding:3px 9px;border-radius:7px;border:1px solid var(--separator);background:#fff;color:var(--dark);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';\n    function openAll(){ openReal({title:'All tracked keywords',cols:histCols,rows:histRowsOf()}); }\n    function renderTable(){\n      var ds=periodDays(); var cspan=ds.length+4;\n      function pagerRow(gkey,page,pages){ var win=2,lo=Math.max(1,page-win),hi=Math.min(pages,page+win); var b='<tr><td colspan=\"'+cspan+'\" style=\"padding:8px\"><div style=\"display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap\">'; function bt(p,lab,on,dis){ return '<button class=\"iva-gp\" data-g=\"'+gkey+'\" data-p=\"'+p+'\" style=\"'+PGBTN+(on?';background:#1a1a1a;color:#fff;border-color:#1a1a1a':'')+(dis?';opacity:.35;pointer-events:none':'')+'\">'+lab+'</button>'; } b+=bt(Math.max(1,page-1),'\\u2039',false,page===1); if(lo>1){ b+=bt(1,'1',false,false); if(lo>2)b+='<span style=\"color:var(--muted)\">\\u2026</span>'; } for(var i=lo;i<=hi;i++)b+=bt(i,String(i),i===page,false); if(hi<pages){ if(hi<pages-1)b+='<span style=\"color:var(--muted)\">\\u2026</span>'; b+=bt(pages,String(pages),false,false); } b+=bt(Math.min(pages,page+1),'\\u203a',false,page===pages); b+='</div></td></tr>'; return b; }\n      function grpRows(arr,gkey){ var a=sk(arr); var pages=Math.max(1,Math.ceil(a.length/10)); var pg=grpPage[gkey]||1; if(pg>pages)pg=pages; grpPage[gkey]=pg; var vis=a.slice((pg-1)*10,(pg-1)*10+10); var h=vis.map(function(k){return rowHtml(k,ds);}).join(''); if(pages>1)h+=pagerRow(gkey,pg,pages); return h; }\n      function cval(k,col){ var r=reg[k]; if(col==='kw')return k.toLowerCase(); if(col==='vol')return r.vol; if(col==='diff')return r.diff; if(col==='change'){ var f=null,l=null; ds.forEach(function(d){var p=r.pos[d]; if(p!=null){if(f==null)f=p;l=p;}}); return (f!=null&&l!=null)?(f-l):null; } if(col.indexOf('d:')===0)return r.pos[col.slice(2)]; return null; }\n      function sk(arr){ if(!sortCol)return arr; var a=arr.slice(); a.sort(function(x,y){ var vx=cval(x,sortCol),vy=cval(y,sortCol); if(vx==null&&vy==null)return 0; if(vx==null)return 1; if(vy==null)return -1; if(vx<vy)return -1*sortDir; if(vx>vy)return sortDir; return 0; }); return a; }\n      function arw(col){ return sortCol===col?(sortDir===1?' \\u2191':' \\u2193'):''; }\n      var thead='<thead><tr><th rowspan=\"2\" data-col=\"kw\" style=\"text-align:left;cursor:pointer;vertical-align:bottom\">Keyword'+arw('kw')+'</th><th rowspan=\"2\" data-col=\"vol\" style=\"'+CEN+';cursor:pointer;vertical-align:bottom\">Volume'+arw('vol')+'</th><th rowspan=\"2\" data-col=\"diff\" style=\"'+CEN+';cursor:pointer;vertical-align:bottom\">Difficulty'+arw('diff')+'</th>'+(ds.length?'<th colspan=\"'+ds.length+'\" style=\"'+CEN+';font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.04em;text-transform:uppercase\">Position in Google by date</th>':'')+'<th rowspan=\"2\"></th></tr><tr>'+ds.map(function(d){return '<th data-col=\"d:'+d+'\" style=\"'+CEN+';cursor:pointer;font-weight:600\">'+esc(labelOf(d))+arw('d:'+d)+'</th>';}).join('')+'</tr></thead>';\n      function grp(l){return '<tr class=\"grp\"><td colspan=\"'+cspan+'\">'+l+'</td></tr>';}\n      function note(t){return '<tr><td colspan=\"'+cspan+'\" style=\"padding:12px 8px;color:var(--muted);font-size:12.5px\">'+t+'</td></tr>';}\n      var body='';\n      if(addedKws.length){ body+=grp('ADDED BY YOU')+grpRows(addedKws,'added'); }\n      if(builtForKws.length){ body+=grp('PAGE IS BUILT FOR')+grpRows(builtForKws,'bf'); }\n      body+=grp('RANKED IN GOOGLE')+(rankedKws.length?grpRows(rankedKws,'ranked'):note('No ranking keywords found in your last audit. Add your own above to track specific ones.'));\n      tbl.innerHTML=thead+'<tbody>'+body+'</tbody>';\n      Array.prototype.forEach.call(tbl.querySelectorAll('thead th[data-col]'),function(th){ th.onclick=function(){ var c=th.getAttribute('data-col'); if(sortCol===c)sortDir=-sortDir; else {sortCol=c;sortDir=1;} renderTable(); }; });\n      Array.prototype.forEach.call(tbl.querySelectorAll('.iva-gp'),function(b){ b.onclick=function(){ grpPage[b.getAttribute('data-g')]=+b.getAttribute('data-p'); renderTable(); }; });\n      Array.prototype.forEach.call(tbl.querySelectorAll('.iva-kwdel'),function(x){ x.onclick=function(e){ e.stopPropagation(); var k=x.getAttribute('data-k'); var added=getAdded(userId); if(added[pageUrl]&&added[pageUrl][String(k).toLowerCase()]){ delete added[pageUrl][String(k).toLowerCase()]; saveAdded(userId,added); build(); return; } var tr=x.parentNode&&x.parentNode.parentNode; if(tr)tr.parentNode.removeChild(tr); }; });\n    }\n    function updateCount(){ var n=0; order.forEach(function(k){ if(Object.keys(reg[k].pos).length)n++; }); if(card)card.textContent=(addedKws.length+builtForKws.length+rankedKws.length); try{ var _kww=panel.querySelector('[data-w=\"kw\"]'); if(_kww)_kww.setAttribute('data-kwtotal',String(order.length)); }catch(e){} }\n    function build(){ buildReg(); renderTable(); updateCount(); var _rb=panel.querySelector('#kwNewRefresh'); if(_rb){ var an=Object.keys(getAdded(userId)[pageUrl]||{}).length; var c=(1+Math.ceil(an/50)); var _hasNew=false; addedKws.forEach(function(k){ if(!reg[k].checked)_hasNew=true; }); _rb.textContent=(_hasNew?'Refresh new keywords':'Refresh all keywords')+' \\u00b7 '+c+(c===1?' credit':' credits'); _rb.style.display='none'; } var _crb=panel.querySelector('#coreRefreshBtn'); if(_crb){ var _an2=Object.keys(getAdded(userId)[pageUrl]||{}).length; var _cc=(1+Math.ceil(_an2/50)); _crb.textContent='Refresh \\u00b7 '+_cc+(_cc===1?' credit':' credits'); } }\n    build();\n    // period switcher\n    if(detKw && !detKw.querySelector('.iva-period')){\n      var sw=document.createElement('div'); sw.className='iva-period'; sw.style.cssText='display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap';\n      [['7d','7 days'],['30d','30 days'],['3mo','3 months'],['All','All']].forEach(function(p){ var b=document.createElement('button'); b.textContent=p[1]; b.setAttribute('data-p',p[0]); function pnt(){var on=p[0]===period; b.style.cssText='padding:5px 12px;border-radius:8px;border:1px solid var(--separator);background:'+(on?'var(--accent)':'var(--card)')+';color:'+(on?'#fff':'var(--dark)')+';font-size:12px;font-weight:600;cursor:pointer;font-family:inherit';} pnt(); b.onclick=function(){ period=p[0]; Array.prototype.forEach.call(sw.querySelectorAll('button'),function(x){var on=x.getAttribute('data-p')===period; x.style.background=on?'var(--accent)':'var(--card)'; x.style.color=on?'#fff':'var(--dark)';}); renderTable(); }; sw.appendChild(b); });\n      var ib=detKw.querySelector('.innerbox'); if(ib&&ib.parentNode)ib.parentNode.insertBefore(sw,ib); else if(tbl.parentNode)tbl.parentNode.insertBefore(sw,tbl);\n    }\n    var addLink=panel.querySelector('a[onclick*=\"addKwInp\"]'); if(addLink && !addLink._ivaWired){ addLink._ivaWired=1; addLink.onclick=function(e){ e.preventDefault(); var box=panel.querySelector('#addKw'); if(box)box.style.display='block'; var ip=panel.querySelector('#addKwInp'); if(ip)ip.focus(); }; }\n    // input: add keyword\n    var inp=panel.querySelector('#addKwInp');\n    if(inp && !inp._ivaWired){ inp._ivaWired=1; inp.onkeydown=function(e){ if(e.key!=='Enter' && e.keyCode!==13) return; e.preventDefault(); var v=(inp.value||'').trim(); if(!v)return; inp.value=''; var added=getAdded(userId); var pg=added[pageUrl]||(added[pageUrl]={}); var lk=v.toLowerCase(); if(!pg[lk])pg[lk]={kw:v,vol:null,diff:null,pos:{},addedAt:new Date().toISOString()}; saveAdded(userId,added); build(); }; }\n    // refresh button: real positions via content_builder + charge 1 credit\n    var rbtn=panel.querySelector('#kwNewRefresh');\n    if(rbtn && !rbtn._ivaWired){ rbtn._ivaWired=1; rbtn.onclick=async function(){\n      var added=getAdded(userId); var pg=added[pageUrl]||{}; var kws=Object.keys(pg).map(function(k){return pg[k].kw;}).filter(Boolean);\n      if(!kws.length){ return; }\n      try{ var _hasNewKw=false; Object.keys(pg).forEach(function(k){ if(!pg[k].checked)_hasNewKw=true; }); if(!_hasNewKw){ var _rk='iva_dash_kwref_'+userId; var _rm=JSON.parse(localStorage.getItem(_rk)||'{}'); var _last=_rm[pageUrl]; if(_last){ var _days=(Date.now()-new Date(_last).getTime())/86400000; if(_days<5){ if(!confirm('You refreshed these keywords '+Math.max(1,Math.round(_days))+' day(s) ago. Run again?'))return; } } } }catch(e){}\n      var cost=(1+Math.ceil(kws.length/50));\n      var orig=rbtn.textContent;\n      try{ var cr=await sb.rpc('charge_credit',{p_user_id:userId,p_member_id:null,p_action:'keyword_check',p_cost:cost}); var crd=cr&&cr.data; if(crd&&crd.ok===false){ alert('Not enough credits to refresh keywords.'); return; } var cel=document.getElementById('creditNum'); if(cel&&crd&&crd.balance!=null)cel.textContent=crd.balance; }catch(e){ alert('Could not charge credits. Try again.'); return; }\n      rbtn.textContent='Checking\\u2026'; rbtn.style.pointerEvents='none';\n      var today=new Date().toISOString().slice(0,10);\n      try{\n        var pr=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'keyword_positions',keywords:kws,page_url:pageUrl,location_code:2840,language_code:'en'}});\n        var positions=((pr&&pr.data)||{}).positions||{};\n        var vr=await sb.functions.invoke('dataforseo-proxy',{body:{mode:'keyword_volume',keywords:kws,location_code:2840,language_code:'en'}});\n        var km=((vr&&vr.data)||{}).keyword_metrics||[];\n        kws.forEach(function(kw){ var lk=kw.toLowerCase(); var rec=pg[lk]; if(!rec)return; var pos=positions[lk]; if(pos!=null)rec.pos[today]=pos; rec.checked=today; var m=km.filter(function(x){return (x.keyword||'').toLowerCase()===lk;})[0]; if(m){ if(m.volume!=null)rec.vol=m.volume; if(m.difficulty!=null)rec.diff=m.difficulty; } });\n      }catch(e){}\n      added[pageUrl]=pg; saveAdded(userId,added);\n      try{ var _rk2='iva_dash_kwref_'+userId; var _rm2=JSON.parse(localStorage.getItem(_rk2)||'{}'); _rm2[pageUrl]=new Date().toISOString(); localStorage.setItem(_rk2,JSON.stringify(_rm2)); }catch(e){}\n      rbtn.textContent=orig; rbtn.style.pointerEvents=''; build();\n    }; }\n    // Show all data (all keywords, all dates) + CSV all\n    var histCols=[{t:'Keyword'},{t:'Volume',r:1},{t:'Difficulty',r:1}].concat(allDays.map(function(d){return {t:labelOf(d),r:1};}));\n    function histRowsOf(){ var ordered=addedKws.concat(builtForKws).concat(rankedKws); return ordered.map(function(k){ var r=reg[k]; var f=null,l=null; allDays.forEach(function(d){var p=r.pos[d]; if(p!=null){if(f==null)f=p;l=p;}}); var cells=[esc(k),fmtVol(r.vol),(r.diff!=null?String(r.diff):DASH)].concat(allDays.map(function(d){return r.pos[d]!=null?String(r.pos[d]):DASH;})); return {cells:cells}; }); }\n    var sa=panel.querySelector('a[onclick*=\"openHistory(\\'keywords\\')\"]'); if(sa){ sa.textContent='Show all data'; sa.onclick=function(e){ e.preventDefault(); openReal({title:'All tracked keywords',cols:histCols,rows:histRowsOf()}); }; }\n    var dl=panel.querySelector('a[onclick*=\"positions.csv\"]'); if(dl){ dl.onclick=function(e){ e.preventDefault(); var head=['Keyword','Volume','Difficulty'].concat(allDays.map(function(d){return labelOf(d);})); var rr=[head]; addedKws.concat(builtForKws).concat(rankedKws).forEach(function(k){ var r=reg[k]; var f=null,l=null; allDays.forEach(function(d){var p=r.pos[d]; if(p!=null){if(f==null)f=p;l=p;}}); var row=[k,(r.vol!=null?r.vol:''),(r.diff!=null?r.diff:'')]; allDays.forEach(function(d){row.push(r.pos[d]!=null?r.pos[d]:'');}); rr.push(row); }); dlCsv('keywords.csv',rr); }; }\n  }\n  function ivaAirSkeleton(panel,pgUrl){ try{ var mb=panel.querySelector('[data-chart=\"collagenai\"]'); if(!mb)return;mb.innerHTML='<div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:18px 0 10px\"><div style=\"font-size:16px;font-weight:600;color:var(--dark)\">AI Readiness <span style=\"font-weight:400;color:var(--muted)\">\\u00b7 AI assistants</span></div></div>'+'<div class=\"wgrid\">'+((typeof isHomeUrl==='function'&&isHomeUrl(pgUrl))?'<div class=\"wcard\"><div class=\"wt\">Brand mentions <span class=\"tip\" data-tip=\"How often ChatGPT, Perplexity and Google AI name your brand.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">'+DASH+'</div><div class=\"wd\">not run yet</div></div>':'')+'<div class=\"wcard\"><div class=\"wt\">Cited by AI <span class=\"tip\" data-tip=\"How many tracked prompts return an answer that cites this site.\">?</span></div><div class=\"wn\" style=\"color:var(--muted)\">'+DASH+'</div><div class=\"wd\">not run yet</div></div></div>'+'<div style=\"background:#fff;border:1px solid var(--separator);border-radius:12px;padding:22px;margin-top:4px\"><div style=\"min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px\"><div style=\"font-size:14px;color:var(--muted);max-width:370px;line-height:1.5\">No AI Readiness data yet. Run it to see where you show up across ChatGPT, Perplexity and Google AI.</div><button class=\"btn-dark iva-runair\">Run AI Readiness</button></div></div>';var b=mb.querySelector('.iva-runair'); if(b)b.onclick=function(){ try{window.open('https://ivabot.xyz/app?tool=readiness&url='+encodeURIComponent(normUrl(pgUrl))+'&autorun=1','_blank','noopener');}catch(e){} };}catch(e){} }\n  function ivaCoreSkeleton(panel,pgUrl){ try{var kn=panel.querySelector('[data-w=\"kw\"] .wn'); if(kn){kn.textContent=DASH;kn.style.color='var(--muted)';}var kd=panel.querySelector('[data-w=\"kw\"] .wd'); if(kd)kd.textContent='not run yet';var bn=panel.querySelector('[data-w=\"bl\"] .wn'); if(bn){bn.textContent=DASH;bn.style.color='var(--muted)';}var bd=panel.querySelector('[data-w=\"bl\"] .wd'); if(bd)bd.textContent='not run yet';var rb=panel.querySelector('#coreRefreshBtn'); if(rb)rb.style.display='none';var sn=panel.querySelector('[data-w=\"score\"] .wn'); if(sn){sn.textContent=DASH;sn.style.color='var(--muted)';}var sd=panel.querySelector('[data-w=\"score\"] .wd'); if(sd)sd.textContent='not run yet';var _kp=panel.querySelector('#kwPager'); if(_kp && _kp.nextElementSibling && (''+(_kp.nextElementSibling.className||'')).indexOf('dlinks')>=0) _kp.nextElementSibling.style.display='none';var tb=panel.querySelector('#kwTable tbody'); if(tb)tb.innerHTML='<tr><td colspan=\"7\" style=\"padding:20px 8px;text-align:center;color:var(--muted);font-size:13px\">No Core data yet. Run Core Audit to pull Google positions and backlinks.<br><br><button class=\"btn-dark iva-runcore\" style=\"margin-top:4px\">Run Core Audit</button></td></tr>';var rbn=panel.querySelector('.iva-runcore'); if(rbn)rbn.onclick=function(){ try{window.open('https://ivabot.xyz/app?tool=core&url='+encodeURIComponent(normUrl(pgUrl))+'&autorun=1','_blank','noopener');}catch(e){} };}catch(e){} }\n  function ivaFillScore(panel,score,pgDate){ try{ var card=panel.querySelector('[data-w=\"score\"]'); if(!card)return; var wn=card.querySelector('.wn'); var wd=card.querySelector('.wd'); if(score==null){ if(wn){wn.innerHTML=DASH;wn.style.color='var(--muted)';} if(wd)wd.textContent='not scored yet'; return; } var sv=Math.round(Number(score)); var lab,col; if(sv>=80){lab='Strong';col='#6E2BFF';} else if(sv>=50){lab='Moderate';col='#D4A0E8';} else {lab='Weak';col='#928E95';} if(wn){ wn.style.color=''; wn.innerHTML=esc(String(sv))+' <span class=\"arw\" style=\"color:'+col+';font-weight:700\">'+lab+'</span>'; } if(wd&&pgDate)wd.textContent='updated '+fmtDate(pgDate); }catch(e){} }\n  function fillBl(panel,bl,count,pgDate,refDom,prev){\n    var _prevSet={}; (prev||[]).forEach(function(b){ if(b&&b.url)_prevSet[b.url]=1; });\n    var card=panel.querySelector('[data-w=\"bl\"] .wn'); if(card) card.textContent=Number((count!=null?count:((bl&&bl.length)||0))).toLocaleString();\n    var wdb=panel.querySelector('[data-w=\"bl\"] .wd'); if(wdb&&pgDate)wdb.textContent='updated '+fmtDate(pgDate);\n    var list=(bl||[]).slice().sort(function(a,b){return String(a.domain||a.url||'').localeCompare(String(b.domain||b.url||''));}); var _isDom=!!(list.length&&list[0]&&(list[0].kind==='domain'||(list[0].url==null&&list[0].domain)));\n    var blP=panel.querySelector('[data-tc=\"bl\"]'); if(blP){ var head=blP.querySelector('.det-head'); if(head && !blP.querySelector('.iva-bl-sum')){ var sum=document.createElement('div'); sum.className='iva-bl-sum det-sub'; sum.style.cssText='margin:0 0 6px'; sum.innerHTML=(function(){ if(_isDom){ return 'Showing '+Number(list.length).toLocaleString()+' of '+Number(refDom!=null?refDom:list.length).toLocaleString()+' referring domains \\u00b7 itemized backlinks not available for this page'; } var _t=(count!=null?count:list.length), _sh=list.length, _rd=(refDom!=null?(' \\u00b7 '+Number(refDom).toLocaleString()+' referring domain'+(refDom===1?'':'s')):''); if(_sh===0&&_t>0){ return Number(_t).toLocaleString()+' backlink'+(_t===1?'':'s')+_rd+' found \\u00b7 detailed list not available for this page'; } if(_sh<_t){ return 'Showing '+Number(_sh).toLocaleString()+' of '+Number(_t).toLocaleString()+' backlinks'+_rd; } return Number(_t).toLocaleString()+' backlink'+(_t===1?'':'s')+_rd+' to this page'; })(); head.parentNode.insertBefore(sum,head.nextSibling); } }\n    var S='font-size:12.5px;color:var(--dark);padding:9px 8px;border-bottom:1px solid var(--separator);vertical-align:top';\n    var SC='text-align:center;font-size:12.5px;color:var(--dark);padding:9px 8px;border-bottom:1px solid var(--separator);white-space:nowrap';\n    var Sa='font-size:12.5px;color:var(--dark);padding:9px 8px;border-bottom:1px solid var(--separator);vertical-align:top;max-width:150px';\n    function anchorCell(a){ a=String(a||''); var disp=a.length>34?(esc(a.slice(0,32))+'\\u2026'):esc(a); return '<span title=\"'+esc(a)+'\">'+disp+'</span>'; }\n    function blRowHtml(b){ if(b&&b.kind==='domain'){ var _dm=b.domain||''; var _bn=(b.refBacklinks!=null?Number(b.refBacklinks).toLocaleString()+' link'+(b.refBacklinks===1?'':'s'):''); var _dr=(b.rank!=null?b.rank:''); return '<tr><td style=\"'+S+'\">'+clipCell(_dm)+'</td><td style=\"'+Sa+'\">'+esc(_bn)+'</td><td style=\"'+SC+';width:46px\">'+esc(_dr)+'</td><td style=\"'+SC+';width:74px\"></td></tr>'; } var pg=b.url||b.domain||''; var an=b.anchor||''; var dr=(b.rank!=null?b.rank:''); var tp=b.dofollow?'dofollow':'nofollow'; var isNew=(prev&&prev.length&&b.url&&!_prevSet[b.url]); var badge=isNew?' <span class=\"chip\" style=\"background:rgba(110,43,255,0.10);color:var(--accent);font-size:10px\">new</span>':''; return '<tr><td style=\"'+S+'\">'+clipCell(pg)+badge+'</td><td style=\"'+Sa+'\">'+anchorCell(an)+'</td><td style=\"'+SC+';width:46px\">'+esc(dr)+'</td><td style=\"'+SC+';width:74px\">'+esc(tp)+'</td></tr>'; }\n    var tb=panel.querySelector('[data-tc=\"bl\"] table tbody'); var _blhr=panel.querySelector('[data-tc=\"bl\"] table thead tr'); if(_blhr&&_blhr.children&&_blhr.children.length>=4){ if(_isDom){ _blhr.children[0].textContent='Referring domain'; _blhr.children[1].textContent='Backlinks'; _blhr.children[3].textContent=''; } else { _blhr.children[0].textContent='Linking page'; _blhr.children[1].textContent='Anchor'; _blhr.children[3].textContent='Type'; } }\n    if(tb){ var rows=list.slice(0,10).map(blRowHtml).join(''); tb.innerHTML=rows||('<tr><td colspan=\"4\" style=\"'+S+'\">'+((count!=null&&count>0)?('We have the count from our data source, but the itemized list is not available for this page.'):'No backlinks found for this page yet.')+'</td></tr>'); setTimeout(function(){clipScan(panel);},0); }\n    var blCols=[{t:'Referring page'},{t:'Anchor'},{t:'DR',r:1},{t:'Type',r:1}];\n    var blRows=list.slice(0,1000).map(function(b){ return {date:'',cells:[clipCell(b.url||b.domain||''), anchorCell(b.anchor||''), (b.rank!=null?String(b.rank):DASH), b.dofollow?'dofollow':'nofollow']}; });\n    var sa=panel.querySelector('a[onclick*=\"openHistory(\\'backlinks\\')\"]'); if(sa){ if(list.length===0){ sa.style.display='none'; } else { sa.style.display=''; sa.textContent='Show all '+list.length; sa.onclick=function(e){ e.preventDefault(); openReal({title:'Backlinks to this page',cols:blCols,rows:blRows}); }; } }\n    var _blnote=panel.querySelector('.iva-bl-csvnote'); if(_blnote)_blnote.style.display=(list.length===0?'none':''); var dl=panel.querySelector('a[onclick*=\"backlinks.csv\"]'); if(dl){ if(list.length===0){ dl.style.display='none'; } else { dl.style.display=''; dl.onclick=function(e){ e.preventDefault(); var rr=[['Linking page','Anchor','DR','Type']]; list.forEach(function(b){ rr.push([b.url||b.domain||'', b.anchor||'', (b.rank!=null?b.rank:''), b.dofollow?'dofollow':'nofollow']); }); dlCsv('backlinks.csv',rr); }; } }\n  }\n  function samePage(a,b){ function n(u){ try{ var x=new URL(/^https?:/.test(u)?u:'https://'+u); return (x.hostname.replace(/^www\\./,'')+x.pathname.replace(/\\/$/,'')).toLowerCase(); }catch(e){ return String(u).toLowerCase(); } } return n(a)===n(b); }\n  function lrun(rec){ var ds=Object.keys(rec.runs||{}).sort(); return ds.length?rec.runs[ds[ds.length-1]]:null; }\n  function fillAir(panel,pg,sb,userId,titleMap){\n    var mb=panel.querySelector('[data-chart=\"collagenai\"]'); if(!mb)return;\n    var dom=''; try{ dom=new URL(/^https?:/.test(pg.url)?pg.url:'https://'+pg.url).hostname.replace(/^www\\./,'').toLowerCase(); }catch(e){ dom=String(pg.url||'').split('/')[0].replace(/^www\\./,'').toLowerCase(); }\n    var head='<div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:18px 0 10px\"><div style=\"font-size:16px;font-weight:600;color:var(--dark)\">AI Readiness <span style=\"font-weight:400;color:var(--muted)\">\\u00b7 AI assistants</span></div>'+'<button class=\"upd-pill iva-airref\">Refresh \\u00b7 2 credits</button>'+'</div>';\n    if(isHomeUrl(pg.url)){\n      var bmap=getBrandMap(userId); var brand=bmap[dom]||brandFromDomain(dom);\n      mb.innerHTML=head\n        +'<div style=\"display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap\"><span style=\"font-size:12px;color:var(--muted)\">Brand tracked in AI</span><span class=\"iva-brandchip\" style=\"display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--accent);background:#F0EAFF;border-radius:9px;padding:5px 12px;font-weight:600;font-size:13px;color:#4a1fb8;cursor:pointer\" title=\"Edit brand\"><span class=\"iva-brandname2\">'+esc(brand)+'</span><span style=\"color:var(--accent);font-size:14px\">\\u270e</span></span></div>'\n        +'<div class=\"wgrid\">'\n          +'<div class=\"wcard iva-aicard\" data-ai=\"brand\"><div class=\"wt\">Brand mentions <span class=\"tip\" data-tip=\"How often ChatGPT, Perplexity and Google AI name your brand across the web.\">?</span></div><div class=\"wn iva-brandnum\">0</div><div class=\"wd\">last 30 days</div></div>'\n          +'<div class=\"wcard iva-aicard\" data-ai=\"cited\"><div class=\"wt\">Cited by AI <span class=\"tip\" data-tip=\"How many tracked prompts return an answer that cites a page on this site.\">?</span></div><div class=\"wn iva-domcite\">'+DASH+'</div><div class=\"wd\">from your prompts</div></div>'\n        +'</div>'\n        +'<div data-tc=\"brand\" style=\"display:none\"><div class=\"innerbox\" style=\"padding:16px\"><div style=\"font-size:13px;color:var(--dark);margin-bottom:6px\">Times ChatGPT, Perplexity and Google AI named your brand across the web in the last 30 days.</div><div style=\"font-size:12px;color:var(--muted)\"class=\"iva-brandadv\">A month-by-month trend will appear here as data builds across refreshes.</div></div></div>'\n        +'<div data-tc=\"cited\"><div class=\"detail\"><div style=\"display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px\"><div style=\"font-weight:600;font-size:14px\">Track where you show up in AI</div></div>'\n          +'<div style=\"font-size:12px;color:var(--muted);margin-bottom:10px\">Prompts cover the whole site. Page cited shows which page each answer points to. Larger prompt sets cost a little more.</div>'\n          +'<div class=\"innerbox\" style=\"padding:0 14px\"><table class=\"iva-ptbl\" style=\"width:100%;border-collapse:collapse;font-size:13px\"><thead><tr>'+['Prompt','Page cited','ChatGPT','Perplexity','Google AI',''].map(function(h,i){return '<th style=\"font-size:11px;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--separator)\">'+h+'</th>';}).join('')+'</tr></thead><tbody class=\"iva-prrows\"></tbody></table></div>'\n          +'<div class=\"iva-prpager\" style=\"margin-top:10px\"></div>'\n          +'<div style=\"display:flex;gap:16px;margin-top:10px;flex-wrap:wrap\"><a class=\"link iva-praddlink\">+ Add prompt</a><a class=\"link iva-prshowall\">Show all prompt runs</a><a class=\"link iva-prcsv\">Download CSV</a></div>'\n          +'<div class=\"iva-praddbox\" style=\"display:none;margin-top:10px\"><input class=\"iva-prinp\" placeholder=\"Type a prompt and press Enter\" style=\"width:100%;box-sizing:border-box;padding:11px 14px;border:1px solid var(--accent);border-radius:10px;font-size:13px;font-family:inherit\"></div>'\n        +'</div></div>';\n      try{ fillPromptsDomain(mb, dom, titleMap||{}, sb, userId); }catch(e){ console.log('[dash] fillPromptsDomain',e); } try{ var _bn=mb.querySelector('.iva-brandnum'); if(_bn && pg.aim!=null) _bn.textContent=pg.aim; }catch(e){} try{ function _setTab(t){ _aiTab[pg.url]=t; Array.prototype.forEach.call(mb.querySelectorAll('.iva-aicard'),function(x){ x.classList.toggle('on', x.getAttribute('data-ai')===t); }); Array.prototype.forEach.call(mb.querySelectorAll('[data-tc]'),function(d){ d.style.display=(d.getAttribute('data-tc')===t)?'block':'none'; }); } Array.prototype.forEach.call(mb.querySelectorAll('.iva-aicard'),function(c){ c.onclick=function(){ _setTab(c.getAttribute('data-ai')); }; }); _setTab(_aiTab[pg.url]||'cited'); }catch(e){}\n    } else {\n      var pr=(getPrompts(userId)[dom])||{}; var here=[]; Object.keys(pr).forEach(function(k){ var rec=pr[k]; if(rec.page && samePage(rec.page,pg.url)) here.push(rec); });\n      var tot=Object.keys(pr).length; var citeN=0; here.forEach(function(rec){ var lr=lrun(rec); if(lr&&(lr.chat_gpt||lr.perplexity||lr.gemini))citeN++; }); var _aioRows=(pg.aioItems||[]); var _citeTotal=citeN+(pg.aio!=null?pg.aio:0); var _hasRows=(here.length>0||_aioRows.length>0);\n      var _TH='font-size:11px;color:var(--muted);font-weight:500;padding:8px 6px;border-bottom:1px solid var(--separator)';\n      var _ptbl='<div style=\"overflow-x:auto\"><table style=\"width:100%;border-collapse:collapse\"><thead><tr><th style=\"text-align:left;'+_TH+'\">Prompt</th><th style=\"text-align:center;'+_TH+'\">ChatGPT</th><th style=\"text-align:center;'+_TH+'\">Perplexity</th><th style=\"text-align:center;'+_TH+'\">Google AI</th></tr></thead><tbody>'+(_aioRows.map(function(x){ var _bd='border-bottom:1px solid var(--separator)'; return '<tr><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;'+_bd+'\">\u201c'+esc(x.q||'')+'\u201d <span style=\"font-size:10px;color:var(--muted)\">Google AI</span></td><td style=\"text-align:center;padding:9px 6px;'+_bd+'\">'+(x.chat_gpt!=null?aiDot(x.chat_gpt):'')+'</td><td style=\"text-align:center;padding:9px 6px;'+_bd+'\">'+(x.perplexity!=null?aiDot(x.perplexity):'')+'</td><td style=\"text-align:center;padding:9px 6px;'+_bd+'\">'+aiDot(x.cited)+'</td></tr>'; }).join('')+(here.length?here.map(function(rec){ var lr=lrun(rec)||{}; var bd='border-bottom:1px solid var(--separator)'; return '<tr><td style=\"font-size:12.5px;color:var(--dark);padding:9px 6px;'+bd+'\">\u201c'+esc(rec.prompt||'')+'\u201d</td><td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(lr.chat_gpt)+'</td><td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(lr.perplexity)+'</td><td style=\"text-align:center;padding:9px 6px;'+bd+'\">'+aiDot(lr.gemini)+'</td></tr>'; }).join(''):'')+(!_hasRows?'<tr><td colspan=\"4\" style=\"padding:14px 6px;color:var(--muted);font-size:12.5px\">No queries checked for this page yet.</td></tr>':''))+'</tbody></table></div>';\n      mb.innerHTML=head\n        +'<div class=\"wgrid\" style=\"margin-bottom:14px\"><div class=\"wcard iva-aic2 on\" data-ai2=\"cited\"><div class=\"wt\">Cited by AI <span class=\"tip\" data-tip=\"Times an AI cited this exact page \\u2014 across Google AI Overview and your tracked prompts.\">?</span></div><div class=\"wn\">'+_citeTotal+'</div><div class=\"wd\">this page</div></div>'+(_hasRows?'<div class=\"wcard iva-aic2\" data-ai2=\"prompts\"><div class=\"wt\">Queries checked <span class=\"tip\" data-tip=\"Queries checked for this page \u2014 Google AI Overview keywords plus your tracked prompts.\">?</span></div><div class=\"wn\">'+(_aioRows.length+here.length)+'</div><div class=\"wd\">for this page</div></div>':'')+'</div>'\n        +'<div data-tc2=\"cited\"><div class=\"innerbox\" style=\"padding:16px\"><div style=\"font-size:12.5px;color:var(--muted);line-height:1.5\">'+(_citeTotal>0?('This page was cited by AI '+_citeTotal+' time'+(_citeTotal===1?'':'s')+' across Google AI Overview and your tracked prompts. Check back in about a week to see movement.'):'This page has no AI citations yet. Publish clear, well-structured content and grow your page\u2019s visibility so ChatGPT, Perplexity and Google AI start citing it.')+'</div></div></div>'\n        +(_hasRows?'<div data-tc2=\"prompts\" style=\"display:none\"><div style=\"font-size:12px;color:var(--muted);font-weight:600;margin:2px 0 8px\">Queries checked for this page</div><div style=\"font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px\">These are the queries this page ranks for, checked across ChatGPT, Perplexity and Google AI. '+(_citeTotal>0?'A filled dot means an AI answer cites this page for that query.':'None cite this page yet. Strengthen the page content and add your own prompts on the homepage to track the questions your customers actually ask.')+'</div>'+_ptbl+'</div>':'');\n      try{ var _st2=function(t){ Array.prototype.forEach.call(mb.querySelectorAll('.iva-aic2'),function(x){ x.classList.toggle('on', x.getAttribute('data-ai2')===t); }); Array.prototype.forEach.call(mb.querySelectorAll('[data-tc2]'),function(dd){ dd.style.display=(dd.getAttribute('data-tc2')===t)?'block':'none'; }); }; Array.prototype.forEach.call(mb.querySelectorAll('.iva-aic2'),function(c){ c.onclick=function(){ _st2(c.getAttribute('data-ai2')); }; }); var _rb=mb.querySelector('.iva-airref'); if(_rb){ _rb.textContent='Refresh \\u00b7 1 credit'; if(!_rb._w){ _rb._w=1; _rb.onclick=function(){ if(window.ivaRefresh)window.ivaRefresh('air','https://'+dom,1); }; } } }catch(e){}\n    }\n  }\n  function addCross(head,fn){ if(head.querySelector('.iva-del'))return; var b=document.createElement('span'); b.className='iva-del'; b.textContent='\\u00d7'; b.title='Remove from dashboard'; b.style.cssText='margin-left:8px;font-size:16px;line-height:1;color:var(--muted);cursor:pointer;flex-shrink:0'; b.onclick=function(e){ e.stopPropagation(); fn(); }; head.appendChild(b); }\n  var _curHist=null;\n  function renderMy(pager){ var d=_curHist; if(!d)return; var rows=d.rows||[]; var pages=Math.max(1,Math.ceil(rows.length/pager.per)); if(pager.page>pages)pager.page=pages; var slice=rows.slice((pager.page-1)*pager.per,(pager.page-1)*pager.per+pager.per); function _pv(x){ x=String(x==null?'':x); if(x==='\\u2014'||x==='')return null; var m=x.replace(/,/g,''); if(/k$/i.test(m))return parseFloat(m)*1000; var n=parseFloat(m); return isNaN(n)?x.toLowerCase():n; } if(d.sortCol!=null){ var sc=d.sortCol,sd=d.sortDir||1; rows=rows.slice().sort(function(a,b){ var va=_pv(a.cells[sc]),vb=_pv(b.cells[sc]); if(va==null&&vb==null)return 0; if(va==null)return 1; if(vb==null)return -1; if(va<vb)return -1*sd; if(va>vb)return sd; return 0; }); } pages=Math.max(1,Math.ceil(rows.length/pager.per)); if(pager.page>pages)pager.page=pages; slice=rows.slice((pager.page-1)*pager.per,(pager.page-1)*pager.per+pager.per); var thead='<tr>'+d.cols.map(function(c,ci){var ar=(d.sortCol===ci)?(d.sortDir===1?' \\u2191':' \\u2193'):''; return '<th class=\"iva-hth\" data-ci=\"'+ci+'\" style=\"text-align:'+(c.r?'right':(c.c?'center':'left'))+';font-size:11px;color:var(--muted);font-weight:600;padding:8px 8px;border-bottom:1px solid var(--separator);cursor:pointer\">'+esc(c.t)+ar+'</th>';}).join('')+'</tr>'; var body=slice.length?slice.map(function(r){return '<tr>'+r.cells.map(function(cell,ci){return '<td style=\"text-align:'+((d.cols[ci]&&d.cols[ci].r)?'right':((d.cols[ci]&&d.cols[ci].c)?'center':'left'))+';font-size:12.5px;color:var(--dark);padding:9px 8px;border-bottom:1px solid var(--separator);vertical-align:top\">'+cell+'</td>';}).join('')+'</tr>';}).join(''):'<tr><td colspan=\"'+d.cols.length+'\" style=\"padding:18px;text-align:center;color:var(--muted);font-size:13px\">No rows.</td></tr>'; var te=document.getElementById('histTable'); if(te){ te.innerHTML=thead+body; Array.prototype.forEach.call(te.querySelectorAll('.iva-hth'),function(th){ th.onclick=function(){ var ci=+th.getAttribute('data-ci'); if(d.sortCol===ci)d.sortDir=-(d.sortDir||1); else {d.sortCol=ci;d.sortDir=1;} renderMy({page:1,per:pager.per}); }; }); } var pe=document.getElementById('histPager'); if(pe){ var info='<div style=\"font-size:12px;color:var(--muted);margin-top:10px\">Showing '+(rows.length?((pager.page-1)*pager.per+1):0)+'\\u2013'+Math.min(rows.length,pager.page*pager.per)+' of '+rows.length+'</div>'; var btns=''; if(pages>1){ var win=2,lo=Math.max(1,pager.page-win),hi=Math.min(pages,pager.page+win); btns='<div style=\"display:flex;gap:6px;justify-content:flex-end;margin-top:8px;align-items:center;flex-wrap:wrap\">'; btns+='<button class=\"pgbtn\" data-pg=\"'+Math.max(1,pager.page-1)+'\" style=\"'+(pager.page===1?'opacity:.35;pointer-events:none':'')+'\">\\u2039</button>'; if(lo>1){ btns+='<button class=\"pgbtn\" data-pg=\"1\">1</button>'; if(lo>2)btns+='<span style=\"color:var(--muted)\">\\u2026</span>'; } for(var i=lo;i<=hi;i++)btns+='<button class=\"pgbtn'+(i===pager.page?' on':'')+'\" data-pg=\"'+i+'\" style=\"'+(i===pager.page?'background:#1a1a1a;color:#fff;border-color:#1a1a1a':'')+'\">'+i+'</button>'; if(hi<pages){ if(hi<pages-1)btns+='<span style=\"color:var(--muted)\">\\u2026</span>'; btns+='<button class=\"pgbtn\" data-pg=\"'+pages+'\">'+pages+'</button>'; } btns+='<button class=\"pgbtn\" data-pg=\"'+Math.min(pages,pager.page+1)+'\" style=\"'+(pager.page===pages?'opacity:.35;pointer-events:none':'')+'\">\\u203a</button>'; btns+='</div>'; } pe.innerHTML=info+btns; Array.prototype.forEach.call(pe.querySelectorAll('.pgbtn'),function(b){b.onclick=function(){pager.page=+b.getAttribute('data-pg');renderMy(pager);};}); } setTimeout(function(){ if(window.ivaClipScan)window.ivaClipScan(); },0); }\n  function openReal(data){ _curHist=data; var tt=document.getElementById('histTitle'); if(tt)tt.textContent=data.title; var pp=document.getElementById('histPeriods'); if(pp)pp.style.display='none'; if(_curHist){_curHist.sortCol=null;_curHist.sortDir=1;} renderMy({page:1,per:20}); var ov=document.getElementById('ovHistory'); if(ov){ ov.classList.add('open'); try{ var _m=ov.querySelector('.modal'); if(_m){_m.style.maxWidth='1080px';_m.style.width='94vw';} }catch(e){} } }\n  try{ window.histCSV=function(){ if(!_curHist)return; var rr=[_curHist.cols.map(function(c){return c.t;})]; _curHist.rows.forEach(function(r){ rr.push(r.cells.map(function(c){return String(c).replace(/<[^>]*>/g,'').trim();})); }); dlCsv((_curHist.title||'export').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.csv',rr); }; }catch(e){}\n  async function _renderCore(){\n    try{\n      var sb=P().__supabase; if(!sb) return false; var u=U(); if(!u) return false; var HID; try{HID=JSON.parse(localStorage.getItem('iva_dash_hidden_'+u)||'{}');}catch(e){HID={};} var _tS=new Date(); _tS.setHours(0,0,0,0); var _tsIso=_tS.toISOString(); if(Array.isArray(HID.dom)){ var _dm={}; HID.dom.forEach(function(x){_dm[x]=_tsIso;}); HID.dom=_dm; } HID.dom=HID.dom||{}; if(Array.isArray(HID.pg)){ var _pm={}; HID.pg.forEach(function(x){_pm[x]=_tsIso;}); HID.pg=_pm; } HID.pg=HID.pg||{}; function saveHid(){try{localStorage.setItem('iva_dash_hidden_'+u,JSON.stringify(HID));}catch(e){}} function domHidden(dom,last){ var h=HID.dom[dom]; if(!h)return false; if(last&&String(last)>h){ delete HID.dom[dom]; saveHid(); return false; } return true; } function pgHidden(url,last){ var h=HID.pg[url]; if(!h)return false; if(last&&String(last)>h){ delete HID.pg[url]; saveHid(); return false; } return true; }\n      try{ document.addEventListener('click',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('iva-copy')){} }); }catch(e){}\n      try{ var _tp=window.togglePage; window.togglePage=function(head){ try{ var _pp=head&&head.parentElement; if(_pp){ _pp.classList.toggle('open'); var _cc=head.querySelector('.iva-chev'); if(_cc)_cc.textContent=_pp.classList.contains('open')?'\\u2303':'\\u2304'; if(_pp.classList.contains('open')){ setTimeout(function(){ try{ head.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} },60); var _sl=_pp.parentElement; if(_sl){ Array.prototype.forEach.call(_sl.querySelectorAll('.prow.open'),function(o){ if(o!==_pp){ o.classList.remove('open'); var _oc=o.querySelector('.iva-chev'); if(_oc)_oc.textContent='\\u2304'; } }); } } } }catch(e){} try{ var prow=head&&head.parentElement; if(prow&&prow.classList.contains('open')) setTimeout(function(){drawTrend(prow);},30); }catch(e){} }; }catch(e){}\n      try{ window.sortSites=function(mode,btn){ try{console.log('[dash] sort',mode);}catch(e){} try{ if(btn&&btn.parentElement)Array.prototype.forEach.call(btn.parentElement.querySelectorAll('.filter-btn'),function(b){b.classList.remove('active');}); if(btn)btn.classList.add('active'); }catch(e){} var sc2=document.querySelector('#filledSites .section-content'); if(!sc2)return; var cards=Array.prototype.slice.call(sc2.querySelectorAll('.panel-card')).filter(function(c){return c.querySelector('.site-head');}); cards.sort(function(a,b){ if(mode==='az'){ return (((a.querySelector('.nm')||{}).textContent)||'').localeCompare(((b.querySelector('.nm')||{}).textContent)||''); } var da=a.getAttribute('data-last')||'',db=b.getAttribute('data-last')||''; return db<da?-1:1; }); cards.forEach(function(c){ sc2.appendChild(c); }); try{ Array.prototype.forEach.call(sc2.querySelectorAll('.sub-list'),function(sl){sl.classList.remove('open');}); Array.prototype.forEach.call(sc2.querySelectorAll('.prow'),function(pr){pr.classList.remove('open');pr._charted=false;}); Array.prototype.forEach.call(sc2.querySelectorAll('.site-head .chev'),function(ch){ch.textContent='\\u2304';}); Array.prototype.forEach.call(sc2.querySelectorAll('.prow-head .iva-chev'),function(ch){ch.textContent='\\u2304';}); var first=cards[0]; if(first){ var sl=first.querySelector('.sub-list'); if(sl)sl.classList.add('open'); var chev=first.querySelector('.site-head .chev'); if(chev)chev.textContent='\\u2303'; var fpr=first.querySelector('.prow'); if(fpr){ fpr.classList.add('open'); var ch2=fpr.querySelector('.prow-head .iva-chev'); if(ch2)ch2.textContent='\\u2303'; setTimeout(function(){drawTrend(fpr);},60); } } }catch(e){} }; }catch(e){}\n      var q=await sb.from('snapshots').select('domain,page_url,taken_at,flow_type,ranked_keywords,keywords_checked,backlinks,backlinks_count,referring_domains_count,avg_position,ai_mentions_count,ai_overview_count,coverage,audit_score').eq('user_id',u).order('taken_at',{ascending:false}).limit(500);\n      var rows=(q&&q.data)||[];\n      var fill=document.getElementById('filledSites'); var empty=document.getElementById('emptyState');\n      try{ if(!window.__ivaRealtime && sb && u){ window.__ivaRealtime=1; sb.channel('iva-dash-'+u).on('postgres_changes',{event:'INSERT',schema:'public',table:'snapshots',filter:'user_id=eq.'+u},function(){ try{clearTimeout(window.__ivaRtT);}catch(e){} window.__ivaRtT=setTimeout(function(){ _rendered=false; _rendering=false; render(); },900); }).subscribe(); } }catch(e){ try{console.log('[dash] realtime err',e);}catch(_){} }\n      if(!rows.length){ if(fill)fill.style.display='none'; if(empty)empty.style.display='block'; return true; }\n      if(empty)empty.style.display='none'; if(fill)fill.style.display='block';\n      var doms={};\n      rows.forEach(function(r){\n        var dom=r.domain||'(unknown)'; var page=r.page_url||dom;\n        if(!doms[dom])doms[dom]={pages:{},order:[],last:r.taken_at};\n        if(r.taken_at>doms[dom].last)doms[dom].last=r.taken_at;\n        var pg=doms[dom].pages[page];\n        if(!pg){pg={url:page,last:r.taken_at,hasCore:false,coreHist:[],aiHist:[],blHist:[],blLatest:null,blPrev:null,blCount:null,refDom:null,builtFor:null,coreDate:null,aiDate:null,aim:null,aio:null,score:null,scoreDate:null,scoreHist:[]};doms[dom].pages[page]=pg;doms[dom].order.push(page);}\n        if(r.taken_at>pg.last)pg.last=r.taken_at;\n        if(r.flow_type==='core'){\n          pg.hasCore=true;\n          pg.coreHist.push({date:r.taken_at,rk:(r.ranked_keywords||[]),bf:(r.keywords_checked||[]),avg:r.avg_position}); if(pg.coreDate==null)pg.coreDate=r.taken_at; if(pg.score==null && r.audit_score!=null){ pg.score=r.audit_score; pg.scoreDate=r.taken_at; } if(r.audit_score!=null) pg.scoreHist.push({date:r.taken_at,s:r.audit_score});\n          if(Array.isArray(r.backlinks)){ if(pg.blLatest==null)pg.blLatest=r.backlinks; else if(pg.blPrev==null)pg.blPrev=r.backlinks; }\n          if(pg.blCount==null && r.backlinks_count!=null) pg.blCount=r.backlinks_count; if(pg.refDom==null && r.referring_domains_count!=null) pg.refDom=r.referring_domains_count; if(r.backlinks_count!=null) pg.blHist.push({date:r.taken_at,c:r.backlinks_count});\n          if(pg.builtFor==null && Array.isArray(r.keywords_checked)) pg.builtFor=r.keywords_checked;\n        } else if(r.flow_type==='ai_readiness'){\n          if(pg.aiDate==null)pg.aiDate=r.taken_at; if(r.ai_mentions_count!=null) pg.aiHist.push({date:r.taken_at,m:r.ai_mentions_count});\n          if(pg.aim==null && r.ai_mentions_count!=null) pg.aim=r.ai_mentions_count;\n          if(pg.aio==null && r.ai_overview_count!=null) pg.aio=r.ai_overview_count; if((pg.aioItems==null||!pg.aioItems.length) && r.coverage && r.coverage.aio) pg.aioItems=r.coverage.aio; if(r.coverage && r.coverage.brand){ window.__ivaDetBrand=window.__ivaDetBrand||{}; if(!window.__ivaDetBrand[r.domain]) window.__ivaDetBrand[r.domain]=r.coverage.brand; } if(r.coverage && r.coverage.aio && (r.page_url===r.domain||r.page_url===r.domain+'/')){ window.__ivaAioHome=window.__ivaAioHome||{}; if(!window.__ivaAioHome[r.domain]) window.__ivaAioHome[r.domain]=r.coverage.aio; }\n        }\n      });\n      var domList=Object.keys(doms).filter(function(d){return !domHidden(d, doms[d]&&doms[d].last);}).sort(function(a,b){return doms[b].last<doms[a].last?-1:1;});\n      var _pod={},_pop={}; try{ Array.prototype.forEach.call(document.querySelectorAll('.panel-card'),function(pc){ var _d=pc.getAttribute('data-dom'); var sl=pc.querySelector('.sub-list'); if(_d&&sl&&sl.classList.contains('open'))_pod[_d]=1; }); Array.prototype.forEach.call(document.querySelectorAll('.prow.open'),function(pr){ var _pu=pr.getAttribute('data-pgurl'); if(_pu)_pop[_pu]=1; }); }catch(e){} var _hasPrev=Object.keys(_pod).length>0;\n      var pgArr=[]; var html='';\n      domList.forEach(function(dom,di){\n        var d=doms[dom];\n        var pages=d.order.map(function(k){return d.pages[k];}).filter(function(pg){return !pgHidden(pg.url, pg.last);}).sort(function(a,b){ return b.last<a.last?-1:1; });\n        var openSite=(di===0)||(_hasPrev&&!!_pod[dom]);\n        html+='<div class=\"panel-card\" data-dom=\"'+esc(dom)+'\" data-last=\"'+esc(d.last)+'\" style=\"margin-top:16px\"><div class=\"site-head\" onclick=\"toggleSite(this)\"><span class=\"nm\">'+esc(dom)+'</span><span class=\"meta\">'+pages.length+' page'+(pages.length===1?'':'s')+' \\u00b7 updated '+esc(fmtDate(d.last))+'</span><span class=\"chev\" style=\"margin-left:auto;font-size:16px;color:var(--muted)\">'+(openSite?'\\u2303':'\\u2304')+'</span></div>';\n        html+='<div class=\"sub-list'+(openSite?' open':'')+'\">';\n        \n        var _mlIdx=0,_mlV=''; pages.forEach(function(_p,_i){ if(_p&&_p.last>_mlV){_mlV=_p.last;_mlIdx=_i;} }); pages.forEach(function(pg,pi){\n          var openPage=(openSite&&pi===_mlIdx)||(_hasPrev&&!!_pop[pg.url]); var idx=pgArr.length; pgArr.push(pg);\n          html+='<div class=\"prow'+(openPage?' open':'')+'\" data-pgi=\"'+idx+'\" data-pgurl=\"'+esc(pg.url)+'\"><div class=\"prow-head\" onclick=\"togglePage(this)\"><div style=\"flex:1;min-width:200px;font-weight:600\">'+esc(pathOf(pg.url))+''+'</div><span style=\"font-size:12px;color:var(--muted)\">updated '+esc(fmtDate(pg.last))+'</span><span class=\"iva-chev\" style=\"font-size:16px;color:var(--muted)\">'+(openPage?'\\u2303':'\\u2304')+'</span></div><div class=\"panel\"></div></div>';\n        });\n        html+='</div></div>';\n      });\n      var sc=fill.querySelector('.section-content')||fill;\n      var demoSites=Array.prototype.slice.call(sc.querySelectorAll('.panel-card')).filter(function(pc){return pc.querySelector('.site-head');});\n      var holder=document.createElement('div'); holder.innerHTML=html;\n      var frag=document.createDocumentFragment(); while(holder.firstChild)frag.appendChild(holder.firstChild);\n      if(demoSites.length){ demoSites[0].parentNode.insertBefore(frag,demoSites[0]); demoSites.forEach(function(pc){pc.parentNode.removeChild(pc);}); }\n      else { sc.appendChild(frag); }\n      try{ Array.prototype.forEach.call(sc.querySelectorAll('span'),function(sp){ if(/Showing .* of .* site/.test(sp.textContent||'')){ var pr=sp.parentElement; if(pr && !pr.querySelector('.filter-btn')) pr.style.display='none'; } }); }catch(e){}\n      var _titleMap={}; pgArr.forEach(function(p){ _titleMap[p.url]=pathOf(p.url); });\n      Array.prototype.forEach.call(sc.querySelectorAll('.prow[data-pgi]'),function(row){\n        var pg=pgArr[+row.getAttribute('data-pgi')]; var panel=row.querySelector('.panel'); if(!panel||!pg) return;\n        panel.innerHTML = (pg.hasCore || pg.aiDate!=null) ? TPL_DATA : TPL_EMPTY;\n        wireRun(panel, pg.url);\n        if(pg.hasCore || pg.aiDate!=null){\n          var H=[]; if(pg.hasCore){ var Hd=pg.coreHist.slice().sort(function(a,b){return a.date<b.date?-1:1;}).slice(-6); var dseen={},dorder=[]; Hd.forEach(function(sn){var dk=fmtDate(sn.date); if(!(dk in dseen))dorder.push(dk); dseen[dk]=sn;}); H=dorder.map(function(dk){return {date:dseen[dk].date,rk:(dseen[dk].rk||[]),bf:(dseen[dk].bf||[]),avg:dseen[dk].avg};}); }\n          if(pg.hasCore){ fillKw(panel,H,pg.coreDate,pg.url,sb,u); fillBl(panel,pg.blLatest,pg.blCount,pg.coreDate,pg.refDom,pg.blPrev); ivaFillScore(panel,pg.score,pg.scoreDate); } else { ivaCoreSkeleton(panel,pg.url); } if(pg.aiDate!=null){ fillAir(panel,pg,sb,u,_titleMap); } else { ivaAirSkeleton(panel,pg.url); }\n          var corePts=H.filter(function(h){return h.avg!=null;}).map(function(h){return {label:fmtDate(h.date),v:Number(h.avg)};});\n          var aiPts=byDay(pg.aiHist.slice().sort(function(a,b){return a.date<b.date?-1:1;}).slice(-6).map(function(h){return {label:fmtDate(h.date),v:Number(h.m)};}));\n          var coreEmpty=(corePts.length===0)?'No visible positions in Google yet. This trend will appear once your page starts ranking.':'';\n          var blPts=byDay(pg.blHist.slice().sort(function(a,b){return a.date<b.date?-1:1;}).slice(-6).map(function(h){return {label:fmtDate(h.date),v:Number(h.c)};}));\n          var scorePts=byDay(pg.scoreHist.slice().sort(function(a,b){return a.date<b.date?-1:1;}).slice(-6).map(function(h){return {label:fmtDate(h.date),v:Number(h.s)};}));\n          row._cd={core:{labels:corePts.map(function(p){return p.label;}),data:corePts.map(function(p){return p.v;}),empty:coreEmpty}, ai:{labels:aiPts.map(function(p){return p.label;}),data:aiPts.map(function(p){return p.v;})}, bl:{labels:blPts.map(function(p){return p.label;}),data:blPts.map(function(p){return p.v;})}, score:{labels:scorePts.map(function(p){return p.label;}),data:scorePts.map(function(p){return p.v;})}};\n          var _cvs=panel.querySelectorAll('canvas'); row._boxes={core:(_cvs[0]?_cvs[0].parentElement:null), ai:(_cvs[1]?_cvs[1].parentElement:null)};\n          var _kc=pg.hasCore?panel.querySelector('[data-w=\"kw\"]'):null, _bc=pg.hasCore?panel.querySelector('[data-w=\"bl\"]'):null;\n          if(_kc)_kc.addEventListener('click',(function(rr){return function(){setTimeout(function(){drawCoreMetric(rr,'position');},20);};})(row));\n          if(_bc)_bc.addEventListener('click',(function(rr){return function(){setTimeout(function(){drawCoreMetric(rr,'backlinks');},20);};})(row));\n          var _sc=pg.hasCore?panel.querySelector('[data-w=\"score\"]'):null; if(_sc)_sc.addEventListener('click',(function(rr){return function(){setTimeout(function(){drawCoreMetric(rr,'score');},20);};})(row));\n          if(row.classList.contains('open')) setTimeout(function(){drawTrend(row);},60);\n        }\n        var ph=row.querySelector('.prow-head'); if(ph) addCross(ph,function(){ if(!confirm('Remove this page from your dashboard? Its tracking history stays saved.'))return; var pu=row.getAttribute('data-pgurl'); if(pu){HID.pg[pu]=new Date().toISOString();saveHid();} row.parentNode.removeChild(row); });\n      });\n      Array.prototype.forEach.call(sc.querySelectorAll('.panel-card'),function(card){ var sh=card.querySelector('.site-head'); if(sh) addCross(sh,function(){ var dm=card.getAttribute('data-dom'); if(!confirm('Remove '+(dm||'this site')+' and all its pages from your dashboard? Tracking history stays saved.'))return; if(dm){HID.dom[dm]=new Date().toISOString();saveHid();} card.parentNode.removeChild(card); }); });\n      try{ if(!document.getElementById('iva-dash-css')){ var _st=document.createElement('style'); _st.id='iva-dash-css'; _st.textContent='.prow-head{background:#faf9fd;} .prow.open>.prow-head{background:#f1ecfb;} .prow-head:hover{background:#f3f0fa;} .iva-spin{display:inline-block;width:15px;height:15px;border:2px solid var(--separator);border-top-color:var(--accent);border-radius:50%;animation:ivaspin .7s linear infinite;vertical-align:-2px;} @keyframes ivaspin{to{transform:rotate(360deg);}} .iva-ptbl{table-layout:fixed;width:100%;} .iva-ptbl td{border-bottom:1px solid var(--separator);padding:9px 10px;} .iva-ptbl th:nth-child(1),.iva-ptbl td:nth-child(1){width:30%;} .iva-ptbl th:nth-child(2),.iva-ptbl td:nth-child(2){width:28%;} .iva-ptbl th:nth-child(3),.iva-ptbl td:nth-child(3),.iva-ptbl th:nth-child(4),.iva-ptbl td:nth-child(4),.iva-ptbl th:nth-child(5),.iva-ptbl td:nth-child(5){width:12%;} .iva-ptbl th:nth-child(6),.iva-ptbl td:nth-child(6){width:6%;text-align:right;} .iva-ptbl tbody tr:last-child td{border-bottom:none;} .iva-ptbl th:nth-child(1),.iva-ptbl td:nth-child(1){text-align:left;} .iva-ptbl th:nth-child(2),.iva-ptbl td:nth-child(2){text-align:center;} .iva-nohover:hover{border-color:var(--border) !important;box-shadow:none !important;} .iva-ptbl th:nth-child(3),.iva-ptbl td:nth-child(3),.iva-ptbl th:nth-child(4),.iva-ptbl td:nth-child(4),.iva-ptbl th:nth-child(5),.iva-ptbl td:nth-child(5){text-align:center;}'; document.head.appendChild(_st); } }catch(e){}\n      wireGlobal();\n      console.log('[dash] v327 rendered:',domList.length,'domains,',pgArr.length,'pages'); return true;\n    }catch(e){ console.log('[dash] render err',e); return true; }\n  }\n  var _rendering=false,_rendered=false,_rTries=0; function render(){ if(_rendered||_rendering) return; _rendering=true; Promise.resolve().then(function(){ return _renderCore(); }).then(function(ok){ _rendering=false; if(ok){ _rendered=true; return; } if(_rTries++ < 24){ setTimeout(render,250); } }).catch(function(e){ _rendering=false; try{ console.log('[dash] render err',e); }catch(_e){} }); }\n  if(document.readyState!=='loading')render();else document.addEventListener('DOMContentLoaded',render);\n})();</script></body></html>";
-  function uid(){ return window.__userId || window.__memberId || null; }
-  function allowed(){ return true; }
-  function mount(){
-    if (document.getElementById(FRAME_ID)) return;
-    Array.prototype.forEach.call(document.body.children, function (c) {
-      if (c.tagName === "SCRIPT") return;
-      c.setAttribute("data-iva-prev-display", c.style.display || "");
-      c.style.display = "none";
-    });
-    document.body.setAttribute("data-iva-prev-overflow", document.body.style.overflow || "");
-    document.body.style.overflow = "hidden";
-    var f = document.createElement("iframe");
-    f.id = FRAME_ID; f.setAttribute("title", "IvaBot dashboard");
-    f.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0;margin:0;padding:0;display:block;z-index:2147483646;background:#fff;opacity:0;transition:opacity .4s ease;";
-    f.srcdoc = DOC;
-    f.addEventListener("load", function(){ requestAnimationFrame(function(){ f.style.opacity = "1"; }); });
-    document.body.appendChild(f);
+    }
+  } catch(e) { console.log("[CC] hreflang parse error:", e); }
+
+  let html = rawHtml.replace(/\\"/g,'"').replace(/\\</g,'<').replace(/\\>/g,'>').replace(/\\[nrt]/g,' ')
+    .replace(/<svg[\s\S]*?<\/svg>/gi,'').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
+
+  // Title + Description
+  const mt = html.match(/<title[^>]*>(.*?)<\/title>/i);
+  r.title = mt ? decodeHTML(mt[1].trim()) : "";
+  r.title_missing = !r.title;
+  r.title_length = r.title.length;
+  r.title_too_short = r.title.length > 0 && r.title.length < 30;
+  r.title_too_long = r.title.length > 90;
+  const titleParts = r.title.split(/\s*[|–—-]\s*/).map(p => p.trim().toLowerCase()).filter(Boolean);
+  r.title_has_repeated_brand = titleParts.length >= 2 && new Set(titleParts).size < titleParts.length;
+
+  const md = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i)
+    || html.match(/<meta[^>]*content=["']([\s\S]*?)["'][^>]*name=["']description["']/i);
+  r.desc = md ? decodeHTML(md[1].trim()) : "";
+  r.desc_missing = !r.desc;
+  r.desc_length = r.desc.length;
+
+  // Headings
+  const isTemplate = (t) => /^\{.*\}$/.test(t) || /^\{\{.*\}\}$/.test(t) || /^\[.*\]$/.test(t);
+  const exH = (h, lv) => [...h.matchAll(new RegExp(`<h${lv}[^>]*>([\\s\\S]*?)<\\/h${lv}>`, 'gi'))].map(m => decodeHTML(m[1].replace(/<[^>]+>/g,'').trim())).filter(t => t && t.length > 1);
+  r.h1 = exH(html,1).filter(t => !isTemplate(t));
+  r.h1_broken = exH(html,1).filter(t => isTemplate(t));
+  r.h2 = exH(html,2);
+  r.h3 = exH(html,3);
+
+  // Body text (paragraphs only — for keyword density)
+  const bodyParagraphs = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map(m => m[1].replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/\s+/g,' ').trim()).filter(t => t.length > 10);
+  r.body_text = bodyParagraphs.join(" ");
+
+  // Full visible text (for semantic coverage check)
+  r.visible_text = html.replace(/<!--[\s\S]*?-->/g,'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/\s+/g,' ').trim();
+  r.char_count = r.visible_text.length;
+
+  // Social links
+  const socials = [["Facebook",/facebook\.com/i],["Instagram",/instagram\.com/i],["LinkedIn",/linkedin\.com/i],["X (Twitter)",/(?:twitter\.com|x\.com)/i],["YouTube",/youtube\.com|youtu\.be/i],["TikTok",/tiktok\.com/i],["Pinterest",/pinterest\.com/i]];
+  r.social = [];
+  const allHrefs = [...rawHtml.matchAll(/<a\s[^>]*href=["']([^"']+)["']/gi)].map(m => m[1]);
+  socials.forEach(([name, pat]) => {
+    const found = allHrefs.find(h => pat.test(h) && !/share|sharer|intent|dialog/i.test(h));
+    if (found) r.social.push({ name, url: found });
+  });
+
+  // CTA detection (from Core Audit)
+  const CTA_TOKENS = ["buy","add to cart","checkout","contact","sign up","get started","book","subscribe","download","learn more","shop now","order now","request","pricing","try","start","quote","free quote","get a quote","request a quote","estimate","free estimate","schedule","call now","consultation"];
+  r.has_cta = false; r.cta_text = "";
+  const htmlForCta = html.replace(/<nav[\s\S]*?<\/nav>/gi, " ");
+  for (const m of htmlForCta.matchAll(/<(a|button)([^>]*)>([\s\S]*?)<\/\1>/gi)) {
+    let v = (m[3]||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
+    if(!v || v.length > 60 || v.length < 2 || /[{}<>\[\]="]/i.test(v)) continue;
+    if(/menu-item|nav-link|nav__|navbar/i.test(m[2]||"")) continue;
+    if(CTA_TOKENS.some(k=>new RegExp("(?:^|[^a-z])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?:[^a-z]|$)","i").test(v)) || /(?:^|[^a-z])(btn|button|cta)(?:[^a-z]|$)/i.test(m[2]||"")) { r.has_cta=true; r.cta_text=v; break; }
   }
-  function boot(){ if (allowed()) { mount(); return true; } return false; }
-  if (!boot()) { var n=0, iv=setInterval(function(){ n++; if (boot() || n>40) clearInterval(iv); }, 200); }
+
+  // Trust signals detection (from Typebot single_trust.js)
+  // Contacts
+  r.has_contacts = /(?:mailto:|tel:|phone|email|contact@|info@|\+\d{1,3}[\s-]?\(?\d)/i.test(html);
+  // FAQ
+  r.has_faq = /<(section|div)[^>]*(?:id|class)=["'][^"']*faq[^"']*["']/i.test(html) || /<h[2-3][^>]*>.*?(?:FAQ|Frequently Asked|Questions).*?<\/h[2-3]>/i.test(html);
+  // Testimonials
+  r.has_testimonials = /<(section|div)[^>]*(?:id|class)=["'][^"']*(?:testimonial|review|feedback)[^"']*["']/i.test(html) || /(?:testimonial|customer\s*review|client\s*feedback|what\s*(?:our|people)\s*say)/i.test(r.visible_text.slice(0,5000));
+
+  // Summary for GPT
+  const cleanKw = (v) => v && v.length > 2 && !/^\{.*\}$/.test(v) && !/^[^a-zA-Z]*$/.test(v) ? v : null;
+  r.primary_keyword = cleanKw(r.h1?.[0]) || cleanKw(r.title) || "";
+  r.summary = `URL: ${r.url}\nTitle: ${r.title}\nDescription: ${r.desc}\nH1: ${r.h1.join(", ")||"missing"}\nH2: ${r.h2.slice(0,10).join(", ")||"none"}\nH3: ${r.h3.slice(0,8).join(", ")||"none"}\nInternal links: ${(allHrefs.filter(h => { try { return new URL(h, r.url).hostname === hostname; } catch(e) { return /^\//.test(h); } }).length)}\nHas CTA: ${r.has_cta}${r.cta_text ? " ("+r.cta_text+")" : ""}\nSocial: ${r.social.map(s => typeof s === "string" ? s : s.name).join(", ")||"none"}\nHas contacts: ${r.has_contacts}\nHas FAQ: ${r.has_faq}\nHas testimonials: ${r.has_testimonials}\nBody chars: ${r.char_count}`;
+
+  return r;
+}
+
+/* ═══ BODY KEYWORD DENSITY — ported from Typebot single_body_density.js ═══ */
+function analyzeBodyDensity(bodyText, keywords) {
+  const scanChars = bodyText.length;
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const STOP_EN = new Set(["a","an","the","and","or","but","of","in","on","to","for","from","with","as","is","are","was","were","be","been","being","it","its","at","by","if","not","no","so","than","that","this","into","over","under","up","down","out","off","via","per","about","can","could","should","would","may","might","must","do","does","did","have","has","had","you","your","we","our","they","their","he","she","him","her","his","them","i","me","my"]);
+  const STOP_RU = new Set(["и","в","на","по","к","с","у","о","от","до","за","из","во","не","да","но","или","же","что","так","как","для","при","над","без"]);
+  const STOP = new Set([...STOP_EN, ...STOP_RU]);
+
+  const countPhrase = (text, phrase) => {
+    if (!text || !phrase) return 0;
+    const m = text.toLowerCase().match(new RegExp(esc(phrase.toLowerCase()), "gi"));
+    return m ? m.length : 0;
+  };
+
+  // Soft match: allow prepositions between keyword words (from CB v63 logic)
+  const PREPS = new Set(["to","in","for","from","during","of","on","at","with","by","about","and","the","a","an","в","на","для","по","с","из","от","до","за","о","к"]);
+  const countSoftPhrase = (text, phrase) => {
+    if (!text || !phrase) return 0;
+    const words = phrase.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length < 2) return countPhrase(text, phrase);
+    // Build regex: each keyword word with optional preposition between
+    const pattern = words.map(w => esc(w)).join("(?:\\s+(?:" + [...PREPS].map(esc).join("|") + "))?\\s+");
+    const m = text.toLowerCase().match(new RegExp(pattern, "gi"));
+    return m ? m.length : 0;
+  };
+
+  const countToken = (text, token) => {
+    if (!text || !token || STOP.has(token.toLowerCase())) return 0;
+    const m = text.match(new RegExp(`(?:^|[^\\p{L}\\p{N}])${esc(token)}(?=[^\\p{L}\\p{N}]|$)`, "giu"));
+    return m ? m.length : 0;
+  };
+
+  // Body budget formula from Typebot
+  function bodyBudget(chars) {
+    if (chars <= 800) return { per: [1, 1], total: [1, 2] };
+    if (chars <= 2000) return { per: [1, 2], total: [2, 3] };
+    if (chars <= 3500) return { per: [1, 2], total: [3, 4] };
+    if (chars <= 6000) return { per: [2, 3], total: [4, 6] };
+    return { per: [2, 3], total: [5, 7] };
+  }
+
+  const B = bodyBudget(scanChars);
+  const [low, high] = B.per;
+  const [totalLow, totalHigh] = B.total;
+
+  // Build occurrences
+  const occurrences = [];
+  for (const k of keywords) {
+    const exact = countPhrase(bodyText, k);
+    const soft = countSoftPhrase(bodyText, k);
+    const effectiveCount = Math.max(exact, soft);
+    if (exact > 0) occurrences.push(`• phrase "${k.toLowerCase()}" — appears ${exact} ${exact===1?"time":"times"}`);
+    else if (soft > 0) occurrences.push(`• phrase "${k.toLowerCase()}" — appears ${soft} ${soft===1?"time":"times"} (with prepositions)`);
+  }
+  // Individual words
+  const tokens = Array.from(new Set(keywords.flatMap(k => k.toLowerCase().split(/\s+/).filter(Boolean)).filter(t => !STOP.has(t))));
+  for (const t of tokens) {
+    const c = countToken(bodyText, t);
+    if (c > 0) occurrences.push(`• word "${t}" — appears ${c} ${c===1?"time":"times"}`);
+  }
+
+  const totalExact = keywords.reduce((s, k) => s + Math.max(countPhrase(bodyText, k), countSoftPhrase(bodyText, k)), 0);
+
+  let status = "good";
+  if (!scanChars) status = "no_body";
+  else if (totalExact === 0) status = "missing";
+  else if (totalExact < low) status = "low";
+  else if (totalExact > totalHigh) status = "overused";
+
+  return {
+    scanChars,
+    totalExact,
+    occurrences: occurrences.length ? occurrences.join("\n") : "No keyword phrases detected in the body text.",
+    status,
+    budgetPer: B.per,
+    budgetTotal: B.total,
+    // Rank booleans (for full balance)
+    bodyFound: scanChars > 0,
+    bodyMissing: totalExact === 0,
+    bodyLow: totalExact > 0 && totalExact < low,
+    bodyGood: totalExact >= low && totalExact <= totalHigh,
+    bodyOverused: totalExact > totalHigh,
+  };
+}
+
+/* ═══ KEYWORD VALIDATION — clean user input ═══ */
+function validateUserKeywords(raw) {
+  const parts = raw.split(",").map(s => s.trim()).filter(Boolean);
+  const cleaned = [];
+  const errors = [];
+  for (const p of parts) {
+    const words = p.split(/\s+/).filter(Boolean);
+    if (words.length < 2) { errors.push(`"${p}" — needs at least 2 words`); continue; }
+    if (words.length > 4) { errors.push(`"${p}" — max 3-4 words per phrase`); continue; }
+    cleaned.push(p);
+  }
+  return { keywords: cleaned.slice(0, 3), errors, valid: cleaned.length > 0 };
+}
+
+/* ═══ TITLE/DESC/HEADINGS KEYWORD ANALYSIS — ported from Typebot ═══ */
+function analyzeTitleDescHeadings(parsed, keywords) {
+  const STOP = new Set(["a","an","the","and","or","but","of","in","on","to","for","from","with","as","is","are","was","were","be","been","being","it","its","at","by","if","not","no","so","than","that","this","into","up","down","out","off","via","per","about","can","could","should","would","do","does","did","have","has","had","you","your","we","our","they","their","he","she","him","her","his","them","i","me","my","и","в","на","по","к","с","у","о","от","до","за","из","во","не","да","но","или","же","что","как","для","при"]);
+  const norm = s => (s||"").toLowerCase().replace(/[^\p{L}\p{N}\s]+/gu," ").replace(/\s+/g," ").trim();
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const tokenizeNoStop = s => norm(s).split(" ").filter(w => w && !STOP.has(w));
+
+  const countPhrase = (text, phrase) => {
+    if (!text || !phrase) return 0;
+    const m = norm(text).match(new RegExp(esc(norm(phrase)), "gi"));
+    return m ? m.length : 0;
+  };
+
+  const labelFor = (area, kw) => {
+    if (!kw) return "missing";
+    const aNorm = norm(area), kNorm = norm(kw);
+    if (aNorm.includes(kNorm)) return "exact";
+    const kwTokens = tokenizeNoStop(kw);
+    const areaTokens = new Set(tokenizeNoStop(area));
+    if (kwTokens.length && kwTokens.every(t => areaTokens.has(t))) return "all_words";
+    if (kwTokens.length && kwTokens.some(t => areaTokens.has(t))) return "some_words";
+    return "missing";
+  };
+
+  const result = { title: {}, desc: {}, h1: {}, h2h3: {} };
+
+  // --- TITLE analysis ---
+  const title = parsed.title || "";
+  const titleLen = title.length;
+  const titleKwResults = keywords.map(kw => ({ keyword: kw, label: labelFor(title, kw), exact: countPhrase(title, kw) }));
+  const titleHasExact = titleKwResults.some(r => r.exact > 0);
+  const titleHasPartial = titleKwResults.some(r => r.label === "all_words" || r.label === "some_words");
+  const titleExactSum = titleKwResults.reduce((s, r) => s + r.exact, 0);
+  const titleOverused = titleExactSum >= 3 || titleKwResults.some(r => r.exact >= 2);
+
+  // Duplicate words in title
+  const titleWordMap = new Map();
+  for (const w of tokenizeNoStop(title)) titleWordMap.set(w, (titleWordMap.get(w)||0) + 1);
+  const titleDuplicates = [...titleWordMap.entries()].filter(([,c]) => c > 1);
+
+  let titleCoverage = "none";
+  if (titleHasExact && !titleDuplicates.length) titleCoverage = "strong";
+  else if (titleHasExact || titleHasPartial) titleCoverage = "partial";
+
+  result.title = {
+    text: title, length: titleLen,
+    kwResults: titleKwResults, coverage: titleCoverage,
+    overused: titleOverused, duplicates: titleDuplicates,
+    missing: !title,
+    tooShort: titleLen > 0 && titleLen < 30,
+    tooLong: titleLen > 90,
+    occurrences: titleKwResults.map(r => `• "${r.keyword}" — ${r.label === "exact" ? `exact match (${r.exact}×)` : r.label === "all_words" ? "all words present (not exact)" : r.label === "some_words" ? "some words present" : "not found"}`).join("\n"),
+    // Rank booleans for full balance
+    strong: titleCoverage === "strong",
+    overusedKw: titleOverused,
+  };
+
+  // --- DESCRIPTION analysis ---
+  const desc = parsed.desc || "";
+  const descLen = desc.length;
+  const descKwResults = keywords.map(kw => ({ keyword: kw, label: labelFor(desc, kw) }));
+  const descHasKw = descKwResults.some(r => r.label !== "missing");
+  result.desc = {
+    text: desc, length: descLen,
+    kwResults: descKwResults, hasKeywords: descHasKw,
+    missing: !desc,
+    tooShort: descLen > 0 && descLen < 90,
+    tooLong: descLen > 180,
+    good: descLen >= 90 && descLen <= 180,
+  };
+
+  // --- H1 analysis ---
+  const h1List = parsed.h1 || [];
+  const h1Text = h1List.join(" ");
+  const h1KwResults = keywords.map(kw => ({ keyword: kw, label: labelFor(h1Text, kw), exact: countPhrase(h1Text, kw) }));
+  const h1HasExact = h1KwResults.some(r => r.exact > 0);
+  const h1MatchesTitle = h1List.length === 1 && norm(h1List[0]) === norm(title);
+  result.h1 = {
+    list: h1List, kwResults: h1KwResults,
+    missing: h1List.length === 0,
+    tooLong: h1List.length > 0 && h1List[0].length > 80,
+    matchesTitle: h1MatchesTitle,
+    strong: h1HasExact,
+    occurrences: h1KwResults.map(r => `• "${r.keyword}" — ${r.label === "exact" ? `found in H1` : r.label === "all_words" ? "all words present" : r.label === "some_words" ? "some words" : "not in H1"}`).join("\n"),
+  };
+
+  // --- H2/H3 analysis ---
+  const h2Text = (parsed.h2 || []).join(" ");
+  const h3Text = (parsed.h3 || []).join(" ");
+  const h2h3Text = h2Text + " " + h3Text;
+  const h2h3KwResults = keywords.map(kw => ({ keyword: kw, label: labelFor(h2h3Text, kw) }));
+  const h2h3HasKw = h2h3KwResults.some(r => r.label !== "missing");
+  result.h2h3 = {
+    h2Count: (parsed.h2 || []).length, h3Count: (parsed.h3 || []).length,
+    kwResults: h2h3KwResults, hasKeywords: h2h3HasKw,
+    strong: h2h3HasKw,
+  };
+
+  return result;
+}
+function analyzeTrust(parsed, pageType) {
+  const urlL = (parsed.url || "").toLowerCase();
+  const topicL = pageType || "other";
+
+  const isHomepage = urlL.replace(/^https?:\/\/[^/]+/,'').replace(/[#?].*$/,'').replace(/\/+$/,'') === "";
+  const isProduct = /product|shop|store/.test(topicL);
+  const isArticle = /article|blog/.test(topicL);
+  const isAbout = /about/.test(topicL);
+  const isContact = /contact/.test(topicL);
+  const isPricing = /pricing/.test(topicL);
+  const isCategory = /category/.test(topicL);
+  const isDocs = /docs/.test(topicL);
+  const isRecipe = /recipe/.test(topicL);
+  const isCaseStudy = /case_study/.test(topicL);
+
+  const trust = {
+    contacts: { found: parsed.has_contacts, show: isHomepage || isAbout || isContact },
+    socials: { found: parsed.social.length > 0, show: !isDocs, list: parsed.social },
+    testimonials: { found: parsed.has_testimonials, show: isProduct || isPricing || isCaseStudy || isHomepage || isCategory },
+    faq: { found: parsed.has_faq, show: isPricing || isProduct || isDocs || isHomepage || isCategory },
+    cta: { found: parsed.has_cta, text: parsed.cta_text, show: isHomepage || isCategory || isPricing || isProduct || isCaseStudy || isArticle },
+  };
+
+  return trust;
+}
+
+/* ═══ AI READINESS — wraps window.AIReadiness module + maps to good/bad ═══ */
+const AI_CHECK_LABELS = {
+  schema: "Schema.org markup",
+  faq: "FAQ schema",
+  llms: "llms.txt file",
+  bots: "AI crawlers access",
+  qa: "Question patterns",
+  og: "Open Graph tags",
+  author: "Author information",
+  dates: "Last updated date",
+  citations: "Outbound links",
+  statistics: "Statistics & data",
+  extractable: "Extractable passages",
+  tldr: "TL;DR or quick summary",
+  tables: "Comparison tables",
+  howto: "HowTo schema",
+};
+
+function analyzeAIReadiness(aiResult, pageType) {
+  /* aiResult comes from window.AIReadiness.parse() — has score, checks, weights_used */
+  const aiGood = [], aiBad = [];
+  if (!aiResult || !aiResult.checks) return { score: 0, total: 0, aiGood, aiBad, weights: null };
+
+  const checks = aiResult.checks;
+  const weights = aiResult.weights_used || {};
+
+  /* Helper: build "passed" boolean per check */
+  const isPassed = {
+    schema: checks.schema.found && checks.schema.malformed_blocks === 0,
+    faq: checks.faq_schema.status === "good" || checks.faq_schema.status === "partial_match",
+    llms: checks.llms_txt.found && checks.llms_txt.valid,
+    bots: checks.ai_bots.all_allowed === true,
+    qa: (checks.qa_patterns.total || 0) + (checks.qa_patterns.heading_questions || 0) >= 3,
+    og: checks.open_graph.status === "complete" || checks.open_graph.status === "good",
+    author: ["good", "partial", "org_only"].includes(checks.author.status),
+    dates: checks.dates.status === "fresh",
+    citations: (checks.citations.unique_hosts || 0) >= 1,
+    statistics: (checks.statistics.total || 0) >= 5,
+    extractable: checks.extractable && checks.extractable.status === "good",
+    tldr: checks.tldr && checks.tldr.status === "good",
+    tables: checks.tables && checks.tables.status === "good",
+    howto: checks.howto && (checks.howto.status === "good" || checks.howto.status === "not_applicable"),
+  };
+
+  /* Articles need Person markup, not just org_only */
+  if (pageType === "article" || pageType === "blog" || pageType === "blog_post") {
+    isPassed.author = checks.author.status === "good" || checks.author.status === "partial";
+  }
+
+  /* Iterate all 14 checks but only include those with weight > 0 for this page type */
+  const checkOrder = ["schema", "faq", "llms", "bots", "qa", "og", "author", "dates", "citations", "statistics", "extractable", "tldr", "tables", "howto"];
+  for (const checkName of checkOrder) {
+    const weight = weights[checkName] || 0;
+    if (weight === 0) continue; /* not relevant for this page type */
+
+    /* Special: hide HowTo check entirely if page has no step content (not_applicable) */
+    if (checkName === "howto" && checks.howto && checks.howto.status === "not_applicable") continue;
+
+    const passed = isPassed[checkName];
+    const label = AI_CHECK_LABELS[checkName];
+
+    if (passed) {
+      aiGood.push({
+        title: label,
+        check: checkName,
+        content: aiReadinessGoodContent(checkName, checks[mapCheckKey(checkName)]),
+      });
+    } else {
+      aiBad.push({
+        title: label,
+        check: checkName,
+        priority: aiReadinessPriority(checkName, weight),
+        why: aiReadinessWhy(checkName, pageType),
+        suggestions: aiReadinessSuggestions(checkName),
+        links: aiReadinessLinks(checkName),
+        showCopy: false,
+      });
+    }
+  }
+
+  return {
+    score: aiResult.score,
+    status: aiResult.status,
+    pageType: aiResult.page_type,
+    total: aiGood.length + aiBad.length,
+    aiGood,
+    aiBad,
+    weights,
+    breakdown: aiResult.breakdown,
+    extractablePassages: (checks.extractable && checks.extractable.passages) || [],
+  };
+}
+
+function mapCheckKey(checkName) {
+  const map = { schema: "schema", faq: "faq_schema", llms: "llms_txt", bots: "ai_bots", qa: "qa_patterns", og: "open_graph", author: "author", dates: "dates", citations: "citations", statistics: "statistics", extractable: "extractable", tldr: "tldr", tables: "tables", howto: "howto" };
+  return map[checkName] || checkName;
+}
+
+function aiReadinessPriority(checkName, weight) {
+  /* Critical if check has high weight (>= 15), important if moderate (>= 8), nice if low */
+  if (checkName === "llms") return "nice";
+  if (checkName === "citations") return "nice";
+  if (weight >= 15) return "critical";
+  if (weight >= 8) return "important";
+  return "nice";
+}
+
+function aiReadinessGoodContent(checkName, check) {
+  /* Short status line shown in "Working Well" expandable item */
+  switch (checkName) {
+    case "schema":
+      return <div style={{ fontSize: 12, color: C.muted }}>Found {check.valid_blocks} valid schema block{check.valid_blocks === 1 ? "" : "s"}: {(check.types || []).slice(0, 3).join(", ")}{check.types?.length > 3 ? "..." : ""}</div>;
+    case "faq":
+      return <div style={{ fontSize: 12, color: C.muted }}>FAQ schema matches {check.matched_questions} of {check.html_questions_count} questions on page</div>;
+    case "llms":
+      return <div style={{ fontSize: 12, color: C.muted }}>llms.txt found ({check.length} chars, {check.has_sections} sections)</div>;
+    case "bots":
+      return <div style={{ fontSize: 12, color: C.muted }}>All major AI crawlers can access this page (GPTBot, ClaudeBot, PerplexityBot, etc.)</div>;
+    case "qa":
+      return <div style={{ fontSize: 12, color: C.muted }}>Found {(check.total || 0) + (check.heading_questions || 0)} question patterns — AI tools love Q&A format</div>;
+    case "og":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.og_count} Open Graph tags + {check.twitter_count} Twitter Card tags</div>;
+    case "author":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.author_name ? `Author: ${check.author_name}` : "Author or organization markup found"}</div>;
+    case "dates":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.date_modified ? `Last updated: ${String(check.date_modified).slice(0, 10)}` : "Date signals found"}</div>;
+    case "citations":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.unique_hosts} unique authoritative source{check.unique_hosts === 1 ? "" : "s"} cited</div>;
+    case "statistics":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.total} numbers and statistics in content — strong factual signal</div>;
+    case "extractable":
+      return <div style={{ fontSize: 12, color: C.muted }}>Found {check.count} paragraph{check.count === 1 ? "" : "s"} in the 100–180 word range — strong extraction signal for AI engines</div>;
+    case "tldr":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.type === "explicit_marker" ? "Summary section detected near the top of the page" : "Strong intro paragraph found after H1 — works as a summary for AI engines"}</div>;
+    case "tables":
+      return <div style={{ fontSize: 12, color: C.muted }}>{check.count} comparison table{check.count === 1 ? "" : "s"} with structured data — AI engines extract these cleanly</div>;
+    case "howto":
+      return <div style={{ fontSize: 12, color: C.muted }}>Page has step-by-step content and HowTo schema is in place</div>;
+  }
+  return null;
+}
+
+function aiReadinessWhy(checkName, pageType) {
+  /* Short "why this matters" — 1-2 sentences, with term definition in bold */
+  const why = {
+    schema: "**Schema.org is special code that tells AI what your page is about.** Without it, AI search tools may skip you when answering user questions.",
+    faq: "**FAQ schema marks Q&A pairs on your page so AI can find them.** Pages with FAQ schema are more likely to be quoted in ChatGPT or Perplexity answers.",
+    llms: "**llms.txt is a simple text file telling AI tools what's important on your site** (like robots.txt for AI). It is optional \u2014 even if it shows up here, your page is completely fine without it. Adding it simply puts you ahead of most websites.",
+    bots: "**AI crawlers are bots like GPTBot and ClaudeBot that read your site for AI search.** If your robots.txt blocks them, ChatGPT and Perplexity won't recommend you.",
+    qa: "**Question patterns are headings written as actual questions** (\"What is X?\", \"How to Y?\"). They match how users ask AI tools, so your page gets cited more often.",
+    og: "**Open Graph tags control how your link looks when shared online** — title, description, preview image. Without them, AI tools may skip your page.",
+    author: "**Author information is markup or visible text saying who wrote the page.** AI tools trust pages with clear authorship and rarely cite anonymous content.",
+    dates: "**A \"last updated\" date shows AI when the page was last edited.** AI prefers fresh content — without this, your page looks outdated even if it isn't.",
+    citations: "**Outbound links are links from your page out to other websites.** Linking to relevant, trustworthy sources can complement your content, but it is optional and not a ranking factor on its own \u2014 your page is fine without them.",
+    statistics: "**Statistics are concrete numbers in your content** (like \"60% of users\" or \"$5 to start\"). AI loves quoting specific numbers more than vague claims.",
+    extractable: "**Extractable passages are paragraphs 100-180 words long that answer one clear question.** AI search engines like ChatGPT and Perplexity pull these chunks directly into their answers — pages without them get summarised, not quoted.",
+    tldr: "**A TL;DR or quick summary near the top helps AI engines understand your page in one read.** Pages with a clear summary section get cited 28% more often by ChatGPT and Google AI Overviews.",
+    tables: "**Comparison tables get cited 2x more often by AI engines than prose.** Tables let AI tools extract structured comparisons cleanly — especially Perplexity and Google AI.",
+    howto: "**HowTo schema marks step-by-step instructions so AI engines and Google can show them directly.** Pages with steps but no HowTo schema get summarised; pages with proper schema get cited verbatim.",
+  };
+  return why[checkName] || "";
+}
+
+function aiReadinessSuggestions(checkName) {
+  /* Concrete actionable suggestions */
+  const sug = {
+    schema: ["Add Organization schema with your name, URL, logo, and description", "If you sell software/products, add SoftwareApplication or Product schema", "Add WebSite schema for your homepage", "Validate your markup with Google's Rich Results Test"],
+    faq: ["Add a FAQ section to your page with real questions users ask", "Wrap each Q&A pair in FAQPage JSON-LD schema", "Make sure schema text matches the visible text exactly", "Validate with Google Rich Results Test"],
+    llms: ["Create a /llms.txt file in your site root", "Format: # Site Name on first line, > Short description, then ## sections with key links", "See llmstxt.org for the spec and examples"],
+    bots: ["Check your robots.txt file at /robots.txt", "Make sure it doesn't block GPTBot, ClaudeBot, PerplexityBot, Google-Extended, anthropic-ai, ChatGPT-User, OAI-SearchBot, CCBot", "If you want maximum AI visibility, allow all of these"],
+    qa: ["Add 3+ heading-style questions to your page (e.g., \"What is X?\", \"How does Y work?\")", "Use H2 or H3 tags for questions", "Answer each question clearly in 1-3 sentences below"],
+    og: ["Add og:title, og:description, og:image, og:type, og:url meta tags", "Image should be 1200×630 px for best preview results", "Also add Twitter Card tags (twitter:card, twitter:title, twitter:description, twitter:image) — they control previews on Slack, Discord, iMessage, LinkedIn, X, and other apps"],
+    author: ["Add Person schema with author name, url, optional image", "Or add visible byline like \"By [Name]\" near the top of articles", "Link to author bio page if possible"],
+    dates: ["Add datePublished and dateModified to your Schema.org markup", "Update dateModified whenever you edit the page", "Show the date visibly on the page (\"Last updated: [date]\")"],
+    citations: ["Optional: where it genuinely helps the reader, link out to 1-2 relevant, trustworthy sources", "Cite specific studies or official documentation when you reference them", "Don't add links just for SEO \u2014 only when they help the reader"],
+    statistics: ["Add at least 5 specific numbers, percentages, or stats to your content", "Use formats like \"60% of users\", \"$5 starts\", \"3x faster\", \"10,000 customers\"", "Cite the source for each statistic when possible"],
+    extractable: ["Aim for 3+ paragraphs in the 100-180 word range across the page", "Each paragraph should answer one specific question or cover one clear point", "Avoid very short paragraphs (under 50 words) for key explanations"],
+    tldr: ["Add a short summary section (50-200 words) right after your H1", "Label it \"TL;DR\", \"Quick summary\", \"In short\", or similar", "Include the main answer to the page's core question in those first lines"],
+    tables: ["Add a comparison table for any \"X vs Y\" or \"best of\" content", "Use proper <table> HTML with at least 2 columns and 3 rows", "Add a clear header row so AI knows what each column represents"],
+    howto: ["Add HowTo JSON-LD schema if your page has numbered steps or instructions", "Each step should have a name and text inside the schema", "Validate with Google's Rich Results Test"],
+  };
+  return sug[checkName] || [];
+}
+
+function aiReadinessLinks(checkName) {
+  /* Official documentation + validators per check */
+  const links = {
+    schema: [
+      { label: "Schema.org — getting started", url: "https://schema.org/docs/gs.html" },
+      { label: "Google Rich Results Test (validator)", url: "https://search.google.com/test/rich-results" },
+    ],
+    faq: [
+      { label: "Google guide: FAQ schema", url: "https://developers.google.com/search/docs/appearance/structured-data/faqpage" },
+      { label: "Google Rich Results Test (validator)", url: "https://search.google.com/test/rich-results" },
+    ],
+    llms: [
+      { label: "llms.txt — official spec", url: "https://llmstxt.org" },
+    ],
+    bots: [
+      { label: "OpenAI: GPTBot crawler info", url: "https://platform.openai.com/docs/gptbot" },
+      { label: "Anthropic: ClaudeBot crawler info", url: "https://support.anthropic.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler" },
+    ],
+    qa: [
+      { label: "Google: how AI Overviews work", url: "https://blog.google/products/search/generative-ai-google-search-may-2024/" },
+    ],
+    og: [
+      { label: "Open Graph protocol — official", url: "https://ogp.me" },
+      { label: "Twitter Card validator", url: "https://cards-dev.twitter.com/validator" },
+      { label: "Facebook Sharing Debugger", url: "https://developers.facebook.com/tools/debug/" },
+    ],
+    author: [
+      { label: "Schema.org Person type", url: "https://schema.org/Person" },
+      { label: "Google E-E-A-T guidelines", url: "https://developers.google.com/search/docs/fundamentals/creating-helpful-content" },
+    ],
+    dates: [
+      { label: "Schema.org dateModified", url: "https://schema.org/dateModified" },
+      { label: "Google: freshness signals", url: "https://developers.google.com/search/docs/appearance/structured-data/article" },
+    ],
+    citations: [
+      { label: "Google E-E-A-T: trust signals", url: "https://developers.google.com/search/docs/fundamentals/creating-helpful-content" },
+    ],
+    statistics: [
+      { label: "Google: helpful content guidelines", url: "https://developers.google.com/search/docs/fundamentals/creating-helpful-content" },
+    ],
+    extractable: [
+      { label: "Princeton GEO research: passage extraction", url: "https://arxiv.org/abs/2311.09735" },
+    ],
+    tldr: [
+      { label: "Why direct answers win AI citations", url: "https://blog.google/products/search/generative-ai-google-search-may-2024/" },
+    ],
+    tables: [
+      { label: "Structured data in AI search", url: "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data" },
+    ],
+    howto: [
+      { label: "Google: HowTo structured data", url: "https://developers.google.com/search/docs/appearance/structured-data/how-to" },
+    ],
+  };
+  return links[checkName] || [];
+}
+
+/* ═══ DISTRIBUTION TIPS — page-type-aware advice for AI citations (v4 addition) ═══ */
+function distributionTipsForPageType(pageType) {
+  const tipsByType = {
+    homepage: [
+      "**ChatGPT visibility:** Get listed on G2, Capterra, or your industry's main directories.",
+      "**Perplexity visibility:** Engage in relevant subreddits where your target audience already discusses problems you solve.",
+      "**Google AI visibility:** Create a short YouTube video explaining what you do — even a 2-minute screen recording counts.",
+      "**Claude visibility:** Write one long-form explainer (2000+ words) about the problem you solve.",
+    ],
+    product: [
+      "**G2 / Capterra / AlternativeTo:** List your product so AI engines find structured info about features and pricing.",
+      "**Reddit:** Genuine comments in subreddits where users discuss similar tools (don't post about your own product directly).",
+      "**YouTube:** A tutorial or demo video gives Google AI rich content to cite.",
+      "**Wikipedia:** If your product has notable coverage in independent sources, consider a Wikipedia entry.",
+    ],
+    article: [
+      "**Reddit:** Share the article in 1-2 relevant subreddits where it answers a real question.",
+      "**Quora:** Answer 2-3 related questions and link to your article as a source.",
+      "**YouTube:** Repurpose the article as a 5-10 minute video — Google AI heavily weights YouTube.",
+      "**Industry newsletters:** Pitch the article to 2-3 newsletters in your niche.",
+    ],
+    about: [
+      "**LinkedIn:** Connect your About page to your founder profile and post about the company regularly.",
+      "**Crunchbase:** Ensure your company has a complete Crunchbase profile.",
+      "**Industry interviews / podcasts:** Reach out to 3-5 small podcasts in your space.",
+    ],
+    pricing: [
+      "**Comparison articles:** Reach out to bloggers writing \"Best X tools\" listicles in your niche.",
+      "**G2 / Capterra:** Make sure pricing info is up-to-date on review sites.",
+      "**Reddit:** Answer pricing questions in relevant communities (honestly, without overselling).",
+    ],
+    docs: [
+      "**Stack Overflow / dev forums:** Answer related questions and link back to relevant docs sections.",
+      "**GitHub discussions:** Engage where developers ask integration questions.",
+      "**YouTube tutorials:** A walkthrough video gets your docs surfaced by Google AI.",
+    ],
+    contact: [
+      "**LinkedIn:** Keep founder profiles current and link to your contact page.",
+      "**Local business directories:** If location matters for your business, claim those listings.",
+    ],
+    other: [
+      "**Get listed:** On 3-5 directories relevant to your niche (G2, Capterra, AlternativeTo, industry-specific).",
+      "**Reddit:** Find 2-3 subreddits where your audience hangs out and engage genuinely.",
+      "**YouTube:** Even one explainer video creates a strong AI citation signal.",
+      "**Original data:** Publish one piece of original research or stats — it's the highest-leverage signal for AI citations.",
+    ],
+  };
+  return tipsByType[pageType] || tipsByType.other;
+}
+
+/* ═══ SEMANTIC FILTER — from Typebot single_semantic.js ═══ */
+function filterSemanticMissing(autocomplete, related, paa, visibleText) {
+  const STOPWORDS = new Set(["a","an","the","and","or","but","if","for","from","to","of","in","on","at","by","with","as","is","are","was","were","be","been","being","it","its","so","not","no","very","can","could","should","would","may","might","must","do","does","did","have","has","had","you","your","we","our","they","their","he","she","him","her","his","them","i","me","my","s","t","re","ll","d","m","ve"]);
+  const norm = s => (s||"").toLowerCase().replace(/[^\p{L}\p{N}\s]+/gu," ").replace(/\s+/g," ").trim();
+  const tokenize = s => norm(s).split(" ").filter(w => w && !STOPWORDS.has(w));
+  const escRx = s => s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+
+  const areaTokens = new Set(tokenize(visibleText));
+  const areaLower = (visibleText||"").toLowerCase();
+
+  const isCovered = (phrase) => {
+    const p = (phrase||"").trim();
+    if (!p) return false;
+    if (new RegExp(escRx(p.toLowerCase())).test(areaLower)) return true;
+    const toks = tokenize(p);
+    return toks.length > 0 && toks.every(t => areaTokens.has(t));
+  };
+
+  return {
+    autocomplete: (autocomplete||[]).filter(p => !isCovered(p)),
+    related: (related||[]).filter(p => !isCovered(p)),
+    paa: (paa||[]).filter(p => !isCovered(p)),
+  };
+}
+
+/* ═══ HEADING LIST (from Core Audit — colored badges) ═══ */
+const hColors = { H1: { color: "#6E2BFF", bg: "rgba(110,43,255,0.08)" }, H2: { color: "#9B7AE6", bg: "rgba(155,122,230,0.08)" }, H3: { color: "#B89CF0", bg: "rgba(184,156,240,0.12)" } };
+const HL = ({ tags, lv }) => (<div style={{ display: "flex", flexDirection: "column", gap: 3 }}>{tags.map((h, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 500, color: C.dark }}><span style={{ fontSize: 9, fontWeight: 600, color: hColors[lv].color, background: hColors[lv].bg, padding: "2px 5px", borderRadius: 3, minWidth: 22, textAlign: "center" }}>{lv}</span>{typeof h === "string" ? h : h.text}</div>))}</div>);
+
+/* ═══ COVERAGE SCORE CARD ═══ */
+const CoverageScoreCard = ({ url, contentGood, contentBad, trustGood, trustBad, aiGood, aiBad }) => {
+  const contentTotal = contentGood.length + contentBad.length;
+  const trustTotal = trustGood.length + trustBad.length;
+  const aiTotal = (aiGood?.length || 0) + (aiBad?.length || 0);
+  const totalIssues = contentBad.length + trustBad.length + (aiBad?.length || 0);
+  const contentPct = contentTotal > 0 ? Math.round((contentGood.length / contentTotal) * 100) : 0;
+  const trustPct = trustTotal > 0 ? Math.round((trustGood.length / trustTotal) * 100) : 0;
+  const aiPct = aiTotal > 0 ? Math.round(((aiGood?.length || 0) / aiTotal) * 100) : 0;
+  return (<div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+    <div style={{ width: 92, height: 92, flexShrink: 0, borderRadius: 14, background: C.card, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: `1px solid ${C.cardBorder}` }}>
+      <span style={{ fontSize: 28, fontWeight: 700, color: C.dark }}>{totalIssues}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>Issues</span>
+    </div>
+    <div style={{ flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>Content Coverage & AI Readiness Score</span>
+        <QM text="Your coverage score shows how well your page is optimized across three areas: Content & Keywords (target keywords in title, headings, body), Trust & Conversion (social proof, CTA, FAQ, contacts), and AI Readiness (signals for AI search tools like ChatGPT and Perplexity). Each area has its own progress bar." />
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Content & Keywords</span>
+            <QM text="Content & Keywords checks how well your target keywords appear in title, description, headings, and body text — these are the basics search engines use to understand what your page is about." />
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6" }}>{contentGood.length} / {contentTotal}</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${contentPct}%`, background: "#9B7AE6", borderRadius: 100, transition: "width 0.8s ease" }} />
+        </div>
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>Trust & Conversion</span>
+            <QM text="Trust & Conversion checks for social proof, CTA, FAQ, contacts, and testimonials. These signals build trust with visitors and help convert them into customers." />
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#D4A0E8" }}>{trustGood.length} / {trustTotal}</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${trustPct}%`, background: "#D4A0E8", borderRadius: 100, transition: "width 0.8s ease" }} />
+        </div>
+      </div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>AI Readiness</span>
+            <QM text="AI Readiness shows how well your page is optimized for AI search tools like ChatGPT and Perplexity. The score is an estimate — what matters most depends on your page type. Also known as GEO (Generative Engine Optimization)." />
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#B89CF0" }}>{aiGood?.length || 0} / {aiTotal}</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${aiPct}%`, background: "#B89CF0", borderRadius: 100, transition: "width 0.8s ease" }} />
+        </div>
+      </div>
+    </div>
+  </div>);
+};
+
+/* ═══ BUILD RESULTS (same structure as v4 but with real data) ═══ */
+function buildCoverageResults(d) {
+  const NB = C.cardBorder;
+  const contentGood = [], contentBad = [], trustGood = [], trustBad = [];
+  const ukw = d.userKeywords || [];
+
+  /* Title — with keyword presence analysis */
+  const ta = d.titleAnalysis?.title;
+  if (ta) {
+    const titleOk = !ta.missing && !ta.tooShort && !ta.tooLong && ta.coverage === "strong" && !ta.duplicates.length;
+    if (titleOk) {
+      contentGood.push({ title: "Meta Title", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} hideDesc /><InfoBlock label="Keyword scan" value={ta.occurrences} borderColor={NB} /><BotNote inline text={`Your title is ${ta.length} characters with strong keyword alignment.`} /></>) });
+    } else {
+      const whyParts = [];
+      if (ta.missing) whyParts.push("No meta title found — Google can't generate a proper search snippet.");
+      else {
+        if (ta.tooShort) whyParts.push(`Title is only ${ta.length} characters — too short. Aim for 30–60 characters.`);
+        if (ta.tooLong) whyParts.push(`Title is ${ta.length} characters — too long, Google will truncate it.`);
+        if (ta.coverage === "none") whyParts.push("None of your target keywords appear in the title — this is the #1 on-page SEO signal.");
+        else if (ta.coverage === "partial") whyParts.push("Your keywords are partially present in the title, but not as exact phrases.");
+        if (ta.duplicates.length) whyParts.push("Duplicate words found: " + ta.duplicates.map(([w,c]) => `"${w}" (${c}×)`).join(", ") + ". Rephrase to avoid repetition.");
+        if (ta.overused) whyParts.push("Keywords are overused in the title — keep each phrase to 1 mention.");
+      }
+      const titlePrio = (d.pageType === "about" || d.pageType === "contact") ? "important" : "critical";
+      contentBad.push({ title: "Meta Title Needs Work", priority: titlePrio, serpSnippet: { url: d.url, title: d.title || "(no title)", desc: d.desc, hideDesc: true }, currentLabel: "Keyword presence in title", current: ta.occurrences, why: whyParts.join(" "), suggestions: d.gptSuggestions?.suggested_titles?.length > 0 ? d.gptSuggestions.suggested_titles : ["Add your primary keyword phrase once near the beginning of the title", "Keep title between 30–60 characters"], showCopy: !!(d.gptSuggestions?.suggested_titles?.length > 0) });
+    }
+    d.titleStatus = titleOk ? "good" : "bad";
+  } else {
+    d.titleStatus = "bad";
+    contentBad.push({ title: "Meta Title", priority: "critical", why: "Could not analyze title.", suggestions: [], showCopy: false });
+  }
+
+  /* Description — with keyword check */
+  const da = d.titleAnalysis?.desc;
+  if (da) {
+    if (da.good && da.hasKeywords) {
+      contentGood.push({ title: "Meta Description", content: (<><SerpSnippet url={d.url} title={d.title} desc={d.desc} /><BotNote inline text={`Your description is ${da.length} characters — within 90–180, with keyword mentions. Good for click-through rate.`} /></>) });
+    } else {
+      const whyParts = [];
+      if (da.missing) whyParts.push("No meta description found.");
+      else {
+        if (da.tooShort) whyParts.push(`Description is only ${da.length} characters — too short. Aim for 140–160 characters.`);
+        if (da.tooLong) whyParts.push(`Description is ${da.length} characters — too long, Google may truncate it.`);
+        if (!da.hasKeywords && !da.missing) whyParts.push("None of your target keywords appear in the description. Including them improves click-through rate.");
+      }
+      contentBad.push({ title: "Description Needs Work", priority: "critical", serpSnippet: { url: d.url, title: d.title, desc: d.desc || "(no description)" }, why: whyParts.join(" ") || "Description needs improvement.", suggestions: d.gptSuggestions?.suggested_descriptions?.length > 0 ? d.gptSuggestions.suggested_descriptions : ["Write 140–160 characters including your primary keyword", "Make it compelling — this is what users see in search results"], showCopy: !!(d.gptSuggestions?.suggested_descriptions?.length > 0) });
+    }
+    d.descStatus = (da.good && da.hasKeywords) ? "good" : "bad";
+  } else {
+    d.descStatus = "bad";
+    contentBad.push({ title: "Description", priority: "critical", why: "Could not analyze description.", suggestions: [], showCopy: false });
+  }
+
+  /* Headings — with keyword presence */
+  const ha = d.titleAnalysis;
+  const h1a = ha?.h1;
+  const h2h3a = ha?.h2h3;
+  if (h1a && h2h3a) {
+    const h1Ok = !h1a.missing && !h1a.matchesTitle && !h1a.tooLong && h1a.strong;
+    const h2h3Ok = h2h3a.h2Count > 0 && h2h3a.hasKeywords;
+    if (h1Ok && h2h3Ok) {
+      const h1 = d.h1, h2 = d.h2, h3 = d.h3;
+      contentGood.push({ title: "Heading Structure", content: (<><InfoBlock label={`H1 — ${h1.length} found`} value={<HL tags={h1} lv="H1" />} borderColor={NB} /><InfoBlock label={`H2 — ${h2.length} found`} value={<HL tags={h2} lv="H2" />} borderColor={NB} />{h3.length > 0 && <InfoBlock label={`H3 — ${h3.length} found`} value={<HL tags={h3} lv="H3" />} borderColor={NB} />}<InfoBlock label="Keyword presence" value={h1a.occurrences} borderColor={NB} /><BotNote inline text="Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page." /></>) });
+    } else {
+      if (h1a.missing || h1a.matchesTitle || h1a.tooLong || !h1a.strong) {
+        const h1WhyParts = [];
+        if (h1a.missing) h1WhyParts.push("H1 is missing — this is your page's main heading. Google uses it to understand what the page is about.");
+        if (h1a.tooLong) h1WhyParts.push(`H1 is ${h1a.list[0]?.length || 0} characters — way too long. Keep H1 under 60–80 characters for best impact.`);
+        if (h1a.matchesTitle) h1WhyParts.push("H1 is identical to the title — rewrite it to expand on the title while keeping your primary keyword.");
+        if (!h1a.strong && !h1a.missing) h1WhyParts.push("Your target keywords are not in the H1 heading.");
+        const h1Why = h1WhyParts.join(" ");
+        contentBad.push({ title: "H1 Needs Work", priority: "critical", currentLabel: "Current H1", current: d.h1.length > 0 ? <HL tags={d.h1} lv="H1" /> : "No H1 found", why: h1Why, suggestions: d.gptSuggestions?.suggested_h1?.length > 0 ? d.gptSuggestions.suggested_h1 : ["Add a unique H1 with your primary keyword", "Make it different from the title — expand on the topic"], showCopy: !!(d.gptSuggestions?.suggested_h1?.length > 0) });
+      }
+      if (h2h3a.h2Count === 0 || !h2h3a.hasKeywords) {
+        const h2Why = h2h3a.h2Count === 0 ? "No H2 headings found — add subheadings to break content into sections." : "Keywords are missing from H2/H3 headings. Include secondary keywords in subheadings.";
+        contentBad.push({ title: "H2/H3 Structure Needs Work", priority: "important", currentLabel: "Current Subheadings", current: (d.h2.length > 0 || d.h3.length > 0) ? <div>{d.h2.length > 0 && <HL tags={d.h2} lv="H2" />}{d.h3.length > 0 && <div style={{marginTop:4}}><HL tags={d.h3.slice(0, 4)} lv="H3" /></div>}</div> : "No subheadings found", why: h2Why, suggestions: d.gptSuggestions?.suggested_h2?.length > 0 ? d.gptSuggestions.suggested_h2 : ["Use H2 for main content sections with secondary keywords", "Add H3 for subsections within each H2"], showCopy: !!(d.gptSuggestions?.suggested_h2?.length > 0) });
+      }
+    }
+    d.h1Status = (h1Ok) ? "good" : "bad";
+    d.h2h3Status = (h2h3Ok) ? "good" : "bad";
+  } else {
+    d.h1Status = "bad";
+    d.h2h3Status = "bad";
+    contentBad.push({ title: "Heading Structure", priority: "critical", why: "Could not analyze headings.", suggestions: [], showCopy: false });
+  }
+
+  /* Body Content */
+  if (d.bodyEval) {
+    const be = d.bodyEval;
+    if (be.status === "good") {
+      contentGood.push({ title: "Body Content — Keyword Coverage", content: (<><InfoBlock label="Keyword scan results" value={be.occurrences} borderColor={NB} /><BotNote inline text="Your keywords appear naturally throughout the body text — good balance without overuse." /></>) });
+    } else {
+      const kwList = (ukw.length ? ukw : d.extractedKeywords || []);
+      const actionLines = kwList.map(k => `"${typeof k === "string" ? k : k.keyword}" — ${be.budgetPer[0]}–${be.budgetPer[1]} times`);
+      contentBad.push({ title: "Body Content — Keyword Coverage", priority: "critical", currentLabel: "Keyword scan results", current: be.occurrences, why: be.status === "no_body" ? "No body text detected on your page." : be.status === "missing" ? "Body content has individual keyword words but no exact phrases. Google weights exact phrase matches more heavily." : be.status === "low" ? "Partial coverage — add at least one more full key phrase." : "Keyword usage appears high — reduce repetition.", sugLabel: "Recommended keyword usage", suggestions: [...actionLines, `Total recommended: ${be.budgetTotal[0]}–${be.budgetTotal[1]} times across the entire body text.`], showCopy: false });
+    }
+    d.bodyStatus = be.status === "good" ? "good" : "bad";
+  }
+
+  /* Semantic Expansion */
+  if (d.semanticMissing) {
+    const sm = d.semanticMissing;
+    const allMissing = [...(sm.autocomplete||[]), ...(sm.related||[]), ...(sm.paa||[])];
+    if (allMissing.length > 0) {
+      contentBad.push({ title: "Semantic Expansion — Topics You May Be Missing", priority: "nice", soft: true,
+        why: "I checked real Google search data and found topics related to your keywords that are missing from your page. Adding some of these phrases can help your page appear for more search queries and bring in more targeted visitors. Only add phrases that naturally fit your content — don't force them in.",
+        currentLabel: "Missing from your page",
+        current: (<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {sm.autocomplete.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Autocomplete <QM text="These are Google's suggestions that appear as users type your keyword into the search bar. They reflect real, popular search patterns." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Google's suggestions as you type — real, popular search patterns.</div>{sm.autocomplete.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>• {s}</div>)}</div>}
+          {sm.related.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Related searches <QM text="These queries appear at the bottom of Google's search results page. They show what users also search for after your keyword." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Queries users also look for — shown at the bottom of Google results.</div>{sm.related.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>• {s}</div>)}</div>}
+          {sm.paa.length > 0 && <div><div style={{ fontSize: 11, fontWeight: 600, color: C.dark, marginBottom: 2 }}>People Also Ask <QM text="These are real questions that Google shows in a special FAQ-style block on the search results page. Answering them on your page can help you appear in this block." /></div><div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>Common questions shown in Google — answering them can get you featured.</div>{sm.paa.map((s, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "3px 0" }}>• {s}</div>)}</div>}
+        </div>),
+        sugLabel: "How to use these phrases",
+        suggestions: [...(sm.related.length > 0 ? ["Related Searches — pick 1–2 phrases and use them as H2 or H3 headings, or mention them in your body text."] : []), ...(sm.paa.length > 0 ? ["People Also Ask — take 3–5 questions and add a short FAQ section to your page. This helps you appear in Google's FAQ block."] : []), ...(sm.autocomplete.length > 0 ? ["Autocomplete — mention 1–2 of these phrases naturally in your text where they fit the context. Don't overuse them."] : [])],
+        showCopy: false
+      });
+    }
+  }
+
+  /* Trust signals */
+  if (d.trust) {
+    const t = d.trust;
+    if (t.contacts.show) {
+      if (t.contacts.found) trustGood.push({ title: "Contact Information", content: (<><InfoBlock label="Status" value="Contact information detected on your page." borderColor={NB} /><BotNote inline text="Visible contact info builds trust with visitors and search engines — it's a key E-E-A-T signal." /></>) });
+      else trustBad.push({ title: "No Contact Information", priority: "nice", why: "No contact details found. Adding an email, phone number, or contact form helps build trust.", suggestions: ["Add a contact section or footer with email/phone", "Include a contact form on the page"], showCopy: false });
+    }
+    if (t.cta.show) {
+      if (t.cta.found) trustGood.push({ title: "Call to Action", content: (<><InfoBlock label="Current CTA" value={`"${t.cta.text}"`} borderColor={NB} /><BotNote inline text="A clear call-to-action guides visitors to the next step." /></>) });
+      else trustBad.push({ title: "No CTA Found", priority: "important", why: "No call-to-action detected. Without one, visitors may leave without converting.", suggestions: ["Add a prominent CTA above the fold"], showCopy: false });
+    }
+    if (t.socials.show) {
+      if (t.socials.found) trustGood.push({ title: "Social Profiles", content: (<><div style={{ fontSize: 10, fontWeight: 600, color: C.muted, marginBottom: 6 }}>Detected profiles</div><div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>{t.socials.list.map((s, i) => <SocialBadge key={i} name={typeof s === "string" ? s : s.name} url={typeof s === "string" ? null : s.url} />)}</div><BotNote inline text="Social profiles reinforce brand recognition and give users multiple ways to connect with you." /></>) });
+      else trustBad.push({ title: "No Social Profiles Found", priority: "nice", why: "No social media links found. Adding links to your active profiles strengthens trust.", suggestions: ["Add social profile links to your footer or header", "Link at least 2 relevant social accounts"], showCopy: false });
+    }
+    if (t.testimonials.show) {
+      if (t.testimonials.found) trustGood.push({ title: "Testimonials / Social Proof", content: (<><InfoBlock label="Status" value="Testimonials or reviews detected." borderColor={NB} /><BotNote inline text="Social proof helps visitors trust your brand." /></>) });
+      else trustBad.push({ title: "No Testimonials Found", priority: "nice", why: "No testimonials or reviews detected. Adding 2–3 short customer quotes builds social proof.", suggestions: ["Add 2–3 short testimonials from customers", "Include star ratings or review counts if available"], showCopy: false });
+    }
+    if (t.faq.show) {
+      if (t.faq.found) trustGood.push({ title: "FAQ Section", content: (<><InfoBlock label="Status" value="FAQ section detected on your page." borderColor={NB} /><BotNote inline text="FAQ sections help users find answers quickly and improve your chances of appearing in Google's 'People Also Ask' results." /></>) });
+      else trustBad.push({ title: "No FAQ Section", priority: "nice", why: "No FAQ section found. Adding 3–5 common questions improves E-E-A-T signals.", suggestions: ["Add a short FAQ with 3–5 questions related to your topic"], showCopy: false });
+    }
+  }
+
+  return { contentGood, contentBad, trustGood, trustBad };
+}
+
+/* ═══ RANKING GAPS ═══ */
+function buildRankingGaps(d) {
+  const g = [];
+  if (d.titleStatus !== "good") g.push({ text: "Title needs work — lacks descriptive keywords and context.", critical: true });
+  if (d.h1Status !== "good") g.push({ text: "H1 too short or matches the title — rewrite for clarity.", critical: true });
+  if (d.bodyStatus !== "good") g.push({ text: "Missing keyword phrases in body text — weak search relevance.", critical: true });
+  if (d.trust && !d.trust.testimonials?.found && d.trust.testimonials?.show) g.push({ text: "No testimonials — weak social proof.", critical: false });
+  if (d.trust && !d.trust.faq?.found && d.trust.faq?.show) g.push({ text: "No FAQ section — fewer trust indicators.", critical: false });
+  if (d.trust && !d.trust.socials?.found && d.trust.socials?.show) g.push({ text: "Missing social profiles — weak off-page trust.", critical: false });
+  return g;
+}
+
+/* ═══ REPORT ═══ */
+const CoverageReport = ({ data }) => {
+  const { contentGood, contentBad, trustGood, trustBad } = buildCoverageResults(data);
+  const aiGood = data.aiReadiness?.aiGood || [];
+  const aiBad = data.aiReadiness?.aiBad || [];
+  const prioOrder = { critical: 0, important: 1, nice: 2 };
+  const sortByPrio = (a, b) => (prioOrder[a.priority] ?? 1) - (prioOrder[b.priority] ?? 1);
+  contentBad.sort(sortByPrio);
+  trustBad.sort(sortByPrio);
+  aiBad.sort(sortByPrio);
+  const allBad = [...contentBad, ...trustBad, ...aiBad].sort(sortByPrio);
+  const ukw = data.userKeywords || [];
+
+  return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
+    <BotNote text="Here's your full content coverage audit. I'll walk you through each part — what's working, what needs fixing, and exactly how to fix it." />
+
+    {/* Coverage Score Card */}
+    <CoverageScoreCard url={data.url} contentGood={contentGood} contentBad={contentBad} trustGood={trustGood} trustBad={trustBad} aiGood={aiGood} aiBad={aiBad} />
+
+    {/* Page Summary */}
+    <BotNote text="This is how search engines interpret your page based on visible content and structure." />
+    <div className="reveal reveal-delay-1" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Page Context Summary</span><QM text="If something looks off here, it means Google may misunderstand your page's purpose." /></div>
+      <div className="iva-ctx-grid">{[{ l: "Page URL", v: data.url }, { l: "Page Title", v: data.title || "(no title)" }, { l: "Topic", v: data.ctx?.topic || "Unknown" }, { l: "Content Type", v: data.ctx?.content_type || "Page" }, { l: "Goal", v: data.ctx?.goal || "Inform" }, { l: "Industry", v: data.ctx?.industry || "General" }, { l: "Region", v: data.ctx?.region || "Global" }, { l: "Word Count", v: data.wordCount ? data.wordCount.toLocaleString() : "—" }].map((x, i) => (<div key={i} style={{ padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>{x.l}</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, wordBreak: "break-all" }}>{x.v}</div></div>))}<div style={{ gridColumn: "1/-1", padding: "6px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ fontSize: 9, fontWeight: 600, color: C.muted, textTransform: "uppercase", marginBottom: 1 }}>Core Message</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, lineHeight: 1.4 }}>{data.ctx?.message || ""}</div></div></div>
+    </div>
+
+    {/* Keywords — smart merge: one table if keywords match, two if different */}
+    {(() => {
+      const exKw = (data.extractedKeywords || []).map(k => (typeof k === "string" ? k : k.keyword || "").toLowerCase().trim()).filter(Boolean);
+      const usKw = ukw.map(k => k.toLowerCase().trim()).filter(Boolean);
+      const kwMatch = !!data.usedExtracted || (usKw.length > 0 && exKw.length > 0 && usKw.length === exKw.length && usKw.every(k => exKw.includes(k)));
+      console.log("[CC] table merge:", { usedExtracted: data.usedExtracted, kwMatch, exKw, usKw });
+
+      if (kwMatch) {
+        return (<>
+          <BotNote text="Your page is already aligned with your target keywords. Here's how they perform." />
+          <div className="reveal reveal-delay-2" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Keywords you're optimizing for</span><QM text="These keywords were found on your page and match what you want to rank for. The audit below checks how well your content covers them." /></div>
+              <span style={{ fontSize: 10, color: "#9B7AE6", background: "rgba(110,43,255,0.06)", padding: "3px 10px", borderRadius: 10, fontWeight: 500 }}>aligned</span>
+            </div>
+            <RankingsTable rows={data.userKeywordMetrics || data.keywordMetrics || ukw.map(k => ({ keyword: k, position: null, volume: null, difficulty: null }))} emptyMsg="Keywords will appear after audit completes." />
+          </div>
+        </>);
+      }
+
+      return (<>
+        <BotNote text="These are the keywords Google currently associates with your page." />
+        <div className="reveal reveal-delay-2" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>What your page is built for</span><QM text="Based on your title, H1–H3 headings, and meta description." /></div>
+            <span style={{ fontSize: 10, color: C.muted, background: "rgba(21,20,21,0.04)", padding: "3px 10px", borderRadius: 10, fontWeight: 500 }}>content analysis</span>
+          </div>
+          <RankingsTable rows={data.keywordMetrics || data.extractedKeywords?.map(k => ({ keyword: k, position: null, volume: null, difficulty: null }))} emptyMsg="Keywords will appear after audit completes." />
+        </div>
+
+        {ukw.length > 0 && <div className="reveal" style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>What you want to rank for</span><QM text="These are the keywords you provided." /></div>
+            <span style={{ fontSize: 10, color: C.accent, background: "rgba(110,43,255,0.06)", padding: "3px 10px", borderRadius: 10, fontWeight: 500 }}>your target</span>
+          </div>
+          <RankingsTable rows={data.userKeywordMetrics || ukw.map(k => ({ keyword: k, position: null, volume: null, difficulty: null }))} emptyMsg="No target keywords provided." />
+        </div>}
+      </>);
+    })()}
+
+    <BotNote inline text="Low-volume keywords are useful as supporting phrases on your page — they bring niche traffic with less competition." />
+
+    {/* Content Working */}
+    <BotNote text={contentGood.length > 0 ? `Good news — ${contentGood.length} content elements are already working well.` : "Let's look at your content structure."} />
+    {contentGood.length > 0 && <div className="reveal reveal-delay-3" style={{ marginBottom: 12 }}><Fold title="Content & Structure — Working Well" count={contentGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{contentGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+
+    {/* Content Needs Improvement */}
+    <BotNote text={contentBad.length > 0 ? `I found ${contentBad.length} content areas that need attention.` : "Your content structure looks great!"} />
+    {contentBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Content & Structure — Needs Improvement" count={contentBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{contentBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+
+    {/* Trust Working */}
+    <BotNote text={trustGood.length > 0 ? `${trustGood.length} trust signals are already in place.` : "Let's check your trust and conversion signals."} />
+    {trustGood.length > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="Trust & Conversion — Working Well" count={trustGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{trustGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+
+    {/* Trust Needs Improvement */}
+    <BotNote text={trustBad.length > 0 ? `${trustBad.length} trust signals are missing.` : "All trust signals are in place!"} />
+    {trustBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="Trust & Conversion — Needs Improvement" count={trustBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{trustBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+
+    {/* AI Readiness — only show if module ran successfully */}
+    {data.aiReadiness && <>
+      <BotNote text={aiGood.length > 0 ? `${aiGood.length} AI search signals are in place.` : "Let's check how AI search tools see your page."} />
+      {(aiGood.length > 0 || data.aiReadiness.extractablePassages?.length > 0) && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="AI Search Optimization — Working Well" count={aiGood.length} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{data.aiReadiness.extractablePassages?.length > 0 && <WorkingItem title="Passages AI is most likely to quote" content={(<><BotNote inline text="AI search tools like ChatGPT and Perplexity tend to pull self-contained passages (roughly 100–180 words) straight into their answers. These are the strongest candidates on your page right now." /><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>{data.aiReadiness.extractablePassages.map((p, i) => (<div key={"pq" + i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div></div>))}</div></>)} />}{aiGood.map((g, i) => <WorkingItem key={i} title={g.title} content={g.content} />)}</div></Fold></div>}
+
+      <BotNote text={aiBad.length > 0 ? `${aiBad.length} AI readiness signals need improvement.` : "All AI readiness signals are in place!"} />
+      {aiBad.length > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="AI Search Optimization — Needs Improvement" count={aiBad.length} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={i} {...p} />)}</div></Fold></div>}
+
+      {/* Distribution Tips — page-type-aware advice for AI citations (v4 addition) */}
+      <BotNote text="Here are some tips on where to mention this page to build AI citation signals." />
+      <div className="reveal" style={{ marginBottom: 20 }}>
+        <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.aiReadiness?.pageType || "other")} />
+      </div>
+    </>}
+
+    {/* Final Recommendations */}
+    <BotNote text="Here's a summary of what to focus on. Fix these and your rankings will improve." />
+    <div className="reveal" style={{ marginBottom: 8, padding: 20, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 12 }}>Final Recommendations</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {allBad.map((item, i) => {const pr=PRIO[item.priority]||PRIO.important;return(<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <span style={{ color: pr.color, fontSize: 10, marginTop: 4 }}>●</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{item.title}</span><span style={{ fontSize: 9, fontWeight: 600, color: pr.color, background: pr.bg, padding: "2px 7px", borderRadius: 5, textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0 }}>{pr.label}</span></div>
+              {item.why && typeof item.why === "string" && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions?.[0] ? 6 : 0 }}>{renderBoldText(item.why)}</div>}
+              {item.suggestions?.length > 0 && typeof item.suggestions[0] === "string" && (() => {
+                const isBody = item.title?.includes("Body Content");
+                const showSugs = isBody ? item.suggestions : item.suggestions.slice(0, 1);
+                return <div style={{ padding: "8px 10px", borderRadius: 6, background: C.bg }}><div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>Suggested:</div>{showSugs.map((s, si) => <div key={si} style={{ fontSize: 12, fontWeight: 500, color: C.dark, padding: "2px 0" }}>{s}</div>)}</div>;
+              })()}
+            </div>
+          </div>
+        </div>)})}
+        <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-audit after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Run another Content Coverage & AI Readiness audit to measure your progress.</div></div></div></div>
+      </div>
+    </div>
+  </div>);
+};
+
+
+async function generateCoveragePDF(data) {
+  try {
+  const loadScript = (url) => new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${url}"]`);
+    if (existing && window.pdfMake) { resolve(); return; }
+    if (existing) existing.remove();
+    const s = document.createElement("script"); s.src = url; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load " + url));
+    document.head.appendChild(s);
+  });
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");
+  if (window.pdfMake && window.pdfMake.fonts) {
+    window.pdfMake.fonts = { Roboto: { normal: "Roboto-Regular.ttf", bold: "Roboto-Medium.ttf", italics: "Roboto-Italic.ttf", bolditalics: "Roboto-MediumItalic.ttf" } };
+  }
+
+  const dk = "#151415", mt = "#928E95", accentC = "#6E2BFF";
+  const divClr = "#e6e3e9", tblHdrBg = "#f0edf3", lavCardBg = "#fcfaff", lavCardBdr = "#dcd2f0";
+  const PRIO_PDF = {
+    critical: { label: "Critical", color: "#6E2BFF", bg: "#ede4ff" },
+    important: { label: "Important", color: "#9B7AE6", bg: "#f1ebfc" },
+    nice: { label: "Nice to have", color: "#B89CF0", bg: "#f5f0fd" }
+  };
+  const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch(e) { return "audit"; } })();
+  const fV = (v) => { if (!v || v === 0) return "< 10"; if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M"; if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return String(v); };
+  const fKD = (d) => d == null ? "low" : (d < 30 ? "low" : d < 60 ? "medium" : "high");
+
+  const secTitle = (t, color) => ({ text: t, fontSize: 22, bold: true, color: color || dk, margin: [0, 24, 0, 4] });
+  const noteText = (t) => ({ text: t, fontSize: 11, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+  const spacer = (n) => ({ text: "", margin: [0, 0, 0, n || 12] });
+
+  const badge = (prio) => {
+    const pr = PRIO_PDF[prio] || PRIO_PDF.important;
+    return {
+      table: { body: [[{ text: pr.label, fontSize: 8, bold: true, color: pr.color, margin: [6, 2, 6, 2] }]] },
+      layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => pr.bg, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }
+    };
+  };
+
+  const lavCard = (item) => {
+    const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
+    const stack = [];
+    stack.push({ columns: [
+      { text: item.title, fontSize: 13, bold: true, color: dk, width: "*" },
+      { ...badge(item.priority), width: "auto", alignment: "right" }
+    ], columnGap: 8, margin: [0, 0, 0, 4] });
+    if (item.why && typeof item.why === "string") stack.push({ text: item.why.replace(/\*\*/g, "").slice(0, 300), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 });
+    if (item.suggestions?.length > 0) {
+      stack.push({ text: "Suggested:", fontSize: 9, color: mt, bold: true, margin: [0, 4, 0, 2] });
+      item.suggestions.forEach(s => {
+        if (typeof s === "string") stack.push({ text: "\u2022 " + s, fontSize: 11, color: dk, margin: [0, 1, 0, 1] });
+      });
+    }
+    if (item.links?.length > 0) {
+      stack.push({ text: "Learn more:", fontSize: 9, color: mt, bold: true, margin: [0, 6, 0, 2] });
+      item.links.forEach(l => {
+        if (l && l.label && l.url) stack.push({ text: l.label, fontSize: 10, color: accentC, link: l.url, margin: [0, 1, 0, 1] });
+      });
+    }
+    return {
+      table: { widths: ["*"], body: [[{ stack, margin: [10, 10, 10, 10] }]] },
+      layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg },
+      margin: [0, 0, 0, 8]
+    };
+  };
+
+  /* Logo */
+  const makeLogo = () => new Promise(resolve => {
+    const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116;
+    const ctx = cvs.getContext("2d"); ctx.fillStyle = "#6E2BFF"; ctx.scale(2, 2);
+    ctx.fill(new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z"));
+    ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z"));
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill();
+    resolve(cvs.toDataURL("image/png"));
+  });
+  const logoImg = await makeLogo();
+
+  /* Build results */
+  const { contentGood, contentBad, trustGood, trustBad } = buildCoverageResults(data);
+  const aiGood = data.aiReadiness?.aiGood || [];
+  const aiBad = data.aiReadiness?.aiBad || [];
+  const totalIssues = contentBad.length + trustBad.length + aiBad.length;
+  const contentTotal = contentGood.length + contentBad.length;
+  const trustTotal = trustGood.length + trustBad.length;
+  const aiTotal = aiGood.length + aiBad.length;
+  const contentPct = contentTotal > 0 ? Math.round((contentGood.length / contentTotal) * 100) : 0;
+  const trustPct = trustTotal > 0 ? Math.round((trustGood.length / trustTotal) * 100) : 0;
+  const aiPct = aiTotal > 0 ? Math.round((aiGood.length / aiTotal) * 100) : 0;
+
+  const content = [];
+
+  /* ── HEADER ── */
+  content.push({ columns: [
+    { image: logoImg, width: 22, margin: [0, 2, 0, 0] },
+    { text: "IvaBot", fontSize: 16, bold: true, color: dk, width: "auto", margin: [6, 0, 0, 0] },
+    { text: dateString, fontSize: 10, color: mt, alignment: "right" }
+  ], margin: [0, 0, 0, 2] });
+  content.push({ columns: [
+    { text: "Content Coverage & AI Readiness Report", fontSize: 10, color: mt, margin: [28, 0, 0, 0] },
+    { text: data.url || "", fontSize: data.url?.length > 60 ? 8 : 10, color: mt, alignment: "right", link: data.url }
+  ], margin: [0, 0, 0, 6] });
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
+
+  /* ── SCORE CARD ── */
+  content.push({
+    table: { widths: [80, "*"], body: [[
+      { stack: [
+        { text: String(totalIssues), fontSize: 36, bold: true, color: dk, alignment: "center" },
+        { text: "Issues", fontSize: 10, bold: true, color: "#9B7AE6", alignment: "center" }
+      ], margin: [8, 14, 8, 14], fillColor: lavCardBg },
+      { stack: [
+        { text: domain, fontSize: 14, bold: true, color: dk, margin: [0, 0, 0, 10] },
+        { text: [
+          { text: "Content & Keywords  ", fontSize: 10, color: mt },
+          { text: contentGood.length + " / " + contentTotal + "  (" + contentPct + "%)", fontSize: 10, bold: true, color: "#9B7AE6" }
+        ], margin: [0, 0, 0, 6] },
+        { text: [
+          { text: "Trust & Conversion  ", fontSize: 10, color: mt },
+          { text: trustGood.length + " / " + trustTotal + "  (" + trustPct + "%)", fontSize: 10, bold: true, color: "#D4A0E8" }
+        ], margin: [0, 0, 0, 6] },
+        { text: [
+          { text: "AI Readiness  ", fontSize: 10, color: mt },
+          { text: aiTotal > 0 ? (aiGood.length + " / " + aiTotal + "  (" + aiPct + "%)") : "—", fontSize: 10, bold: true, color: "#B89CF0" }
+        ] }
+      ], margin: [12, 14, 8, 14] }
+    ]] },
+    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: (i, node, col) => col === 0 ? lavCardBg : null, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+    margin: [0, 0, 0, 16]
+  });
+
+  /* ── KEYWORDS TABLE ── */
+  const kwRows = data.userKeywordMetrics || data.keywordMetrics || (data.userKeywords || []).map(k => ({ keyword: k, position: null, volume: null, difficulty: null }));
+  if (kwRows.length > 0) {
+    content.push(secTitle("Keywords"));
+    const isAligned = data.usedExtracted || false;
+    content.push(noteText(isAligned ? "Your page is aligned with your target keywords." : "Keywords you want to rank for."));
+    const kwHead = [
+      { text: "Keyword", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
+      { text: "Pos.", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "Volume", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "KD", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] }
+    ];
+    const kwBody = kwRows.map(r => [
+      { text: r.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
+      { text: r.position != null ? String(r.position) : "\u2014", fontSize: 11, color: r.position && r.position <= 3 ? accentC : dk, bold: r.position && r.position <= 3, alignment: "center", fillColor: r.position && r.position <= 3 ? "#ede4ff" : null, margin: [4, 6, 4, 6] },
+      { text: fV(r.volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: fKD(r.difficulty), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] }
+    ]);
+    content.push({ table: { headerRows: 1, widths: ["*", 45, 60, 45], body: [kwHead, ...kwBody] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 8] });
+
+    /* Extracted keywords table (if different from user keywords) */
+    if (!isAligned && data.keywordMetrics?.length > 0) {
+      content.push(spacer(6));
+      content.push(noteText("What your page is currently built for:"));
+      const exBody = data.keywordMetrics.map(r => [
+        { text: r.keyword, fontSize: 11, bold: true, color: dk, margin: [4, 6, 4, 6] },
+        { text: r.position != null ? String(r.position) : "\u2014", fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: fV(r.volume || r.search_volume), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: fKD(r.difficulty || r.keyword_difficulty), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] }
+      ]);
+      content.push({ table: { headerRows: 1, widths: ["*", 45, 60, 45], body: [kwHead, ...exBody] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 4, 0, 8] });
+    }
+    content.push(spacer(8));
+  }
+
+  /* ── CONTENT WORKING WELL (detailed, like Core Audit PDF) ── */
+  if (contentGood.length > 0) {
+    content.push(secTitle("Content & Structure \u2014 Working Well"));
+    content.push(noteText(contentGood.length + " content elements are working well."));
+    content.push(spacer(6));
+
+    contentGood.forEach((g, idx) => {
+      content.push({ text: g.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 6] });
+
+      /* SERP Preview for Title/Description */
+      if (g.title === "Meta Title" || g.title === "Meta Description") {
+        let displayUrl = data.url || ""; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
+        const serpStack = [
+          { text: displayUrl, fontSize: 9, color: "#4d5156", margin: [8, 6, 8, 2] },
+          { text: (data.title || "No title").length > 60 ? (data.title || "").slice(0, 57) + "..." : (data.title || "No title"), fontSize: 12, color: "#1a0dab", margin: [8, 0, 8, 2] }
+        ];
+        if (g.title === "Meta Description" && data.desc) {
+          serpStack.push({ text: data.desc.length > 160 ? data.desc.slice(0, 157) + "..." : data.desc, fontSize: 10, color: "#4d5156", margin: [8, 0, 8, 6] });
+        } else { serpStack.push(spacer(4)); }
+        content.push({ table: { widths: ["*"], body: [[{ stack: serpStack }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 6] });
+        if (g.title === "Meta Title") content.push({ text: (data.title || "").length + " characters", fontSize: 11, bold: true, color: dk, margin: [0, 2, 0, 2] });
+        if (g.title === "Meta Description") content.push({ text: (data.desc || "").length + " characters", fontSize: 11, bold: true, color: dk, margin: [0, 2, 0, 2] });
+      }
+
+      /* Heading Structure */
+      if (g.title === "Heading Structure") {
+        const hColors = { H1: accentC, H2: "#9B7AE6", H3: "#B89CF0" };
+        [["H1", data.h1], ["H2", data.h2], ["H3", data.h3]].forEach(([lv, arr], gi) => {
+          if (!arr || arr.length === 0) return;
+          content.push({ text: lv + " \u2014 " + arr.length + " found", fontSize: 11, bold: true, color: dk, margin: [0, gi > 0 ? 10 : 4, 0, 4] });
+          arr.slice(0, 6).forEach(h => {
+            const hText = typeof h === "string" ? h : h.text || h;
+            content.push({ text: [{ text: lv + "  ", fontSize: 8, bold: true, color: hColors[lv] || "#9B7AE6" }, { text: hText, fontSize: 10, color: dk }], margin: [8, 1, 0, 1] });
+          });
+        });
+      }
+
+      /* Body Content */
+      if (g.title.includes("Body Content")) {
+        content.push({ text: "Keywords appear naturally throughout the body text.", fontSize: 11, color: dk, margin: [0, 0, 0, 4] });
+      }
+
+      /* Explain text */
+      const explains = {
+        "Meta Title": "Your title is " + (data.title || "").length + " characters \u2014 right in the sweet spot (30\u201360). This is the #1 on-page signal Google uses to understand your content.",
+        "Meta Description": "Your description is " + (data.desc || "").length + " characters \u2014 within the recommended range. This is what users see in search results, so a good one means more clicks.",
+        "Heading Structure": "Your heading structure is well-organized with keywords present. Google uses this hierarchy to understand your page.",
+        "Body Content \u2014 Keyword Coverage": "Your keywords appear naturally throughout the body text \u2014 good balance without overuse."
+      };
+      const explain = explains[g.title] || null;
+      if (explain) content.push({ text: explain, fontSize: 10, color: mt, margin: [0, 6, 0, 6], lineHeight: 1.3 });
+
+      if (idx < contentGood.length - 1) content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 6, 0, 6] });
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── CONTENT NEEDS IMPROVEMENT (with SERP preview + full suggestions) ── */
+  if (contentBad.length > 0) {
+    content.push(secTitle("Content & Structure \u2014 Needs Improvement (" + contentBad.length + ")", accentC));
+    content.push(noteText("Each card has a clear fix \u2014 start from the top."));
+    contentBad.forEach(item => {
+      const itemCard = lavCard(item);
+      content.push(itemCard);
+
+      /* Add SERP preview for title/description issues */
+      if ((item.title.includes("Title") || item.title.includes("Description")) && data.url) {
+        let displayUrl = data.url; try { const u = new URL(data.url); displayUrl = u.hostname + (u.pathname === "/" ? "" : u.pathname); } catch(e) {}
+        const serpStack = [
+          { text: displayUrl, fontSize: 9, color: "#4d5156", margin: [8, 6, 8, 2] },
+          { text: (data.title || "No title").length > 60 ? (data.title || "").slice(0, 57) + "..." : (data.title || "No title"), fontSize: 12, color: "#1a0dab", margin: [8, 0, 8, 2] }
+        ];
+        if (data.desc) serpStack.push({ text: data.desc.length > 160 ? data.desc.slice(0, 157) + "..." : data.desc, fontSize: 10, color: "#4d5156", margin: [8, 0, 8, 6] });
+        else serpStack.push(spacer(4));
+        content.push({ table: { widths: ["*"], body: [[{ stack: serpStack }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 }, margin: [0, 0, 0, 8] });
+      }
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── TRUST WORKING WELL (with details) ── */
+  if (trustGood.length > 0) {
+    content.push(secTitle("Trust & Conversion \u2014 Working Well"));
+    content.push(noteText(trustGood.length + " trust signals are in place."));
+    content.push(spacer(6));
+
+    const trustExplains = {
+      "Call to Action": "A clear call-to-action guides visitors to the next step. Pages with visible CTAs convert better.",
+      "FAQ Section": "An FAQ section improves user experience and helps you appear in Google's rich results.",
+      "Social Profiles": "Social links build brand trust and help Google verify your business identity.",
+      "Contact Info": "Contact information signals legitimacy and trustworthiness to both users and search engines.",
+      "Testimonials": "Social proof from customer testimonials increases conversion rates."
+    };
+    trustGood.forEach((g, idx) => {
+      content.push({ text: g.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 4] });
+      const explain = trustExplains[g.title] || "This trust signal is present on your page.";
+      content.push({ text: explain, fontSize: 10, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+      if (idx < trustGood.length - 1) content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 4, 0, 4] });
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── TRUST NEEDS IMPROVEMENT ── */
+  if (trustBad.length > 0) {
+    content.push(secTitle("Trust & Conversion \u2014 Needs Improvement (" + trustBad.length + ")", accentC));
+    trustBad.forEach(item => content.push(lavCard(item)));
+    content.push(spacer(8));
+  }
+
+  /* ── AI READINESS WORKING WELL ── */
+  if (aiGood.length > 0) {
+    content.push(secTitle("AI Search Optimization \u2014 Working Well"));
+    content.push(noteText(aiGood.length + " AI search signals are in place."));
+    content.push(spacer(6));
+
+    const aiExplains = {
+      "Schema.org markup": "Structured data tells AI tools (ChatGPT, Perplexity, Google AI) what your page is about.",
+      "FAQ schema": "FAQ schema makes your Q&A directly citable by AI search engines.",
+      "llms.txt file": "llms.txt is a new standard that tells AI tools how to read your site (like robots.txt for AI).",
+      "AI crawlers access": "Major AI crawlers (GPTBot, ClaudeBot, PerplexityBot) can read your page.",
+      "Question patterns": "Question-style headings match how users ask AI tools — your page gets cited more often.",
+      "Open Graph tags": "Open Graph tags control how your link previews on social media and AI search results.",
+      "Author information": "Clear authorship signals to AI that your content is trustworthy and citable.",
+      "Last updated date": "Date signals show AI tools that your content is fresh.",
+      "Authoritative citations": "Linking to .edu, .gov, and trusted sources signals real research to AI tools.",
+      "Statistics & data": "Concrete numbers and statistics make your content more useful for AI answers."
+    };
+    aiGood.forEach((g, idx) => {
+      content.push({ text: g.title, fontSize: 13, bold: true, color: dk, margin: [0, 0, 0, 4] });
+      const explain = aiExplains[g.title] || "This AI readiness signal is present on your page.";
+      content.push({ text: explain, fontSize: 10, color: mt, margin: [0, 0, 0, 6], lineHeight: 1.3 });
+      if (idx < aiGood.length - 1) content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 4, 0, 4] });
+    });
+    content.push(spacer(8));
+  }
+
+  /* ── AI READINESS NEEDS IMPROVEMENT ── */
+  if (aiBad.length > 0) {
+    content.push(secTitle("AI Search Optimization \u2014 Needs Improvement (" + aiBad.length + ")", accentC));
+    aiBad.forEach(item => content.push(lavCard(item)));
+    content.push(spacer(8));
+  }
+
+  /* ── FINAL RECOMMENDATIONS ── */
+  const allBad = [...contentBad, ...trustBad, ...aiBad];
+  if (allBad.length > 0) {
+    content.push(secTitle("Final Recommendations"));
+    content.push(noteText("Fix these and your rankings will improve."));
+    allBad.forEach(item => {
+      const pr = PRIO_PDF[item.priority] || PRIO_PDF.important;
+      const stack = [];
+      stack.push({ columns: [
+        { text: [{ text: "-  ", color: pr.color, fontSize: 10, bold: true }, { text: item.title, fontSize: 12, bold: true, color: dk }], width: "*" },
+        { ...badge(item.priority), width: "auto", alignment: "right" }
+      ], columnGap: 8, margin: [0, 0, 0, 3] });
+      if (item.why && typeof item.why === "string") {
+        const shortWhy = item.why.length > 200 ? item.why.slice(0, 197) + "..." : item.why;
+        stack.push({ text: shortWhy, fontSize: 10, color: mt, lineHeight: 1.3 });
+      }
+      if (item.suggestions?.length > 0 && typeof item.suggestions[0] === "string") {
+        stack.push({ text: "Suggested: " + item.suggestions[0], fontSize: 10, color: dk, margin: [0, 3, 0, 0] });
+      }
+      content.push({ table: { widths: ["*"], body: [[{ stack, margin: [10, 8, 10, 8] }]] },
+        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr },
+        margin: [0, 0, 0, 6]
+      });
+    });
+    /* Re-audit reminder */
+    content.push({ table: { widths: ["*"], body: [[{
+      stack: [
+        { text: [{ text: "-  ", color: accentC, fontSize: 10, bold: true }, { text: "Re-audit after changes", fontSize: 12, bold: true, color: dk }] },
+        { text: "Run another Content Coverage & AI Readiness audit to measure your progress.", fontSize: 10, color: mt }
+      ], margin: [10, 8, 10, 8]
+    }]] }, layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => divClr, vLineColor: () => divClr }, margin: [0, 0, 0, 6] });
+    content.push(spacer(8));
+  }
+
+  /* ── IvaBot CTA ── */
+  content.push(spacer(12));
+  content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: divClr }], margin: [0, 0, 0, 16] });
+  content.push({ table: { widths: ["*"], body: [[{
+    stack: [
+      { text: "Want to improve your score?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
+      { text: "Run another audit or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
+      { text: [
+        { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
+        { text: "  \u2022  ", color: mt },
+        { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
+        { text: "  \u2022  ", color: mt },
+        { text: "Content Coverage & AI Readiness", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
+      ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
+      { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
+    ], margin: [16, 16, 16, 16]
+  }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] });
+
+  /* ── BUILD DOCUMENT ── */
+  const docDefinition = {
+    pageSize: "A4", pageMargins: [40, 40, 40, 50],
+    defaultStyle: { fontSize: 11, color: dk },
+    footer: (currentPage, pageCount) => ({ columns: [
+      { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
+      { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
+    ], margin: [40, 10, 0, 0] }),
+    content: content
+  };
+
+  /* ── GENERATE + DOWNLOAD + UPLOAD ── */
+  const fileName = "IvaBot-Coverage-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
+  const pdfDocGen = pdfMake.createPdf(docDefinition);
+  const pdfBtn = document.getElementById("export-coverage-pdf-btn");
+  const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
+
+  pdfDocGen.getBlob(async (pdfBlob) => {
+    try {
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = blobUrl; a.download = fileName; a.style.display = "none";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
+      console.log("[CC] PDF downloaded:", fileName);
+      if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+
+      let upMemberId = window.__memberId || window.__userId;
+      if (!upMemberId && window.__supabase) {
+        try { const { data: { session } } = await window.__supabase.auth.getSession(); upMemberId = session?.user?.id; } catch(me) {}
+      }
+      if (upMemberId && pdfBlob) {
+        if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = C.muted; }
+        const form = new FormData();
+        form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+        form.append("member_id", upMemberId);
+        form.append("source_url", data.url || "");
+        form.append("flow_type", "coverage");
+        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+          method: "POST", body: form
+        }).then(r => r.json()).then(res => {
+          if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; } }
+          else if (res?.url) { console.log("[CC] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; } }
+          else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; } }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        }).catch(e => {
+          console.warn("[CC] PDF upload failed:", e);
+          if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; }
+          setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+        });
+      } else {
+        console.log("[CC] PDF not uploaded — no member ID");
+        setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000);
+      }
+    } catch(ue) { console.warn("[CC] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+  });
+  } catch(err) { console.error("[CC] PDF error:", err); alert("PDF export failed: " + err.message); }
+}
+
+/* ═══ PLACEHOLDER ═══ */
+const CoveragePlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
+  <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(110,43,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
+  <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 8 }}>Your content coverage report will appear here</div>
+  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, textAlign: "center", maxWidth: 340, marginBottom: 24 }}>I'll analyze your page and show you what's missing — so you know exactly what to fix to rank higher in Google, build user trust, and get cited by AI tools like ChatGPT.</div>
+  <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 340 }}>
+    {[{ n: "1", t: "Keywords & context", d: "I check which keywords Google associates with your page" }, { n: "2", t: "Content & structure", d: "I analyze your title, headings, and body text for keyword coverage" }, { n: "3", t: "Trust & conversion", d: "I scan for social proof, CTAs, FAQ, and contact info" }, { n: "4", t: "AI search readiness", d: "I check schema, llms.txt, and other signals AI tools use to find you" }].map((s, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.08)" }}><div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(155,122,230,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}><span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6" }}>{s.n}</span></div><div><div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{s.t}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.d}</div></div></div>)}
+  </div>
+</div>;
+
+const LoadingPanel = ({ text }) => <div style={{ minHeight: "calc(100vh - 130px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}><div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(110,43,255,0.1)", borderTopColor: C.accent, animation: "spin 0.8s linear infinite", marginBottom: 16 }} /><div style={{ fontSize: 13, fontWeight: 500, color: C.dark, marginBottom: 4 }}>{text || "Analyzing..."}</div><div style={{ fontSize: 12, color: C.muted }}>This usually takes 15–30 seconds</div><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
+
+const STEPS = ["Fetching page...", "Analyzing structure...", "Extracting keywords...", "Checking keyword coverage...", "Fetching search data...", "Scanning trust signals...", "Building your report..."];
+
+/* ═══ MAIN COMPONENT ═══ */
+async function generateAIReadinessPDF(data) {
+  try {
+    const loadScript = (url) => new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${url}"]`);
+      if (existing && window.pdfMake) { resolve(); return; }
+      if (existing) existing.remove();
+      const s = document.createElement("script"); s.src = url; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load " + url));
+      document.head.appendChild(s);
+    });
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");
+    if (window.pdfMake && window.pdfMake.fonts) { window.pdfMake.fonts = { Roboto: { normal: "Roboto-Regular.ttf", bold: "Roboto-Medium.ttf", italics: "Roboto-Italic.ttf", bolditalics: "Roboto-MediumItalic.ttf" } }; }
+
+    const dk = "#151415", mt = "#928E95", accentC = "#6E2BFF";
+    const lavCardBg = "#fcfaff", lavCardBdr = "#dcd2f0", cardBg = "#F0EAFF", cardBdr = "#e6def8";
+    const PRIO_PDF = { critical: { label: "Critical", color: "#6E2BFF", bg: "#ede4ff" }, important: { label: "Important", color: "#9B7AE6", bg: "#f1ebfc" }, nice: { label: "Nice to have", color: "#B89CF0", bg: "#f5f0fd" } };
+    const dateString = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const domain = (() => { try { return new URL(data.url).hostname.replace(/^www\./, ""); } catch (e) { return "page"; } })();
+
+    const secTitle = (t) => ({ text: t, fontSize: 18, bold: true, color: dk, margin: [0, 22, 0, 6] });
+    const noteText = (t) => ({ text: t, fontSize: 11, color: mt, margin: [0, 0, 0, 8], lineHeight: 1.3 });
+    const badge = (prio) => { const pr = PRIO_PDF[prio] || PRIO_PDF.important; return { table: { body: [[{ text: pr.label, fontSize: 8, bold: true, color: pr.color, margin: [6, 2, 6, 2] }]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => pr.bg } }; };
+    const lavCard = (item) => { const stack = []; stack.push({ columns: [{ text: item.title, fontSize: 13, bold: true, color: dk, width: "*" }, { ...badge(item.priority), width: "auto", alignment: "right" }], columnGap: 8, margin: [0, 0, 0, 4] }); if (item.why && typeof item.why === "string") stack.push({ text: item.why.replace(/\*\*/g, "").slice(0, 300), fontSize: 11, color: mt, margin: [0, 0, 0, 4], lineHeight: 1.3 }); if (item.suggestions && item.suggestions.length > 0) { stack.push({ text: "Suggested:", fontSize: 9, color: mt, bold: true, margin: [0, 4, 0, 2] }); item.suggestions.forEach(x => { if (typeof x === "string") stack.push({ text: "\u2022 " + x, fontSize: 11, color: dk, margin: [0, 1, 0, 1] }); }); } if (item.links && item.links.length > 0) { stack.push({ text: "Learn more:", fontSize: 9, color: mt, bold: true, margin: [0, 6, 0, 2] }); item.links.forEach(l => { if (l && l.label && l.url) stack.push({ text: l.label, fontSize: 10, color: accentC, link: l.url, margin: [0, 1, 0, 1] }); }); } return { table: { widths: ["*"], body: [[{ stack, margin: [10, 10, 10, 10] }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] }; };
+    const makeLogo = () => new Promise(resolve => { const cvs = document.createElement("canvas"); cvs.width = 132; cvs.height = 116; const ctx = cvs.getContext("2d"); ctx.fillStyle = "#6E2BFF"; ctx.scale(2, 2); ctx.fill(new Path2D("M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z")); ctx.fill(new Path2D("M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7-.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z")); ctx.globalCompositeOperation = "destination-out"; ctx.beginPath(); ctx.ellipse(16.3, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(48.9, 24.8, 8.2, 8.4, 0, 0, Math.PI * 2); ctx.fill(); resolve(cvs.toDataURL("image/png")); });
+    const logoImg = await makeLogo();
+
+    const ai = data.aiReadiness || {};
+    const aiGood = ai.aiGood || [];
+    const aiBad = (ai.aiBad || []).slice().sort((a, b) => (({ critical: 0, important: 1, nice: 2 }[a.priority]) ?? 1) - (({ critical: 0, important: 1, nice: 2 }[b.priority]) ?? 1));
+    const passages = ai.extractablePassages || [];
+    const score = typeof ai.score === "number" ? Math.round(ai.score) : 0;
+    const passed = aiGood.length;
+    const total = ai.total || (aiGood.length + aiBad.length);
+
+    const content = [];
+    content.push({ columns: [{ image: logoImg, width: 28 }, { text: "IvaBot", fontSize: 16, bold: true, color: dk, margin: [6, 5, 0, 0] }], columnGap: 4 });
+    content.push({ text: "AI Readiness Report", fontSize: 26, bold: true, color: dk, margin: [0, 14, 0, 2] });
+    content.push({ text: data.url || "", fontSize: 11, color: accentC, margin: [0, 0, 0, 2] });
+    content.push({ text: dateString + (data.pageType ? "  \u00b7  Page type: " + String(data.pageType).replace(/_/g, " ") : ""), fontSize: 10, color: mt, margin: [0, 0, 0, 14] });
+
+    content.push({ table: { widths: ["auto", "*"], body: [[{ text: String(score), fontSize: 40, bold: true, color: accentC, margin: [16, 14, 16, 14] }, { stack: [{ text: "AI readiness score", fontSize: 13, bold: true, color: dk, margin: [0, 16, 0, 2] }, { text: passed + " of " + total + " on-page signals passed", fontSize: 11, color: mt }] }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => cardBdr, vLineColor: () => cardBdr, fillColor: () => cardBg }, margin: [0, 0, 0, 8] });
+
+    content.push(secTitle("AI citations & authority"));
+    content.push(noteText("Live tracking of AI citations, brand mentions, and AI Overview presence, plus prompt visibility across ChatGPT, Perplexity, and Google AI, is available in your IvaBot dashboard for this domain."));
+
+    content.push(secTitle("On-page AI signals \u2014 Working Well"));
+    if (passages.length > 0) { content.push({ text: "Passages AI is most likely to quote", fontSize: 12, bold: true, color: dk, margin: [0, 2, 0, 4] }); passages.forEach(p => { content.push({ table: { widths: ["*"], body: [[{ stack: [{ text: p.text, fontSize: 10, color: dk, lineHeight: 1.3 }, { text: (p.words || 0) + " words", fontSize: 8, color: mt, margin: [0, 3, 0, 0] }], margin: [8, 8, 8, 8] }]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => "#f8f5ff" }, margin: [0, 0, 0, 6] }); }); }
+    if (aiGood.length > 0) { aiGood.forEach(g => { content.push({ text: "\u2713 " + g.title, fontSize: 11, color: dk, margin: [0, 2, 0, 2] }); }); }
+    else if (passages.length === 0) { content.push(noteText("No on-page signals detected yet.")); }
+
+    content.push(secTitle("On-page AI signals \u2014 Needs Improvement"));
+    if (aiBad.length > 0) aiBad.forEach(item => content.push(lavCard(item)));
+    else content.push(noteText("All on-page AI signals are in place."));
+
+    if (aiBad.length > 0) {
+      content.push(secTitle("Final recommendations"));
+      content.push(noteText("Fix these first, starting with anything marked critical."));
+      aiBad.slice(0, 5).forEach((item, i) => { const pr = PRIO_PDF[item.priority] || PRIO_PDF.important; content.push({ columns: [{ text: (i + 1) + ".", fontSize: 11, bold: true, color: pr.color, width: 14 }, { stack: [{ text: item.title, fontSize: 11, bold: true, color: dk }, (item.suggestions && item.suggestions[0] && typeof item.suggestions[0] === "string") ? { text: item.suggestions[0], fontSize: 10, color: mt, margin: [0, 1, 0, 0] } : { text: "" }], width: "*" }], columnGap: 4, margin: [0, 0, 0, 6] }); });
+    }
+
+    content.push({ text: "Generated by IvaBot \u00b7 ivabot.xyz", fontSize: 9, color: mt, margin: [0, 26, 0, 0], alignment: "center" });
+
+    const docDefinition = { content, pageMargins: [40, 40, 40, 50], defaultStyle: { font: "Roboto", color: dk }, footer: (cp, pc) => ({ text: cp + " / " + pc, fontSize: 8, color: mt, alignment: "center", margin: [0, 10, 0, 0] }) };
+
+    const fileName = "IvaBot-AI-Readiness-" + domain + "-" + new Date().toISOString().slice(0, 10) + ".pdf";
+    const pdfDocGen = pdfMake.createPdf(docDefinition);
+    const pdfBtn = document.getElementById("export-air-pdf-btn");
+    const origHTML = pdfBtn ? pdfBtn.innerHTML : "";
+
+    pdfDocGen.getBlob(async (pdfBlob) => {
+      try {
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const a = document.createElement("a"); a.href = blobUrl; a.download = fileName; a.style.display = "none";
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 200);
+        console.log("[AIR] PDF downloaded:", fileName);
+        if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = dk; }
+
+        let upMemberId = window.__memberId || window.__userId;
+        if (!upMemberId && window.__supabase) { try { const { data: { session } } = await window.__supabase.auth.getSession(); upMemberId = session?.user?.id; } catch (me) {} }
+        if (upMemberId && pdfBlob) {
+          if (pdfBtn) { pdfBtn.innerHTML = "Saving To Dashboard..."; pdfBtn.style.color = mt; }
+          const form = new FormData();
+          form.append("pdf", new File([pdfBlob], fileName, { type: "application/pdf" }));
+          form.append("member_id", upMemberId);
+          form.append("source_url", data.url || "");
+          form.append("flow_type", "ai_readiness");
+          fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", { method: "POST", body: form }).then(r => r.json()).then(res => {
+            if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = dk; } }
+            else if (res?.url) { console.log("[AIR] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = dk; } }
+            else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = dk; } }
+            setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000);
+          }).catch(e => { console.warn("[AIR] PDF upload failed:", e); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = dk; } setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 4000); });
+        } else { setTimeout(() => { if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }, 3000); }
+      } catch (ue) { console.warn("[AIR] PDF error:", ue); if (pdfBtn) { pdfBtn.innerHTML = origHTML; pdfBtn.style.color = ""; } }
+    });
+  } catch (err) { console.error("[AIR] PDF error:", err); alert("PDF export failed: " + err.message); }
+}
+
+function AIReadinessTool({ onHome, memberName: mn }) {
+  const isMobile = useIsMobile();
+  const [mTab, sMTab] = useState("chat");
+  const [pLoad, sPLoad] = useState(null);
+  const [step, setStep] = useState("init");
+  const [msgs, sMsgs] = useState([]);
+  const [typ, sTyp] = useState(false);
+  const [showR, setSR] = useState(false);
+  const [auditData, setAuditData] = useState(null);
+  const [pageUrl, setPageUrl] = useState(null);
+  const [chatCount, setChatCount] = useState(0);
+  const MAX_CHAT = 100;
+  const chatRef = useRef(null);
+  const inputRef = useRef(null);
+  const prevMsgCount = useRef(0);
+
+  const scrollChat = useCallback(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, []);
+  useEffect(() => { if (msgs.length > prevMsgCount.current) setTimeout(scrollChat, 50); prevMsgCount.current = msgs.length; }, [msgs.length]);
+  useEffect(() => { if (typ) setTimeout(scrollChat, 50); }, [typ]);
+  useEffect(() => { if (!showR) return; const timer = setTimeout(() => { document.querySelectorAll(".reveal:not(.visible)").forEach((el, i) => { setTimeout(() => el.classList.add("visible"), i * 60); }); }, 150); return () => clearTimeout(timer); }, [showR, auditData, mTab, isMobile]);
+
+  const add = (f, c) => sMsgs(p => [...p, { f, c, id: Date.now() + Math.random() }]);
+  const bot = (c) => add("b", c);
+
+  useEffect(() => {
+    try { const _p = new URLSearchParams(window.location.search); if (_p.get("url") && _p.get("autorun") === "1") return; } catch (e) {}
+    sTyp(true);
+    setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); }, 1200);
+    setTimeout(() => { sTyp(false); add("b", <div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I'll check how ready this page is to be cited by AI search tools like ChatGPT, Perplexity, and Google AI, and show you the signals to fix first.</div><div style={{ fontWeight: 600 }}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 3200);
+  }, []);
+  const _autoRanAir = useRef(false);
+  useEffect(() => {
+    if (_autoRanAir.current) return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const au = p.get("url");
+      if (au && p.get("autorun") === "1") {
+        _autoRanAir.current = true;
+        try { const u2 = new URL(window.location); u2.searchParams.delete("url"); u2.searchParams.delete("autorun"); window.history.replaceState({}, "", u2); } catch (e) {}
+        setTimeout(() => { try { runAIReadiness(au); } catch (e) {} }, 1200);
+      }
+    } catch (e) {}
+  }, []);
+
+
+  /* ═══ AI READINESS PIPELINE (no credits in preview, no DFS, no keywords) ═══ */
+  const runAIReadiness = async (url) => {
+    /* Charge 1 credit up front (unified wallet). Abort only if the wallet confirms insufficient. */
+    try {
+      const _mid = getMemberId();
+      const _isU = _mid && /^[0-9a-f]{8}-/.test(_mid);
+      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 1 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 1 };
+      const _chRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/charge_credit`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY }, body: JSON.stringify(_chBody) });
+      const _ch = await _chRes.json();
+      console.log("[AIR] charge_credit:", _ch);
+      if (_ch && _ch.ok === false) { try { sPLoad(null); } catch(e) {} try { alert("Not enough credits to run AI Readiness. Buy more credits to continue."); } catch(e) {} return; }
+    } catch(e) { console.warn("[AIR] charge_credit error:", e); }
+    setSR(false); setAuditData(null); sPLoad("Analyzing your page...");
+    try {
+      let origin = ""; try { origin = new URL(url).origin; } catch (e) {}
+      const [htmlRes, robotsRes, llmsRes] = await Promise.allSettled([
+        fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) }),
+        origin ? fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: origin + "/robots.txt" }) }) : Promise.resolve(null),
+        origin ? fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: origin + "/llms.txt" }) }) : Promise.resolve(null),
+      ]);
+      if (htmlRes.status !== "fulfilled" || !htmlRes.value || !htmlRes.value.ok) throw new Error("Could not fetch page");
+      const rawHtml = await htmlRes.value.text();
+      let robotsContent = null, llmsContent = null;
+      try { if (robotsRes.status === "fulfilled" && robotsRes.value && robotsRes.value.ok) { const t = await robotsRes.value.text(); if (t && !/<html|<!doctype/i.test(t.slice(0, 200))) robotsContent = t; } } catch (e) {}
+      try { if (llmsRes.status === "fulfilled" && llmsRes.value && llmsRes.value.ok) { const t = await llmsRes.value.text(); if (t && !/<html|<!doctype/i.test(t.slice(0, 200))) llmsContent = t; } } catch (e) {}
+
+      const parsed = parseCoverage(rawHtml, url);
+
+      /* page type — best-effort via GPT context, falls back to "other" */
+      let pageType = "other";
+      let _summaryBrand = "";
+      try {
+        const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) }) });
+        if (gptRes.ok) { const gpt = await gptRes.json(); pageType = (gpt && gpt.page_type) || "other"; if (gpt && gpt.page_context && gpt.page_context.owner) { const _o = String(gpt.page_context.owner).trim(); if (_o.length >= 2 && _o.length <= 40 && /[a-zA-Z\u0400-\u04FF]/.test(_o) && _o.indexOf(".") === -1) _summaryBrand = _o; } }
+      } catch (e) {}
+
+      if (!(window.AIReadiness && typeof window.AIReadiness.parse === "function")) throw new Error("AI Readiness engine not loaded");
+      const aiResult = window.AIReadiness.parse(rawHtml, url, robotsContent, llmsContent, pageType);
+      const aiReadiness = analyzeAIReadiness(aiResult, pageType);
+      console.log("[AIR] AI Readiness:", aiReadiness.score + "/100", "type=" + aiReadiness.pageType, "good=" + aiReadiness.aiGood.length + "/" + aiReadiness.total);
+
+      const d = { url, title: parsed.title || "", pageType: aiReadiness.pageType || pageType, aiReadiness };
+      sPLoad(null); setAuditData(d); setSR(true); setStep("done"); sTyp(false);
+      /* Run history (layer 1): record this completed AI Readiness run so it shows in the dashboard.
+         Credit charge intentionally deferred while metrics are demo and the tool is whitelisted.
+         To enable charging later: call trackCoverageUsage(_air_mid) here AND add a checkCoverageCredits gate before runAIReadiness. */
+      /* Run + snapshot are recorded together in the coordinator below, after the AI-metric fetches settle. */
+      /* AIR: real AI mentions of the brand (llm_mentions) — feeds the trust table; no demo. */
+      const _pMentions = (async () => {
+        try {
+          var _isHome = ((url || "").toLowerCase().replace(/^https?:\/\/[^/]+/, "").replace(/[#?].*$/, "").replace(/\/+$/, "") === "");
+          if (!_isHome) return null; /* brand mentions / AI search volume are domain-level — homepage only. Internal pages stay page-level (score, on-page signals, prompt visibility). */
+          var _host = ""; try { _host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
+          if (!_host) return;
+          /* brand for AI-mentions: prefer the site's own declared name (og:site_name), then the last title segment (e.g. "Aptos | Ashfall Studio" -> "Ashfall Studio"), then the domain's second-level label. */
+          var _brand = (typeof _summaryBrand === "string" && _summaryBrand) ? _summaryBrand : "";
+          try {
+            if (!_brand) {
+              var _ogm = rawHtml.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) || rawHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
+              if (_ogm && _ogm[1]) _brand = _ogm[1].trim();
+              if (_brand && (_brand.length > 40 || _brand.length < 2)) _brand = "";
+            }
+          } catch (e) {}
+          try {
+            if (!_brand) {
+              var _tt = (d.title || "").trim();
+              var _seg = _tt.split(/\s[|\u2013\u2014\u00b7:\-]\s/).map(function (s) { return s.trim(); }).filter(Boolean);
+              if (_seg.length > 1) _brand = _seg[_seg.length - 1];
+              if (!_brand || _brand.length > 40 || _brand.length < 2) _brand = "";
+            }
+          } catch (e) {}
+          if (!_brand) _brand = _host.split(".")[0];
+          var _mr = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "llm_mentions", brand: _brand, target: _host, platform: "google" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          if (_mr) {
+            var _m = (_mr.mentions != null) ? _mr.mentions : 0;
+            var _asv = (_mr.ai_search_volume != null) ? _mr.ai_search_volume : 0;
+            var _rows = [
+              { label: "AI mentions of your brand", value: String(_m), period: "last 30 days", tip: "Times AI answers (ChatGPT, Perplexity, Google AI) named your brand in the last 30 days. 0 means no AI mentions found yet; the on-page fixes and distribution tips below are how you earn them." },
+              { label: "AI search volume", value: String(_asv), period: "est. monthly", tip: "Estimated monthly AI-driven searches related to your brand." }
+            ];
+            setAuditData(function (prev) { return (prev && prev.url === d.url) ? Object.assign({}, prev, { trust: { rows: _rows } }) : prev; });
+            return { ai_mentions_count: _m, ai_search_volume: _asv, brand: _brand };
+          }
+          return null;
+        } catch (_me) { console.log("[AIR] llm_mentions", _me); return null; }
+      })();
+      /* AIR (variant B): AI Overview by the page's real ranked keywords \u2014 does Google show an AI Overview and are you cited. Hardcoded US/en (matches Core for English pages). */
+      const _pAio = (async () => {
+        try {
+          var _h = ""; try { _h = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
+          if (!_h) return;
+          var _nrm = function (u) { try { var x = new URL(u); return (x.hostname.replace(/^www\./, "") + x.pathname.replace(/\/+$/, "")).toLowerCase(); } catch (e) { return String(u || "").toLowerCase(); } };
+          var _rk = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ranked_only", domain: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          var _pk = _nrm(url);
+          var _kws = (((_rk && _rk.ranked_keywords) || []).filter(function (k) { return k && k.url && _nrm(k.url) === _pk; }).map(function (k) { return k.keyword; })).slice(0, 3);
+          if (!_kws.length) { console.log("[AIR] ai_overview: no ranked keywords for this page"); return; }
+          var _ao = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ai_overview", keywords: _kws, target: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          if (_ao && Array.isArray(_ao.ai_overview) && _ao.ai_overview.length) {
+            console.log("[AIR] ai_overview OK:", _ao.ai_overview.length, "keywords checked");
+            /* Option B 2026-07-08: for the top-3 keywords, also check ChatGPT + Perplexity citation via llm_responses (extra credits). Fills the ChatGPT/Perplexity columns for those rows. */
+            try {
+              var _tok = await ivaAuthToken();
+              var _top3 = _ao.ai_overview.slice(0, 3);
+              var _llmJobs = [];
+              _top3.forEach(function (row) {
+                ["chat_gpt", "sonar"].forEach(function (eng) {
+                  _llmJobs.push(fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + _tok }, body: JSON.stringify({ mode: "llm_responses", user_prompt: row.q, engine: eng }) }).then(function (r) { return r.ok ? r.json() : null; }).then(function (resp) { var c = false; try { c = !!(resp && resp.items && JSON.stringify(resp.items).toLowerCase().indexOf(_h) !== -1); } catch (e) {} return { q: row.q, eng: eng, cited: c }; }).catch(function () { return { q: row.q, eng: eng, cited: false }; }));
+                });
+              });
+              var _llmRes = await Promise.all(_llmJobs);
+              _ao.ai_overview.forEach(function (row) {
+                _llmRes.forEach(function (lr) { if (lr.q === row.q) { if (lr.eng === "chat_gpt") row.chat_gpt = lr.cited; if (lr.eng === "sonar") row.perplexity = lr.cited; } });
+              });
+              console.log("[AIR] llm top-3 checked (ChatGPT + Perplexity)");
+            } catch (_le) { console.log("[AIR] llm top-3 enrich error", _le); }
+            setAuditData(function (prev) { return (prev && prev.url === d.url) ? Object.assign({}, prev, { aioItems: _ao.ai_overview }) : prev; });
+            var _aioCited = _ao.ai_overview.reduce(function (n, x) { return n + ((x && x.cited) ? 1 : 0) + ((x && x.chat_gpt) ? 1 : 0) + ((x && x.perplexity) ? 1 : 0); }, 0);
+            return { ai_overview_count: _aioCited, prompts_checked: _kws, aioItems: _ao.ai_overview };
+          }
+          return null;
+        } catch (_ae) { console.log("[AIR] ai_overview", _ae); return null; }
+      })();
+      (async () => {
+        try {
+          const _dtCtx = `URL: ${url}\nTitle: ${parsed.title || ""}\nPage type: ${d.pageType}\nPrimary keyword: ${parsed.primary_keyword || ""}\nSummary: ${(parsed.summary || "").slice(0, 600)}`;
+          const _dtRes = await fetch(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "distribution_tips", page_context: _dtCtx }) });
+          if (!_dtRes.ok) return;
+          const _dt = await _dtRes.json();
+          if (_dt && Array.isArray(_dt.tips)) { const _clean = _dt.tips.filter(t => t && t.channel && t.action).slice(0, 4); if (_clean.length) setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, distributionTips: _clean } : prev); }
+        } catch (_dtErr) { console.log("[AIR] distribution_tips fallback", _dtErr); }
+      })();
+      (async () => {
+        try {
+          const _snapMid = getMemberId(); if (!_snapMid) return;
+          var _snapDom = ""; try { _snapDom = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
+          if (!_snapDom) return;
+          const _snapRunId = await recordAirRun(_snapMid, url);
+          const _settled = await Promise.allSettled([_pMentions, _pAio]);
+          const _mv = (_settled[0].status === "fulfilled" && _settled[0].value) ? _settled[0].value : {};
+          const _av = (_settled[1].status === "fulfilled" && _settled[1].value) ? _settled[1].value : {};
+          recordAirSnapshot({ memberId: _snapMid, domain: _snapDom, url: url, runId: _snapRunId, aiReadiness: aiReadiness, ai_mentions_count: (_mv.ai_mentions_count != null ? _mv.ai_mentions_count : null), ai_search_volume: (_mv.ai_search_volume != null ? _mv.ai_search_volume : null), brand: ((_mv && _mv.brand) || null), ai_overview_count: (_av.ai_overview_count != null ? _av.ai_overview_count : null), prompts_checked: (_av.prompts_checked || null), aioItems: (_av.aioItems || null) });
+        } catch (_snapErr) { console.log("[AIR] snapshot coordinator", _snapErr); }
+      })();
+      if (isMobile) sMTab("report");
+      const nBad = aiReadiness.aiBad.length;
+      const nGood = aiReadiness.aiGood.length;
+      const nTot = aiReadiness.total || (nGood + nBad);
+      bot(<div>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>{"Done. " + aiReadiness.aiGood.length + " of " + aiReadiness.total + " AI signals are in place."}</div>
+        <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 8 }}>{nGood + " of " + nTot + " on-page signals that help AI cite this page are in place" + (nBad > 0 ? ", and " + nBad + " can be improved." : ".")}</div>
+        <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.55 }}>Ask me anything, and I will explain each signal and how to get this page cited.</div>
+      </div>);
+    } catch (e) {
+      sPLoad(null); sTyp(false);
+      bot("Could not analyze this page: " + e.message + ". Please check the URL and try again.");
+      setStep("url");
+    }
+  };
+
+  const sendChat = async (text) => {
+    if (chatCount >= MAX_CHAT) { bot("You've reached the message limit for this session. Run another check to keep going."); return; }
+    setChatCount(c => c + 1); sTyp(true);
+    try {
+      const d = auditData;
+      const history = msgs.filter(m => typeof m.c === "string").slice(-10).map(m => `${m.f === "b" ? "IvaBot" : "User"}: ${m.c}`).join("\n");
+      const issues = ((d && d.aiReadiness && d.aiReadiness.aiBad) || []).map(b => b.title).join("; ");
+      const res = await fetch(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "air_chat", audit_context: `AI Readiness check.\nPage: ${d && d.url}\nTitle: "${d && d.title}"\nPage type: ${d && d.pageType}\nAI readiness score: ${d && d.aiReadiness && d.aiReadiness.score}/100\nSignals passed: ${((d && d.aiReadiness && d.aiReadiness.aiGood) || []).length}/${d && d.aiReadiness && d.aiReadiness.total}\nSignals to improve: ${issues}`, chat_history: history, question: text, credits_left: null }) });
+      const raw = await res.json(); sTyp(false);
+      bot(raw.text || raw.answer || "I couldn't find an answer for that one. Try rephrasing.");
+    } catch (e) { sTyp(false); bot("Sorry, I couldn't process that. Try asking again."); }
+  };
+
+  const send = () => {
+    const el = inputRef.current; if (!el || !el.value.trim()) return;
+    const text = el.value.trim(); el.value = ""; add("u", text);
+    if (step === "url") {
+      const v = valUrl(text); if (!v.ok) { bot(v.e); return; }
+      setPageUrl(v.url); sTyp(true); setStep("parsing"); runAIReadiness(v.url);
+      return;
+    }
+    if (step === "done" || showR) {
+      const v = valUrl(text);
+      if (v.ok) { setPageUrl(v.url); bot("On it — checking " + v.url); sTyp(true); setStep("parsing"); runAIReadiness(v.url); return; }
+      sendChat(text);
+      return;
+    }
+  };
+
+  const newCheck = () => {
+    setSR(false); sMsgs([]); setAuditData(null); sPLoad(null); sMTab("chat"); setChatCount(0); setPageUrl(null); sTyp(true); setStep("init");
+    setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); }, 800);
+    setTimeout(() => { sTyp(false); add("b", <div><div style={{ fontWeight: 600 }}>Paste another URL and I'll check it.</div></div>); setStep("url"); }, 2000);
+  };
+
+  const lastBotIdx = msgs.reduce((acc, m, i) => m.f === "b" ? i : acc, -1);
+  const chatMessages = <React.Fragment>
+    <style>{`.cb-past-msg{opacity:0.75}.cb-past-msg button:not(.bot-tip-expand){pointer-events:none!important;cursor:default!important;opacity:0.5}`}</style>
+    {msgs.map((m, i) => m.f === "b" ? <div key={m.id} className={i < lastBotIdx ? "cb-past-msg" : undefined}><BB>{typeof m.c === "string" ? m.c.split("\n").map((line, j) => <span key={j}>{j > 0 && <br />}{line}</span>) : m.c}</BB></div> : <UB key={m.id} n={mn}>{m.c}</UB>)}
+    {typ && <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}><div style={{ marginBottom: 3, marginLeft: 2 }}><BL s={16} /></div><div style={{ padding: "10px 14px", borderRadius: "4px 12px 12px 12px", background: C.surface, border: `1px solid ${C.border}` }}><div className="typing-dots"><span /><span /><span /></div></div></div>}
+  </React.Fragment>;
+
+  const panelContent = <React.Fragment>{pLoad ? <LoadingPanel text={pLoad} /> : showR && auditData ? <div style={{ animation: "fadeIn 0.5s ease", minHeight: "calc(100vh - 130px)" }}><AIReadinessReport data={auditData} /></div> : <AIReadinessPlaceholder />}</React.Fragment>;
+  const placeholder = step === "url" ? "Paste your URL here..." : "Ask me anything about AI readiness...";
+  const inputDisabled = step === "parsing";
+
+  const _uid = getMemberId();
+  const _allowed = true; /* GO-LIVE: whitelist lifted */
+  console.log("[AIR] uid:", _uid, "allowed:", _allowed);
+
+  if (!_allowed) {
+    return (<div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: isMobile ? "0 12px 6px" : "0 24px 10px", display: "flex", alignItems: "center", gap: 6, maxWidth: 1224, margin: "0 auto", width: "100%" }}>
+        <button onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button>
+        <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>AI Readiness</span>
+      </div>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
+        <div style={{ maxWidth: 420, textAlign: "center", padding: 32, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: 8 }}>AI Readiness is coming soon</div>
+          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>This tool is in private preview. It checks how ready your pages are to be cited by ChatGPT, Perplexity, and Google AI, and shows you the signals to fix first.</div>
+        </div>
+      </div>
+    </div>);
+  }
+
+  return (<div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
+    <div style={{ padding: isMobile ? "0 12px 6px" : "0 24px 10px", display: "flex", alignItems: "center", gap: 6, maxWidth: 1224, margin: "0 auto", width: "100%" }}>
+      <button onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: C.muted, display: "flex" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg></button>
+      <span style={{ fontSize: 13, fontWeight: 500, color: C.muted }}>AI Readiness</span>
+      
+      {showR && <span style={{ fontSize: 10, fontWeight: 600, color: "#9B7AE6", background: "rgba(155,122,230,0.08)", padding: "3px 8px", borderRadius: 10, marginLeft: 4 }}>Done</span>}
+    </div>
+
+    {!isMobile && <div style={{ display: "flex", padding: "0 24px 24px", maxWidth: 1224, margin: "0 auto", width: "100%", alignItems: "flex-start", gap: 12 }}>
+      <div style={{ width: "35%", maxWidth: 420, position: "sticky", top: 12, display: "flex", flexDirection: "column", flexShrink: 0, minWidth: 280, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", background: C.card, height: "calc(100vh - 130px)" }}>
+        <div ref={chatRef} className="iva-scroll-inner" style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}>{chatMessages}</div>
+        <div style={{ padding: "8px 12px 12px", flexShrink: 0, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input ref={inputRef} disabled={inputDisabled} defaultValue="" onKeyDown={e => e.key === "Enter" && send()} placeholder={placeholder} style={{ flex: 1, height: 44, borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 14px", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.dark, outline: "none", background: inputDisabled ? "#f8f7f9" : C.surface, opacity: inputDisabled ? 0.6 : 1 }} onFocus={e => { if (!inputDisabled) { e.target.style.borderColor = C.hoverBorder; e.target.style.boxShadow = C.hoverShadow; } }} onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }} />
+            <button onClick={send} disabled={inputDisabled} style={{ width: 44, height: 44, borderRadius: 10, border: `1px solid ${C.borderMid}`, background: C.surface, cursor: inputDisabled ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, opacity: inputDisabled ? 0.4 : 1 }} onMouseEnter={e => { if (!inputDisabled) e.currentTarget.style.background = C.accentLight; }} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
+          </div>
+        </div>
+      </div>
+      <div style={{ flex: 1, borderRadius: 12, border: `1px solid ${C.border}`, position: "relative", background: C.surface, minHeight: "calc(100vh - 130px)" }}>{panelContent}{showR && <div style={{ position: "sticky", bottom: 0, left: 0, right: 0, height: 48, background: "linear-gradient(transparent, #ffffff)", borderRadius: "0 0 12px 12px", pointerEvents: "none" }} />}</div>
+    </div>}
+
+    {isMobile && <div style={{ display: "flex", flexDirection: "column", padding: "0 12px 16px", gap: 12 }}>
+      <MobileTab active={mTab} onSwitch={sMTab} hasReport={showR} />
+      <div style={{ display: mTab === "chat" ? "flex" : "none", flexDirection: "column", borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", background: C.card, maxHeight: "70vh" }}>
+        <div ref={mTab === "chat" ? chatRef : null} className="iva-scroll-inner" style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}>{chatMessages}</div>
+        <div style={{ padding: "8px 10px 10px", flexShrink: 0, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input ref={isMobile ? inputRef : null} disabled={inputDisabled} defaultValue="" onKeyDown={e => e.key === "Enter" && send()} placeholder={placeholder} style={{ flex: 1, height: 42, borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 12px", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.dark, outline: "none", background: inputDisabled ? "#f8f7f9" : C.surface, opacity: inputDisabled ? 0.6 : 1 }} onFocus={e => { if (!inputDisabled) { e.target.style.borderColor = C.hoverBorder; e.target.style.boxShadow = C.hoverShadow; } }} onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }} />
+            <button onClick={send} disabled={inputDisabled} style={{ width: 42, height: 42, borderRadius: 10, border: `1px solid ${C.borderMid}`, background: C.surface, cursor: inputDisabled ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, opacity: inputDisabled ? 0.4 : 1 }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.dark} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: mTab === "report" ? "block" : "none", background: C.surface, borderRadius: 12, border: `1px solid ${C.border}` }}>{panelContent}</div>
+    </div>}
+
+    {showR && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: isMobile ? "8px 12px 16px" : "8px 24px 16px", maxWidth: isMobile ? "100%" : 1224, margin: "0 auto", width: "100%", alignItems: "center" }}>
+      <button onClick={newCheck} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = "#5a22d9"} onMouseLeave={e => e.currentTarget.style.background = C.accent}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>New Check</button>
+      <button id="export-air-pdf-btn" onClick={() => generateAIReadinessPDF(auditData)} style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>Export PDF</button>
+      
+      <a href="https://ivabot.xyz/dashboard" target="_blank" rel="noopener noreferrer" style={{ height: 40, padding: "0 20px", borderRadius: 10, background: C.surface, border: `1px solid ${C.borderMid}`, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", boxSizing: "border-box" }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
+    </div>}
+  </div>);
+}
+
+const NumBadge = ({ n }) => { const colors = ["#9B7AE6", "#B89CF0", "#D4A0E8"]; const c = colors[(n - 1) % colors.length]; return (<span style={{ width: 22, height: 22, borderRadius: "50%", background: `${c}18`, color: c, fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</span>); };
+
+const DownloadBtn = ({ label, onClick }) => (
+  <button onClick={onClick || (() => {})} style={{ marginTop: "auto", alignSelf: "flex-start", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, height: 34, padding: "0 14px", border: `1px solid ${C.borderMid}`, borderRadius: 9, background: C.surface, color: C.dark, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.background = C.accentLight} onMouseLeave={e => e.currentTarget.style.background = C.surface}>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>{label || "Download"}
+  </button>
+);
+
+const TrustCard = ({ label, total, unit, sourcesLabel, sources, onDownload }) => (
+  <div style={{ border: `1px solid ${C.cardBorder}`, borderRadius: 12, overflow: "hidden", background: C.surface, display: "flex", flexDirection: "column" }}>
+    <div style={{ background: C.card, padding: "12px 14px" }}>
+      <div style={{ fontSize: 12, color: C.dark, marginBottom: 6 }}>{label}</div>
+      <div><span style={{ fontSize: 24, fontWeight: 700, color: C.dark }}>{total != null ? total.toLocaleString() : "—"}</span> <span style={{ fontSize: 12, color: C.muted }}>{unit}</span></div>
+    </div>
+    <div style={{ padding: "8px 14px 12px", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", padding: "6px 0 2px" }}>{sourcesLabel}</div>
+      {(sources || []).map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid rgba(21,20,21,0.06)", fontSize: 12.5 }}><span>{s.name}</span><span style={{ fontWeight: 700, color: C.dark }}>{s.count != null ? s.count.toLocaleString() : "—"}</span></div>
+      ))}
+      <DownloadBtn label="Download all" onClick={onDownload} />
+    </div>
+  </div>
+);
+
+/* AI readiness score card — same style as the Coverage score card */
+const AIReadinessScoreCard = ({ url, score, passed, total }) => {
+  const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+  return (<div className="reveal" style={{ display: "flex", gap: 16, marginBottom: 18, padding: 16, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+    <div style={{ width: 92, height: 92, flexShrink: 0, borderRadius: 14, background: C.card, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: `1px solid ${C.cardBorder}` }}>
+      <span style={{ fontSize: 28, fontWeight: 700, color: C.dark }}>{passed}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6", marginTop: 1 }}>/ {total}</span>
+    </div>
+    <div style={{ flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+        <span style={{ fontSize: 11, fontWeight: 500, color: C.muted }}>AI signals in place</span>
+        <QM text="How many of the AI-readiness signals I check are already in place on your page. These are the on-page things that make ChatGPT, Perplexity, and Google AI more likely to cite you. Also known as GEO (Generative Engine Optimization)." />
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 8, wordBreak: "break-all" }}>{url}</div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <span style={{ fontSize: 10, fontWeight: 500, color: C.muted }}>{pct}% in place</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#B89CF0" }}>{passed} of {total} signals</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(110,43,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pct}%`, background: "#B89CF0", borderRadius: 100, transition: "width 0.8s ease" }} />
+        </div>
+      </div>
+    </div>
+  </div>);
+};
+
+/* Trust & Authority blocks are drafted now; numbers connect to live data after the new data sources are added. */
+const DownloadLink = ({ onClick, label }) => (
+  <button onClick={onClick || (() => {})} style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", display: "inline-flex", alignItems: "center", gap: 4, padding: 0, flexShrink: 0 }}>{label || "Download"}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg></button>
+);
+
+const TrustTable = ({ rows, dashHref }) => (
+  <div className="reveal" style={{ marginBottom: 14, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
+    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>AI citations & authority</span>
+      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard
+      </a>
+    </div>
+    <div style={{ padding: "2px 16px 10px" }}>
+      {(rows || []).map((r, i) => (
+        <div key={i} style={{ padding: "13px 0", borderTop: i ? "1px solid rgba(21,20,21,0.06)" : "none" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{r.label}</span>
+              <QM text={r.tip} />
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: C.dark, whiteSpace: "nowrap" }}>{r.value}</span>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{r.period}</div>
+            </div>
+          </div>
+          {r.note && <div style={{ marginTop: 8, padding: "9px 12px", borderRadius: 9, background: "rgba(110,43,255,0.05)", border: "1px solid rgba(110,43,255,0.12)", fontSize: 11.5, color: C.dark, lineHeight: 1.5 }}>{r.note}</div>}
+          {r.chips && r.chips.length > 0 && <div style={{ marginTop: 8 }}>{r.chipsLabel && <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>{r.chipsLabel}</div>}<div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{r.chips.map((c, j) => <span key={j} style={{ fontSize: 11.5, fontWeight: 600, color: C.accent, background: "rgba(110,43,255,0.08)", padding: "5px 11px", borderRadius: 8 }}>{c}</span>)}</div></div>}
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const Chip = ({ children, color }) => <span style={{ fontSize: 11, fontWeight: 600, color: color || C.accent, background: "rgba(110,43,255,0.08)", padding: "3px 9px", borderRadius: 8, display: "inline-block" }}>{children}</span>;
+
+const TrustDetail = ({ row }) => {
+  if (row.key === "mentions") {
+    return (<div>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>{row.goodNote}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Named by</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>{(row.engines || []).map((e, i) => <Chip key={i}>{e.name} · {e.n}</Chip>)}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Appeared for these prompts</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{(row.queries || []).map((q, i) => <div key={i} style={{ fontSize: 12, color: C.dark, padding: "7px 10px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}>“{q}”</div>)}</div>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 10 }}>Sentiment: {row.sentiment}</div>
+    </div>);
+  }
+  if (row.key === "web") {
+    const s = row.sentimentSplit || {};
+    return (<div>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>{row.goodNote}</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}><Chip color="#9B7AE6">{s.pos} positive</Chip><Chip color={C.muted}>{s.neu} neutral</Chip><Chip color="#B89CF0">{s.neg} negative</Chip></div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Top domains mentioning you</div>
+      <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.9 }}>{(row.topDomains || []).join(" · ")}</div>
+    </div>);
+  }
+  return <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{row.goodNote}</div>;
+};
+
+const AIOverviewBlock = ({ items, dashHref }) => {
+  const rows = items || [];
+  const triggered = rows.filter(r => r.triggers).length;
+  const cited = rows.filter(r => r.cited).length;
+  const total = rows.length;
+  return (
+  <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
+    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}><span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Google AI Overview</span><QM text="For the questions people ask, whether Google shows an AI Overview and whether your page is cited inside it. A query can trigger an AI Overview without citing you. You pick the queries and run the check in the dashboard." /></span>
+      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
+    </div>
+    <div style={{ padding: "4px 16px 14px" }}>
+      <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, margin: "8px 0 10px" }}>Across your tracked queries, {triggered} of {total} show a Google AI Overview and you're cited in {cited}.</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}><Chip color="#9B7AE6">Cited in {cited} of {total}</Chip><Chip color={C.muted}>{triggered} of {total} trigger an AI Overview</Chip></div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{rows.map((r, i) => {
+        const label = r.cited ? "You're cited" : (r.triggers ? "Shows an overview, not cited" : "No AI Overview");
+        const col = r.cited ? "#9B7AE6" : C.muted;
+        return (<div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: C.dark, padding: "8px 11px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}` }}><span style={{ minWidth: 0 }}>“{r.q}”</span><span style={{ fontSize: 11, fontWeight: 600, color: col, flexShrink: 0 }}>{label}</span></div>);
+      })}</div>
+    </div>
+  </div>);
+};
+
+/* Dashboard route — confirm the real path and update here once. */
+const DASHBOARD_URL = "/dashboard";
+
+const PromptVisibility = ({ dashHref }) => (
+  <div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface }}>
+    <div style={{ background: C.card, padding: "12px 16px", borderRadius: "12px 12px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.dark, minWidth: 0 }}>Prompt visibility</span>
+      <a href={dashHref || DASHBOARD_URL} title="Open this domain in your dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, textDecoration: "none", fontSize: 12, fontWeight: 600, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M19 9l-5 5-4-4-3 3" /></svg>Dashboard</a>
+    </div>
+    <div style={{ padding: "8px 16px 16px" }}>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>In your dashboard, add the questions you want AI to find you for, and I check whether ChatGPT, Perplexity, and Google AI mention your brand and cite your page for each one.</div>
+    </div>
+  </div>
+);
+
+const AIReadinessPlaceholder = () => <div style={{ minHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
+  <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(110,43,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6E2BFF" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
+  <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 8 }}>Your AI readiness report will appear here</div>
+  <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, textAlign: "center", maxWidth: 340, marginBottom: 24 }}>I'll check how ready your page is for AI search — so you know exactly what to fix to get cited by tools like ChatGPT, Perplexity, and Google AI.</div>
+  <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 340 }}>
+    {[{ n: "1", t: "Page type", d: "I detect what kind of page this is, since AI weighs signals differently per type" }, { n: "2", t: "AI search signals", d: "I check schema, FAQ, question patterns, dates, author, and extractable passages" }, { n: "3", t: "Trust & authority", d: "I look at citations and brand mentions that build authority" }, { n: "4", t: "Where to get cited", d: "Tips on where to mention this page to earn AI citations" }].map((s, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, background: "rgba(110,43,255,0.04)", border: "1px solid rgba(110,43,255,0.08)" }}><div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(155,122,230,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}><span style={{ fontSize: 11, fontWeight: 700, color: "#9B7AE6" }}>{s.n}</span></div><div><div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{s.t}</div><div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{s.d}</div></div></div>)}
+  </div>
+</div>;
+
+
+const TRUST_PREVIEW = true;
+
+const AIReadinessReport = ({ data }) => {
+  const ai = data.aiReadiness || {};
+  const aiGood = ai.aiGood || [];
+  const aiBad = (ai.aiBad || []).slice();
+  const prioOrder = { critical: 0, important: 1, nice: 2 };
+  aiBad.sort((a, b) => (prioOrder[a.priority] != null ? prioOrder[a.priority] : 1) - (prioOrder[b.priority] != null ? prioOrder[b.priority] : 1));
+  const passed = aiGood.length;
+  const total = ai.total || (aiGood.length + aiBad.length);
+  const score = typeof ai.score === "number" ? Math.round(ai.score) : 0;
+  const t = data.trust || {};
+
+  const trustRows = (t.rows && t.rows.length) ? t.rows : [];
+  const extractableBad = aiBad.some(p => p.title === "Extractable passages");
+  const showPassages = ai.extractablePassages && ai.extractablePassages.length > 0 && !extractableBad;
+  const wwCount = aiGood.length + (showPassages ? 1 : 0);
+  const niCount = aiBad.length;
+  let _host = ""; try { _host = new URL(data.url).hostname; } catch (e) {}
+  const dashHref = DASHBOARD_URL + (_host ? "?domain=" + encodeURIComponent(_host) : "");
+
+  return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
+    <BotNote text="Two things drive AI search: how you're cited right now, and what to add so AI cites you more easily. The report is split that way." />
+
+    <AIReadinessScoreCard url={data.url} score={score} passed={passed} total={total} />
+
+    {TRUST_PREVIEW && <>
+      {trustRows.length > 0 && <BotNote text="How AI cites your brand right now, from live data. Full history and tracking are in your dashboard." />}
+      {trustRows.length > 0 && <TrustTable rows={trustRows} dashHref={dashHref} />}
+      <BotNote text="Prompt visibility shows where AI already mentions and cites you for the questions that matter to your business." />
+      <PromptVisibility dashHref={dashHref} />
+      <BotNote text="Where to get this page mentioned so AI tools pick it up. This is how the citations and mentions above grow." />
+      <div className="reveal" style={{ marginBottom: 20 }}>
+        <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || "other")} />
+      </div>
+      {/* Google AI Overview section removed from instrument 2026-07-08 — _pAio still runs and stores ai_overview_count; results surface in the dashboard AI Readiness section (page citation count + prompt table). */}
+      
+      
+      
+    </>}
+
+    <BotNote text={wwCount > 0 ? `On the page, ${wwCount} signal${wwCount !== 1 ? "s" : ""} that help AI cite you are already in place.` : "Let's look at the on-page signals that help AI cite you."} />
+    {wwCount > 0 && <div className="reveal" style={{ marginBottom: 12 }}><Fold title="On-page AI signals — Working Well" count={wwCount} borderColor={C.cardBorder} headerBg={C.card}><div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>{showPassages && <WorkingItem title="Passages AI is most likely to quote" content={(<><BotNote inline text="AI search tools like ChatGPT and Perplexity tend to pull self-contained passages (roughly 100–180 words) straight into their answers. These are the strongest candidates on your page right now." /><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>{ai.extractablePassages.map((p, i) => (<div key={"pq" + i} style={{ padding: "10px 14px", borderRadius: 8, background: C.surface, border: `1px solid ${C.cardBorder}`, borderLeft: "3px solid #B89CF0" }}><div style={{ fontSize: 12, color: C.dark, lineHeight: 1.5 }}>{p.text}</div><div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{p.words} words</div></div>))}</div></>)} />}{aiGood.map((g, i) => <WorkingItem key={"ag" + i} title={g.title} content={g.content} />)}</div></Fold></div>}
+
+    <BotNote text={niCount > 0 ? `${niCount} on-page signal${niCount !== 1 ? "s" : ""} to add or fix so AI cites you more easily.` : "All on-page AI signals are in place!"} />
+    {niCount > 0 && <div className="reveal" style={{ marginBottom: 20 }}><Fold title="On-page AI signals — Needs Improvement" count={niCount} borderColor="rgba(110,43,255,0.3)" headerBg={C.accent} titleColor="#fff"><div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>{aiBad.map((p, i) => <ProblemCard key={"ab" + i} {...p} />)}</div></Fold></div>}
+
+    {aiBad.length > 0 && <>
+      <BotNote text="In short — fix these on-page items first, starting with anything marked critical." />
+      <div className="reveal" style={{ marginBottom: 8, padding: 20, borderRadius: 14, background: C.card, border: `1px solid ${C.cardBorder}` }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 12 }}>Final recommendations</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {aiBad.slice().sort((a, b) => (({ critical: 0, important: 1, nice: 2 }[a.priority]) ?? 1) - (({ critical: 0, important: 1, nice: 2 }[b.priority]) ?? 1)).slice(0, 5).map((item, i) => { const pr = PRIO[item.priority] || PRIO.important; return (<div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <span style={{ color: pr.color, fontSize: 10, marginTop: 4 }}>●</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}><span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{item.title}</span><span style={{ fontSize: 9, fontWeight: 600, color: pr.color, background: pr.bg, padding: "2px 7px", borderRadius: 5, textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0 }}>{pr.label}</span></div>
+                {item.why && typeof item.why === "string" && <div style={{ fontSize: 11.5, color: C.muted, marginBottom: item.suggestions && item.suggestions[0] ? 6 : 0 }}>{renderBoldText(item.why)}</div>}
+                {item.suggestions && item.suggestions.length > 0 && typeof item.suggestions[0] === "string" && <div style={{ padding: "8px 10px", borderRadius: 6, background: C.bg }}><div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>Start with:</div><div style={{ fontSize: 12, fontWeight: 500, color: C.dark, padding: "2px 0" }}>{item.suggestions[0]}</div></div>}
+              </div>
+            </div>
+          </div>); })}
+          <div style={{ padding: "12px 14px", borderRadius: 10, background: C.surface, border: `1px solid ${C.cardBorder}` }}><div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><span style={{ color: C.accent, fontSize: 10, marginTop: 4 }}>●</span><div><div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 2 }}>Re-check after changes</div><div style={{ fontSize: 11.5, color: C.muted }}>Publish your fixes, then run AI Readiness again to see on-page signals improve right away. Citations and mentions take a week or two — track those in your dashboard.</div></div></div></div>
+        </div>
+      </div>
+    </>}
+  </div>);
+};
+
+window.AIReadinessTool = AIReadinessTool;
 })();
