@@ -1841,9 +1841,10 @@ function AIReadinessTool({ onHome, memberName: mn }) {
 
       /* page type — best-effort via GPT context, falls back to "other" */
       let pageType = "other";
+      let _summaryBrand = "";
       try {
         const gptRes = await fetch(COVERAGE_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "extract_context", parsed_summary: parsed.summary, domain: parsed.hostname, primary_keyword: parsed.primary_keyword, signals: extractGeoSignals(parsed) }) });
-        if (gptRes.ok) { const gpt = await gptRes.json(); pageType = (gpt && gpt.page_type) || "other"; }
+        if (gptRes.ok) { const gpt = await gptRes.json(); pageType = (gpt && gpt.page_type) || "other"; if (gpt && gpt.page_context && gpt.page_context.owner) { const _o = String(gpt.page_context.owner).trim(); if (_o.length >= 2 && _o.length <= 40 && /[a-zA-Z\u0400-\u04FF]/.test(_o) && _o.indexOf(".") === -1) _summaryBrand = _o; } }
       } catch (e) {}
 
       if (!(window.AIReadiness && typeof window.AIReadiness.parse === "function")) throw new Error("AI Readiness engine not loaded");
@@ -1865,11 +1866,13 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           var _host = ""; try { _host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
           if (!_host) return;
           /* brand for AI-mentions: prefer the site's own declared name (og:site_name), then the last title segment (e.g. "Aptos | Ashfall Studio" -> "Ashfall Studio"), then the domain's second-level label. */
-          var _brand = "";
+          var _brand = (typeof _summaryBrand === "string" && _summaryBrand) ? _summaryBrand : "";
           try {
-            var _ogm = rawHtml.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) || rawHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
-            if (_ogm && _ogm[1]) _brand = _ogm[1].trim();
-            if (_brand && (_brand.length > 40 || _brand.length < 2)) _brand = "";
+            if (!_brand) {
+              var _ogm = rawHtml.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) || rawHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
+              if (_ogm && _ogm[1]) _brand = _ogm[1].trim();
+              if (_brand && (_brand.length > 40 || _brand.length < 2)) _brand = "";
+            }
           } catch (e) {}
           try {
             if (!_brand) {
