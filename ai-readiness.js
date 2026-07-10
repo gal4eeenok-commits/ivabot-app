@@ -1907,7 +1907,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           var _rk = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ranked_only", domain: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
           var _pk = _nrm(url);
           var _kws = (((_rk && _rk.ranked_keywords) || []).filter(function (k) { return k && k.url && _nrm(k.url) === _pk; }).map(function (k) { return k.keyword; })).slice(0, 3);
-          if (!_kws.length && _gptKws && _gptKws.length) { _kws = _gptKws.slice(0, 3); } if (!_kws.length) { console.log("[AIR] ai_overview: no keywords (ranked or summary) for this page"); setAuditData(function (prev) { return (prev && prev.url === d.url) ? Object.assign({}, prev, { aioItems: [] }) : prev; }); return; }
+          if (!_kws.length && _gptKws && _gptKws.length) { _kws = _gptKws.slice(0, 3); } if (!_kws.length) { console.log("[AIR] ai_overview: no keywords (ranked or summary) for this page"); return; }
           var _ao = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ai_overview", keywords: _kws, target: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
           if (_ao && Array.isArray(_ao.ai_overview) && _ao.ai_overview.length) {
             console.log("[AIR] ai_overview OK:", _ao.ai_overview.length, "keywords checked");
@@ -2191,9 +2191,6 @@ const TrustDetail = ({ row }) => {
 };
 
 const AIOverviewBlock = ({ items, dashHref }) => {
-  if (items === undefined) {
-    return (<div className="reveal" style={{ marginBottom: 20, borderRadius: 12, border: `1px solid ${C.cardBorder}`, background: C.surface, padding: "14px 16px" }}><div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginBottom: 6 }}>Google AI Overview</div><div style={{ fontSize: 12, color: C.muted }}>Checking whether ChatGPT, Perplexity and Google AI cite this page\u2026</div></div>);
-  }
   const rows = items || [];
   const triggered = rows.filter(r => r.triggers).length;
   const cited = rows.filter(r => r.cited).length;
@@ -2271,7 +2268,7 @@ const AIReadinessReport = ({ data }) => {
       {trustRows.length > 0 && <BotNote text="How AI cites your brand right now, from live data. Full history and tracking are in your dashboard." />}
       {trustRows.length > 0 && <TrustTable rows={trustRows} dashHref={dashHref} />}
       <BotNote text="Prompt visibility shows where AI already mentions and cites you for the questions that matter to your business." />
-      <AIOverviewBlock items={data.aioItems} dashHref={dashHref} />
+      <PromptVisibility dashHref={dashHref} />
       <BotNote text="Where to get this page mentioned so AI tools pick it up. This is how the citations and mentions above grow." />
       <div className="reveal" style={{ marginBottom: 20 }}>
         <DistributionTipsBlock tips={(data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || "other")} />
