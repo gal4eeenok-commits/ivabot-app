@@ -1,4 +1,4 @@
-/* IvaBot CORE TOOL (core-tool.js) v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
+/* IvaBot CORE TOOL (core-tool.js) v252 — PDF section order now matches the on-screen report exactly: SEO Score, How Your Page Ranks, What Your Page Is Built For, PR & Backlink Opportunities, Top Competitors, Page Context Summary, What's Working, Needs Improvement, Final Recommendations (previously Page Context sat near the top and Backlinks/Top Competitors sat after Needs Improvement). Pure reordering of content.push blocks; no content or logic changes. v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] core-tool.js v216 loaded (standalone window.CoreTool)");
@@ -1022,21 +1022,6 @@ async function generatePDF(data) {
     margin: [0, 0, 0, 24]
   });
 
-  /* ── PAGE CONTEXT SUMMARY ── */
-  content.push(secTitle("Page Context Summary"));
-  const ctxRows = [["Page URL", data.ctx?.url], ["Page title", decodeHTML(data.ctx?.title)], ["Topic", decodeHTML(data.ctx?.topic)], ["Owner", decodeHTML(data.ctx?.owner)], ["Goal", decodeHTML(data.ctx?.goal)], ["Industry", decodeHTML(data.ctx?.industry)], ["Region", decodeHTML(data.ctx?.region)], ["Competition", data.ctx?.competition], ["Core message", decodeHTML(data.ctx?.message)]];
-  const ctxBody = ctxRows.filter(([, v]) => v).map(([label, val]) => [
-    { text: label, fontSize: 11, color: mt, margin: [4, 4, 4, 4] },
-    { text: String(val).slice(0, 120), fontSize: 11, color: dk, margin: [4, 4, 4, 4] }
-  ]);
-  if (ctxBody.length > 0) {
-    content.push({
-      table: { widths: [100, "*"], body: ctxBody },
-      layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-      margin: [0, 4, 0, 16]
-    });
-  }
-
   /* ── KEYWORD TABLES ── */
   if (data.rankedKeywords?.length > 0) {
     content.push(secTitle("How Your Page Ranks in Google"));
@@ -1053,6 +1038,86 @@ async function generatePDF(data) {
     content.push(...kwNotes);
   }
   content.push(spacer(16));
+
+  /* ══════════════════════════════════════════════
+     PR & BACKLINK OPPORTUNITIES
+     ══════════════════════════════════════════════ */
+  content.push(secTitle("PR & Backlink Opportunities"));
+  if (data.backlinksCount != null) { /* counts mirror the on-screen rankings + Backlinks cards; page-level DataForSEO endpoints live */
+    content.push({
+      columns: [
+        { stack: [{ text: data.backlinksCount != null ? data.backlinksCount.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Backlinks", fontSize: 10, color: mt }] },
+        { stack: [{ text: data.referringDomains != null ? data.referringDomains.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Referring Domains", fontSize: 10, color: mt }] },
+        { stack: [{ text: data.totalRanked != null ? data.totalRanked.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Ranked Keywords", fontSize: 10, color: mt }] }
+      ],
+      margin: [0, 4, 0, 12]
+    });
+    if (data.backlinksCount < 10) content.push(noteText(data.backlinksCount === 0 ? "No backlinks detected. This is a top 3 Google ranking factor." : "Low backlink count (" + data.backlinksCount + ")."));
+  }
+  content.push(noteText("Every quality link from another website is a \u2018vote of confidence\u2019 for Google. Reach out to relevant sites \u2014 even 2\u20133 strong backlinks can make a real difference."));
+  if (data.backlinks?.length > 0) {
+    const blHead = [
+      { text: "#", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "Source", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
+      { text: "Outreach Strategy", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] }
+    ];
+    const blBody = data.backlinks.map((b, i) => [
+      { text: String(i + 1), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: b.name, fontSize: 11, color: dk, margin: [4, 6, 4, 6] },
+      { text: b.desc || "", fontSize: 11, color: dk, margin: [4, 6, 4, 6] }
+    ]);
+    content.push({
+      table: { headerRows: 1, widths: [25, 120, "*"], body: [blHead, ...blBody] },
+      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      margin: [0, 4, 0, 8]
+    });
+  }
+  content.push(spacer(16));
+
+  /* ══════════════════════════════════════════════
+     TOP COMPETITORS
+     ══════════════════════════════════════════════ */
+  if (data.competitors?.length > 0) {
+    content.push(secTitle("Top Competitors"));
+    content.push(noteText("Want to go deeper? See how your competitors rank and where to earn backlinks."));
+    content.push(noteText("Top organic results for \"" + (data.keywords?.[0] || "your topic") + "\"."));
+    const compHead = [
+      { text: "#", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
+      { text: "Domain", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
+      { text: "SEO Tactics", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] }
+    ];
+    const compBody = data.competitors.map((c, i) => {
+      let cdomain = c.name || "";
+      if (c.url) { try { cdomain = new URL(c.url).hostname.replace(/^www\./, ""); } catch(e) { cdomain = c.url; } }
+      return [
+        { text: String(i + 1), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
+        { text: cdomain, fontSize: 11, color: dk, margin: [4, 6, 4, 6] },
+        { text: c.tactics || "", fontSize: 11, color: dk, margin: [4, 6, 4, 6] }
+      ];
+    });
+    content.push({
+      table: { headerRows: 1, widths: [25, 130, "*"], body: [compHead, ...compBody] },
+      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      margin: [0, 4, 0, 8]
+    });
+    content.push(noteText("Study their titles, descriptions, and content structure. What are they doing that you\u2019re not? Use their strengths as inspiration to improve your own page."));
+    content.push(spacer(16));
+  }
+
+  /* ── PAGE CONTEXT SUMMARY ── */
+  content.push(secTitle("Page Context Summary"));
+  const ctxRows = [["Page URL", data.ctx?.url], ["Page title", decodeHTML(data.ctx?.title)], ["Topic", decodeHTML(data.ctx?.topic)], ["Owner", decodeHTML(data.ctx?.owner)], ["Goal", decodeHTML(data.ctx?.goal)], ["Industry", decodeHTML(data.ctx?.industry)], ["Region", decodeHTML(data.ctx?.region)], ["Competition", data.ctx?.competition], ["Core message", decodeHTML(data.ctx?.message)]];
+  const ctxBody = ctxRows.filter(([, v]) => v).map(([label, val]) => [
+    { text: label, fontSize: 11, color: mt, margin: [4, 4, 4, 4] },
+    { text: String(val).slice(0, 120), fontSize: 11, color: dk, margin: [4, 4, 4, 4] }
+  ]);
+  if (ctxBody.length > 0) {
+    content.push({
+      table: { widths: [100, "*"], body: ctxBody },
+      layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      margin: [0, 4, 0, 16]
+    });
+  }
 
   /* ══════════════════════════════════════════════
      WHAT'S WORKING
@@ -1185,71 +1250,6 @@ async function generatePDF(data) {
     pB.forEach(item => content.push(lavCard(item)));
     content.push(spacer(16));
   }
-
-  /* ══════════════════════════════════════════════
-     TOP COMPETITORS
-     ══════════════════════════════════════════════ */
-  if (data.competitors?.length > 0) {
-    content.push(secTitle("Top Competitors"));
-    content.push(noteText("Want to go deeper? See how your competitors rank and where to earn backlinks."));
-    content.push(noteText("Top organic results for \"" + (data.keywords?.[0] || "your topic") + "\"."));
-    const compHead = [
-      { text: "#", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
-      { text: "Domain", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
-      { text: "SEO Tactics", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] }
-    ];
-    const compBody = data.competitors.map((c, i) => {
-      let cdomain = c.name || "";
-      if (c.url) { try { cdomain = new URL(c.url).hostname.replace(/^www\./, ""); } catch(e) { cdomain = c.url; } }
-      return [
-        { text: String(i + 1), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
-        { text: cdomain, fontSize: 11, color: dk, margin: [4, 6, 4, 6] },
-        { text: c.tactics || "", fontSize: 11, color: dk, margin: [4, 6, 4, 6] }
-      ];
-    });
-    content.push({
-      table: { headerRows: 1, widths: [25, 130, "*"], body: [compHead, ...compBody] },
-      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-      margin: [0, 4, 0, 8]
-    });
-    content.push(noteText("Study their titles, descriptions, and content structure. What are they doing that you\u2019re not? Use their strengths as inspiration to improve your own page."));
-    content.push(spacer(16));
-  }
-
-  /* ══════════════════════════════════════════════
-     PR & BACKLINK OPPORTUNITIES
-     ══════════════════════════════════════════════ */
-  content.push(secTitle("PR & Backlink Opportunities"));
-  if (data.backlinksCount != null) { /* counts mirror the on-screen rankings + Backlinks cards; page-level DataForSEO endpoints live */
-    content.push({
-      columns: [
-        { stack: [{ text: data.backlinksCount != null ? data.backlinksCount.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Backlinks", fontSize: 10, color: mt }] },
-        { stack: [{ text: data.referringDomains != null ? data.referringDomains.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Referring Domains", fontSize: 10, color: mt }] },
-        { stack: [{ text: data.totalRanked != null ? data.totalRanked.toLocaleString() : "\u2014", fontSize: 18, bold: true, color: dk }, { text: "Ranked Keywords", fontSize: 10, color: mt }] }
-      ],
-      margin: [0, 4, 0, 12]
-    });
-    if (data.backlinksCount < 10) content.push(noteText(data.backlinksCount === 0 ? "No backlinks detected. This is a top 3 Google ranking factor." : "Low backlink count (" + data.backlinksCount + ")."));
-  }
-  content.push(noteText("Every quality link from another website is a \u2018vote of confidence\u2019 for Google. Reach out to relevant sites \u2014 even 2\u20133 strong backlinks can make a real difference."));
-  if (data.backlinks?.length > 0) {
-    const blHead = [
-      { text: "#", fontSize: 9, color: mt, fillColor: tblHdrBg, alignment: "center", margin: [4, 6, 4, 6] },
-      { text: "Source", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] },
-      { text: "Outreach Strategy", fontSize: 9, color: mt, fillColor: tblHdrBg, margin: [4, 6, 4, 6] }
-    ];
-    const blBody = data.backlinks.map((b, i) => [
-      { text: String(i + 1), fontSize: 11, color: dk, alignment: "center", margin: [4, 6, 4, 6] },
-      { text: b.name, fontSize: 11, color: dk, margin: [4, 6, 4, 6] },
-      { text: b.desc || "", fontSize: 11, color: dk, margin: [4, 6, 4, 6] }
-    ]);
-    content.push({
-      table: { headerRows: 1, widths: [25, 120, "*"], body: [blHead, ...blBody] },
-      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => divClr, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-      margin: [0, 4, 0, 8]
-    });
-  }
-  content.push(spacer(16));
 
   /* ══════════════════════════════════════════════
      FINAL RECOMMENDATIONS — white cards
