@@ -1,4 +1,4 @@
-/* IvaBot AI Readiness (standalone) v3.8 — cloned from content-coverage.js shell; AI Readiness report for only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
+/* IvaBot AI Readiness (standalone) v3.9 — PDF (generateAIReadinessPDF) now mirrors the real on-screen report exactly: it adds only the Where to mention this page (distribution tips) block, placed after the AI citations & authority note (which stands in for the live TrustTable + Prompt visibility blocks that live in the dashboard) and before the On-page AI signals sections. No Coverage-clone sections (Page Context, keywords table, Content & Structure, Trust & Conversion) are added — those belong to the dead CoverageReport, not the AI Readiness report. v3.8 — cloned from content-coverage.js shell; AI Readiness report for only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] ai-readiness.js (standalone) v4.1 loaded");
@@ -1711,6 +1711,17 @@ async function generateAIReadinessPDF(data) {
 
     content.push(secTitle("AI citations & authority"));
     content.push(noteText("Live tracking of AI citations, brand mentions, and AI Overview presence, plus prompt visibility across ChatGPT, Perplexity, and Google AI, is available in your IvaBot dashboard for this domain."));
+
+    /* Where to mention this page — distribution tips; mirrors the on-screen report (sits after the live-citations note, before the on-page signals) */
+    const _tips = (data.distributionTips && data.distributionTips.length) ? data.distributionTips : distributionTipsForPageType(data.pageType || ai.pageType || "other");
+    if (_tips && _tips.length > 0) {
+      content.push(secTitle("Where to mention this page"));
+      content.push(noteText("AI engines cite pages with mentions across the web. Based on your page type, here is where to start building them."));
+      _tips.forEach(t => {
+        if (t && typeof t === "object") { content.push({ text: [{ text: (t.channel || "") + ": ", bold: true, color: dk }, { text: String(t.action || ""), color: dk }], fontSize: 11, margin: [0, 1, 0, 4], lineHeight: 1.3 }); }
+        else if (typeof t === "string") { content.push({ text: "\u2022 " + t.replace(/\*\*/g, ""), fontSize: 11, color: dk, margin: [0, 1, 0, 4], lineHeight: 1.3 }); }
+      });
+    }
 
     content.push(secTitle("On-page AI signals \u2014 Working Well"));
     if (passages.length > 0) { content.push({ text: "Passages AI is most likely to quote", fontSize: 12, bold: true, color: dk, margin: [0, 2, 0, 4] }); passages.forEach(p => { content.push({ table: { widths: ["*"], body: [[{ stack: [{ text: p.text, fontSize: 10, color: dk, lineHeight: 1.3 }, { text: (p.words || 0) + " words", fontSize: 8, color: mt, margin: [0, 3, 0, 0] }], margin: [8, 8, 8, 8] }]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => "#f8f5ff" }, margin: [0, 0, 0, 6] }); }); }
