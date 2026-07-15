@@ -1725,13 +1725,26 @@ function IvaBotV6() {
             p_ranked_keywords: allRk
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
-          const snapRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_snapshot", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) },
-            body: JSON.stringify(snapBody)
-          });
-          const snapData = await snapRes.json();
-          console.log("[IvaBot] insert_snapshot:", snapData);
+          var __admC = (typeof window !== "undefined" && window.__ivaAdmin && window.__ivaAdmin.userId) ? window.__ivaAdmin : null;
+          if (__admC) {
+            snapBody.p_user_id = __admC.userId; snapBody.p_member_id = null;
+            console.log("[CORE][ADMIN] payload for " + __admC.userId + ":", JSON.stringify(snapBody));
+            const aRes = await fetch(SUPABASE_URL + "/functions/v1/admin-snapshot-write", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY },
+              body: JSON.stringify({ admin_secret: (__admC.secret || ""), snapshot: snapBody })
+            });
+            let aData = null; try { aData = await aRes.json(); } catch(e) {}
+            console.log("[CORE][ADMIN] result", aRes.status, JSON.stringify(aData));
+          } else {
+            const snapRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_snapshot", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) },
+              body: JSON.stringify(snapBody)
+            });
+            const snapData = await snapRes.json();
+            console.log("[IvaBot] insert_snapshot:", snapData);
+          }
         } catch(e) { console.warn("[IvaBot] insert_snapshot error:", e); }
       }
       if (isMobile) sMTab("report");
