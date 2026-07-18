@@ -1,4 +1,4 @@
-/* IvaBot CORE TOOL (core-tool.js) v252 — PDF section order now matches the on-screen report exactly: SEO Score, How Your Page Ranks, What Your Page Is Built For, PR & Backlink Opportunities, Top Competitors, Page Context Summary, What's Working, Needs Improvement, Final Recommendations (previously Page Context sat near the top and Backlinks/Top Competitors sat after Needs Improvement). Pure reordering of content.push blocks; no content or logic changes. v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
+/* IvaBot CORE TOOL (core-tool.js) v253 — referring domains are now fetched in parallel with the itemized backlinks list and written into the same snapshot field, marked kind:"domain", so the dashboard can show a links tab and a domains tab. The on-screen report and the PDF are unchanged. v252 — PDF section order now matches the on-screen report exactly: SEO Score, How Your Page Ranks, What Your Page Is Built For, PR & Backlink Opportunities, Top Competitors, Page Context Summary, What's Working, Needs Improvement, Final Recommendations (previously Page Context sat near the top and Backlinks/Top Competitors sat after Needs Improvement). Pure reordering of content.push blocks; no content or logic changes. v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] core-tool.js v216 loaded (standalone window.CoreTool)");
@@ -1722,9 +1722,10 @@ function CoreTool({ onHome }) {
 
         /* Page-level backlinks (post 2026-07-01 PAYG) — fetched for the tracking snapshot; target = the audited page URL, not the whole domain. */
         try {
-          const [blSumRes, blListRes] = await Promise.allSettled([
+          const [blSumRes, blListRes, blDomRes] = await Promise.allSettled([
             fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_summary", target: url }) }).then(r => r.ok ? r.json() : null),
-            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_list", target: url, limit: 1000 }) }).then(r => r.ok ? r.json() : null)
+            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "backlinks_list", target: url, limit: 1000 }) }).then(r => r.ok ? r.json() : null),
+            fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "referring_domains", target: url, limit: 1000 }) }).then(r => r.ok ? r.json() : null)
           ]);
           if (blSumRes.status === "fulfilled" && blSumRes.value) {
             if (blSumRes.value.backlinks_count != null) dfsSeo.backlinksCount = blSumRes.value.backlinks_count;
@@ -1734,17 +1735,18 @@ function CoreTool({ onHome }) {
           if (blListRes.status === "fulfilled" && blListRes.value && Array.isArray(blListRes.value.backlinks)) {
             dfsSeo.backlinksList = blListRes.value.backlinks;
           }
-          /* Fallback 2026-07-08: big targets return an empty itemized list from DFS. If the count is >0 but no items came back, fetch referring domains (a lighter endpoint) and show the linking sites instead. Marked kind:"domain" so the dashboard renders a domains table. */
-          if ((!dfsSeo.backlinksList || !dfsSeo.backlinksList.length) && (dfsSeo.backlinksCount || 0) > 0) {
-            try {
-              const rdRes = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "referring_domains", target: url, limit: 1000 }) }).then(r => r.ok ? r.json() : null);
-              if (rdRes && Array.isArray(rdRes.referring_domains) && rdRes.referring_domains.length) {
-                dfsSeo.backlinksList = rdRes.referring_domains.map(function (rd) { return { domain: rd.domain, url: null, rank: rd.rank, dofollow: null, anchor: null, refBacklinks: rd.backlinks, kind: "domain" }; });
-                console.log("[IvaBot] backlinks list empty — referring_domains fallback:", dfsSeo.backlinksList.length, "domains");
-              }
-            } catch (e) { console.warn("[IvaBot] referring_domains fallback error:", e); }
+          /* v253: referring domains are now always fetched in parallel with the itemized list, so the dashboard can show a domains tab next to the links tab. Marked kind:"domain" so the two lists stay separable inside one snapshot field. */
+          if (blDomRes.status === "fulfilled" && blDomRes.value && Array.isArray(blDomRes.value.referring_domains)) {
+            dfsSeo.referringDomainsList = blDomRes.value.referring_domains.map(function (rd) { return { domain: rd.domain, url: null, rank: rd.rank, dofollow: null, anchor: null, refBacklinks: rd.backlinks, kind: "domain" }; });
           }
-          console.log("[IvaBot] page backlinks — count:", dfsSeo.backlinksCount, "list:", (dfsSeo.backlinksList || []).length);
+          /* Fallback 2026-07-08: big targets return an empty itemized list from DFS. If the count is >0 but no items came back, show the linking sites instead. Since v253 this reuses the domains already fetched above, so it costs no extra call. */
+          if ((!dfsSeo.backlinksList || !dfsSeo.backlinksList.length) && (dfsSeo.backlinksCount || 0) > 0) {
+            if (dfsSeo.referringDomainsList && dfsSeo.referringDomainsList.length) {
+              dfsSeo.backlinksList = dfsSeo.referringDomainsList.slice();
+              console.log("[IvaBot] backlinks list empty — showing referring domains:", dfsSeo.backlinksList.length, "domains");
+            }
+          }
+          console.log("[IvaBot] page backlinks — count:", dfsSeo.backlinksCount, "list:", (dfsSeo.backlinksList || []).length, "domains:", (dfsSeo.referringDomainsList || []).length);
         } catch (e) { console.warn("[IvaBot] page backlinks error:", e); }
 
         setStep(5);
@@ -1754,6 +1756,7 @@ function CoreTool({ onHome }) {
         reportData._domain = domain;
         reportData._locale = locale;
         reportData._backlinksList = Array.isArray(dfsSeo?.backlinksList) ? dfsSeo.backlinksList : [];
+        reportData._referringDomains = Array.isArray(dfsSeo?.referringDomainsList) ? dfsSeo.referringDomainsList : [];
 
         /* ── robots.txt + sitemap checks ── */
         try { const rb = await fetch(CORS_PROXY, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: parsed.robots_url }) }); if (rb.ok) { const rbt = await rb.text(); reportData.robotsStatus = (rbt.toLowerCase().includes("user-agent") || rbt.toLowerCase().includes("disallow") || rbt.toLowerCase().includes("sitemap")) ? "good" : "bad"; } else { reportData.robotsStatus = "bad"; } } catch(e){ reportData.robotsStatus = "bad"; }
@@ -1792,6 +1795,10 @@ function CoreTool({ onHome }) {
           const top10 = positions.filter(p => p <= 10).length;
           const avgPos = positions.length ? Math.round((positions.reduce((a, b) => a + b, 0) / positions.length) * 10) / 10 : null;
           const etvSum = allRk.reduce((a, rk) => a + (typeof rk.etv === "number" ? rk.etv : 0), 0);
+          /* v253: one snapshot field carries both lists. Domain rows are stripped from the link list first, so the fallback case (where backlinksList already holds domains) cannot duplicate them. */
+          const _snapLinks = (Array.isArray(reportData._backlinksList) ? reportData._backlinksList : []).filter(function (b) { return !(b && b.kind === "domain"); });
+          const _snapDomains = Array.isArray(reportData._referringDomains) ? reportData._referringDomains : [];
+          const _snapBacklinks = _snapLinks.concat(_snapDomains);
           const snapBody = {
             p_domain: reportData._domain || "",
             p_email: null,
@@ -1808,7 +1815,7 @@ function CoreTool({ onHome }) {
             p_location_code: reportData._locale?.location_code ?? null,
             p_language_code: reportData._locale?.language_code ?? null,
             p_ranked_keywords: allRk,
-            p_backlinks: (Array.isArray(reportData._backlinksList) && reportData._backlinksList.length) ? reportData._backlinksList : null,
+            p_backlinks: _snapBacklinks.length ? _snapBacklinks : null,
             p_keywords_checked: (Array.isArray(reportData.keywordMetrics) && reportData.keywordMetrics.length) ? reportData.keywordMetrics : null
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
