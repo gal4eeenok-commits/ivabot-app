@@ -1722,7 +1722,8 @@ function IvaBotV6() {
             p_audit_score: reportData.score ?? null,
             p_location_code: reportData._locale?.location_code ?? null,
             p_language_code: reportData._locale?.language_code ?? null,
-            p_ranked_keywords: allRk,\n            p_coverage: (function(){ try { var _r = buildResults(reportData); var _bad = ((_r && _r.bad) || []).map(function(x){ return { title: (x && x.title) || null, priority: (x && x.priority) || null }; }).filter(function(x){ return x.title; }); var _good = ((_r && _r.good) || []).map(function(x){ return (x && x.title) || null; }).filter(Boolean); return { bad: _bad, good: _good }; } catch(e) { return null; } })()
+            p_ranked_keywords: allRk,
+            p_coverage: (function(){ try { var _r = buildResults(reportData); var _bad = ((_r && _r.bad) || []).map(function(x){ return { title: (x && x.title) || null, priority: (x && x.priority) || null }; }).filter(function(x){ return x.title; }); var _good = ((_r && _r.good) || []).map(function(x){ return (x && x.title) || null; }).filter(Boolean); return { bad: _bad, good: _good }; } catch(e) { return null; } })()
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
           var __admC = (typeof window !== "undefined" && window.__ivaAdmin && window.__ivaAdmin.userId) ? window.__ivaAdmin : null;
