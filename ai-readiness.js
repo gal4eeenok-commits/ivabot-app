@@ -1,4 +1,4 @@
-/* IvaBot AI Readiness (standalone) v3.9 — PDF (generateAIReadinessPDF) now mirrors the real on-screen report exactly: it adds only the Where to mention this page (distribution tips) block, placed after the AI citations & authority note (which stands in for the live TrustTable + Prompt visibility blocks that live in the dashboard) and before the On-page AI signals sections. No Coverage-clone sections (Page Context, keywords table, Content & Structure, Trust & Conversion) are added — those belong to the dead CoverageReport, not the AI Readiness report. v3.8 — cloned from content-coverage.js shell; AI Readiness report for only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
+/* IvaBot AI Readiness (standalone) v4.0 — brand mentions now respect the brand the user set by hand in the dashboard (localStorage iva_dash_brand_<userId>, keyed by host); a run from /app can no longer overwrite it. The page-title guess was removed from the brand chain, because a title like "Suave - Shop Now, Pay Over Time" resolved to the brand "Suave" and counted an unrelated same-name brand (159,512 instead of 488). Chain is now: brand set by hand, then og:site_name, then the domain's second-level label. Nothing else changed. v3.9 — PDF (generateAIReadinessPDF) now mirrors the real on-screen report exactly: it adds only the Where to mention this page (distribution tips) block, placed after the AI citations & authority note (which stands in for the live TrustTable + Prompt visibility blocks that live in the dashboard) and before the On-page AI signals sections. No Coverage-clone sections (Page Context, keywords table, Content & Structure, Trust & Conversion) are added — those belong to the dead CoverageReport, not the AI Readiness report. v3.8 — cloned from content-coverage.js shell; AI Readiness report for only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
 console.log("[IvaBot] ai-readiness.js (standalone) v4.1 loaded");
@@ -1877,21 +1877,16 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           if (!_isHome) return null; /* brand mentions / AI search volume are domain-level — homepage only. Internal pages stay page-level (score, on-page signals, prompt visibility). */
           var _host = ""; try { _host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
           if (!_host) return;
-          /* brand for AI-mentions: prefer the site's own declared name (og:site_name), then the last title segment (e.g. "Aptos | Ashfall Studio" -> "Ashfall Studio"), then the domain's second-level label. */
-          var _brand = (typeof _summaryBrand === "string" && _summaryBrand) ? _summaryBrand : "";
+          /* brand for AI-mentions: a brand set by hand in the dashboard wins, then the site's own declared name (og:site_name), then the domain's second-level label. The page title is no longer used: a title like "Suave - Shop Now, Pay Over Time" was read as the brand "Suave" and counted an unrelated same-name brand. */
+          /* a brand set by hand in the dashboard always wins, so a run from /app can never overwrite the number the user is tracking */
+          var _brand = "";
+          try { var _uid = (window.__userId || window.__memberId || (typeof getMemberId === "function" ? getMemberId() : null)); if (_uid) { var _bm = JSON.parse(localStorage.getItem("iva_dash_brand_" + _uid) || "{}"); if (_bm && typeof _bm[_host] === "string" && _bm[_host].trim()) _brand = _bm[_host].trim(); } } catch (e) {}
+          if (!_brand) _brand = (typeof _summaryBrand === "string" && _summaryBrand) ? _summaryBrand : "";
           try {
             if (!_brand) {
               var _ogm = rawHtml.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) || rawHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
               if (_ogm && _ogm[1]) _brand = _ogm[1].trim();
               if (_brand && (_brand.length > 40 || _brand.length < 2)) _brand = "";
-            }
-          } catch (e) {}
-          try {
-            if (!_brand) {
-              var _tt = (d.title || "").trim();
-              var _seg = _tt.split(/\s[|\u2013\u2014\u00b7:\-]\s/).map(function (s) { return s.trim(); }).filter(Boolean);
-              if (_seg.length > 1) _brand = _seg[_seg.length - 1];
-              if (!_brand || _brand.length > 40 || _brand.length < 2) _brand = "";
             }
           } catch (e) {}
           if (!_brand) _brand = _host.split(".")[0];
