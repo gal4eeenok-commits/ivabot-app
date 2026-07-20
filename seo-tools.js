@@ -1,4 +1,4 @@
-/* IvaBot seo-tools v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
+/* IvaBot seo-tools v112 — the Core snapshot now also saves the audit findings (p_coverage: bad with title and priority, good with titles), so the dashboard can list what to fix on this page instead of showing only the score. Nothing else changed. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] seo-tools.js v111 loaded (Core whitelist removed)");
@@ -1722,7 +1722,7 @@ function IvaBotV6() {
             p_audit_score: reportData.score ?? null,
             p_location_code: reportData._locale?.location_code ?? null,
             p_language_code: reportData._locale?.language_code ?? null,
-            p_ranked_keywords: allRk
+            p_ranked_keywords: allRk,\n            p_coverage: (function(){ try { var _r = buildResults(reportData); var _bad = ((_r && _r.bad) || []).map(function(x){ return { title: (x && x.title) || null, priority: (x && x.priority) || null }; }).filter(function(x){ return x.title; }); var _good = ((_r && _r.good) || []).map(function(x){ return (x && x.title) || null; }).filter(Boolean); return { bad: _bad, good: _good }; } catch(e) { return null; } })()
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
           var __admC = (typeof window !== "undefined" && window.__ivaAdmin && window.__ivaAdmin.userId) ? window.__ivaAdmin : null;
