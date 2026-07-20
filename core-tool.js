@@ -1,7 +1,7 @@
-/* IvaBot CORE TOOL (core-tool.js) v253 — referring domains are now fetched in parallel with the itemized backlinks list and written into the same snapshot field, marked kind:"domain", so the dashboard can show a links tab and a domains tab. The on-screen report and the PDF are unchanged. v252 — PDF section order now matches the on-screen report exactly: SEO Score, How Your Page Ranks, What Your Page Is Built For, PR & Backlink Opportunities, Top Competitors, Page Context Summary, What's Working, Needs Improvement, Final Recommendations (previously Page Context sat near the top and Backlinks/Top Competitors sat after Needs Improvement). Pure reordering of content.push blocks; no content or logic changes. v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
+/* IvaBot CORE TOOL (core-tool.js) v254 — the Core snapshot now also saves the audit checklist in p_coverage (bad: title + priority), built from the plain status fields so it cannot throw, and logged to the console. The dashboard reads it to list what to fix on the page. v253 — referring domains are now fetched in parallel with the itemized backlinks list and written into the same snapshot field, marked kind:"domain", so the dashboard can show a links tab and a domains tab. The on-screen report and the PDF are unchanged. v252 — PDF section order now matches the on-screen report exactly: SEO Score, How Your Page Ranks, What Your Page Is Built For, PR & Backlink Opportunities, Top Competitors, Page Context Summary, What's Working, Needs Improvement, Final Recommendations (previously Page Context sat near the top and Backlinks/Top Competitors sat after Needs Improvement). Pure reordering of content.push blocks; no content or logic changes. v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] core-tool.js v216 loaded (standalone window.CoreTool)");
+console.log("[IvaBot] core-tool.js v254 loaded (standalone window.CoreTool)");
 
 /* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
 var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -1816,7 +1816,25 @@ function CoreTool({ onHome }) {
             p_language_code: reportData._locale?.language_code ?? null,
             p_ranked_keywords: allRk,
             p_backlinks: _snapBacklinks.length ? _snapBacklinks : null,
-            p_keywords_checked: (Array.isArray(reportData.keywordMetrics) && reportData.keywordMetrics.length) ? reportData.keywordMetrics : null
+            p_keywords_checked: (Array.isArray(reportData.keywordMetrics) && reportData.keywordMetrics.length) ? reportData.keywordMetrics : null,
+            p_coverage: (function(){ try {
+              var R = reportData, ux = R.ux || {}, B = [];
+              var tt = (typeof titleCardTitle === "function") ? titleCardTitle(R.titleStatus) : "Meta Title";
+              var dt = (typeof descCardTitle === "function") ? descCardTitle(R.descStatus) : "Meta Description";
+              if (R.titleStatus !== "good") B.push({ title: (R.titleEval && R.titleEval.title) || tt, priority: "critical" });
+              if (R.descStatus !== "good") B.push({ title: (R.descEval && R.descEval.title) || dt, priority: "critical" });
+              if (R.headingsStatus !== "good") B.push({ title: "Heading Structure", priority: "critical" });
+              if (!(ux.mobile)) B.push({ title: "Not Mobile-Friendly", priority: "critical" });
+              if (R.linksStatus !== "good") B.push({ title: "Links", priority: "important" });
+              if (!(ux.cta && ux.cta.found)) B.push({ title: "No CTA Found", priority: "important" });
+              if (R.speedStatus !== "good") B.push({ title: (R.speedEval && R.speedEval.title) || "Page Speed", priority: "important" });
+              if (ux.altMissing) B.push({ title: (R.imagesEval && R.imagesEval.title) || "Images Missing Alt", priority: "nice" });
+              if (ux.noVideo) B.push({ title: (R.videoEval && R.videoEval.title) || "No Video", priority: "nice" });
+              if (R.robotsStatus !== "good") B.push({ title: "robots.txt Not Found", priority: "nice" });
+              if (R.sitemapStatus !== "good") B.push({ title: "Sitemap Not Found", priority: "nice" });
+              console.log("[IvaBot] core coverage bad:", B.length, B);
+              return { bad: B };
+            } catch(e) { console.warn("[IvaBot] core coverage error:", e); return null; } })()
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
           const snapRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_snapshot", {
