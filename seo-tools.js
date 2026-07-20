@@ -1,4 +1,4 @@
-/* IvaBot seo-tools v113 — the Core snapshot checklist is now built from the plain status fields (the same conditions the PDF summary uses) instead of calling buildResults, which returns JSX and failed silently at snapshot time, leaving p_coverage null. Logs the list it saves. v112 — the Core snapshot now also saves the audit findings (p_coverage: bad with title and priority, good with titles), so the dashboard can list what to fix on this page instead of showing only the score. Nothing else changed. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
+/* IvaBot seo-tools v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] seo-tools.js v111 loaded (Core whitelist removed)");
@@ -1722,25 +1722,7 @@ function IvaBotV6() {
             p_audit_score: reportData.score ?? null,
             p_location_code: reportData._locale?.location_code ?? null,
             p_language_code: reportData._locale?.language_code ?? null,
-            p_ranked_keywords: allRk,
-            p_coverage: (function(){ try {
-              var R = reportData, ux = R.ux || {}, B = [];
-              var tt = (typeof titleCardTitle === "function") ? titleCardTitle(R.titleStatus) : "Meta Title";
-              var dt = (typeof descCardTitle === "function") ? descCardTitle(R.descStatus) : "Meta Description";
-              if (R.titleStatus !== "good") B.push({ title: (R.titleEval && R.titleEval.title) || tt, priority: "critical" });
-              if (R.descStatus !== "good") B.push({ title: (R.descEval && R.descEval.title) || dt, priority: "critical" });
-              if (R.headingsStatus !== "good") B.push({ title: "Heading Structure", priority: "critical" });
-              if (!(ux.mobile)) B.push({ title: "Not Mobile-Friendly", priority: "critical" });
-              if (R.linksStatus !== "good") B.push({ title: "Links", priority: "important" });
-              if (!(ux.cta && ux.cta.found)) B.push({ title: "No CTA Found", priority: "important" });
-              if (R.speedStatus !== "good") B.push({ title: (R.speedEval && R.speedEval.title) || "Page Speed", priority: "important" });
-              if (ux.altMissing) B.push({ title: (R.imagesEval && R.imagesEval.title) || "Images Missing Alt", priority: "nice" });
-              if (ux.noVideo) B.push({ title: (R.videoEval && R.videoEval.title) || "No Video", priority: "nice" });
-              if (R.robotsStatus !== "good") B.push({ title: "robots.txt Not Found", priority: "nice" });
-              if (R.sitemapStatus !== "good") B.push({ title: "Sitemap Not Found", priority: "nice" });
-              console.log("[IvaBot] core coverage bad:", B.length, B);
-              return { bad: B };
-            } catch(e) { console.warn("[IvaBot] core coverage error:", e); return null; } })()
+            p_ranked_keywords: allRk
           };
           if (isUUID) snapBody.p_user_id = memberId; else snapBody.p_member_id = memberId;
           var __admC = (typeof window !== "undefined" && window.__ivaAdmin && window.__ivaAdmin.userId) ? window.__ivaAdmin : null;
