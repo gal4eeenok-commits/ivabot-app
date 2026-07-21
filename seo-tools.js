@@ -1,7 +1,7 @@
-/* IvaBot seo-tools v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
+/* IvaBot seo-tools v112 - the shell no longer falls back to its own legacy Core when window.CoreTool is missing, because that old path skipped charge_credit and saved no checklist, so a failed load of core-tool.js produced a free, incomplete run with no visible error. The shell now renders a reload prompt instead, and the legacy Core JSX stays in the file as unreachable code. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v111 loaded (Core whitelist removed)");
+console.log("[IvaBot] seo-tools.js v112 loaded (Core whitelist removed)");
 
 /* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
 var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -1930,8 +1930,8 @@ function IvaBotV6() {
         React.createElement(window.ContentBuilder, { onHome: home, memberName: memberName || "" })
       ) : tool === "coverage" && window.ContentCoverage ? (
         React.createElement(window.ContentCoverage, { onHome: home, memberName: memberName || "" })
-      ) : window.CoreTool ? (
-        React.createElement(window.CoreTool, { onHome: home, memberName: memberName || "" })
+      ) : true ? (
+        React.createElement(window.CoreTool || function(){ return React.createElement("div", { style: { padding: 24, fontFamily: "'DM Sans',sans-serif", color: "#151415" } }, "Core Audit is still loading. Reload the page to continue."); }, { onHome: home, memberName: memberName || "" })
       ) : (
         /* ═══ CORE AUDIT — Builder-style layout ═══ */
         <div style={{ fontFamily: "'DM Sans',sans-serif", flex: 1, display: "flex", flexDirection: "column" }}>
