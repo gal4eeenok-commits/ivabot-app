@@ -1879,8 +1879,8 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           if (!_host) return;
           /* brand for AI-mentions: a brand set by hand in the dashboard wins, then the site's own declared name (og:site_name), then the domain's second-level label. The page title is no longer used: a title like "Suave - Shop Now, Pay Over Time" was read as the brand "Suave" and counted an unrelated same-name brand. */
           /* a brand set by hand in the dashboard always wins, so a run from /app can never overwrite the number the user is tracking */
-          var _brand = "";
-          try { var _uid = (window.__userId || window.__memberId || (typeof getMemberId === "function" ? getMemberId() : null)); if (_uid) { var _bm = JSON.parse(localStorage.getItem("iva_dash_brand_" + _uid) || "{}"); if (_bm && typeof _bm[_host] === "string" && _bm[_host].trim()) _brand = _bm[_host].trim(); } } catch (e) {}
+          var _brand = ""; var _brandAuto = true;
+          try { var _uid = (window.__userId || window.__memberId || (typeof getMemberId === "function" ? getMemberId() : null)); if (_uid) { var _bm = JSON.parse(localStorage.getItem("iva_dash_brand_" + _uid) || "{}"); if (_bm && typeof _bm[_host] === "string" && _bm[_host].trim()) { _brand = _bm[_host].trim(); _brandAuto = false; } } } catch (e) {}
           if (!_brand) _brand = (typeof _summaryBrand === "string" && _summaryBrand) ? _summaryBrand : "";
           try {
             if (!_brand) {
@@ -1895,7 +1895,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
             var _m = (_mr.mentions != null) ? _mr.mentions : 0;
             var _asv = (_mr.ai_search_volume != null) ? _mr.ai_search_volume : 0;
             var _rows = [
-              { label: "AI mentions of your brand", value: String(_m), period: "last 30 days", tip: "Times AI answers (ChatGPT, Perplexity, Google AI) named your brand in the last 30 days. 0 means no AI mentions found yet; the on-page fixes and distribution tips below are how you earn them." },
+              { label: "AI mentions of your brand", value: String(_m), period: "last 30 days", brand: _brand, brandAuto: _brandAuto, tip: "Times AI answers (ChatGPT, Perplexity, Google AI) named your brand in the last 30 days. 0 means no AI mentions found yet; the on-page fixes and distribution tips below are how you earn them." },
               { label: "AI search volume", value: String(_asv), period: "est. monthly", tip: "Estimated monthly AI-driven searches related to your brand." }
             ];
             setAuditData(function (prev) { return (prev && prev.url === d.url) ? Object.assign({}, prev, { trust: { rows: _rows } }) : prev; });
@@ -2163,6 +2163,7 @@ const TrustTable = ({ rows, dashHref }) => (
               <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{r.period}</div>
             </div>
           </div>
+          {r.brand && <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 5 }}><span style={{ fontSize: 11.5, color: C.muted }}>{"for " + r.brand}</span><a href={dashHref || DASHBOARD_URL} title="Change in dashboard" style={{ color: C.accent, textDecoration: "none", fontSize: 12 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.7"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>{"\u270e"}</a>{r.brandAuto && <QM text="IvaBot detected this brand automatically from your site. If it is not the exact name you want counted, click the pencil to change it in your dashboard, and the AI mention count will track that brand." />}</div>}
           {r.note && <div style={{ marginTop: 8, padding: "9px 12px", borderRadius: 9, background: "rgba(110,43,255,0.05)", border: "1px solid rgba(110,43,255,0.12)", fontSize: 11.5, color: C.dark, lineHeight: 1.5 }}>{r.note}</div>}
           {r.chips && r.chips.length > 0 && <div style={{ marginTop: 8 }}>{r.chipsLabel && <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>{r.chipsLabel}</div>}<div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{r.chips.map((c, j) => <span key={j} style={{ fontSize: 11.5, fontWeight: 600, color: C.accent, background: "rgba(110,43,255,0.08)", padding: "5px 11px", borderRadius: 8 }}>{c}</span>)}</div></div>}
         </div>
