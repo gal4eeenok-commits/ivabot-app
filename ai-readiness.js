@@ -2263,7 +2263,7 @@ const AIReadinessReport = ({ data }) => {
   const wwCount = aiGood.length + (showPassages ? 1 : 0);
   const niCount = aiBad.length;
   let _host = ""; try { _host = new URL(data.url).hostname; } catch (e) {}
-  const dashHref = DASHBOARD_URL + (_host ? "?domain=" + encodeURIComponent(_host) : "");
+  const dashHref = DASHBOARD_URL + (_host ? "?domain=" + encodeURIComponent(_host) : "") + "#iva-ai";
 
   return (<div style={{ maxWidth: 580, margin: "0 auto", padding: "20px 16px 16px" }}>
     <BotNote text="Two things drive AI search: how you're cited right now, and what to add so AI cites you more easily. The report is split that way." />
