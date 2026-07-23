@@ -36,6 +36,21 @@ const CORS_PROXY=SUPABASE_URL+"/functions/v1/fetch-page";
 const DFS_PROXY=SUPABASE_URL+"/functions/v1/dataforseo-proxy";
 const COVERAGE_GPT=SUPABASE_URL+"/functions/v1/coverage-gpt";
 const AIR_GPT=SUPABASE_URL+"/functions/v1/air-gpt";
+async function ivaFetchRetry(u, o, tries) {
+  tries = tries || 3;
+  var last = "";
+  for (var i = 0; i < tries; i++) {
+    try {
+      var r = await fetch(u, o);
+      if (r.ok) { if (i > 0) console.log("[AIR] retry succeeded on attempt", i + 1, u); return r; }
+      if (r.status >= 500 || r.status === 429 || r.status === 408) { last = "HTTP " + r.status; }
+      else { return r; }
+    } catch (e) { last = (e && e.message) || String(e); }
+    if (i < tries - 1) { await new Promise(function (ok) { setTimeout(ok, 700 * (i + 1)); }); }
+  }
+  console.warn("[AIR] request failed after " + tries + " attempts:", u, last);
+  return null;
+}
 
 /* ═══ MEMBER ID + CREDITS ═══ */
 function getMemberId(){if(window.__memberId)return window.__memberId;if(window.__userId)return window.__userId;try{const sb=window.__supabase;if(sb){const key=Object.keys(localStorage).find(k=>k.includes('auth-token'));if(key){const data=JSON.parse(localStorage.getItem(key));if(data?.user?.id)return data.user.id;}}}catch(e){}return null;}
@@ -1890,7 +1905,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
             }
           } catch (e) {}
           if (!_brand) _brand = _host.split(".")[0];
-          var _mr = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "llm_mentions", brand: _brand, target: _host, platform: "google" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          var _mr = await ivaFetchRetry(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "llm_mentions", brand: _brand, target: _host, platform: "google" }) }).then(function (r) { return (r && r.ok) ? r.json() : null; });
           if (_mr) {
             var _m = (_mr.mentions != null) ? _mr.mentions : 0;
             var _asv = (_mr.ai_search_volume != null) ? _mr.ai_search_volume : 0;
@@ -1910,11 +1925,11 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           var _h = ""; try { _h = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
           if (!_h) return;
           var _nrm = function (u) { try { var x = new URL(u); return (x.hostname.replace(/^www\./, "") + x.pathname.replace(/\/+$/, "")).toLowerCase(); } catch (e) { return String(u || "").toLowerCase(); } };
-          var _rk = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ranked_only", domain: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          var _rk = await ivaFetchRetry(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ranked_only", domain: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return (r && r.ok) ? r.json() : null; });
           var _pk = _nrm(url);
           var _kws = (((_rk && _rk.ranked_keywords) || []).filter(function (k) { return k && k.url && _nrm(k.url) === _pk; }).map(function (k) { return k.keyword; })).slice(0, 3);
           if (_kws.length < 3 && _gptKws && _gptKws.length) { _gptKws.forEach(function (g) { if (_kws.length >= 3) return; g = String(g || "").trim(); if (!g) return; var _dup = false; _kws.forEach(function (x) { if (String(x).toLowerCase() === g.toLowerCase()) _dup = true; }); if (!_dup) _kws.push(g); }); console.log("[AIR] prompts topped up to", _kws.length, _kws); } if (!_kws.length) { console.log("[AIR] ai_overview: no keywords (ranked or summary) for this page"); return; }
-          var _ao = await fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ai_overview", keywords: _kws, target: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return r.ok ? r.json() : null; });
+          var _ao = await ivaFetchRetry(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ai_overview", keywords: _kws, target: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return (r && r.ok) ? r.json() : null; });
           if (_ao && Array.isArray(_ao.ai_overview) && _ao.ai_overview.length) {
             console.log("[AIR] ai_overview OK:", _ao.ai_overview.length, "keywords checked");
             /* Option B 2026-07-08: for the top-3 keywords, also check ChatGPT + Perplexity citation via llm_responses (extra credits). Fills the ChatGPT/Perplexity columns for those rows. */
@@ -1924,7 +1939,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
               var _llmJobs = [];
               _top3.forEach(function (row) {
                 ["chat_gpt", "sonar"].forEach(function (eng) {
-                  _llmJobs.push(fetch(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + _tok }, body: JSON.stringify({ mode: "llm_responses", user_prompt: row.q, engine: eng }) }).then(function (r) { return r.ok ? r.json() : null; }).then(function (resp) { var c = false; try { c = !!(resp && resp.items && JSON.stringify(resp.items).toLowerCase().indexOf(_h) !== -1); } catch (e) {} return { q: row.q, eng: eng, cited: c }; }).catch(function () { return { q: row.q, eng: eng, cited: false }; }));
+                  _llmJobs.push(ivaFetchRetry(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + _tok }, body: JSON.stringify({ mode: "llm_responses", user_prompt: row.q, engine: eng }) }).then(function (r) { return (r && r.ok) ? r.json() : null; }).then(function (resp) { var c = false; try { c = !!(resp && resp.items && JSON.stringify(resp.items).toLowerCase().indexOf(_h) !== -1); } catch (e) {} return { q: row.q, eng: eng, cited: c }; }).catch(function () { return { q: row.q, eng: eng, cited: false }; }));
                 });
               });
               var _llmRes = await Promise.all(_llmJobs);
