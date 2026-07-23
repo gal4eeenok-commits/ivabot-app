@@ -1928,7 +1928,35 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           var _rk = await ivaFetchRetry(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ranked_only", domain: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return (r && r.ok) ? r.json() : null; });
           var _pk = _nrm(url);
           var _isHomeAio = ((url || "").toLowerCase().replace(/^https?:\/\/[^/]+/, "").replace(/[#?].*$/, "").replace(/\/+$/, "") === ""); var _rkAll = ((_rk && _rk.ranked_keywords) || []); /* homepage: prompts are brand-level, so take the domain top keywords by volume; inner pages stay page-scoped */ var _kws = (_isHomeAio ? _rkAll.map(function (k) { return k && k.keyword; }).filter(Boolean) : _rkAll.filter(function (k) { return k && k.url && _nrm(k.url) === _pk; }).map(function (k) { return k.keyword; })).slice(0, 3); console.log("[AIR] prompt scope:", _isHomeAio ? "domain (homepage)" : "page", _kws);
-          if (_kws.length < 3 && _gptKws && _gptKws.length) { _gptKws.forEach(function (g) { if (_kws.length >= 3) return; g = String(g || "").trim(); if (!g) return; var _dup = false; _kws.forEach(function (x) { if (String(x).toLowerCase() === g.toLowerCase()) _dup = true; }); if (!_dup) _kws.push(g); }); console.log("[AIR] prompts topped up to", _kws.length, _kws); } if (!_kws.length) { console.log("[AIR] ai_overview: no keywords (ranked or summary) for this page"); return; }
+          /* seeds: real search demand for this page or domain; questions are generated from them */
+          if (_kws.length < 3 && _gptKws && _gptKws.length) { _gptKws.forEach(function (g) { if (_kws.length >= 5) return; g = String(g || "").trim(); if (!g) return; var _dup = false; _kws.forEach(function (x) { if (String(x).toLowerCase() === g.toLowerCase()) _dup = true; }); if (!_dup) _kws.push(g); }); }
+          var _seeds = _kws.slice(0, 5);
+          /* intent mix by page type, so the three example prompts match how people search for this kind of page */
+          var _pt = String(pageType || "other").toLowerCase();
+          var _INTENT = {
+            product: "one how-to-choose question, one comparison question, one where-to-buy or price question",
+            ecommerce: "one how-to-choose question, one comparison question, one where-to-buy or price question",
+            category: "one how-to-choose question, one comparison question, one where-to-buy or price question",
+            local: "one how-to-choose question, one best-in-this-area question naming the city or region, one cost question",
+            service: "one problem question, one how-to-choose question, one cost question",
+            homepage: "one problem question, one comparison question, one how-to-choose question",
+            article: "one explainer question, one how-to question, one is-it-worth-it question",
+            blog: "one explainer question, one how-to question, one is-it-worth-it question",
+            blog_post: "one explainer question, one how-to question, one is-it-worth-it question"
+          };
+          var _mix = _INTENT[_pt] || "one explainer question, one comparison question, one decision question";
+          var _bad = String(_h.split(".")[0] || "").toLowerCase();
+          var _qs = [];
+          for (var _qt = 0; _qt < 2 && _qs.length < 3; _qt++) {
+            try {
+              var _pc = "URL: " + url + "\nPage type: " + _pt + "\nTopics people actually search for on this site: " + (_seeds.join(", ") || "unknown") + "\nUse exactly this intent mix: " + _mix + "\nWrite the questions in the same language as the page.";
+              var _pr = await ivaFetchRetry(AIR_GPT, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ step: "suggested_prompts", page_context: _pc }) }).then(function (r) { return (r && r.ok) ? r.json() : null; });
+              var _cand = (((_pr || {}).prompts) || []);
+              _cand.forEach(function (q) { if (_qs.length >= 3) return; q = String(q || "").trim(); if (!q) return; if (_bad && q.toLowerCase().indexOf(_bad) >= 0) return; var _d2 = false; _qs.forEach(function (x) { if (x.toLowerCase() === q.toLowerCase()) _d2 = true; }); if (!_d2) _qs.push(q); });
+            } catch (_qe) { console.warn("[AIR] suggested_prompts err", _qt, _qe); }
+          }
+          if (_qs.length) { _kws = _qs; console.log("[AIR] prompts as questions (" + _pt + "):", _kws); }
+          else { _kws = _kws.slice(0, 3); console.warn("[AIR] question generation empty, falling back to raw keywords:", _kws); } if (!_kws.length) { console.log("[AIR] ai_overview: no keywords (ranked or summary) for this page"); return; }
           var _ao = await ivaFetchRetry(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify({ mode: "ai_overview", keywords: _kws, target: _h, location_code: 2840, language_code: "en" }) }).then(function (r) { return (r && r.ok) ? r.json() : null; });
           if (_ao && Array.isArray(_ao.ai_overview) && _ao.ai_overview.length) {
             console.log("[AIR] ai_overview OK:", _ao.ai_overview.length, "keywords checked");
