@@ -1,7 +1,7 @@
 /* IvaBot CORE TOOL (core-tool.js) v255 — each saved checklist item now also carries a short what-to-do line, taken from the eval suggestion or reason where the audit has one and falling back to a plain sentence, so the dashboard table can match the AI Readiness one column for column. v254 — the Core snapshot now also saves the audit checklist in p_coverage (bad: title + priority), built from the plain status fields so it cannot throw, and logged to the console. The dashboard reads it to list what to fix on the page. v253 — referring domains are now fetched in parallel with the itemized backlinks list and written into the same snapshot field, marked kind:"domain", so the dashboard can show a links tab and a domains tab. The on-screen report and the PDF are unchanged. v252 — PDF section order now matches the on-screen report exactly: SEO Score, How Your Page Ranks, What Your Page Is Built For, PR & Backlink Opportunities, Top Competitors, Page Context Summary, What's Working, Needs Improvement, Final Recommendations (previously Page Context sat near the top and Backlinks/Top Competitors sat after Needs Improvement). Pure reordering of content.push blocks; no content or logic changes. v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] core-tool.js v255 loaded (standalone window.CoreTool)");
+console.log("[IvaBot] core-tool.js v256 loaded (standalone window.CoreTool)");
 
 /* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
 var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -1486,7 +1486,8 @@ function CoreTool({ onHome }) {
       setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Here's your latest audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
     } else {
       const _ap = new URLSearchParams(window.location.search);
-      if (_ap.get("url") && _ap.get("autorun") === "1") { setTimeout(() => { setTool("core"); setView("chat"); }, 100); }
+      if (_ap.get("report")) { /* v256: a saved report is being opened, the effect below renders it */ }
+      else if (_ap.get("url") && _ap.get("autorun") === "1") { setTimeout(() => { setTool("core"); setView("chat"); }, 100); }
       else setTimeout(() => start("core"), 100);
     }
   })(); }, []);
@@ -1495,6 +1496,31 @@ function CoreTool({ onHome }) {
     if (!memberId || _autoRan.current) return;
     try {
       const p = new URLSearchParams(window.location.search);
+      /* v256: open a saved report by id, no run and no credit. */
+      const _rep = p.get("report");
+      if (_rep) {
+        _autoRan.current = true;
+        setTool("core"); setView("chat"); sPLoad("Opening your saved report\u2026");
+        (async () => {
+          try {
+            const _rr = await fetch(SUPABASE_URL + "/rest/v1/reports?select=payload&id=eq." + encodeURIComponent(_rep) + "&flow_type=eq.core", {
+              headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) }
+            });
+            const _rows = await _rr.json();
+            console.log("[IvaBot] open saved report", _rep, Array.isArray(_rows) ? _rows.length : _rows);
+            const _row = Array.isArray(_rows) ? _rows[0] : null;
+            sPLoad(null);
+            if (_row && _row.payload) {
+              setAuditData(_row.payload); setSR(true);
+              setMsgs([{ from: "bot", content: "Here's your saved audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]);
+            } else {
+              console.warn("[IvaBot] saved report not found for this account:", _rep);
+              setMsgs([{ from: "bot", content: "That report is not available on this account. Run a new audit to create a fresh one.", id: Date.now() }]);
+            }
+          } catch (e) { sPLoad(null); console.warn("[IvaBot] open report error:", e); }
+        })();
+        return;
+      }
       const au = p.get("url");
       if (au && p.get("autorun") === "1") {
         _autoRan.current = true;
@@ -1846,6 +1872,19 @@ function CoreTool({ onHome }) {
           const snapData = await snapRes.json();
           console.log("[IvaBot] insert_snapshot:", snapData);
         } catch(e) { console.warn("[IvaBot] insert_snapshot error:", e); }
+        /* v256: persist the finished report so it opens from any browser and stays in History. */
+        try {
+          const repBody = { p_flow_type: "core", p_domain: reportData._domain || "", p_page_url: reportData.url || "", p_run_id: createdRunId, p_payload: reportData };
+          if (isUUID) repBody.p_user_id = memberId; else repBody.p_member_id = memberId;
+          const repRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/insert_report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) },
+            body: JSON.stringify(repBody)
+          });
+          const repData = await repRes.json();
+          console.log("[IvaBot] insert_report:", repData);
+          try { window.__ivaLastReportId = repData; } catch(e){}
+        } catch(e) { console.warn("[IvaBot] insert_report error:", e); }
       }
       if (isMobile) sMTab("report");
 
