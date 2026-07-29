@@ -1817,7 +1817,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
   const bot = (c) => add("b", c);
 
   useEffect(() => {
-    try { const _p = new URLSearchParams(window.location.search); if (_p.get("url") && _p.get("autorun") === "1") return; } catch (e) {}
+    try { const _p = new URLSearchParams(window.location.search); if (_p.get("report")) return; if (_p.get("url") && _p.get("autorun") === "1") return; } catch (e) {}
     sTyp(true);
     setTimeout(() => { sTyp(false); add("b", mn ? `Hey, ${mn}!` : "Hey!"); sTyp(true); }, 1200);
     setTimeout(() => { sTyp(false); add("b", <div><div style={{ color: C.muted, fontSize: 12, marginBottom: 8 }}>I'll check how ready this page is to be cited by AI search tools like ChatGPT, Perplexity, and Google AI, and show you the signals to fix first.</div><div style={{ fontWeight: 600 }}>Just paste your URL below and I'll get started.</div></div>); setStep("url"); }, 3200);
@@ -1827,6 +1827,32 @@ function AIReadinessTool({ onHome, memberName: mn }) {
     if (_autoRanAir.current) return;
     try {
       const p = new URLSearchParams(window.location.search);
+      /* v104: open a saved report by id, no run and no credit. */
+      const _rep = p.get("report");
+      if (_rep) {
+        _autoRanAir.current = true;
+        sPLoad("Opening your saved report\u2026");
+        (async () => {
+          try {
+            const _rr = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=payload&id=eq.${encodeURIComponent(_rep)}&flow_type=eq.ai_readiness`, {
+              headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) }
+            });
+            const _rows = await _rr.json();
+            console.log("[AIR] open saved report", _rep, Array.isArray(_rows) ? _rows.length : _rows);
+            const _row = Array.isArray(_rows) ? _rows[0] : null;
+            sPLoad(null); sTyp(false);
+            if (_row && _row.payload) {
+              setAuditData(_row.payload); setSR(true); setStep("done");
+              add("b", "Here's your saved AI Readiness report. Ask me anything about it.");
+            } else {
+              console.warn("[AIR] saved report not found for this account:", _rep);
+              setStep("url");
+              add("b", "That report is not available on this account. Run a new check to create a fresh one.");
+            }
+          } catch (e) { sPLoad(null); sTyp(false); console.warn("[AIR] open report error:", e); }
+        })();
+        return;
+      }
       const au = p.get("url");
       if (au && p.get("autorun") === "1") {
         _autoRanAir.current = true;
@@ -1992,6 +2018,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           if (_dt && Array.isArray(_dt.tips)) { const _clean = _dt.tips.filter(t => t && t.channel && t.action).slice(0, 4); if (_clean.length) setAuditData(prev => (prev && prev.url === d.url) ? { ...prev, distributionTips: _clean } : prev); }
         } catch (_dtErr) { console.log("[AIR] distribution_tips fallback", _dtErr); }
       })();
+      var _airReportSaved = false;
       (async () => {
         try {
           const _snapMid = getMemberId(); if (!_snapMid) return;
@@ -2002,6 +2029,31 @@ function AIReadinessTool({ onHome, memberName: mn }) {
           const _mv = (_settled[0].status === "fulfilled" && _settled[0].value) ? _settled[0].value : {};
           const _av = (_settled[1].status === "fulfilled" && _settled[1].value) ? _settled[1].value : {};
           recordAirSnapshot({ memberId: _snapMid, domain: _snapDom, url: url, runId: _snapRunId, aiReadiness: aiReadiness, ai_mentions_count: (_mv.ai_mentions_count != null ? _mv.ai_mentions_count : null), ai_search_volume: (_mv.ai_search_volume != null ? _mv.ai_search_volume : null), brand: ((_mv && _mv.brand) || null), ai_overview_count: (_av.ai_overview_count != null ? _av.ai_overview_count : null), prompts_checked: (_av.prompts_checked || null), aioItems: (_av.aioItems || null) });
+          /* v104: persist the finished report so it opens from any browser and stays in History.
+             Read through a no-op state update so the payload includes the AI metrics merged above. */
+          try {
+            setAuditData(function (prev) {
+              if (prev && prev.url === url && !_airReportSaved) {
+                _airReportSaved = true;
+                (async function () {
+                  try {
+                    var _isUUID = _snapMid && /^[0-9a-f]{8}-/.test(_snapMid);
+                    var _rb = { p_flow_type: "ai_readiness", p_domain: _snapDom, p_page_url: url, p_run_id: _snapRunId, p_payload: prev };
+                    if (_isUUID) _rb.p_user_id = _snapMid; else _rb.p_member_id = _snapMid;
+                    var _rr = await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_report`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) },
+                      body: JSON.stringify(_rb)
+                    });
+                    var _rd = null; try { _rd = await _rr.json(); } catch (e) {}
+                    console.log("[AIR] insert_report:", _rr.status, JSON.stringify(_rd));
+                    try { window.__ivaLastAirReportId = _rd; } catch (e) {}
+                  } catch (e) { console.warn("[AIR] insert_report error:", e); }
+                })();
+              }
+              return prev;
+            });
+          } catch (e) { console.warn("[AIR] report save wrapper error:", e); }
         } catch (_snapErr) { console.log("[AIR] snapshot coordinator", _snapErr); }
       })();
       if (isMobile) sMTab("report");
