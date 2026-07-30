@@ -1,26 +1,47 @@
 /* IvaBot seo-tools v112 - the shell no longer falls back to its own legacy Core when window.CoreTool is missing, because that old path skipped charge_credit and saved no checklist, so a failed load of core-tool.js produced a free, incomplete run with no visible error. The shell now renders a reload prompt instead, and the legacy Core JSX stays in the file as unreachable code. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v117 loaded (Core whitelist removed)");
+console.log("[IvaBot] seo-tools.js v118 loaded (Core whitelist removed)");
 
-/* v117: breathing halo on the Dashboard link in the header.
-   Pure CSS, no class juggling: the selector points at the link inside <nav>, which is the
-   header one, so React re-renders cannot drop it. Colour, size, padding and hover stay as
-   they are, only a soft accent glow and a slight scale pulse. inline-block is needed for
-   the scale to apply at all, since transform is ignored on plain inline elements.
-   Stops on hover and for people who switched animations off in their system. */
+/* v118: breathing halo on the Dashboard link in the header.
+   No assumptions about page structure: the rule matches by href only, so it works whoever
+   renders the header. Single quotes inside the selector, because escaped double quotes were
+   reaching the stylesheet as real backslashes and the browser was dropping the rule silently.
+   Colour, size, padding and hover behaviour stay untouched.
+   The diagnostic below prints what was actually found, so a miss is visible immediately. */
 (function () {
   try {
-    if (document.getElementById("iva-dash-breathe-css")) return;
-    var st = document.createElement("style");
-    st.id = "iva-dash-breathe-css";
-    st.textContent =
-      "@keyframes ivaDashBreathe{0%,100%{box-shadow:0 0 0 0 rgba(110,43,255,0);background:rgba(110,43,255,0);transform:scale(1);}50%{box-shadow:0 0 0 10px rgba(110,43,255,0.14);background:rgba(110,43,255,0.12);transform:scale(1.05);}}" +
-      ".iva-nav a[href*=dashboard]{display:inline-block;border-radius:12px;animation:ivaDashBreathe 2.4s ease-in-out infinite;}" +
-      ".iva-nav a[href*=dashboard]:hover{animation:none;}" +
-      "@media (prefers-reduced-motion:reduce){.iva-nav a[href*=dashboard]{animation:none;}}";
-    document.head.appendChild(st);
-    console.log("[IvaBot] dashboard breathe css injected (.iva-nav)");
+    if (!document.getElementById("iva-dash-breathe-css")) {
+      var st = document.createElement("style");
+      st.id = "iva-dash-breathe-css";
+      st.textContent =
+        "@keyframes ivaDashBreathe{0%,100%{box-shadow:0 0 0 0 rgba(110,43,255,0);background:rgba(110,43,255,0);transform:scale(1);}50%{box-shadow:0 0 0 10px rgba(110,43,255,0.16);background:rgba(110,43,255,0.14);transform:scale(1.05);}}"
+        + "a[href$='/dashboard'],a[href$='/dashboard/']{display:inline-block;border-radius:12px;animation:ivaDashBreathe 2.4s ease-in-out infinite;}"
+        + "a[href$='/dashboard']:hover,a[href$='/dashboard/']:hover{animation:none;}"
+        + "@media (prefers-reduced-motion:reduce){a[href$='/dashboard'],a[href$='/dashboard/']{animation:none;}}";
+      document.head.appendChild(st);
+      console.log("[IvaBot] breathe css injected");
+    }
+    var report = function () {
+      try {
+        var found = document.querySelectorAll("a[href$='/dashboard'],a[href$='/dashboard/']");
+        console.log("[IvaBot] breathe: matched", found.length, "link(s)");
+        if (found.length) {
+          console.log("[IvaBot] breathe: first match ->", found[0].outerHTML.slice(0, 300));
+          console.log("[IvaBot] breathe: computed animation ->", getComputedStyle(found[0]).animationName);
+        } else {
+          var all = document.querySelectorAll("a");
+          var names = [];
+          Array.prototype.forEach.call(all, function (a) {
+            var t = (a.textContent || "").trim();
+            if (t.toLowerCase().indexOf("dashboard") >= 0) names.push(a.getAttribute("href") + " | " + a.outerHTML.slice(0, 160));
+          });
+          console.log("[IvaBot] breathe: no href match. Links whose text mentions dashboard:", names);
+        }
+      } catch (e) { console.warn("[IvaBot] breathe report failed", e); }
+    };
+    setTimeout(report, 1500);
+    setTimeout(report, 4000);
   } catch (e) { console.warn("[IvaBot] breathe css failed", e); }
 })();
 
