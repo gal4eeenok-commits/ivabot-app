@@ -1,74 +1,7 @@
-/* IvaBot seo-tools v120 - the shell no longer falls back to its own legacy Core when window.CoreTool is missing, because that old path skipped charge_credit and saved no checklist, so a failed load of core-tool.js produced a free, incomplete run with no visible error. The shell now renders a reload prompt instead, and the legacy Core JSX stays in the file as unreachable code. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
+/* IvaBot seo-tools v122 - the breathing Dashboard link starts when the finished audit appears, not on page load: core-tool.js v256 fires iva-audit-ready as it renders the report, the shell holds that in state, and hovering the link ends the effect. Needs core-tool.js v256 for the signal, with window.__ivaLastReportId kept as a fallback. v121 - the breathing is a real CSS animation rendered by React itself: a keyframe in the component stylesheet plus the class iva-dashlink on the link. The v120 requestAnimationFrame loop wrote the glow onto the node it had found at the moment the audit finished, so a React re-render replaced that node and the loop went on painting an element no longer on the page, and the gate window.__ivaLastReportId only ever fires on a fresh paid run. The animation carries no prefers-reduced-motion guard, so Reduce motion on the machine cannot switch it off. It breathes continuously and stops on hover. v120 - the shell no longer falls back to its own legacy Core when window.CoreTool is missing, because that old path skipped charge_credit and saved no checklist, so a failed load of core-tool.js produced a free, incomplete run with no visible error. The shell now renders a reload prompt instead, and the legacy Core JSX stays in the file as unreachable code. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v120 loaded (Core whitelist removed)");
-
-/* v120: breathing halo on the Dashboard link, drawn by JavaScript.
-   CSS animation was the wrong tool here: it can be switched off by the system Reduce motion
-   setting, by another stylesheet, or lost when React re-renders the link. This loop writes the
-   glow straight onto the element with important, so nothing can suppress it, and re-applies it
-   every frame so a re-render cannot drop it.
-   It starts only when the audit is finished, which is the moment core-tool.js records the
-   report id, and it runs for twelve seconds, stopping earlier on hover or click.
-   The link's own colour, size, padding and hover behaviour are never touched. */
-(function () {
-  var DURATION = 12000;
-  var started = false, stop = false, raf = null;
-
-  function link() {
-    return document.querySelector("a[href$='/dashboard'], a[href$='/dashboard/']");
-  }
-
-  function clear(el) {
-    if (!el) return;
-    el.style.removeProperty("box-shadow");
-    el.style.removeProperty("background");
-    el.style.removeProperty("transform");
-    el.style.removeProperty("border-radius");
-    el.style.removeProperty("display");
-  }
-
-  function run() {
-    var el = link();
-    if (!el) { console.warn("[IvaBot] breathe: dashboard link not found"); return; }
-    console.log("[IvaBot] breathe: started on", el.getAttribute("href"));
-
-    var t0 = performance.now();
-    var quit = function () { stop = true; };
-    el.addEventListener("mouseenter", quit);
-    el.addEventListener("click", quit);
-
-    function frame(now) {
-      if (stop || now - t0 > DURATION) { clear(el); console.log("[IvaBot] breathe: finished"); return; }
-      var k = (1 - Math.cos((now - t0) / 1200)) / 2;          /* 0 → 1 → 0, плавно */
-      el.style.setProperty("display", "inline-block", "important");
-      el.style.setProperty("border-radius", "12px", "important");
-      el.style.setProperty("box-shadow", "0 0 0 " + (10 * k).toFixed(1) + "px rgba(110,43,255," + (0.18 * k).toFixed(3) + ")", "important");
-      el.style.setProperty("background", "rgba(110,43,255," + (0.14 * k).toFixed(3) + ")", "important");
-      el.style.setProperty("transform", "scale(" + (1 + 0.05 * k).toFixed(4) + ")", "important");
-      raf = requestAnimationFrame(frame);
-    }
-    raf = requestAnimationFrame(frame);
-  }
-
-  /* Ждём готовый аудит: core-tool.js записывает id отчёта после прогона. */
-  var ticks = 0;
-  var iv = setInterval(function () {
-    ticks++;
-    if (!started && window.__ivaLastReportId) {
-      started = true;
-      clearInterval(iv);
-      run();
-      return;
-    }
-    if (ticks > 1200) { clearInterval(iv); }                  /* сдаёмся через 10 минут */
-  }, 500);
-
-  /* Ручной запуск для проверки: набрать в консоли ivaBreathe() */
-  window.ivaBreathe = function () { stop = false; started = true; run(); };
-  console.log("[IvaBot] breathe armed, waiting for a finished audit. Type ivaBreathe() to test now.");
-})();
-
+console.log("[IvaBot] seo-tools.js v122 loaded (Dashboard link breathes after a finished audit)");
 
 /* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
 var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -1512,6 +1445,21 @@ function IvaBotV6() {
   const [pLoad, sPLoad] = useState(null);
   const [view, setView] = useState("select"), [tool, setTool] = useState(null), [msgs, setMsgs] = useState([]), [loadStep, setLS] = useState(-1), [showR, setSR] = useState(false), [showBuy, setSB] = useState(false), [typing, setTyping] = useState(false), [credits, setCredits] = useState({ core: 0, builder: 0, coverage: 0 }), [memberId, setMemberId] = useState(null), [memberName, setMemberName] = useState(null), [loading, setLoading] = useState(true);
   const inputRef = useRef(null);
+
+  /* v122: the Dashboard link breathes only once the finished audit is on screen, and stops as soon
+     as the reader hovers it. core-tool.js fires iva-audit-ready at the moment the report renders;
+     the poll covers the case where that signal arrived before this listener was attached, and it
+     also picks up window.__ivaLastReportId so an older core-tool.js still triggers the effect.
+     The state lives here, so React itself puts the class on the link and a re-render keeps it. */
+  const [dashBreathe, setDashBreathe] = useState(false);
+  useEffect(() => {
+    const start = () => setDashBreathe(true);
+    window.addEventListener("iva-audit-ready", start);
+    const iv = setInterval(() => {
+      if (window.__ivaAuditReady || window.__ivaLastReportId) { start(); clearInterval(iv); }
+    }, 400);
+    return () => { window.removeEventListener("iva-audit-ready", start); clearInterval(iv); };
+  }, []);
   useEffect(() => { (async () => { const info = await getMemberInfo(); setMemberId(info.id); setMemberName(info.name); const cr = await fetchCredits(info.id); setCredits(cr); setLoading(false);
     /* URL routing: ?tool=core|builder|coverage */
     const p = new URLSearchParams(window.location.search);
@@ -1974,13 +1922,13 @@ function IvaBotV6() {
   return (
     <div className="iva-root" style={{ fontFamily: "'DM Sans',sans-serif", background: "#f8f7f9", display: "flex", flexDirection: "column", padding: "8px 12px", minHeight: "100vh" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "linear-gradient(180deg, #ffffff 0%, #F8F5FF 15%, #F0EAFF 40%, #E4D8FC 70%, #D9CCFA 100%)", borderRadius: 12, minHeight: 0 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}@keyframes foldOpen{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}.reveal.visible{opacity:1;transform:translateY(0)}.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}.fold-content{animation:foldOpen 0.4s cubic-bezier(0.4,0,0.2,1) forwards;overflow:hidden}.iva-tools{display:flex;gap:14px;width:100%}.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}.iva-seo-title{font-size:64px}.iva-nav{height:84px;padding:24px 0 0}.iva-root{height:auto!important;min-height:100vh!important;overflow:visible!important}#ivabot-root{overflow:visible!important;height:auto!important;min-height:100vh!important}.w-embed,.w-container,.w-layout-cell,.w-layout-layout{overflow:visible!important}.iva-scroll-inner{overflow:auto!important}@media(max-width:768px){.iva-tools{flex-direction:column}.iva-buy-grid{grid-template-columns:1fr}.iva-ctx-grid{grid-template-columns:1fr}.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}.iva-seo-title{font-size:32px}.iva-nav{padding:0 12px}}@media(max-width:520px){.iva-seo-title{font-size:26px}.iva-nav{height:48px;padding:0 10px}}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}@keyframes foldOpen{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}@keyframes dotPulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(21,20,21,0.1);border-radius:3px}.reveal{opacity:0;transform:translateY(32px);transition:opacity 0.7s cubic-bezier(0.16,1,0.3,1),transform 0.7s cubic-bezier(0.16,1,0.3,1)}.reveal.visible{opacity:1;transform:translateY(0)}.reveal-delay-1{transition-delay:0.08s}.reveal-delay-2{transition-delay:0.16s}.reveal-delay-3{transition-delay:0.24s}.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#928E95;margin:0 2px;animation:dotPulse 1.2s infinite}.typing-dots span:nth-child(2){animation-delay:0.2s}.typing-dots span:nth-child(3){animation-delay:0.4s}.fold-content{animation:foldOpen 0.4s cubic-bezier(0.4,0,0.2,1) forwards;overflow:hidden}.iva-tools{display:flex;gap:14px;width:100%}.iva-buy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.iva-ctx-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.iva-buy-footer{display:flex;gap:16px;justify-content:center;margin-top:16px}.iva-seo-title{font-size:64px}.iva-nav{height:84px;padding:24px 0 0}.iva-root{height:auto!important;min-height:100vh!important;overflow:visible!important}#ivabot-root{overflow:visible!important;height:auto!important;min-height:100vh!important}.w-embed,.w-container,.w-layout-cell,.w-layout-layout{overflow:visible!important}.iva-scroll-inner{overflow:auto!important}@media(max-width:768px){.iva-tools{flex-direction:column}.iva-buy-grid{grid-template-columns:1fr}.iva-ctx-grid{grid-template-columns:1fr}.iva-buy-footer{flex-direction:column;align-items:center;gap:8px}.iva-seo-title{font-size:32px}.iva-nav{padding:0 12px}}@media(max-width:520px){.iva-seo-title{font-size:26px}.iva-nav{height:48px;padding:0 10px}}@keyframes ivaDashBreathe{0%,100%{box-shadow:0 0 0 0 rgba(110,43,255,0);background:rgba(110,43,255,0)}50%{box-shadow:0 0 0 9px rgba(110,43,255,0.10);background:rgba(110,43,255,0.13)}}.iva-dashlink{display:inline-block;border-radius:10px;animation:ivaDashBreathe 2.4s ease-in-out infinite}.iva-dashlink:hover{animation:none;background:rgba(110,43,255,0.13)}`}</style>
       {showBuy && <BuyM onClose={() => setSB(false)} memberId={memberId} />}
       <PaymentToast />
       <nav className="iva-nav" style={{ display: "flex", justifyContent: "center", background: "transparent", flexShrink: 0, zIndex: 100, height: 84, paddingTop: 24 }}>
         <div style={{ width: "100%", maxWidth: 1224, padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <a href="https://ivabot.xyz" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textDecoration: "none" }}><svg width="33" height="29" viewBox="0 0 66 58" fill="none"><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill={C.accent} /><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill={C.accent} /></svg><span style={{ fontSize: 17, fontWeight: 700, color: C.dark, letterSpacing: "-0.02em" }}>IvaBot</span></a>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}><a href="https://ivabot.xyz/dashboard" style={{ fontSize: 14, fontWeight: 500, color: C.dark, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Dashboard</a><button onClick={() => setSB(true)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: C.dark, background: "rgba(255,255,255,0.43)", border: "1px solid rgba(21,20,21,0.16)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "-0.3px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#fff"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.43)"}>Buy Credits</button><a href="/login" onClick={async (e) => { e.preventDefault(); if (window.__supabase) await window.__supabase.auth.signOut(); window.location.href = "/login"; }} style={{ fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log out</a></div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}><a className={dashBreathe ? "iva-dashlink" : undefined} href="https://ivabot.xyz/dashboard" style={{ fontSize: 14, fontWeight: 500, color: C.dark, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px" }} onMouseEnter={e => { e.currentTarget.style.opacity = "0.6"; setDashBreathe(false); }} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Dashboard</a><button onClick={() => setSB(true)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: C.dark, background: "rgba(255,255,255,0.43)", border: "1px solid rgba(21,20,21,0.16)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "-0.3px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#fff"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.43)"}>Buy Credits</button><a href="/login" onClick={async (e) => { e.preventDefault(); if (window.__supabase) await window.__supabase.auth.signOut(); window.location.href = "/login"; }} style={{ fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log out</a></div>
         </div>
       </nav>
 
