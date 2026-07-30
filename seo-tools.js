@@ -1,9 +1,9 @@
 /* IvaBot seo-tools v112 - the shell no longer falls back to its own legacy Core when window.CoreTool is missing, because that old path skipped charge_credit and saved no checklist, so a failed load of core-tool.js produced a free, incomplete run with no visible error. The shell now renders a reload prompt instead, and the legacy Core JSX stays in the file as unreachable code. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v116 loaded (Core whitelist removed)");
+console.log("[IvaBot] seo-tools.js v117 loaded (Core whitelist removed)");
 
-/* v116: breathing halo on the Dashboard link in the header.
+/* v117: breathing halo on the Dashboard link in the header.
    Pure CSS, no class juggling: the selector points at the link inside <nav>, which is the
    header one, so React re-renders cannot drop it. Colour, size, padding and hover stay as
    they are, only a soft accent glow and a slight scale pulse. inline-block is needed for
@@ -16,11 +16,11 @@ console.log("[IvaBot] seo-tools.js v116 loaded (Core whitelist removed)");
     st.id = "iva-dash-breathe-css";
     st.textContent =
       "@keyframes ivaDashBreathe{0%,100%{box-shadow:0 0 0 0 rgba(110,43,255,0);background:rgba(110,43,255,0);transform:scale(1);}50%{box-shadow:0 0 0 10px rgba(110,43,255,0.14);background:rgba(110,43,255,0.12);transform:scale(1.05);}}" +
-      "nav a[href*=\"/dashboard\"]{display:inline-block;border-radius:12px;animation:ivaDashBreathe 2.4s ease-in-out infinite;}" +
-      "nav a[href*=\"/dashboard\"]:hover{animation:none;}" +
-      "@media (prefers-reduced-motion:reduce){nav a[href*=\"/dashboard\"]{animation:none;}}";
+      ".iva-nav a[href*=dashboard]{display:inline-block;border-radius:12px;animation:ivaDashBreathe 2.4s ease-in-out infinite;}" +
+      ".iva-nav a[href*=dashboard]:hover{animation:none;}" +
+      "@media (prefers-reduced-motion:reduce){.iva-nav a[href*=dashboard]{animation:none;}}";
     document.head.appendChild(st);
-    console.log("[IvaBot] dashboard breathe css injected (nav link)");
+    console.log("[IvaBot] dashboard breathe css injected (.iva-nav)");
   } catch (e) { console.warn("[IvaBot] breathe css failed", e); }
 })();
 
