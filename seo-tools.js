@@ -1,66 +1,74 @@
-/* IvaBot seo-tools v112 - the shell no longer falls back to its own legacy Core when window.CoreTool is missing, because that old path skipped charge_credit and saved no checklist, so a failed load of core-tool.js produced a free, incomplete run with no visible error. The shell now renders a reload prompt instead, and the legacy Core JSX stays in the file as unreachable code. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
+/* IvaBot seo-tools v120 - the shell no longer falls back to its own legacy Core when window.CoreTool is missing, because that old path skipped charge_credit and saved no checklist, so a failed load of core-tool.js produced a free, incomplete run with no visible error. The shell now renders a reload prompt instead, and the legacy Core JSX stays in the file as unreachable code. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v118 loaded (Core whitelist removed)");
+console.log("[IvaBot] seo-tools.js v120 loaded (Core whitelist removed)");
 
-/* v118: breathing halo on the Dashboard link in the header.
-   No assumptions about page structure: the rule matches by href only, so it works whoever
-   renders the header. Single quotes inside the selector, because escaped double quotes were
-   reaching the stylesheet as real backslashes and the browser was dropping the rule silently.
-   Colour, size, padding and hover behaviour stay untouched.
-   The diagnostic below prints what was actually found, so a miss is visible immediately. */
+/* v120: breathing halo on the Dashboard link, drawn by JavaScript.
+   CSS animation was the wrong tool here: it can be switched off by the system Reduce motion
+   setting, by another stylesheet, or lost when React re-renders the link. This loop writes the
+   glow straight onto the element with important, so nothing can suppress it, and re-applies it
+   every frame so a re-render cannot drop it.
+   It starts only when the audit is finished, which is the moment core-tool.js records the
+   report id, and it runs for twelve seconds, stopping earlier on hover or click.
+   The link's own colour, size, padding and hover behaviour are never touched. */
 (function () {
-  try {
-    if (!document.getElementById("iva-dash-breathe-css")) {
-      var st = document.createElement("style");
-      st.id = "iva-dash-breathe-css";
-      st.textContent =
-        "@keyframes ivaDashBreathe{0%,100%{box-shadow:0 0 0 0 rgba(110,43,255,0);background:rgba(110,43,255,0);transform:scale(1);}50%{box-shadow:0 0 0 10px rgba(110,43,255,0.16);background:rgba(110,43,255,0.14);transform:scale(1.05);}}"
-        + "a[href$='/dashboard'],a[href$='/dashboard/']{display:inline-block;border-radius:12px;animation:ivaDashBreathe 2.4s ease-in-out infinite;}"
-        + "a[href$='/dashboard']:hover,a[href$='/dashboard/']:hover{animation:none;}"
-        + "@media (prefers-reduced-motion:reduce){a[href$='/dashboard'],a[href$='/dashboard/']{animation:none;}}";
-      document.head.appendChild(st);
-      console.log("[IvaBot] breathe css injected");
+  var DURATION = 12000;
+  var started = false, stop = false, raf = null;
+
+  function link() {
+    return document.querySelector("a[href$='/dashboard'], a[href$='/dashboard/']");
+  }
+
+  function clear(el) {
+    if (!el) return;
+    el.style.removeProperty("box-shadow");
+    el.style.removeProperty("background");
+    el.style.removeProperty("transform");
+    el.style.removeProperty("border-radius");
+    el.style.removeProperty("display");
+  }
+
+  function run() {
+    var el = link();
+    if (!el) { console.warn("[IvaBot] breathe: dashboard link not found"); return; }
+    console.log("[IvaBot] breathe: started on", el.getAttribute("href"));
+
+    var t0 = performance.now();
+    var quit = function () { stop = true; };
+    el.addEventListener("mouseenter", quit);
+    el.addEventListener("click", quit);
+
+    function frame(now) {
+      if (stop || now - t0 > DURATION) { clear(el); console.log("[IvaBot] breathe: finished"); return; }
+      var k = (1 - Math.cos((now - t0) / 1200)) / 2;          /* 0 → 1 → 0, плавно */
+      el.style.setProperty("display", "inline-block", "important");
+      el.style.setProperty("border-radius", "12px", "important");
+      el.style.setProperty("box-shadow", "0 0 0 " + (10 * k).toFixed(1) + "px rgba(110,43,255," + (0.18 * k).toFixed(3) + ")", "important");
+      el.style.setProperty("background", "rgba(110,43,255," + (0.14 * k).toFixed(3) + ")", "important");
+      el.style.setProperty("transform", "scale(" + (1 + 0.05 * k).toFixed(4) + ")", "important");
+      raf = requestAnimationFrame(frame);
     }
-    var report = function () {
-      try {
-        var found = document.querySelectorAll("a[href$='/dashboard'],a[href$='/dashboard/']");
-        console.log("[IvaBot] breathe: matched", found.length, "link(s)");
-        if (found.length) {
-          console.log("[IvaBot] breathe: first match ->", found[0].outerHTML.slice(0, 300));
-          console.log("[IvaBot] breathe: computed animation ->", getComputedStyle(found[0]).animationName);
-        } else {
-          var all = document.querySelectorAll("a");
-          var names = [];
-          Array.prototype.forEach.call(all, function (a) {
-            var t = (a.textContent || "").trim();
-            if (t.toLowerCase().indexOf("dashboard") >= 0) names.push(a.getAttribute("href") + " | " + a.outerHTML.slice(0, 160));
-          });
-          console.log("[IvaBot] breathe: no href match. Links whose text mentions dashboard:", names);
-        }
-      } catch (e) { console.warn("[IvaBot] breathe report failed", e); }
-    };
-    setTimeout(report, 1500);
-    setTimeout(report, 4000);
-  } catch (e) { console.warn("[IvaBot] breathe css failed", e); }
+    raf = requestAnimationFrame(frame);
+  }
+
+  /* Ждём готовый аудит: core-tool.js записывает id отчёта после прогона. */
+  var ticks = 0;
+  var iv = setInterval(function () {
+    ticks++;
+    if (!started && window.__ivaLastReportId) {
+      started = true;
+      clearInterval(iv);
+      run();
+      return;
+    }
+    if (ticks > 1200) { clearInterval(iv); }                  /* сдаёмся через 10 минут */
+  }, 500);
+
+  /* Ручной запуск для проверки: набрать в консоли ivaBreathe() */
+  window.ivaBreathe = function () { stop = false; started = true; run(); };
+  console.log("[IvaBot] breathe armed, waiting for a finished audit. Type ivaBreathe() to test now.");
 })();
 
-/* v113: breathing halo on the Dashboard link in the header. Colour and size stay as they are,
-   only a soft accent glow pulses around it. Stops on hover and for reduced-motion users. */
-(function () {
-  try {
-    if (document.getElementById("iva-dash-breathe-css")) return;
-    var st = document.createElement("style");
-    st.id = "iva-dash-breathe-css";
-    st.textContent =
-      "@keyframes ivaDashBreathe{0%,100%{box-shadow:0 0 0 0 rgba(110,43,255,0);transform:scale(1);}50%{box-shadow:0 0 0 7px rgba(110,43,255,0.16);transform:scale(1.03);}}" +
-      ".iva-dash-breathe{border-radius:12px;animation:ivaDashBreathe 2.6s ease-in-out infinite;}" +
-      ".iva-dash-breathe:hover{animation:none;}" +
-      "@media (prefers-reduced-motion:reduce){.iva-dash-breathe{animation:none;}}";
-    document.head.appendChild(st);
-    console.log("[IvaBot] dashboard breathe css injected");
-  } catch (e) { console.warn("[IvaBot] breathe css failed", e); }
-})();
 
 /* Phase 3: persist the finished Core report so a page reload restores it (no re-run, no credit charge). */
 var _CORE_REPORT_TTL = 24 * 60 * 60 * 1000;
@@ -1972,7 +1980,7 @@ function IvaBotV6() {
       <nav className="iva-nav" style={{ display: "flex", justifyContent: "center", background: "transparent", flexShrink: 0, zIndex: 100, height: 84, paddingTop: 24 }}>
         <div style={{ width: "100%", maxWidth: 1224, padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <a href="https://ivabot.xyz" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textDecoration: "none" }}><svg width="33" height="29" viewBox="0 0 66 58" fill="none"><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill={C.accent} /><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill={C.accent} /></svg><span style={{ fontSize: 17, fontWeight: 700, color: C.dark, letterSpacing: "-0.02em" }}>IvaBot</span></a>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}><a href="https://ivabot.xyz/dashboard" className="iva-dash-breathe" style={{ fontSize: 14, fontWeight: 500, color: C.dark, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Dashboard</a><button onClick={() => setSB(true)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: C.dark, background: "rgba(255,255,255,0.43)", border: "1px solid rgba(21,20,21,0.16)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "-0.3px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#fff"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.43)"}>Buy Credits</button><a href="/login" onClick={async (e) => { e.preventDefault(); if (window.__supabase) await window.__supabase.auth.signOut(); window.location.href = "/login"; }} style={{ fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log out</a></div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}><a href="https://ivabot.xyz/dashboard" style={{ fontSize: 14, fontWeight: 500, color: C.dark, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Dashboard</a><button onClick={() => setSB(true)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: C.dark, background: "rgba(255,255,255,0.43)", border: "1px solid rgba(21,20,21,0.16)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: "-0.3px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#fff"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.43)"}>Buy Credits</button><a href="/login" onClick={async (e) => { e.preventDefault(); if (window.__supabase) await window.__supabase.auth.signOut(); window.location.href = "/login"; }} style={{ fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: "none", letterSpacing: "-0.14px", transition: "opacity 0.2s", padding: "8px 16px", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.6"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>Log out</a></div>
         </div>
       </nav>
 
