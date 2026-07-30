@@ -1,7 +1,51 @@
 /* IvaBot seo-tools v112 - the shell no longer falls back to its own legacy Core when window.CoreTool is missing, because that old path skipped charge_credit and saved no checklist, so a failed load of core-tool.js produced a free, incomplete run with no visible error. The shell now renders a reload prompt instead, and the legacy Core JSX stays in the file as unreachable code. v111 — Core routing open to all (whitelist removed). Base v107 — PDF rankings table reverted to the short top-7 list (no Est. Traffic column); the full 200-row list stays on screen + in CSV export + dashboard, not in the PDF. Prior v106: Export CSV button moved to bottom of card. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
-console.log("[IvaBot] seo-tools.js v113 loaded (Core whitelist removed)");
+console.log("[IvaBot] seo-tools.js v114 loaded (Core whitelist removed)");
+
+/* v114: breathing halo on the Dashboard link in the header.
+   Colour, size and position stay exactly as they are, only a soft accent glow pulses
+   around the text. The class is applied by script rather than in markup, because the
+   header can be rendered either here or by the Webflow page. inline-block is set so the
+   scale part applies at all: transform is ignored on plain inline elements.
+   Stops on hover and for people who switched animations off in their system. */
+(function () {
+  function css() {
+    if (document.getElementById("iva-dash-breathe-css")) return;
+    var st = document.createElement("style");
+    st.id = "iva-dash-breathe-css";
+    st.textContent =
+      "@keyframes ivaDashBreathe{0%,100%{box-shadow:0 0 0 0 rgba(110,43,255,0);transform:scale(1);}50%{box-shadow:0 0 0 7px rgba(110,43,255,0.18);transform:scale(1.04);}}" +
+      ".iva-dash-breathe{display:inline-block;border-radius:12px;animation:ivaDashBreathe 2.6s ease-in-out infinite;}" +
+      ".iva-dash-breathe:hover{animation:none;}" +
+      "@media (prefers-reduced-motion:reduce){.iva-dash-breathe{animation:none;}}";
+    document.head.appendChild(st);
+    console.log("[IvaBot] dashboard breathe css injected");
+  }
+  function mark() {
+    var n = 0;
+    try {
+      var links = document.querySelectorAll('a[href*="/dashboard"]');
+      Array.prototype.forEach.call(links, function (a) {
+        var t = (a.textContent || "").trim().toLowerCase();
+        if (t !== "dashboard") return;                 /* только ссылка в шапке */
+        if (a.className && a.className.indexOf("iva-dash-breathe") >= 0) return;
+        a.className = (a.className ? a.className + " " : "") + "iva-dash-breathe";
+        n++;
+      });
+    } catch (e) { console.warn("[IvaBot] breathe mark failed", e); }
+    if (n) console.log("[IvaBot] dashboard breathe applied to", n, "link(s)");
+    return n;
+  }
+  function start() {
+    css();
+    mark();
+    var ticks = 0;
+    var iv = setInterval(function () { ticks++; mark(); if (ticks > 40) clearInterval(iv); }, 500);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
+})();
 
 /* v113: breathing halo on the Dashboard link in the header. Colour and size stay as they are,
    only a soft accent glow pulses around it. Stops on hover and for reduced-motion users. */
