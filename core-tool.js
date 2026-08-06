@@ -1,4 +1,4 @@
-/* IvaBot CORE TOOL (core-tool.js) v257 - the audit-ready announcement now also fires on the two paths that put an existing report on screen, a page reload that restores the saved report and a stored report opened by ?report=, so the Dashboard link breathes whenever a finished audit is visible rather than only after a fresh run. The three call sites share one helper, ivaAuditReadySignal. v256 - when the finished report goes on screen the tool now announces it, by setting window.__ivaAuditReady and firing an iva-audit-ready event, which is what makes the Dashboard link in the shell nav start breathing. The announcement sits at the moment the report renders, before the snapshot and report writes, so a database failure cannot suppress it. v255 — each saved checklist item now also carries a short what-to-do line, taken from the eval suggestion or reason where the audit has one and falling back to a plain sentence, so the dashboard table can match the AI Readiness one column for column. v254 — the Core snapshot now also saves the audit checklist in p_coverage (bad: title + priority), built from the plain status fields so it cannot throw, and logged to the console. The dashboard reads it to list what to fix on the page. v253 — referring domains are now fetched in parallel with the itemized backlinks list and written into the same snapshot field, marked kind:"domain", so the dashboard can show a links tab and a domains tab. The on-screen report and the PDF are unchanged. v252 — PDF section order now matches the on-screen report exactly: SEO Score, How Your Page Ranks, What Your Page Is Built For, PR & Backlink Opportunities, Top Competitors, Page Context Summary, What's Working, Needs Improvement, Final Recommendations (previously Page Context sat near the top and Backlinks/Top Competitors sat after Needs Improvement). Pure reordering of content.push blocks; no content or logic changes. v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
+/* IvaBot CORE TOOL (core-tool.js) v258 - the keywords the page is built for now take their position from a live SERP check through the existing keyword_positions mode, instead of being looked up in the DataForSEO Labs ranked list, where a keyword missing from the set showed a dash even when the page ranked. The fuzzy fallback in buildReportData is gone: it matched on a substring and then on word overlap above 0.5, so one keyword could carry another keyword's position and it read as fact. v257 - the audit-ready announcement now also fires on the two paths that put an existing report on screen, a page reload that restores the saved report and a stored report opened by ?report=, so the Dashboard link breathes whenever a finished audit is visible rather than only after a fresh run. The three call sites share one helper, ivaAuditReadySignal. v256 - when the finished report goes on screen the tool now announces it, by setting window.__ivaAuditReady and firing an iva-audit-ready event, which is what makes the Dashboard link in the shell nav start breathing. The announcement sits at the moment the report renders, before the snapshot and report writes, so a database failure cannot suppress it. v255 — each saved checklist item now also carries a short what-to-do line, taken from the eval suggestion or reason where the audit has one and falling back to a plain sentence, so the dashboard table can match the AI Readiness one column for column. v254 — the Core snapshot now also saves the audit checklist in p_coverage (bad: title + priority), built from the plain status fields so it cannot throw, and logged to the console. The dashboard reads it to list what to fix on the page. v253 — referring domains are now fetched in parallel with the itemized backlinks list and written into the same snapshot field, marked kind:"domain", so the dashboard can show a links tab and a domains tab. The on-screen report and the PDF are unchanged. v252 — PDF section order now matches the on-screen report exactly: SEO Score, How Your Page Ranks, What Your Page Is Built For, PR & Backlink Opportunities, Top Competitors, Page Context Summary, What's Working, Needs Improvement, Final Recommendations (previously Page Context sat near the top and Backlinks/Top Competitors sat after Needs Improvement). Pure reordering of content.push blocks; no content or logic changes. v251 — PDF now surfaces the page-level counts that the on-screen report already shows: Backlinks, Referring Domains and Ranked Keywords (the PDF block was gated behind if(false) until the real DataForSEO endpoints went live post 2026-07-01; that gate is removed so the PDF matches the screen). v250 — align PR & outreach opportunities header flush-left under Backlinks/Referring domains via new Fold headerPad prop (PR fold passes headerPad="14px 0"). v211 — AIR-style pass: rankings shown before 'built for'; data sections use AI-Readiness card style (title + Dashboard link with chart icon, metric rows value+period); backlinks page-level with collapsible PR opportunities; Export PDF/CSV removed (downloads live in dashboard). v210 — standalone tool registered as window.CoreTool, mirrors window.AIReadinessTool; whitelist-gated; embedded by the /app hub, renders only the Core tool body (no nav/select). Base v202 — CLOSED PREVIEW, whitelist-gated copy of seo-tools.js. Core report rebuilt to mirror AI Readiness order: collapsible Page Context Summary, What your page is built for, Positions (+ dashboard link), Backlink opportunities with counts (+ dashboard link), Top Competitors, then What is working / Needs improvement. Tracking over time lives in the dashboard. Live seo-tools.js untouched. Gate: window.__CORE_OPEN===true or user_id in CORE_WHITELIST. */
 (function() {
 const { useState, useRef, useEffect, useCallback } = React;
 console.log("[IvaBot] core-tool.js v257 loaded (standalone window.CoreTool)");
@@ -547,22 +547,10 @@ function buildReportData(parsed, gpt, dfs) {
   const gptKwMetrics = dfs?.gpt_keyword_metrics || [];
   const keywordMetrics = gptKeywords.map(k => {
     const kLow = k.toLowerCase();
-    /* Position: search ranked_keywords — null if page does not rank */
-    let posMatch = allRankedKeywords.find(rk => rk.keyword?.toLowerCase() === kLow);
-    if (!posMatch) posMatch = allRankedKeywords.find(rk => rk.keyword?.toLowerCase().includes(kLow) || kLow.includes(rk.keyword?.toLowerCase()));
-    if (!posMatch) {
-      const kWords = kLow.split(/\s+/).filter(w => w.length > 2);
-      if (kWords.length > 0) {
-        let bestMatch = null, bestOverlap = 0;
-        allRankedKeywords.forEach(rk => {
-          const rkWords = (rk.keyword || "").toLowerCase().split(/\s+/).filter(w => w.length > 2);
-          const overlap = kWords.filter(w => rkWords.includes(w)).length;
-          const ratio = overlap / Math.max(kWords.length, rkWords.length);
-          if (ratio > 0.5 && overlap > bestOverlap) { bestOverlap = overlap; bestMatch = rk; }
-        });
-        posMatch = bestMatch;
-      }
-    }
+    /* v258: exact match only. The old code fell back to a substring match and then to a
+       word-overlap match above 0.5, which put a DIFFERENT keyword's position into this row
+       and read as fact. The real position for these keywords is fetched live below. */
+    const posMatch = allRankedKeywords.find(rk => rk.keyword?.toLowerCase() === kLow) || null;
     /* Vol/KD: prefer keyword_volume endpoint, fallback to ranked match */
     const kvMatch = gptKwMetrics.find(m => m.keyword?.toLowerCase() === kLow);
     const volume = kvMatch?.volume ?? posMatch?.volume ?? null;
@@ -1786,6 +1774,26 @@ function CoreTool({ onHome }) {
 
         setStep(5);
         var reportData = buildReportData(parsed, gpt, dfsSeo);
+        /* v258: the keywords the page is built for now get a real position from the live SERP
+           instead of a lookup in the Labs list. A keyword absent from the Labs set used to show
+           a dash even when the page ranked for it. The keyword_positions mode already existed
+           and was only wired to the keywords a user adds by hand. */
+        try {
+          var _bfKws = (reportData.keywordMetrics || []).map(function (m) { return m.keyword; }).filter(Boolean);
+          if (_bfKws.length) {
+            var _bfRes = await fetch(SUPABASE_URL + "/functions/v1/dataforseo-proxy", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()) },
+              body: JSON.stringify({ mode: "keyword_positions", keywords: _bfKws, page_url: url, location_code: locale.location_code, language_code: locale.language_code })
+            }).then(function (r) { return r.ok ? r.json() : null; });
+            var _bfPos = (_bfRes && _bfRes.positions) || {};
+            reportData.keywordMetrics.forEach(function (m) {
+              var lp = _bfPos[String(m.keyword || "").toLowerCase()];
+              m.position = (lp != null ? lp : null);
+            });
+            console.log("[IvaBot] built-for positions from live SERP:", JSON.stringify(_bfPos));
+          }
+        } catch (_bfErr) { console.warn("[IvaBot] live built-for positions failed:", _bfErr); }
         /* v98: прокидываем полный список ранжируемых + чистый домен для снимка трекинга */
         reportData._allRanked = Array.isArray(dfsSeo?.ranked_keywords) ? dfsSeo.ranked_keywords : [];
         reportData._domain = domain;
