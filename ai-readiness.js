@@ -228,13 +228,13 @@ function detectLocale(url, htmlLang, hreflang, opts) {
   var langToDfs = { ro:"ro",de:"de",fr:"fr",es:"es",it:"it",nl:"nl",pl:"pl",pt:"pt-PT",ru:"ru",uk:"uk",tr:"tr",sv:"sv",no:"no",da:"da",fi:"fi",cs:"cs",el:"el",hu:"hu",ja:"ja",ko:"ko",zh:"zh-CN",en:"en",sr:"sr",bg:"bg",ka:"ka",hy:"hy",az:"az",uz:"uz",lt:"lt",lv:"lv",et:"et",he:"he",ar:"ar" };
   var LANG_DOMINANT_LOC = { ru:2643,uk:2804,en:2840,de:2276,fr:2250,es:2724,it:2380,pl:2616,"pt-PT":2620,"pt-BR":2076,pt:2076,tr:2792,ro:2642,bg:2100,el:2300,ja:2392,ko:2410,"zh-CN":2156,zh:2156,ar:2682,he:2376,nl:2528,sr:2688,cs:2203,hu:2348,sv:2752,ka:2268,hy:2051,az:2031,uz:2860,lt:2440,lv:2428,et:2233 };
 
-  var country = null, source = "default";
+  var country = null, source = "default", _hrefLangHint = null;
   var _tl = textLang(text);
   /* v4.3: an English page must not be dragged to a foreign market by a stray currency or phone
      symbol. This guard already lived in core-tool.js and was missing from this copy. */
   var _isEn = (_tl === "en") || (!_tl && ((htmlLang && String(htmlLang).toLowerCase().indexOf("en") === 0) || (gptLang === "en")));
 
-  if (hreflang) { var hp = hreflang.toLowerCase().split(/[-_]/); if (hp.length>=2 && countryToLoc[hp[1]]) { country=hp[1]; source="hreflang:"+hreflang; } else if (countryToLoc[hp[0]]) { country=hp[0]; source="hreflang-lang:"+hp[0]; } }
+  if (hreflang) { var hp = hreflang.toLowerCase().split(/[-_]/); if (hp.length>=2 && countryToLoc[hp[1]]) { country=hp[1]; source="hreflang:"+hreflang; } else if (countryToLoc[hp[0]]) { /* v260: a language-only hreflang such as ru, ar or no says nothing about the market. It used to be looked up in the COUNTRY table, so the language ru became Russia and ar became Argentina. The language is kept as a hint and the country is left to the rest of the chain. */ _hrefLangHint = hp[0]; source="hreflang-lang-ignored:"+hp[0]; console.log("[IvaBot] hreflang carries a language without a region (" + hp[0] + "); it is not used as the country"); } }
   if (!country) { try { var host=new URL(url).hostname.toLowerCase(); var pr=host.split("."); if (pr.length>=3){ var two=pr.slice(-2).join("."); if (TLD_TO_COUNTRY[two]){ country=TLD_TO_COUNTRY[two]; source="tld:"+two; } } if (!country){ var t1=pr[pr.length-1]; if (TLD_TO_COUNTRY[t1]){ country=TLD_TO_COUNTRY[t1]; source="tld:"+t1; } } } catch(e){} }
   if (!country && !_isEn) { var cur=scanCurrencies(text); if (cur.length===1 && countryToLoc[cur[0]]) { country=cur[0]; source="currency:"+cur[0]; } else if (cur.length>1 && gptCountry && cur.indexOf(gptCountry)>=0) { country=gptCountry; source="currency+gpt:"+gptCountry; } }
   if (!country && !_isEn) { var ph=scanPhones(text); if (ph.length>=1 && countryToLoc[ph[0]]) { country=ph[0]; source="phone:"+ph[0]; } }
@@ -247,6 +247,7 @@ function detectLocale(url, htmlLang, hreflang, opts) {
      site while a page is written in another. */
   if (!langCode && _tl) { langCode = langToDfs[_tl] || _tl; if (htmlLang) { var _hk0 = htmlLang.toLowerCase().split(/[-_]/)[0]; if (_hk0 && _hk0 !== _tl) console.log("[IvaBot] page text reads as " + _tl + " while the markup declares " + _hk0 + "; going with the text"); } }
   if (!langCode && htmlLang) { var hk=htmlLang.toLowerCase().split(/[-_]/)[0]; langCode = langToDfs[hk] || hk; }
+  if (!langCode && _hrefLangHint) { langCode = langToDfs[_hrefLangHint] || _hrefLangHint; }
   if (!langCode && gptLang) { langCode = langToDfs[gptLang] || gptLang; }
   if (!langCode && country) langCode = countryToLoc[country].lang;
   if (!langCode) langCode = "en";
