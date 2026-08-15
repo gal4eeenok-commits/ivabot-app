@@ -198,6 +198,13 @@ async function ivaManualLocale(dom){
   return null;
 }
 
+/* v4.4: AI Readiness now announces a finished report the same way Core does, so the Dashboard link in the
+   tool header breathes after an AI Readiness run as well. seo-tools.js listens for iva-audit-ready. */
+function airAuditReadySignal(){
+  try { window.__ivaAuditReady = Date.now(); window.dispatchEvent(new Event("iva-audit-ready")); console.log("[AIR] audit ready signal sent"); }
+  catch (e) { console.warn("[AIR] audit ready signal failed", e); }
+}
+
 function detectLocale(url, htmlLang, hreflang, opts) {
   opts = opts || {};
   var text = opts.text || "";
@@ -1888,7 +1895,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
             const _row = Array.isArray(_rows) ? _rows[0] : null;
             sPLoad(null); sTyp(false);
             if (_row && _row.payload) {
-              setAuditData(_row.payload); setSR(true); setStep("done");
+              setAuditData(_row.payload); setSR(true); setStep("done"); airAuditReadySignal();
               add("b", "Here's your saved AI Readiness report. Ask me anything about it.");
             } else {
               console.warn("[AIR] saved report not found for this account:", _rep);
@@ -1952,7 +1959,7 @@ function AIReadinessTool({ onHome, memberName: mn }) {
       console.log("[AIR] AI Readiness:", aiReadiness.score + "/100", "type=" + aiReadiness.pageType, "good=" + aiReadiness.aiGood.length + "/" + aiReadiness.total);
 
       const d = { url, title: parsed.title || "", pageType: aiReadiness.pageType || pageType, aiReadiness };
-      sPLoad(null); setAuditData(d); setSR(true); setStep("done"); sTyp(false);
+      sPLoad(null); setAuditData(d); setSR(true); setStep("done"); sTyp(false); airAuditReadySignal();
       /* Run history (layer 1): record this completed AI Readiness run so it shows in the dashboard.
          Credit charge intentionally deferred while metrics are demo and the tool is whitelisted.
          To enable charging later: call trackCoverageUsage(_air_mid) here AND add a checkCoverageCredits gate before runAIReadiness. */
