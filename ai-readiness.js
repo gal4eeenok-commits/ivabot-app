@@ -161,6 +161,43 @@ function scanCurrencies(text){ if(!text) return []; var t=(" "+text+" ").toLower
 function scanPhones(text){ if(!text) return []; var t=text.slice(0,8000); var P=[[/\+380/,"ua"],[/\+375/,"by"],[/\+77\d{2}/,"kz"],[/\+7[\s\-(]*[489]\d{2}/,"ru"],[/\+48/,"pl"],[/\+40/,"ro"],[/\+359/,"bg"],[/\+90/,"tr"],[/\+995/,"ge"],[/\+374/,"am"],[/\+994/,"az"],[/\+998/,"uz"],[/\+370/,"lt"],[/\+371/,"lv"],[/\+372/,"ee"],[/\+972/,"il"],[/\+971/,"ae"],[/\+966/,"sa"],[/\+420/,"cz"],[/\+351/,"pt"],[/\+30\d/,"gr"],[/\+49/,"de"],[/\+33/,"fr"],[/\+34/,"es"],[/\+39/,"it"],[/\+44/,"gb"],[/\+81/,"jp"],[/\+82/,"kr"],[/\+86/,"cn"],[/\+55/,"br"],[/\+36/,"hu"],[/\+31/,"nl"]]; var out=[]; for(var i=0;i<P.length;i++){ if(P[i][0].test(t)){ if(out.indexOf(P[i][1])<0) out.push(P[i][1]); } } return out; }
 function scriptLang(text){ if(!text) return null; var t=text.slice(0,4000); var cyr=0,greek=0,kana=0,hangul=0,han=0,arab=0,hebrew=0; for(var i=0;i<t.length;i++){ var c=t.charCodeAt(i); if(c>=0x0400&&c<=0x04FF)cyr++; else if(c>=0x0370&&c<=0x03FF)greek++; else if(c>=0x3040&&c<=0x30FF)kana++; else if(c>=0xAC00&&c<=0xD7A3)hangul++; else if(c>=0x4E00&&c<=0x9FFF)han++; else if(c>=0x0600&&c<=0x06FF)arab++; else if(c>=0x0590&&c<=0x05FF)hebrew++; } var nl=cyr+greek+kana+hangul+han+arab+hebrew; if(nl<8) return null; if(kana>0) return "ja"; if(hangul>0) return "ko"; if(cyr>=greek&&cyr>=arab&&cyr>=hebrew&&cyr>=han){ if(/[\u0456\u0457\u0454\u0491]/i.test(t)) return "uk"; return "ru"; } if(greek>0) return "el"; if(arab>0) return "ar"; if(hebrew>0) return "he"; if(han>0) return "zh"; return null; }
 
+/* v259: textLang - language of the page TEXT for Latin-script languages. scriptLang only
+   separates alphabets, so English and Romanian look identical to it and the language was
+   taken from the markup, which is how an English page on a .xyz domain was measured against
+   Romania. Returns null when unsure, so the old chain still runs. */
+function textLang(text){
+  if(!text) return null;
+  var t=(" "+String(text).toLowerCase().replace(/[^a-z\u00c0-\u024f]+/g," ")+" ");
+  var W={
+    en:[" the "," and "," you "," your "," for "," with "," this "," that "," from "," are "," how "," what "," free "," about "," page "," site "],
+    ro:[" si "," pentru "," este "," care "," din "," cu "," nu "," mai "," despre "," toate "," acest "," sunt "],
+    es:[" que "," para "," con "," los "," las "," una "," por "," del "," como "," mas "],
+    fr:[" les "," des "," pour "," avec "," vous "," dans "," sur "," est "," une "," plus "],
+    de:[" und "," der "," die "," das "," mit "," fur "," sie "," nicht "," auch "," oder "],
+    it:[" per "," che "," con "," del "," una "," non "," sono "," come "," alla "],
+    nl:[" van "," een "," het "," voor "," met "," niet "," zijn "," ook "],
+    pt:[" para "," com "," uma "," nao "," mais "," como "," dos "," seu "],
+    pl:[" nie "," jest "," dla "," oraz "," sie "," tego "," jak "]
+  };
+  var best=null,bestN=0;
+  for(var k in W){ var n=0; for(var i=0;i<W[k].length;i++){ var p=0,idx; while((idx=t.indexOf(W[k][i],p))>=0){ n++; p=idx+1; if(n>400) break; } } if(n>bestN){ bestN=n; best=k; } }
+  return bestN>=6 ? best : null;
+}
+
+/* v259: the country and language the user confirmed in the dashboard win over any detection.
+   Stored per domain in dash_state under the key locale, the same place brand and prompts live. */
+async function ivaManualLocale(dom){
+  try{
+    var _sb=window.__supabase, _u=window.__userId||window.__memberId;
+    if(!_sb||!_u) return null;
+    var q=await _sb.from("dash_state").select("value").eq("user_id",_u).eq("key","locale").limit(1);
+    var v=(((q&&q.data)||[])[0]||{}).value||{};
+    var r=v[String(dom||"").toLowerCase().replace(/^www\./,"")];
+    if(r&&r.loc) return {location_code:r.loc,language_code:(r.lang||"en")};
+  }catch(e){ console.warn("[IvaBot] manual locale lookup failed, detecting instead", e); }
+  return null;
+}
+
 function detectLocale(url, htmlLang, hreflang, opts) {
   opts = opts || {};
   var text = opts.text || "";
@@ -192,15 +229,23 @@ function detectLocale(url, htmlLang, hreflang, opts) {
   var LANG_DOMINANT_LOC = { ru:2643,uk:2804,en:2840,de:2276,fr:2250,es:2724,it:2380,pl:2616,"pt-PT":2620,"pt-BR":2076,pt:2076,tr:2792,ro:2642,bg:2100,el:2300,ja:2392,ko:2410,"zh-CN":2156,zh:2156,ar:2682,he:2376,nl:2528,sr:2688,cs:2203,hu:2348,sv:2752,ka:2268,hy:2051,az:2031,uz:2860,lt:2440,lv:2428,et:2233 };
 
   var country = null, source = "default";
+  var _tl = textLang(text);
+  /* v4.3: an English page must not be dragged to a foreign market by a stray currency or phone
+     symbol. This guard already lived in core-tool.js and was missing from this copy. */
+  var _isEn = (_tl === "en") || (!_tl && ((htmlLang && String(htmlLang).toLowerCase().indexOf("en") === 0) || (gptLang === "en")));
 
   if (hreflang) { var hp = hreflang.toLowerCase().split(/[-_]/); if (hp.length>=2 && countryToLoc[hp[1]]) { country=hp[1]; source="hreflang:"+hreflang; } else if (countryToLoc[hp[0]]) { country=hp[0]; source="hreflang-lang:"+hp[0]; } }
   if (!country) { try { var host=new URL(url).hostname.toLowerCase(); var pr=host.split("."); if (pr.length>=3){ var two=pr.slice(-2).join("."); if (TLD_TO_COUNTRY[two]){ country=TLD_TO_COUNTRY[two]; source="tld:"+two; } } if (!country){ var t1=pr[pr.length-1]; if (TLD_TO_COUNTRY[t1]){ country=TLD_TO_COUNTRY[t1]; source="tld:"+t1; } } } catch(e){} }
-  if (!country) { var cur=scanCurrencies(text); if (cur.length===1 && countryToLoc[cur[0]]) { country=cur[0]; source="currency:"+cur[0]; } else if (cur.length>1 && gptCountry && cur.indexOf(gptCountry)>=0) { country=gptCountry; source="currency+gpt:"+gptCountry; } }
-  if (!country) { var ph=scanPhones(text); if (ph.length>=1 && countryToLoc[ph[0]]) { country=ph[0]; source="phone:"+ph[0]; } }
+  if (!country && !_isEn) { var cur=scanCurrencies(text); if (cur.length===1 && countryToLoc[cur[0]]) { country=cur[0]; source="currency:"+cur[0]; } else if (cur.length>1 && gptCountry && cur.indexOf(gptCountry)>=0) { country=gptCountry; source="currency+gpt:"+gptCountry; } }
+  if (!country && !_isEn) { var ph=scanPhones(text); if (ph.length>=1 && countryToLoc[ph[0]]) { country=ph[0]; source="phone:"+ph[0]; } }
   if (!country && gptCountry && countryToLoc[gptCountry] && gptConf!=="low") { country=gptCountry; source="gpt:"+gptCountry; }
 
   var langCode = null;
   var sl = scriptLang(text); if (sl) langCode = sl;
+  /* v259: the language of the page text beats the language declared in the markup when the two
+     disagree, and the disagreement is logged. A Webflow site can declare one lang for the whole
+     site while a page is written in another. */
+  if (!langCode && _tl) { langCode = langToDfs[_tl] || _tl; if (htmlLang) { var _hk0 = htmlLang.toLowerCase().split(/[-_]/)[0]; if (_hk0 && _hk0 !== _tl) console.log("[IvaBot] page text reads as " + _tl + " while the markup declares " + _hk0 + "; going with the text"); } }
   if (!langCode && htmlLang) { var hk=htmlLang.toLowerCase().split(/[-_]/)[0]; langCode = langToDfs[hk] || hk; }
   if (!langCode && gptLang) { langCode = langToDfs[gptLang] || gptLang; }
   if (!langCode && country) langCode = countryToLoc[country].lang;
@@ -1947,8 +1992,10 @@ function AIReadinessTool({ onHome, memberName: mn }) {
       })();
       /* AIR (variant B): AI Overview by the page's real ranked keywords \u2014 does Google show an AI Overview and are you cited.
          v105: the locale is detected from the page instead of being fixed to US/en. detectLocale already lived in this file and was never called, so a Romanian or Dutch site was measured against the American SERP. */
-      const _airLoc = (function () {
+      const _airLoc = await (async function () {
         try {
+          var _man = await ivaManualLocale((function(){ try{ return new URL(url).hostname.replace(/^www\./,""); }catch(e){ return ""; } })());
+          if (_man) { console.log("[AIR] locale set by the user in the dashboard:", _man.location_code, _man.language_code); return _man; }
           return detectLocale(url, parsed && parsed.html_lang, parsed && parsed.hreflang, { text: (((parsed && parsed.title) || "") + " " + ((parsed && (parsed.body_text || parsed.visible_text)) || "")).slice(0, 8000) });
         } catch (_le) { console.warn("[AIR] detectLocale failed, falling back to US/en:", _le); return { location_code: 2840, language_code: "en" }; }
       })();
