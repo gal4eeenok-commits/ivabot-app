@@ -1,7 +1,7 @@
-/* IvaBot AI Readiness (standalone) v4.2 — the detected locale is now also written into the AI Readiness snapshot, which previously stored location_code and language_code as null even when the check itself ran against the right country. v4.1 — the AI Overview block now detects the page locale through the detectLocale helper that already lived in this file and was never called, so a Romanian or Dutch site is measured against its own SERP instead of the American one. v4.0 — brand mentions now respect the brand the user set by hand in the dashboard (localStorage iva_dash_brand_<userId>, keyed by host); a run from /app can no longer overwrite it. The page-title guess was removed from the brand chain, because a title like "Suave - Shop Now, Pay Over Time" resolved to the brand "Suave" and counted an unrelated same-name brand (159,512 instead of 488). Chain is now: brand set by hand, then og:site_name, then the domain's second-level label. Nothing else changed. v3.9 — PDF (generateAIReadinessPDF) now mirrors the real on-screen report exactly: it adds only the Where to mention this page (distribution tips) block, placed after the AI citations & authority note (which stands in for the live TrustTable + Prompt visibility blocks that live in the dashboard) and before the On-page AI signals sections. No Coverage-clone sections (Page Context, keywords table, Content & Structure, Trust & Conversion) are added — those belong to the dead CoverageReport, not the AI Readiness report. v3.8 — cloned from content-coverage.js shell; AI Readiness report for only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
+/* IvaBot AI Readiness (standalone) v4.3 — a saved report opens again. Its payload keeps the "content" of each passed signal as a React element, which JSON strips down to a bare object, so React threw error #31 and rendered nothing even though the row itself had been fetched. The payload is rebuilt into real elements before it reaches the report. v4.2 — the detected locale is now also written into the AI Readiness snapshot, which previously stored location_code and language_code as null even when the check itself ran against the right country. v4.1 — the AI Overview block now detects the page locale through the detectLocale helper that already lived in this file and was never called, so a Romanian or Dutch site is measured against its own SERP instead of the American one. v4.0 — brand mentions now respect the brand the user set by hand in the dashboard (localStorage iva_dash_brand_<userId>, keyed by host); a run from /app can no longer overwrite it. The page-title guess was removed from the brand chain, because a title like "Suave - Shop Now, Pay Over Time" resolved to the brand "Suave" and counted an unrelated same-name brand (159,512 instead of 488). Chain is now: brand set by hand, then og:site_name, then the domain's second-level label. Nothing else changed. v3.9 — PDF (generateAIReadinessPDF) now mirrors the real on-screen report exactly: it adds only the Where to mention this page (distribution tips) block, placed after the AI citations & authority note (which stands in for the live TrustTable + Prompt visibility blocks that live in the dashboard) and before the On-page AI signals sections. No Coverage-clone sections (Page Context, keywords table, Content & Structure, Trust & Conversion) are added — those belong to the dead CoverageReport, not the AI Readiness report. v3.8 — cloned from content-coverage.js shell; AI Readiness report for only, free preview, whitelist-gated. v3.1 change: removed the page backlinks block and the Google reviews / local-rating block (these now belong to Core Audit); the open-web mentions row is renamed to Brand mentions across the web. v3.2 change: distribution tips are now generated per page and vertical via the air-gpt distribution_tips step, with fallback to the static page-type tips. v3.3 change: tips load in the background after the report is shown, so the report never blocks; the tips block shows page-type tips instantly and quietly upgrades to the tailored ones when they arrive. v3.4 change: trimmed the completion message to score, signals, and a short invite to ask. v3.5 change: each completed analysis is recorded to Run history via insert_air_run (flow_type=ai_readiness); credit charge deferred until AI metrics are live and the whitelist is lifted. */
 (function() {
 const{useState,useRef,useEffect,useCallback}=React;
-console.log("[IvaBot] ai-readiness.js (standalone) v4.1 loaded");
+console.log("[IvaBot] ai-readiness.js (standalone) v4.3 loaded");
 
 /* Phase 3: persist the finished Coverage result so a reload restores it (no re-run, no credit).
    reportData is plain JSON EXCEPT aiReadiness, which bakes React elements (aiGood[].content). Elements do not
@@ -30,6 +30,30 @@ const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 
 /* IvaBot security step 1: send the logged-in user's session token instead of the anon key.
    Falls back to the anon key if no session, so this change is non-breaking on its own. */
+/* v4.3: a saved report is JSON, and JSON cannot carry a React element. The AI Readiness
+   payload stores the "content" of each passed signal as an element, so a round trip through
+   the database leaves a plain object shaped {key, ref, type, props, _owner} with its
+   $$typeof symbol gone. React refuses to render that and throws error #31, which is why a
+   saved report opened to a blank screen while the fetch itself had already succeeded.
+   This walks the payload and rebuilds every such object back into a real element. */
+function _airReviveEls(v) {
+  if (Array.isArray(v)) return v.map(_airReviveEls);
+  if (!v || typeof v !== "object") return v;
+  var looksLikeElement = (typeof v.type === "string") && v.props && typeof v.props === "object" && ("_owner" in v || "ref" in v) && !v.$$typeof;
+  if (looksLikeElement) {
+    var props = {};
+    for (var k in v.props) { if (k !== "children") props[k] = _airReviveEls(v.props[k]); }
+    if (v.key !== null && v.key !== undefined) props.key = v.key;
+    var ch = v.props.children;
+    if (ch === undefined || ch === null) return React.createElement(v.type, props);
+    if (Array.isArray(ch)) return React.createElement.apply(null, [v.type, props].concat(ch.map(_airReviveEls)));
+    return React.createElement(v.type, props, _airReviveEls(ch));
+  }
+  var out = {};
+  for (var k2 in v) out[k2] = _airReviveEls(v[k2]);
+  return out;
+}
+
 async function ivaAuthToken(){try{if(window.__supabase){const{data:{session}}=await window.__supabase.auth.getSession();if(session&&session.access_token)return session.access_token;}}catch(e){}return SUPABASE_KEY;}
 
 const CORS_PROXY=SUPABASE_URL+"/functions/v1/fetch-page";
@@ -1895,7 +1919,9 @@ function AIReadinessTool({ onHome, memberName: mn }) {
             const _row = Array.isArray(_rows) ? _rows[0] : null;
             sPLoad(null); sTyp(false);
             if (_row && _row.payload) {
-              setAuditData(_row.payload); setSR(true); setStep("done"); airAuditReadySignal();
+              var _revived = _airReviveEls(_row.payload);
+              console.log("[AIR] saved report revived for render", _rep);
+              setAuditData(_revived); setSR(true); setStep("done"); airAuditReadySignal();
               add("b", "Here's your saved AI Readiness report. Ask me anything about it.");
             } else {
               console.warn("[AIR] saved report not found for this account:", _rep);
