@@ -19,7 +19,7 @@ const C = {
   card: "#F0EAFF", cardBorder: "rgba(110,43,255,0.08)", numBg: "#6E2BFF",
   hoverBorder: "rgba(110,43,255,0.2)", hoverShadow: "0 0 0 1px rgba(110,43,255,0.2), 0 8px 32px rgba(110,43,255,0.1)",
 };
-const CHECKOUT_HOOK = "https://hook.eu2.make.com/3uenlk2qk3upaze45gdvwu9duhc39pq6";
+const CHECKOUT_HOOK = "https://hook.eu2.make.com/3uenlk2qk3upaze45gdvwu9duhc39pq6", IVA_SLIDER_HOOK = "https://hook.eu2.make.com/3gfsvayh09jybrmv8glgo0prxvxghk6a";
 const PRICES = {
   core_mini: "price_1TRW63CSobSUMDpsb9WZX43S", core_starter: "price_1TRW64CSobSUMDpsj0fv4qcF",
   core_medium: "price_1TRW65CSobSUMDps9FLZFeWr", core_large: "price_1TRW66CSobSUMDpssplRetEW",
@@ -681,52 +681,66 @@ const PaymentToast = () => {
 };
 
 const BuyM = ({ onClose, memberId }) => {
-  const [tab, setTab] = useState(0);
-  const [buying, setBuying] = useState(null);
-  const group = PACKS_NEW[tab];
-  const tabs = PACKS_NEW.map(g => g.label);
-  const buyPack = async (pk) => {
-    setBuying(pk.tier);
-    try {
-      const r = await fetch(CHECKOUT_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ member_id: memberId, price_id: PRICES[group.instrument + "_" + pk.tier], instrument: group.instrument, tier: pk.tier, sessions_add: pk.sessions }) });
-      const t = await r.text(); let d = {}; try { d = JSON.parse(t); } catch(e) {}
-      if (d?.checkout_url) { window.location.href = d.checkout_url; } else { alert("Payment link error. Please try again."); setBuying(null); }
-    } catch(e) { alert("Payment link error. Please try again."); setBuying(null); }
+  const [amount, setAmount] = useState(12);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const calc = (a) => {
+    let rate, save;
+    if (a < 12) { rate = 1.00; save = 0; }
+    else if (a < 21) { rate = 0.80; save = 20; }
+    else if (a < 34) { rate = 0.70; save = 30; }
+    else { rate = 0.5667; save = 43; }
+    return { credits: Math.round(a / rate), save };
   };
-  return (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }} onClick={onClose}><div onClick={e => e.stopPropagation()} style={{ background: C.surface, borderRadius: 18, padding: "28px 24px", maxWidth: 620, width: "95%", boxShadow: "0 24px 48px rgba(0,0,0,0.15)", maxHeight: "90vh", overflowY: "auto" }}>
-  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>Buy Credits</span><button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 18 }}>✕</button></div>
-  <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>One-time payments. Use at your own pace.</p>
-  <div style={{ display: "inline-grid", gridTemplateColumns: `repeat(${tabs.length}, 1fr)`, position: "relative", border: "1px solid rgba(21,20,21,0.12)", borderRadius: 10, padding: 4, marginBottom: 16, background: "#fff" }}>
-    <div style={{ position: "absolute", top: 4, left: `calc(${tab * (100/tabs.length)}% + 4px)`, width: `calc(${100/tabs.length}% - 8px)`, height: "calc(100% - 8px)", borderRadius: 7, background: "#151415", transition: "left 0.28s cubic-bezier(0.4,0,0.2,1)", zIndex: 0 }} />
-    {tabs.map((t, i) => (<button key={i} onClick={() => setTab(i)} style={{ position: "relative", zIndex: 1, padding: "8px 16px", border: "none", background: "transparent", borderRadius: 7, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 500, color: tab === i ? "#fff" : "#928E95", cursor: "pointer", transition: "color 0.25s", whiteSpace: "nowrap", textAlign: "center" }}>{t}</button>))}
-  </div>
-  <div className="iva-buy-grid">
-    {group.packs.map((pk, i) => (
-      <div key={group.instrument + i} style={{ borderRadius: 12, border: pk.popular ? "2px solid #6E2BFF" : `1px solid ${C.border}`, background: C.surface, display: "flex", flexDirection: "column", overflow: "visible", position: "relative", padding: "20px 16px" }}>
-        {pk.popular && <div style={{ position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", background: "#F0EAFF", color: "#6E2BFF", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 16, border: "1px solid rgba(110,43,255,0.12)", whiteSpace: "nowrap" }}>Most Popular</div>}
-        <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 8 }}>{pk.n}</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginBottom: 4 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>$</span>
-          <span style={{ fontSize: 28, fontWeight: 800, color: C.dark, letterSpacing: "-0.02em" }}>{pk.p}</span>
-          <span style={{ fontSize: 11, color: C.muted, marginLeft: 4 }}>one-time</span>
+  const c = calc(amount);
+  const pct = ((amount - 5) / 55) * 100;
+  const buy = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(IVA_SLIDER_HOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: memberId, amount })
+      });
+      const t = await r.text();
+      let d = {};
+      try { d = JSON.parse(t); } catch (e) {}
+      console.log("iva slider checkout", r.status, t);
+      if (d && d.checkout_url) { window.location.href = d.checkout_url; return; }
+      console.warn("iva slider checkout: no checkout_url", t);
+      setErr("Payment link error. Please try again.");
+      setBusy(false);
+    } catch (e) {
+      console.warn("iva slider checkout failed", e);
+      setErr("Payment link error. Please try again.");
+      setBusy(false);
+    }
+  };
+  return (<div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(21,20,21,0.45)", zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, padding: 32, width: "100%", maxWidth: 460, fontFamily: "'DM Sans',sans-serif", position: "relative" }}>
+      <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: C.muted, lineHeight: 1 }}>✕</button>
+      <div style={{ fontSize: 22, fontWeight: 600, color: C.dark, letterSpacing: "-0.03em" }}>Buy credits</div>
+      <div style={{ fontSize: 14, color: C.muted, marginTop: 4 }}>Pay once, no subscription. Drag to pick your pack.</div>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, marginTop: 24, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1, color: C.dark }}>{c.credits}</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: C.muted }}>credits</span>
         </div>
-        <div style={{ height: 1, background: "#F6F6F6", margin: "10px 0" }} />
-        <div style={{ fontSize: 24, fontWeight: 800, color: C.dark, textAlign: "center" }}>{pk.sessions}</div>
-        <div style={{ fontSize: 12, color: C.muted, textAlign: "center", marginBottom: 4 }}>credits</div>
-        {pk.save && <div style={{ fontSize: 11, color: C.accent, fontWeight: 600, textAlign: "center" }}>Save {pk.save}</div>}
-        {!pk.save && <div style={{ minHeight: 15 }} />}
-        <button onClick={() => buyPack(pk)} disabled={buying === pk.tier} style={{ display: "block", width: "100%", padding: "10px 0", borderRadius: 8, background: pk.popular ? C.dark : C.surface, color: pk.popular ? "#fff" : C.dark, border: `1px solid ${pk.popular ? C.dark : C.borderMid}`, fontSize: 13, fontWeight: 600, textAlign: "center", fontFamily: "'DM Sans',sans-serif", cursor: buying === pk.tier ? "wait" : "pointer", transition: "background 0.2s", marginTop: 12, opacity: buying === pk.tier ? 0.6 : 1 }} onMouseEnter={e => { if (!buying) { if (pk.popular) e.currentTarget.style.background = "#333"; else e.currentTarget.style.background = C.accentLight; }}} onMouseLeave={e => { if (!buying) e.currentTarget.style.background = pk.popular ? C.dark : C.surface; }}>{buying === pk.tier ? "Loading..." : "Buy Credits"}</button>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 2, color: C.dark }}>
+          <span style={{ fontSize: 16, fontWeight: 500 }}>$</span>
+          <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: "-0.02em" }}>{amount}</span>
+          <span style={{ fontSize: 12, color: C.muted, marginLeft: 8 }}>one-time</span>
+        </div>
       </div>
-    ))}
-  </div>
-  <div className="iva-buy-footer">
-    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>Pay once, use at your pace</div>
-    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>No subscriptions</div>
-    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.muted }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>Buy more anytime</div>
-  </div>
-</div></div>); };
-
-/* Bot voice — with logo between sections, plain inside cards */
+      <input type="range" min="5" max="60" step="1" value={amount} onChange={e => setAmount(parseInt(e.target.value, 10))} style={{ WebkitAppearance: "none", appearance: "none", width: "100%", height: 6, borderRadius: 100, outline: "none", marginTop: 18, background: `linear-gradient(to right, ${C.accent} 0%, ${C.accent} ${pct}%, #e7e0f5 ${pct}%, #e7e0f5 100%)` }} />
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted, fontWeight: 500, marginTop: 6 }}><span>$5</span><span>$60</span></div>
+      <div style={{ fontSize: 12, color: C.muted, marginTop: 10, minHeight: 16 }}>{c.save > 0 ? <span>You are saving <b style={{ color: C.accent }}>{c.save}%</b></span> : "Slide up to $12 to start saving"}</div>
+      <button onClick={buy} disabled={busy} style={{ marginTop: 20, width: "100%", background: busy ? C.muted : "#151415", color: "#fff", border: "none", borderRadius: 14, padding: "13px 20px", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, cursor: busy ? "default" : "pointer" }}>{busy ? "Opening checkout..." : "Buy credits"}</button>
+      {err && <div style={{ fontSize: 13, color: "#B0749E", marginTop: 10, textAlign: "center" }}>{err}</div>}
+      <div style={{ fontSize: 12, color: C.muted, marginTop: 14, textAlign: "center" }}>Credits work across Core Audit, AI Readiness and Content Builder.</div>
+    </div>
+  </div>);
+};
 const BotLogo = () => (<svg width="16" height="13" viewBox="0 0 66 58" fill="none" style={{ flexShrink: 0, marginTop: 2, opacity: 0.45 }}><path d="M63 44.4C61 50.8 61 52.7 56.4 54L33.5 58c-.7-4.6 2.3-8.9 6.7-9.6L63 44.4z" fill="#6E2BFF" /><path fillRule="evenodd" d="M46.3.1c1.7-.3 3.5 0 5 .8l9.4 4.8c2.8 1.4 4.5 4.3 4.5 7.5v21.2c0 4.1-2.9 7.6-6.8 8.3L18.9 49.4c-1.7.3-3.4 0-5-.8L4.5 43.8C1.7 42.4 0 39.5 0 36.3V15.1C0 11 2.9 7.5 6.8 6.9L46.3.1zM16.3 16.4c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.7-8.4-8.2-8.4zm32.6 0c-4.5 0-8.2 3.7-8.2 8.4s3.7 8.4 8.2 8.4 8.2-3.7 8.2-8.4-3.6-8.4-8.2-8.4z" fill="#6E2BFF" /></svg>);
 const BotNote = ({ text, inline }) => inline
   ? (<div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.5, padding: "4px 0" }}>{text}</div>)
@@ -1525,13 +1539,7 @@ function IvaBotV6() {
       setMsgs(p => [...p, { from: "bot", content: React.createElement("div", null, React.createElement("div", {style:{color:"#928E95",fontSize:12,marginBottom:8}}, "I'll check your page for page-level SEO, content structure, speed, mobile readiness, and more. You'll get clear, actionable recommendations."), React.createElement("div", {style:{fontWeight:600}}, "Just paste your URL below and I'll get started.")), id: Date.now() + 1 }]);
     }, 4000);
   };
-  const home = async () => { setView("select"); setTool(null); setMsgs([]); setSR(false); setLS(-1); setAuditData(null); sPLoad(null); sMTab("chat"); const cr = await fetchCredits(memberId); setCredits(cr);
-    /* Reset URL to /app */
-    const url = new URL(window.location);
-    url.searchParams.delete("tool");
-    url.searchParams.delete("paid");
-    window.history.replaceState({}, "", url);
-  };
+  const home = () => { window.location.href = "https://ivabot.xyz/dashboard"; };
 
   const runAudit = async (url) => {
     /* Check credits before starting */
