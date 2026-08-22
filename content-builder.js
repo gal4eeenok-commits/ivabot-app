@@ -6,6 +6,12 @@ console.log("[IvaBot] content-builder.js v75 loaded");
 /* Phase 3: persist the finished Builder result so a reload restores it (no re-run, no credit).
    bd (brief) and contentHtml (article HTML) are plain JSON; the JSX is built at render time. */
 var _BLD_REPORT_TTL = 24 * 60 * 60 * 1000;
+/* v75 - announce a finished article the same way core-tool.js announces a finished audit,
+   so the Dashboard link in the shell nav starts breathing. */
+function ivaAuditReadySignal(){
+  try { window.__ivaAuditReady = Date.now(); window.dispatchEvent(new Event("iva-audit-ready")); console.log("[CB] audit ready signal sent"); }
+  catch(e) { console.warn("[CB] audit ready signal failed", e); }
+}
 function _bldReportKey(mid){ return "iva_builder_report_" + (mid || "anon"); }
 function _bldStripEls(k, v){ if (v && typeof v === "object" && v.$$typeof) return undefined; return v; }
 function saveBuilderReport(mid, data){ try { localStorage.setItem(_bldReportKey(mid), JSON.stringify({ savedAt: Date.now(), data: data }, _bldStripEls)); } catch(e){ console.warn("[CB] saveBuilderReport failed", e); } }
@@ -634,7 +640,7 @@ useEffect(()=>{
   console.log("[CB] INIT memberId:", mid);
   var _bldSaved = loadBuilderReport(mid);
   if (_bldSaved && _bldIsReload() && _bldSaved.bd) {
-    sBd(_bldSaved.bd); sContentHtml(_bldSaved.contentHtml || null); sKwData(_bldSaved.kwData || []); sRp(_bldSaved.rp || "ct"); setStep(_bldSaved.rp === "br" ? "sr" : "cr");
+    sBd(_bldSaved.bd); sContentHtml(_bldSaved.contentHtml || null); ivaAuditReadySignal(); sKwData(_bldSaved.kwData || []); sRp(_bldSaved.rp || "ct"); setStep(_bldSaved.rp === "br" ? "sr" : "cr");
     add("b", "Here's your latest content. Ask me anything about it, or start a New Page.");
     if (isMobile) sMTab("panel");
     return;
@@ -1087,7 +1093,7 @@ const gCnt=async()=>{
         }
       }catch(spamErr){console.log("[CB] spam check error (non-blocking):",spamErr);}
     }
-    sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);setStep("cr");
+    sContentHtml(html);sRp("ct");sPLoad(null);stopLoading();sTyp(false);ivaAuditReadySignal();setStep("cr");
     try{saveBuilderReport(getMemberId(),{rp:"ct",bd:bd,contentHtml:html,kwData:kwData});}catch(e){}
     /* Phase 2: persist the generated article (non-blocking, free) */
     try{
