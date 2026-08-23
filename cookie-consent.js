@@ -1,4 +1,4 @@
-/* IvaBot cookie consent v1 — 23 Aug 2026
+/* IvaBot cookie consent v2 — narrow bar across the bottom — 23 Aug 2026
    Loads GA4, Clarity, Meta Pixel and Reddit Pixel only after the visitor agrees.
    Nothing in here runs a tracker before a choice is made.
 
@@ -168,31 +168,40 @@
     var st = document.createElement("style");
     st.id = "iva-consent-css";
     st.textContent = [
-      ".iva-cc{position:fixed;left:16px;bottom:16px;z-index:99999;width:calc(100% - 32px);max-width:420px;",
-      "background:#fff;border:1px solid rgba(21,20,21,0.10);border-radius:16px;",
-      "box-shadow:0 12px 40px rgba(21,20,21,0.16);padding:22px 22px 18px;",
+            ".iva-cc{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:99999;",
+      "width:calc(100% - 32px);max-width:1000px;box-sizing:border-box;",
+      "background:#fff;border:1px solid rgba(21,20,21,0.10);border-radius:14px;",
+      "box-shadow:0 10px 34px rgba(21,20,21,0.14);padding:14px 18px;",
+      "display:flex;align-items:center;gap:18px;flex-wrap:wrap;",
       "font-family:'DM Sans',system-ui,sans-serif;color:" + DARK + ";}",
-      ".iva-cc h2{font-size:16px;font-weight:600;margin:0 0 8px;letter-spacing:-0.01em;}",
-      ".iva-cc p{font-size:13.5px;line-height:1.55;color:" + MUTED + ";margin:0 0 16px;}",
+      ".iva-cc-text{flex:1 1 340px;min-width:0;}",
+      ".iva-cc h2{font-size:14px;font-weight:600;margin:0 0 3px;letter-spacing:-0.01em;}",
+      ".iva-cc p{font-size:13px;line-height:1.5;color:" + MUTED + ";margin:0;}",
       ".iva-cc a{color:" + ACCENT + ";text-decoration:none;}",
       ".iva-cc a:hover{text-decoration:underline;}",
-      ".iva-cc-row{display:flex;gap:8px;flex-wrap:wrap;}",
-      ".iva-cc-btn{flex:1 1 0;min-width:120px;border-radius:12px;padding:11px 14px;font-family:inherit;",
-      "font-size:14px;font-weight:600;cursor:pointer;border:1px solid rgba(21,20,21,0.16);",
+      ".iva-cc-row{display:flex;gap:8px;align-items:center;flex-shrink:0;}",
+      ".iva-cc-btn{border-radius:10px;padding:9px 16px;font-family:inherit;white-space:nowrap;",
+      "font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid rgba(21,20,21,0.16);",
       "background:#fff;color:" + DARK + ";transition:background .15s,border-color .15s;}",
       ".iva-cc-btn:hover{background:#f5f4fd;}",
       ".iva-cc-btn.primary{background:" + DARK + ";color:#fff;border-color:" + DARK + ";}",
       ".iva-cc-btn.primary:hover{background:#333;}",
-      ".iva-cc-link{margin-top:12px;text-align:center;}",
+      ".iva-cc-link{flex-shrink:0;}",
       ".iva-cc-link button{background:none;border:none;padding:0;font-family:inherit;font-size:13px;",
-      "color:" + MUTED + ";cursor:pointer;text-decoration:underline;}",
+      "color:" + MUTED + ";cursor:pointer;text-decoration:underline;white-space:nowrap;}",
+      ".iva-cc.prefs{display:block;max-width:460px;padding:22px 22px 18px;}",
+      ".iva-cc.prefs h2{font-size:16px;margin-bottom:8px;}",
+      ".iva-cc.prefs .iva-cc-row{margin-top:14px;}",
+      ".iva-cc.prefs .iva-cc-btn{flex:1 1 0;}",
       ".iva-cc-opt{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-top:1px solid #f1eef7;}",
       ".iva-cc-opt:first-of-type{border-top:none;}",
       ".iva-cc-opt input{margin-top:3px;width:16px;height:16px;accent-color:" + ACCENT + ";cursor:pointer;}",
       ".iva-cc-opt input:disabled{cursor:default;opacity:.6;}",
       ".iva-cc-opt label{font-size:13.5px;font-weight:600;cursor:pointer;}",
       ".iva-cc-opt span{display:block;font-size:12.5px;font-weight:400;color:" + MUTED + ";line-height:1.5;margin-top:2px;}",
-      "@media(max-width:520px){.iva-cc{left:8px;right:8px;bottom:8px;width:auto;max-width:none;padding:18px 16px 14px;}}"
+      "@media(max-width:760px){.iva-cc{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;",
+      "display:block;padding:16px;}.iva-cc-row{margin-top:12px;}.iva-cc-btn{flex:1 1 0;}",
+      ".iva-cc-link{margin-top:10px;text-align:center;}}"
     ].join("");
     document.head.appendChild(st);
   }
@@ -211,7 +220,7 @@
 
   function showPrefs(current) {
     close(); css();
-    root = el("div", { "class": "iva-cc", role: "dialog", "aria-label": "Cookie preferences" });
+    root = el("div", { "class": "iva-cc prefs", role: "dialog", "aria-label": "Cookie preferences" });
 
     root.appendChild(el("h2", null, "Cookie preferences"));
 
@@ -248,10 +257,12 @@
     close(); css();
     root = el("div", { "class": "iva-cc", role: "dialog", "aria-label": "Cookie notice" });
 
-    root.appendChild(el("h2", null, "Cookies on IvaBot"));
-    root.appendChild(el("p", null,
+    var text = el("div", { "class": "iva-cc-text" });
+    text.appendChild(el("h2", null, "Cookies on IvaBot"));
+    text.appendChild(el("p", null,
       'IvaBot uses cookies that keep you signed in, and, with your permission, cookies that measure how the site is used and which ads bring visitors. ' +
       'Details are in the <a href="' + POLICY_URL + '">Privacy Policy</a>.'));
+    root.appendChild(text);
 
     var row = el("div", { "class": "iva-cc-row" });
     var reject = el("button", { "class": "iva-cc-btn", type: "button" }, "Reject all");
@@ -282,5 +293,5 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 
-  console.log("[iva-consent] v1 ready");
+  console.log("[iva-consent] v2 ready");
 })();
