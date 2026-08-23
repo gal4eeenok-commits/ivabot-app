@@ -1,4 +1,4 @@
-/* IvaBot cookie consent v2 — narrow bar across the bottom — 23 Aug 2026
+/* IvaBot cookie consent v3 — narrow bar across the bottom — 23 Aug 2026
    Loads GA4, Clarity, Meta Pixel and Reddit Pixel only after the visitor agrees.
    Nothing in here runs a tracker before a choice is made.
 
@@ -179,6 +179,7 @@
       ".iva-cc p{font-size:13px;line-height:1.5;color:" + MUTED + ";margin:0;}",
       ".iva-cc a{color:" + ACCENT + ";text-decoration:none;}",
       ".iva-cc a:hover{text-decoration:underline;}",
+      ".iva-cc-actions{display:flex;flex-direction:column;align-items:stretch;gap:6px;flex-shrink:0;}",
       ".iva-cc-row{display:flex;gap:8px;align-items:center;flex-shrink:0;}",
       ".iva-cc-btn{border-radius:10px;padding:9px 16px;font-family:inherit;white-space:nowrap;",
       "font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid rgba(21,20,21,0.16);",
@@ -186,7 +187,7 @@
       ".iva-cc-btn:hover{background:#f5f4fd;}",
       ".iva-cc-btn.primary{background:" + DARK + ";color:#fff;border-color:" + DARK + ";}",
       ".iva-cc-btn.primary:hover{background:#333;}",
-      ".iva-cc-link{flex-shrink:0;}",
+      ".iva-cc-link{flex-shrink:0;text-align:center;}",
       ".iva-cc-link button{background:none;border:none;padding:0;font-family:inherit;font-size:13px;",
       "color:" + MUTED + ";cursor:pointer;text-decoration:underline;white-space:nowrap;}",
       ".iva-cc.prefs{display:block;max-width:460px;padding:22px 22px 18px;}",
@@ -200,8 +201,8 @@
       ".iva-cc-opt label{font-size:13.5px;font-weight:600;cursor:pointer;}",
       ".iva-cc-opt span{display:block;font-size:12.5px;font-weight:400;color:" + MUTED + ";line-height:1.5;margin-top:2px;}",
       "@media(max-width:760px){.iva-cc{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;",
-      "display:block;padding:16px;}.iva-cc-row{margin-top:12px;}.iva-cc-btn{flex:1 1 0;}",
-      ".iva-cc-link{margin-top:10px;text-align:center;}}"
+      "display:block;padding:16px;}.iva-cc-actions{margin-top:12px;}.iva-cc-btn{flex:1 1 0;}",
+      ".iva-cc-link{margin-top:4px;}}"
     ].join("");
     document.head.appendChild(st);
   }
@@ -271,13 +272,16 @@
     accept.onclick = function () { apply(write(true, true)); close(); };
     row.appendChild(reject);
     row.appendChild(accept);
-    root.appendChild(row);
 
     var link = el("div", { "class": "iva-cc-link" });
     var manage = el("button", { type: "button" }, "Choose what to allow");
     manage.onclick = function () { showPrefs(null); };
     link.appendChild(manage);
-    root.appendChild(link);
+
+    var actions = el("div", { "class": "iva-cc-actions" });
+    actions.appendChild(row);
+    actions.appendChild(link);
+    root.appendChild(actions);
 
     document.body.appendChild(root);
   }
@@ -293,5 +297,5 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 
-  console.log("[iva-consent] v2 ready");
+  console.log("[iva-consent] v3 ready");
 })();
