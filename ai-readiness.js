@@ -2081,19 +2081,27 @@ function AIReadinessTool({ onHome, memberName: mn }) {
               var _top3 = _ao.ai_overview.slice(0, 3);
               var _llmJobs = [];
               _top3.forEach(function (row) {
-                ["chat_gpt", "sonar"].forEach(function (eng) {
-                  _llmJobs.push(ivaFetchRetry(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + _tok }, body: JSON.stringify({ mode: "llm_responses", user_prompt: row.q, engine: eng }) }).then(function (r) { return (r && r.ok) ? r.json() : null; }).then(function (resp) { var c = false; try { c = !!(resp && resp.items && JSON.stringify(resp.items).toLowerCase().indexOf(_h) !== -1); } catch (e) {} return { q: row.q, eng: eng, cited: c }; }).catch(function () { return { q: row.q, eng: eng, cited: false }; }));
+                [["chat_gpt", "gpt-4o-mini"], ["perplexity", "sonar"]].forEach(function (_em) {
+                  var eng = _em[0];
+                  _llmJobs.push(ivaFetchRetry(DFS_PROXY, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + _tok }, body: JSON.stringify({ mode: "llm_responses", user_prompt: row.q, engine: eng, model_name: _em[1] }) }).then(function (r) { return (r && r.ok) ? r.json() : null; }).then(function (resp) { var c = false; try { c = !!(resp && resp.items && JSON.stringify(resp.items).toLowerCase().indexOf(_h) !== -1); } catch (e) {} return { q: row.q, eng: eng, cited: c }; }).catch(function () { return { q: row.q, eng: eng, cited: false }; }));
                 });
               });
               var _llmRes = await Promise.all(_llmJobs);
               _ao.ai_overview.forEach(function (row) {
-                _llmRes.forEach(function (lr) { if (lr.q === row.q) { if (lr.eng === "chat_gpt") row.chat_gpt = lr.cited; if (lr.eng === "sonar") row.perplexity = lr.cited; } });
+                _llmRes.forEach(function (lr) { if (lr.q === row.q) { if (lr.eng === "chat_gpt") row.chat_gpt = lr.cited; if (lr.eng === "perplexity") row.perplexity = lr.cited; } });
               });
               console.log("[AIR] llm top-3 checked (ChatGPT + Perplexity)");
             } catch (_le) { console.log("[AIR] llm top-3 enrich error", _le); }
             setAuditData(function (prev) { return (prev && prev.url === d.url) ? Object.assign({}, prev, { aioItems: _ao.ai_overview }) : prev; });
-            var _aioCited = _ao.ai_overview.reduce(function (n, x) { return n + ((x && x.cited) ? 1 : 0) + ((x && x.chat_gpt) ? 1 : 0) + ((x && x.perplexity) ? 1 : 0); }, 0);
-            return { ai_overview_count: _aioCited, prompts_checked: _kws, aioItems: _ao.ai_overview };
+            var _aioCited = _ao.ai_overview.reduce(function (n, x) { return n + ((x && x.cited) ? 1 : 0); }, 0);
+            var _today = new Date().toISOString().slice(0, 10);
+            var _pcObj = {};
+            _ao.ai_overview.forEach(function (row) {
+              var _k = String(row.q || "").trim().toLowerCase();
+              if (!_k) return;
+              _pcObj[_k] = { prompt: row.q, page: "", checked: _today, source: "ai_readiness", runs: { chat_gpt: !!row.chat_gpt, perplexity: !!row.perplexity, gemini: false, ai_overview: !!row.cited }, aio: { triggers: !!row.triggers, cited: !!row.cited } };
+            });
+            return { ai_overview_count: _aioCited, prompts_checked: _pcObj, prompts_suggested: _kws, aioItems: _ao.ai_overview };
           }
           return null;
         } catch (_ae) { console.log("[AIR] ai_overview", _ae); return null; }
