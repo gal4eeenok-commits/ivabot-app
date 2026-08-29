@@ -1641,7 +1641,7 @@ function CoreTool({ onHome }) {
   const home = () => { try { const url = new URL(window.location); url.searchParams.delete("tool"); url.searchParams.delete("paid"); window.history.replaceState({}, "", url); } catch(e){} if (typeof onHome === "function") onHome(); };
 
   const runAudit = async (url) => {
-    /* Charge up front: 1 credit, plus 1 for every 50 keywords added to this page. The count comes from dash_state, which the dashboard keeps. Abort only if the wallet confirms insufficient. */
+    /* Charge up front: 1 credit, plus 1 for every 50 keywords added to this page. The count comes from dash_state, which the dashboard keeps, matched on the address without its protocol, www or trailing slash, since the two sides store it differently. Abort only if the wallet confirms insufficient. */
     try {
       const _isU = memberId && /^[0-9a-f]{8}-/.test(memberId);
       let _cost = 1;
@@ -1650,8 +1650,11 @@ function CoreTool({ onHome }) {
           const _adRes = await fetch(SUPABASE_URL + "/rest/v1/dash_state?user_id=eq." + memberId + "&key=eq.added&select=value", { headers: { "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY } });
           const _adRows = await _adRes.json();
           const _map = (_adRows && _adRows[0] && _adRows[0].value) || {};
-          let _n = Object.keys((_map && _map[url]) || {}).length;
-          if (!_n) { const _k = Object.keys(_map || {}).find(function (x) { return String(x).replace(/\/+$/, "") === String(url).replace(/\/+$/, ""); }); if (_k) _n = Object.keys(_map[_k] || {}).length; }
+          const _norm = function (x) { return String(x || "").toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, ""); };
+          const _want = _norm(url);
+          let _n = 0, _hit = "";
+          Object.keys(_map || {}).forEach(function (x) { if (_norm(x) === _want) { _hit = x; _n = Object.keys(_map[x] || {}).length; } });
+          if (!_hit) console.log("[CORE] no keyword list stored for", _want, "- known pages:", Object.keys(_map || {}).length);
           _cost = 1 + Math.ceil(_n / 50);
           console.log("[CORE] keywords added to this page:", _n, "so this run costs", _cost);
         } catch (e) { console.warn("[CORE] added-keyword count unavailable, charging the base 1:", e); }
