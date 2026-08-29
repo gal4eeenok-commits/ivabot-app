@@ -1641,10 +1641,22 @@ function CoreTool({ onHome }) {
   const home = () => { try { const url = new URL(window.location); url.searchParams.delete("tool"); url.searchParams.delete("paid"); window.history.replaceState({}, "", url); } catch(e){} if (typeof onHome === "function") onHome(); };
 
   const runAudit = async (url) => {
-    /* Charge 1 credit up front (unified wallet). Abort only if the wallet confirms insufficient. */
+    /* Charge up front: 1 credit, plus 1 for every 50 keywords added to this page. The count comes from dash_state, which the dashboard keeps. Abort only if the wallet confirms insufficient. */
     try {
       const _isU = memberId && /^[0-9a-f]{8}-/.test(memberId);
-      const _chBody = _isU ? { p_user_id: memberId, p_action: "core_audit", p_cost: 1 } : { p_member_id: memberId, p_action: "core_audit", p_cost: 1 };
+      let _cost = 1;
+      if (_isU) {
+        try {
+          const _adRes = await fetch(SUPABASE_URL + "/rest/v1/dash_state?user_id=eq." + memberId + "&key=eq.added&select=value", { headers: { "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY } });
+          const _adRows = await _adRes.json();
+          const _map = (_adRows && _adRows[0] && _adRows[0].value) || {};
+          let _n = Object.keys((_map && _map[url]) || {}).length;
+          if (!_n) { const _k = Object.keys(_map || {}).find(function (x) { return String(x).replace(/\/+$/, "") === String(url).replace(/\/+$/, ""); }); if (_k) _n = Object.keys(_map[_k] || {}).length; }
+          _cost = 1 + Math.ceil(_n / 50);
+          console.log("[CORE] keywords added to this page:", _n, "so this run costs", _cost);
+        } catch (e) { console.warn("[CORE] added-keyword count unavailable, charging the base 1:", e); }
+      }
+      const _chBody = _isU ? { p_user_id: memberId, p_action: "core_audit", p_cost: _cost } : { p_member_id: memberId, p_action: "core_audit", p_cost: _cost };
       const _chRes = await fetch(SUPABASE_URL + "/rest/v1/rpc/charge_credit", { method: "POST", headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + (await ivaAuthToken()) }, body: JSON.stringify(_chBody) });
       const _ch = await _chRes.json();
       console.log("[IvaBot] charge_credit core:", _ch);
