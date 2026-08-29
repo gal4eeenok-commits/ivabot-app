@@ -686,10 +686,10 @@ const BuyM = ({ onClose, memberId }) => {
   const [err, setErr] = useState(null);
   const calc = (a) => {
     let rate, save;
-    if (a < 12) { rate = 1.00; save = 0; }
-    else if (a < 21) { rate = 0.80; save = 20; }
-    else if (a < 34) { rate = 0.70; save = 30; }
-    else { rate = 0.5667; save = 43; }
+    if (a < 12) { rate = 1.667; save = 0; }
+    else if (a < 21) { rate = 1.5; save = 10; }
+    else if (a < 34) { rate = 1.364; save = 18; }
+    else { rate = 1.25; save = 25; }
     return { credits: Math.round(a / rate), save };
   };
   const c = calc(amount);
