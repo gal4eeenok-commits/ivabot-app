@@ -1944,11 +1944,24 @@ function AIReadinessTool({ onHome, memberName: mn }) {
 
   /* ═══ AI READINESS PIPELINE (no credits in preview, no DFS, no keywords) ═══ */
   const runAIReadiness = async (url) => {
-    /* Charge 2 credits up front (unified wallet). Abort only if the wallet confirms insufficient. */
+    /* Charge up front: 2 credits for a run of up to five tracked prompts, two more for every ten after that. The count comes from dash_state, which the dashboard keeps. Abort only if the wallet confirms insufficient. */
     try {
       const _mid = getMemberId();
       const _isU = _mid && /^[0-9a-f]{8}-/.test(_mid);
-      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 2 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 2 };
+      let _cost = 2;
+      if (_isU) {
+        try {
+          let _host = "";
+          try { _host = new URL(/^https?:/i.test(url) ? url : ("https://" + url)).hostname.replace(/^www\./, "").toLowerCase(); } catch (e) { _host = String(url || "").split("/")[0].replace(/^www\./, "").toLowerCase(); }
+          const _psRes = await fetch(`${SUPABASE_URL}/rest/v1/dash_state?user_id=eq.${_mid}&key=eq.prompts&select=value`, { headers: { "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY } });
+          const _psRows = await _psRes.json();
+          const _map = (_psRows && _psRows[0] && _psRows[0].value) || {};
+          const _n = Object.keys((_map && _map[_host]) || {}).length;
+          _cost = 2 + 2 * Math.ceil(Math.max(0, _n - 5) / 10);
+          console.log("[AIR] tracked prompts for", _host, _n, "so this run costs", _cost);
+        } catch (e) { console.warn("[AIR] prompt count unavailable, charging the base 2:", e); }
+      }
+      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: _cost } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: _cost };
       const _chRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/charge_credit`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY }, body: JSON.stringify(_chBody) });
       const _ch = await _chRes.json();
       console.log("[AIR] charge_credit:", _ch);
