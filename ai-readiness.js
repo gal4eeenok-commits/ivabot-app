@@ -1944,11 +1944,11 @@ function AIReadinessTool({ onHome, memberName: mn }) {
 
   /* ═══ AI READINESS PIPELINE (no credits in preview, no DFS, no keywords) ═══ */
   const runAIReadiness = async (url) => {
-    /* Charge 1 credit up front (unified wallet). Abort only if the wallet confirms insufficient. */
+    /* Charge 2 credits up front (unified wallet). Abort only if the wallet confirms insufficient. */
     try {
       const _mid = getMemberId();
       const _isU = _mid && /^[0-9a-f]{8}-/.test(_mid);
-      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 1 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 1 };
+      const _chBody = _isU ? { p_user_id: _mid, p_action: "ai_readiness", p_cost: 2 } : { p_member_id: _mid, p_action: "ai_readiness", p_cost: 2 };
       const _chRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/charge_credit`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (await ivaAuthToken()), "apikey": SUPABASE_KEY }, body: JSON.stringify(_chBody) });
       const _ch = await _chRes.json();
       console.log("[AIR] charge_credit:", _ch);
