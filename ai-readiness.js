@@ -1746,9 +1746,9 @@ async function generateCoveragePDF(data) {
         form.append("member_id", upMemberId);
         form.append("source_url", data.url || "");
         form.append("flow_type", "coverage");
-        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-          method: "POST", body: form
-        }).then(r => r.json()).then(res => {
+        ivaAuthToken().then(_ivaTk => fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+          method: "POST", headers: { "Authorization": "Bearer " + _ivaTk }, body: form
+        })).then(r => r.json()).then(res => {
           if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; } }
           else if (res?.url) { console.log("[CC] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; } }
           else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; } }
@@ -1880,7 +1880,7 @@ async function generateAIReadinessPDF(data) {
           form.append("member_id", upMemberId);
           form.append("source_url", data.url || "");
           form.append("flow_type", "ai_readiness");
-          fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", { method: "POST", body: form }).then(r => r.json()).then(res => {
+          ivaAuthToken().then(_ivaTk => fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", { method: "POST", headers: { "Authorization": "Bearer " + _ivaTk }, body: form })).then(r => r.json()).then(res => {
             if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = dk; } }
             else if (res?.url) { console.log("[AIR] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = dk; } }
             else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = dk; } }
