@@ -1466,9 +1466,9 @@ async function generateCBPDF(briefData, contentHtml, panelMode) {
         form.append("member_id", upMemberId);
         form.append("source_url", "");
         form.append("flow_type", "builder");
-        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-          method: "POST", body: form
-        }).then(r => r.json()).then(res => {
+        ivaAuthToken().then(_ivaTk => fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+          method: "POST", headers: { "Authorization": "Bearer " + _ivaTk }, body: form
+        })).then(r => r.json()).then(res => {
           if (res?.already_saved) { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; } }
           else if (res?.url) { console.log("[CB] PDF saved:", res.url); if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Saved To Dashboard"; pdfBtn.style.color = C.dark; } }
           else { if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Downloaded"; pdfBtn.style.color = C.dark; } }
