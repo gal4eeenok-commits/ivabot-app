@@ -1281,13 +1281,13 @@ async function generatePDF(data) {
         { text: "Want to improve your score?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
         { text: "Run another audit after making changes, or try our other tools:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
         { text: [
-          { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
+          { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz" },
 { text: "  \u2022  ", color: mt },
-{ text: "Content Coverage & AI Readiness", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" },
+{ text: "AI Readiness", bold: true, color: accentC, link: "https://ivabot.xyz" },
 { text: "  \u2022  ", color: mt },
-{ text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" }
+{ text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz" }
         ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
-        { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
+        { text: "ivabot.xyz", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz" }
       ],
       margin: [16, 16, 16, 16]
     }]] },
@@ -1304,7 +1304,7 @@ async function generatePDF(data) {
     defaultStyle: { fontSize: 11, color: dk },
     footer: (currentPage, pageCount) => ({
       columns: [
-        { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
+        { text: "Run your audit at ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz" },
         { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
       ],
       margin: [40, 10, 0, 0]
@@ -1478,7 +1478,7 @@ function IvaBotV6() {
     /* URL routing: ?tool=core|builder|coverage */
     const p = new URLSearchParams(window.location.search);
     const t = p.get("tool");
-    const savedCore = (t === "core" && _shellIsReload()) ? loadCoreReport(info.id) : null;
+    const savedCore = (t === "core" && _shellIsReload() && !p.get("report")) ? loadCoreReport(info.id) : null;
     if (savedCore) {
       setTimeout(() => { setTool("core"); setView("chat"); sPLoad(null); setAuditData(savedCore); setSR(true); setMsgs([{ from: "bot", content: "Here's your latest audit. Ask me anything about it, or start a New Audit.", id: Date.now() }]); }, 100);
     } else if (t && ["core","builder","coverage","readiness"].includes(t) && ((t === "core" && cr.core > 0) || (t === "builder" && cr.builder > 0) || (t === "coverage" && cr.coverage > 0) || (t === "readiness") || ((t === "builder" || t === "coverage") && _shellIsReload() && _hasFreshSaved(t, info.id)))) {
