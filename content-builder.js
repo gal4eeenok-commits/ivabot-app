@@ -1417,13 +1417,13 @@ async function generateCBPDF(briefData, contentHtml, panelMode) {
       { text: "Need more SEO tools?", fontSize: 16, bold: true, color: dk, alignment: "center", margin: [0, 0, 0, 6] },
       { text: "Run a full audit or check your content coverage:", fontSize: 11, color: mt, alignment: "center", margin: [0, 0, 0, 10] },
       { text: [
-        { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=core" },
+        { text: "Core Audit", bold: true, color: accentC, link: "https://ivabot.xyz" },
         { text: "  \u2022  ", color: mt },
-        { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=builder" },
+        { text: "Content Builder", bold: true, color: accentC, link: "https://ivabot.xyz" },
         { text: "  \u2022  ", color: mt },
-        { text: "Content Coverage", bold: true, color: accentC, link: "https://ivabot.xyz/app?tool=coverage" }
+        { text: "AI Readiness", bold: true, color: accentC, link: "https://ivabot.xyz" }
       ], alignment: "center", fontSize: 11, margin: [0, 0, 0, 10] },
-      { text: "ivabot.xyz/app", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz/app" }
+      { text: "ivabot.xyz", fontSize: 12, bold: true, color: accentC, alignment: "center", link: "https://ivabot.xyz" }
     ], margin: [16, 16, 16, 16]
   }]] }, layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => lavCardBdr, vLineColor: () => lavCardBdr, fillColor: () => lavCardBg }, margin: [0, 0, 0, 8] });
 
@@ -1432,7 +1432,7 @@ async function generateCBPDF(briefData, contentHtml, panelMode) {
     pageSize: "A4", pageMargins: [40, 40, 40, 50],
     defaultStyle: { fontSize: 11, color: dk },
     footer: (currentPage, pageCount) => ({ columns: [
-      { text: "Built with ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz/app" },
+      { text: "Built with ivabot.xyz", fontSize: 8, color: mt, alignment: "center", link: "https://ivabot.xyz" },
       { text: "Page " + currentPage + " of " + pageCount, fontSize: 8, color: mt, alignment: "right", margin: [0, 0, 40, 0] }
     ], margin: [40, 10, 0, 0] }),
     content: content
