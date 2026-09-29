@@ -1347,9 +1347,9 @@ async function generatePDF(data) {
         form.append("member_id", upMemberId);
         form.append("source_url", data.url || "");
         form.append("flow_type", "core");
-        fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
-          method: "POST", body: form
-        }).then(r => r.json()).then(d => {
+        ivaAuthToken().then(_ivaTk => fetch("https://empuzslozakbicmenxfo.supabase.co/functions/v1/upload-pdf", {
+          method: "POST", headers: { "Authorization": "Bearer " + _ivaTk }, body: form
+        })).then(r => r.json()).then(d => {
           if (d?.already_saved) {
             console.log("[IvaBot] PDF already saved for this audit");
             if (pdfBtn) { pdfBtn.innerHTML = "\u2713 Already Saved"; pdfBtn.style.color = C.dark; }
