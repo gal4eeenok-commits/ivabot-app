@@ -1,5 +1,6 @@
-/* IvaBot cookie consent v3 — narrow bar across the bottom — 23 Aug 2026
-   Loads GA4, Clarity, Meta Pixel and Reddit Pixel only after the visitor agrees.
+/* IvaBot cookie consent v4 — 18 Oct 2026: marketing consent also loads the Revshare affiliate script (program 6ad4aec4d6c2c9fb2801c367).
+   v3 — narrow bar across the bottom — 23 Aug 2026
+   Loads GA4, Clarity, Meta Pixel, Reddit Pixel and Revshare only after the visitor agrees.
    Nothing in here runs a tracker before a choice is made.
 
    Public API:
@@ -118,6 +119,15 @@
     window.rdt("init", REDDIT_ID);
     window.rdt("track", "PageVisit");
 
+    if (!document.getElementById("iva-revshare")) {
+      var rs = inject("https://www.revshare.so/tracking.js");
+      rs.id = "iva-revshare";
+      rs.setAttribute("data-program-id", "6ad4aec4d6c2c9fb2801c367");
+      rs.setAttribute("data-domain", ".ivabot.xyz");
+      rs.setAttribute("data-cookie-duration", "60");
+      console.log("[iva-consent] revshare tracking loaded");
+    }
+
     console.log("[iva-consent] marketing loaded");
     firePendingPurchase();
   }
@@ -234,7 +244,7 @@
       '<label for="iva-cc-ana">Analytics<span>Google Analytics and Microsoft Clarity, including session recordings, so I can see which pages are used and where people get stuck.</span></label>'));
     opts.appendChild(el("div", { "class": "iva-cc-opt" },
       '<input type="checkbox" id="iva-cc-mkt"' + (current && current.marketing ? " checked" : "") + '>' +
-      '<label for="iva-cc-mkt">Marketing<span>Meta and Reddit pixels, used to measure which ads bring visitors.</span></label>'));
+      '<label for="iva-cc-mkt">Marketing<span>Meta and Reddit pixels, used to measure which ads bring visitors, and the Revshare cookie, used to credit partners who referred you.</span></label>'));
     root.appendChild(opts);
 
     var row = el("div", { "class": "iva-cc-row", style: "margin-top:14px" });
@@ -297,5 +307,5 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 
-  console.log("[iva-consent] v3 ready");
+  console.log("[iva-consent] v4 ready");
 })();
